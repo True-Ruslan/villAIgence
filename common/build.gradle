@@ -71,6 +71,13 @@ neoForge {
 
 dependencies {
     compileOnly 'org.spongepowered:mixin:0.8.5'
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }
 
 configurations {
