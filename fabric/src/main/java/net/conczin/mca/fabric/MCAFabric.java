@@ -7,6 +7,7 @@ import net.conczin.mca.entity.ai.MemoryModuleTypeMCA;
 import net.conczin.mca.entity.ai.SchedulesMCA;
 import net.conczin.mca.entity.ai.SensorsMCA;
 import net.conczin.mca.fabric.resources.*;
+import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.network.HandleablePayload;
 import net.conczin.mca.network.MessagesMCA;
 import net.conczin.mca.network.Network;
@@ -81,6 +82,8 @@ public final class MCAFabric implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        LivingWorldConfig.getInstance();
+
         registerHelper(BuiltInRegistries.ITEM, ItemsMCA::registerItems);
         registerHelper(BuiltInRegistries.BLOCK, BlocksMCA::registerBlocks);
         registerHelper(BuiltInRegistries.SOUND_EVENT, SoundsMCA::registerSounds);
@@ -152,4 +155,3 @@ public final class MCAFabric implements ModInitializer {
         }
     }
 }
-
