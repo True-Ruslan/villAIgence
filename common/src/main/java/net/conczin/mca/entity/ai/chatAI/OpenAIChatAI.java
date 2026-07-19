@@ -1,6 +1,7 @@
 package net.conczin.mca.entity.ai.chatAI;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
@@ -11,6 +12,8 @@ import net.conczin.mca.entity.ai.Messenger;
 import net.conczin.mca.entity.ai.Relationship;
 import net.conczin.mca.entity.ai.chatAI.modules.*;
 import net.conczin.mca.entity.ai.relationship.AgeState;
+import net.conczin.mca.livingworld.ai.AiProviderSettings;
+import net.conczin.mca.livingworld.ai.LivingWorldAI;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -32,6 +35,8 @@ import java.util.*;
 public class OpenAIChatAI implements ChatAIStrategy {
     private static final int MAX_MEMORY = 500;
     private static final int MAX_MEMORY_TIME = 20 * 60 * 45;
+    private static final int DEFAULT_CONNECT_TIMEOUT_MILLIS = 10_000;
+    private static final int DEFAULT_READ_TIMEOUT_MILLIS = 60_000;
 
     private static final Map<UUID, List<Tuple<String, String>>> memory = new HashMap<>();
     private static final Map<UUID, Long> lastInteractions = new HashMap<>();
@@ -40,13 +45,20 @@ public class OpenAIChatAI implements ChatAIStrategy {
         return phrase.replace("_", " ").toLowerCase(Locale.ROOT).replace("mca.", "");
     }
 
-    private static HttpURLConnection getHttpURLConnection(String url, String token) throws IOException {
+    private static HttpURLConnection getHttpURLConnection(
+            String url,
+            String token,
+            int connectTimeoutMillis,
+            int readTimeoutMillis
+    ) throws IOException {
         HttpURLConnection con = (HttpURLConnection) (URI.create(url)).toURL().openConnection();
         con.setRequestMethod("POST");
         con.setRequestProperty("Accept-Charset", StandardCharsets.UTF_8.toString());
         con.setRequestProperty("Content-Type", "application/json");
         con.setRequestProperty("Accept", "application/json");
         con.setRequestProperty("Authorization", "Bearer " + token);
+        con.setConnectTimeout(connectTimeoutMillis);
+        con.setReadTimeout(readTimeoutMillis);
 
         // Enable input and output streams
         con.setDoOutput(true);
@@ -55,8 +67,10 @@ public class OpenAIChatAI implements ChatAIStrategy {
 
     private static Answer parseAnswer(String body) {
         JsonObject map = JsonParser.parseString(body).getAsJsonObject();
-        String message = map.has("choices") ? map.getAsJsonArray("choices").get(0).getAsJsonObject().getAsJsonObject("message").getAsJsonPrimitive("content").getAsString() : null;
-        String error = map.has("error") ? map.get("error").getAsString().trim().replace("\n", " ") : null;
+        String message = map.has("choices")
+                ? map.getAsJsonArray("choices").get(0).getAsJsonObject().getAsJsonObject("message").getAsJsonPrimitive("content").getAsString()
+                : null;
+        String error = parseError(map.get("error"));
 
         if (message != null) {
             // Parse json further
@@ -72,8 +86,8 @@ public class OpenAIChatAI implements ChatAIStrategy {
         StructuredResponse structuredReply;
         try {
             structuredReply = new Gson().fromJson(message, StructuredResponse.class);
-        } catch (JsonSyntaxException e) {
-            MCA.LOGGER.warn("Error parsing answer: {} ({})", message, e.getMessage());
+        } catch (JsonSyntaxException | IllegalStateException e) {
+            MCA.LOGGER.warn("Error parsing structured AI answer: {} ({})", message, e.getMessage());
 
             // just treat the message as normal
             structuredReply = new StructuredResponse(cleanupAnswer(message), "");
@@ -82,9 +96,54 @@ public class OpenAIChatAI implements ChatAIStrategy {
         return new Answer(structuredReply, error);
     }
 
+    private static String parseError(@Nullable JsonElement errorElement) {
+        if (errorElement == null || errorElement.isJsonNull()) {
+            return null;
+        }
+
+        if (errorElement.isJsonObject()) {
+            JsonObject error = errorElement.getAsJsonObject();
+            if (error.has("message") && !error.get("message").isJsonNull()) {
+                return cleanupError(error.get("message").getAsString());
+            }
+            if (error.has("code") && !error.get("code").isJsonNull()) {
+                return cleanupError(error.get("code").getAsString());
+            }
+        }
+
+        if (errorElement.isJsonPrimitive()) {
+            return cleanupError(errorElement.getAsString());
+        }
+        return cleanupError(errorElement.toString());
+    }
+
+    private static String cleanupError(String error) {
+        return error == null ? null : error.trim().replace("\n", " ");
+    }
+
     public static Answer post(String url, String requestBody, String token) {
+        return post(url, requestBody, token, DEFAULT_CONNECT_TIMEOUT_MILLIS, DEFAULT_READ_TIMEOUT_MILLIS);
+    }
+
+    private static Answer post(AiProviderSettings settings, String requestBody, String token) {
+        return post(
+                settings.endpoint(),
+                requestBody,
+                token,
+                settings.connectTimeoutMillis(),
+                settings.readTimeoutMillis()
+        );
+    }
+
+    private static Answer post(
+            String url,
+            String requestBody,
+            String token,
+            int connectTimeoutMillis,
+            int readTimeoutMillis
+    ) {
         try {
-            HttpURLConnection con = getHttpURLConnection(url, token);
+            HttpURLConnection con = getHttpURLConnection(url, token, connectTimeoutMillis, readTimeoutMillis);
 
             // Write the request body to the connection
             try (DataOutputStream wr = new DataOutputStream(con.getOutputStream())) {
@@ -92,13 +151,26 @@ public class OpenAIChatAI implements ChatAIStrategy {
                 wr.flush();
             }
 
-            InputStream response = con.getInputStream();
-            String body = IOUtils.toString(response, StandardCharsets.UTF_8);
+            int status = con.getResponseCode();
+            InputStream response = status >= 200 && status < 300 ? con.getInputStream() : con.getErrorStream();
+            if (response == null) {
+                return new Answer(null, "AI provider returned HTTP " + status);
+            }
 
-            return parseAnswer(body);
+            String body;
+            try (response) {
+                body = IOUtils.toString(response, StandardCharsets.UTF_8);
+            }
+
+            Answer answer = parseAnswer(body);
+            if (status < 200 || status >= 300) {
+                String error = answer.error != null ? answer.error : "AI provider returned HTTP " + status;
+                return new Answer(answer.answer, error);
+            }
+            return answer;
         } catch (Exception e) {
-            MCA.LOGGER.error(e);
-            return new Answer(null, "Unknown error, check log!");
+            MCA.LOGGER.error("AI provider request failed", e);
+            return new Answer(null, "AI provider request failed; check server log");
         }
     }
 
@@ -107,6 +179,8 @@ public class OpenAIChatAI implements ChatAIStrategy {
             // receive
             HttpURLConnection con = (HttpURLConnection) (URI.create(encodedURL)).toURL().openConnection();
             con.setRequestProperty("Accept-Charset", StandardCharsets.UTF_8.toString());
+            con.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_MILLIS);
+            con.setReadTimeout(DEFAULT_READ_TIMEOUT_MILLIS);
             InputStream response = con.getInputStream();
             String body = IOUtils.toString(response, StandardCharsets.UTF_8);
 
@@ -146,7 +220,8 @@ public class OpenAIChatAI implements ChatAIStrategy {
     public Optional<String> answer(ServerPlayer player, VillagerEntityMCA villager, String msg) {
         try {
             Config config = Config.getInstance();
-            boolean isInHouse = config.villagerChatAIEndpoint.contains("conczin.net");
+            AiProviderSettings providerSettings = LivingWorldAI.resolveChatProviderSettings();
+            boolean isInHouse = providerSettings.endpoint().contains("conczin.net");
 
             String playerName = Messenger.getName(player);
             String villagerName = villager.getName().getString();
@@ -255,7 +330,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
             // construct body
             StringBuilder body = new StringBuilder();
             body.append("{");
-            body.append("\"model\": \"").append(config.villagerChatAIModel).append("\",");
+            body.append("\"model\": ").append(jsonStringQuote(providerSettings.model())).append(",");
             // START Messages
             body.append("\"messages\": [");
             // System Message
@@ -277,14 +352,11 @@ public class OpenAIChatAI implements ChatAIStrategy {
             body.append("]");
             body.append("}");
 
-            // get access token
-            String token = config.villagerChatAIToken;
-            if (token.isEmpty() || config.villagerChatAIEndpoint.contains("conczin.net")) {
-                token = player.getName().getString();
-            }
+            String token = providerSettings.usePlayerNameAsToken()
+                    ? player.getName().getString()
+                    : providerSettings.apiKey();
 
-            // encode and create url
-            Answer message = post(config.villagerChatAIEndpoint, body.toString(), token);
+            Answer message = post(providerSettings, body.toString(), token);
 
             if (message.error == null) {
                 if (message.answer != null) {
