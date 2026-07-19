@@ -12,7 +12,8 @@ public record AiProviderSettings(
         String apiKey,
         int connectTimeoutMillis,
         int readTimeoutMillis,
-        boolean usePlayerNameAsToken
+        boolean usePlayerNameAsToken,
+        boolean includeMessageNames
 ) {
     public AiProviderSettings {
         endpoint = Objects.requireNonNull(endpoint, "endpoint");
