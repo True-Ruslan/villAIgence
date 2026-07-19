@@ -82,7 +82,9 @@ public final class MCAFabric implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        LivingWorldConfig.getInstance();
+        if (FabricLoader.getInstance().getEnvironmentType() == EnvType.SERVER) {
+            LivingWorldConfig.getInstance();
+        }
 
         registerHelper(BuiltInRegistries.ITEM, ItemsMCA::registerItems);
         registerHelper(BuiltInRegistries.BLOCK, BlocksMCA::registerBlocks);
