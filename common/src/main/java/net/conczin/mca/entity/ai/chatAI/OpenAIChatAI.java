@@ -341,13 +341,19 @@ public class OpenAIChatAI implements ChatAIStrategy {
                 String role = pair.getA();
                 String content = pair.getB();
                 String name = role.equals("user") ? playerName : villagerName;
-                body.append("{\"role\": \"").append(role)
-                        .append("\", \"name\": \"").append(name)
-                        .append("\", \"content\": ").append(jsonStringQuote(content)).append("},");
+                body.append("{\"role\": ").append(jsonStringQuote(role));
+                if (providerSettings.includeMessageNames()) {
+                    body.append(", \"name\": ").append(jsonStringQuote(name));
+                }
+                body.append(", \"content\": ").append(jsonStringQuote(content)).append("},");
             }
             // User Message
             String userContent = config.villagerChatAIFuseSystemPrompt ? system + "\n\n" + msg : msg;
-            body.append("{\"role\": \"user\", \"name\": \"").append(playerName).append("\", \"content\": ").append(jsonStringQuote(userContent)).append("}");
+            body.append("{\"role\": \"user\"");
+            if (providerSettings.includeMessageNames()) {
+                body.append(", \"name\": ").append(jsonStringQuote(playerName));
+            }
+            body.append(", \"content\": ").append(jsonStringQuote(userContent)).append("}");
             // END Messages
             body.append("]");
             body.append("}");
