@@ -27,6 +27,7 @@ public final class LivingWorldAI {
                 livingWorld.resolvedApiKey(),
                 AiProviderSettings.secondsToMillis(livingWorld.connectTimeoutSeconds),
                 AiProviderSettings.secondsToMillis(livingWorld.readTimeoutSeconds),
+                false,
                 false
         );
 
@@ -39,7 +40,8 @@ public final class LivingWorldAI {
                 legacyToken,
                 AiProviderSettings.secondsToMillis(LEGACY_CONNECT_TIMEOUT_SECONDS),
                 AiProviderSettings.secondsToMillis(LEGACY_READ_TIMEOUT_SECONDS),
-                usePlayerNameAsToken
+                usePlayerNameAsToken,
+                true
         );
 
         return selectSettings(livingWorld.isConfigured(), livingWorldSettings, legacySettings);
