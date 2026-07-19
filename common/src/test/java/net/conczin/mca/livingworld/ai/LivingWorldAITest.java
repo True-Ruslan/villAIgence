@@ -3,7 +3,9 @@ package net.conczin.mca.livingworld.ai;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LivingWorldAITest {
     @Test
@@ -14,6 +16,7 @@ class LivingWorldAITest {
                 "sk-test",
                 10_000,
                 60_000,
+                false,
                 false
         );
         AiProviderSettings legacy = new AiProviderSettings(
@@ -22,11 +25,14 @@ class LivingWorldAITest {
                 "legacy-token",
                 10_000,
                 60_000,
-                false
+                false,
+                true
         );
 
         assertSame(livingWorld, LivingWorldAI.selectSettings(true, livingWorld, legacy));
         assertSame(legacy, LivingWorldAI.selectSettings(false, livingWorld, legacy));
+        assertFalse(livingWorld.includeMessageNames());
+        assertTrue(legacy.includeMessageNames());
     }
 
     @Test
