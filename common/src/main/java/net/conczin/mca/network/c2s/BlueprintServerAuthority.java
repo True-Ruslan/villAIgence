@@ -14,12 +14,19 @@ final class BlueprintServerAuthority {
     private BlueprintServerAuthority() {
     }
 
+    static Optional<Village> nearestVillage(ServerPlayer player) {
+        return VillageManager.get(player.serverLevel()).findNearestVillage(player);
+    }
+
+    static Optional<Village> requestedVillage(ServerPlayer player, int requestedVillageId) {
+        return nearestVillage(player).filter(village -> village.getId() == requestedVillageId);
+    }
+
     static Optional<Village> nearestAuthorized(
             ServerPlayer player,
             BlueprintPermissionPolicy.Operation operation
     ) {
-        return VillageManager.get(player.serverLevel()).findNearestVillage(player)
-                .filter(village -> hasPermission(village, player, operation));
+        return nearestVillage(player).filter(village -> hasPermission(village, player, operation));
     }
 
     static Optional<Village> requestedAuthorized(
@@ -27,9 +34,12 @@ final class BlueprintServerAuthority {
             int requestedVillageId,
             BlueprintPermissionPolicy.Operation operation
     ) {
-        return VillageManager.get(player.serverLevel()).findNearestVillage(player)
-                .filter(village -> village.getId() == requestedVillageId)
+        return requestedVillage(player, requestedVillageId)
                 .filter(village -> hasPermission(village, player, operation));
+    }
+
+    static Rank rank(Village village, ServerPlayer player) {
+        return Tasks.getRank(village, player);
     }
 
     static boolean hasPermission(
@@ -37,8 +47,7 @@ final class BlueprintServerAuthority {
             ServerPlayer player,
             BlueprintPermissionPolicy.Operation operation
     ) {
-        Rank rank = Tasks.getRank(village, player);
-        return BlueprintPermissionPolicy.can(rank, operation);
+        return BlueprintPermissionPolicy.can(rank(village, player), operation);
     }
 
     static void deny(ServerPlayer player) {
