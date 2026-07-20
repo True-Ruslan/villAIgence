@@ -47,8 +47,10 @@ jobs:
           set -e
 
           if [ "$status" -ne 0 ]; then
-            echo "Gradle failed; showing diagnostic tail:"
-            tail -n 180 gradle-build.log
+            echo "Gradle failed; extracted diagnostics:"
+            grep -En "error:|FAILURE:|What went wrong:|Execution failed|Could not|Caused by:|FAILED" gradle-build.log | tail -n 120 || true
+            echo "--- final 80 log lines ---"
+            tail -n 80 gradle-build.log
             exit "$status"
           fi
 
