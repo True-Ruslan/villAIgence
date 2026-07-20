@@ -16,6 +16,9 @@ import net.conczin.mca.entity.ai.relationship.AgeState;
 import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.knowledge.WorldEvent;
 import net.conczin.mca.livingworld.knowledge.WorldEventStore;
+import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipActionPolicy;
+import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipState;
+import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipStore;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
@@ -38,6 +41,7 @@ public final class LivingWorldContextCapture {
 
     /** Must be called on the Minecraft server thread. */
     public static LivingWorldContextSnapshot capture(ServerPlayer player, VillagerEntityMCA villager) {
+        LivingWorldConfig livingWorld = LivingWorldConfig.getInstance();
         List<String> context = new ArrayList<>();
         PersonalityModule.apply(context, villager, player);
         TraitsModule.apply(context, villager, player);
@@ -76,10 +80,13 @@ public final class LivingWorldContextCapture {
         }
 
         addRecentEventFacts(worldFacts, worldRoot, dimension, position, gameTime);
+        LivingWorldRelationshipState relationshipState = loadRelationshipState(livingWorld, worldFacts, worldRoot, villager, player);
 
         List<LivingWorldContextSnapshot.ActionDescriptor> actions = Config.getInstance().villagerChatAIUseTools
                 ? TriggerCommandInfos.triggerCommands.stream()
                 .filter(command -> command.isActive == null || command.isActive.test(player, villager))
+                .filter(command -> !livingWorld.relationshipStateEnabled
+                        || LivingWorldRelationshipActionPolicy.isAllowed(command.command, relationshipState))
                 .map(command -> new LivingWorldContextSnapshot.ActionDescriptor(command.command, command.description))
                 .toList()
                 : List.of();
@@ -102,6 +109,26 @@ public final class LivingWorldContextCapture {
                 Relationship.IS_RELATIVE.test(villager, player),
                 MCA.language
         );
+    }
+
+    private static LivingWorldRelationshipState loadRelationshipState(
+            LivingWorldConfig config,
+            List<String> worldFacts,
+            Path worldRoot,
+            VillagerEntityMCA villager,
+            ServerPlayer player
+    ) {
+        if (!config.relationshipStateEnabled) return LivingWorldRelationshipState.NEUTRAL;
+        try {
+            LivingWorldRelationshipState state = LivingWorldRelationshipStore.forWorld(worldRoot)
+                    .get(villager.getUUID(), player.getUUID());
+            worldFacts.add(state.factualSummary());
+            return state;
+        } catch (RuntimeException e) {
+            MCA.LOGGER.warn("Unable to load LivingWorld relationship state for villager {} and player {}",
+                    villager.getUUID(), player.getUUID(), e);
+            return LivingWorldRelationshipState.NEUTRAL;
+        }
     }
 
     private static void addRecentEventFacts(List<String> worldFacts, Path worldRoot, String dimension, BlockPos position, long gameTime) {
