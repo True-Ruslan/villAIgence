@@ -24,6 +24,8 @@ class LivingWorldConfigTest {
         assertEquals(72_000L, config.eventMemoryMaxAgeTicks);
         assertEquals(32.0D, config.eventContextRadius);
         assertEquals(8, config.eventContextMaxEvents);
+        assertTrue(config.relationshipStateEnabled);
+        assertEquals(2, config.relationshipMaxDeltaPerTurn);
         assertTrue(config.voiceEnabled);
         assertEquals("https://api.openai.com/v1/audio/transcriptions", config.sttEndpoint);
         assertEquals("gpt-4o-mini-transcribe", config.sttModel);
