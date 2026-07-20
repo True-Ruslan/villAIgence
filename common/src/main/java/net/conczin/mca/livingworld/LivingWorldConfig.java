@@ -26,6 +26,10 @@ public final class LivingWorldConfig {
     public String endpoint = "https://api.openai.com/v1/chat/completions";
     public String model = "gpt-4.1-mini";
 
+    public boolean persistentMemoryEnabled = true;
+    public int persistentMemoryMaxMessages = 16;
+    public int persistentMemoryMaxCharsPerMessage = 1200;
+
     public boolean voiceEnabled = true;
     public String sttEndpoint = "https://api.openai.com/v1/audio/transcriptions";
     public String sttModel = "gpt-4o-mini-transcribe";
@@ -100,6 +104,8 @@ public final class LivingWorldConfig {
         if (provider == null || provider.isBlank()) provider = "openai";
         if (endpoint == null || endpoint.isBlank()) endpoint = "https://api.openai.com/v1/chat/completions";
         if (model == null || model.isBlank()) model = "gpt-4.1-mini";
+        if (persistentMemoryMaxMessages < 2) persistentMemoryMaxMessages = 16;
+        if (persistentMemoryMaxCharsPerMessage < 1) persistentMemoryMaxCharsPerMessage = 1200;
         if (sttEndpoint == null || sttEndpoint.isBlank()) sttEndpoint = "https://api.openai.com/v1/audio/transcriptions";
         if (sttModel == null || sttModel.isBlank()) sttModel = "gpt-4o-mini-transcribe";
         if (sttLanguage == null) sttLanguage = "";
