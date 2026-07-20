@@ -10,7 +10,7 @@ This is a Fabric-only alpha for Minecraft 1.21.1.
 
 ## What CI does automatically
 
-When a valid release tag is pushed, `.github/workflows/gradle.yml`:
+When a valid release tag is pushed, `.github/workflows/livingworld-release.yml`:
 
 1. validates the tag format;
 2. verifies the tag points exactly to the current `1.21.1` branch head;
