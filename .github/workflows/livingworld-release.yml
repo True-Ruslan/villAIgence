@@ -1,6 +1,9 @@
 name: LivingWorld GitHub Release
 
 on:
+  push:
+    tags:
+      - '**'
   pull_request:
     branches:
       - '1.21.1'
@@ -10,6 +13,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: livingworld-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   startup-probe:
