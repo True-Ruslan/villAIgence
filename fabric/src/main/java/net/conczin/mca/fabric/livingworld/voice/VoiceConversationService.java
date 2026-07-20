@@ -17,6 +17,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -30,32 +31,51 @@ final class VoiceConversationService implements AutoCloseable {
     });
     private final OpenAIAudioProvider audioProvider = new OpenAIAudioProvider(LivingWorldConfig.getInstance());
     private final Map<UUID, AudioPlayer> activePlayback = new ConcurrentHashMap<>();
+    private final Set<UUID> busyPlayers = ConcurrentHashMap.newKeySet();
     private volatile VoicechatServerApi serverApi;
 
     void setServerApi(VoicechatServerApi serverApi) {
         this.serverApi = serverApi;
     }
 
+    boolean isBusy(UUID playerId) {
+        return busyPlayers.contains(playerId);
+    }
+
     void process(UUID playerId, short[] microphonePcm) {
+        if (!busyPlayers.add(playerId)) return;
         executor.execute(() -> transcribeAndRoute(playerId, microphonePcm));
     }
 
     private void transcribeAndRoute(UUID playerId, short[] microphonePcm) {
         try {
             String transcript = audioProvider.transcribe(new PcmAudio(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE, microphonePcm));
-            if (transcript.isBlank()) return;
+            if (transcript.isBlank()) {
+                busyPlayers.remove(playerId);
+                return;
+            }
 
             Optional<MinecraftServer> optionalServer = MCA.getServer();
-            if (optionalServer.isEmpty()) return;
+            if (optionalServer.isEmpty()) {
+                busyPlayers.remove(playerId);
+                return;
+            }
             MinecraftServer server = optionalServer.get();
             server.execute(() -> {
                 ServerPlayer player = server.getPlayerList().getPlayer(playerId);
-                if (player == null) return;
-                ChatAI.getActiveConversationVillager(player).ifPresent(villager ->
-                        executor.execute(() -> answerAndSpeak(server, player, villager, transcript))
-                );
+                if (player == null) {
+                    busyPlayers.remove(playerId);
+                    return;
+                }
+                Optional<VillagerEntityMCA> target = ChatAI.getActiveConversationVillager(player);
+                if (target.isEmpty()) {
+                    busyPlayers.remove(playerId);
+                    return;
+                }
+                executor.execute(() -> answerAndSpeak(server, player, target.get(), transcript));
             });
         } catch (Exception e) {
+            busyPlayers.remove(playerId);
             MCA.LOGGER.warn("LivingWorld speech-to-text failed for player {}", playerId, e);
         }
     }
@@ -76,6 +96,8 @@ final class VoiceConversationService implements AutoCloseable {
             server.execute(() -> playSpatial(villager, speech.samples()));
         } catch (Exception e) {
             MCA.LOGGER.warn("LivingWorld voice conversation failed for player {} and villager {}", player.getUUID(), villager.getUUID(), e);
+        } finally {
+            busyPlayers.remove(player.getUUID());
         }
     }
 
@@ -119,6 +141,7 @@ final class VoiceConversationService implements AutoCloseable {
             if (!player.isStopped()) player.stopPlaying();
         });
         activePlayback.clear();
+        busyPlayers.clear();
         executor.shutdownNow();
         serverApi = null;
     }
