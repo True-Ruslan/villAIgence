@@ -69,19 +69,23 @@ Player conversations/actions should have gameplay consequences instead of being 
 
 ### Upstream #1140 — spouse/parent/child dialogue identity
 
-**Status:** INVESTIGATE / high product value
+**Status:** PARTIALLY COVERED / NEEDS REPRODUCTION
 
-Report says spouses/children sometimes talk as strangers/adults. Original report is for 1.20.1, so runtime reproduction is required on our 1.21.1 stack.
+The original report is for 1.20.1 and says spouses/children can talk as strangers/adults. Current `1.21.1` ChatAI already injects explicit age (`baby`, `toddler`, `child`, `teen`) and relationship facts (`married`, `parent`, `child`, `relative`) into the LLM context, so this is **not** currently proven as a LivingWorld/ChatAI context defect.
 
-**Our action:** age/kinship/relationship identity snapshot and dialogue tests. Do not mark as confirmed 1.21.1 runtime bug until reproduced.
+**Our action:** reproduce the classic MCA dialogue path on 1.21.1 and add regression tests for spouse/parent/child wording. Keep stronger identity context in the future Context Snapshot.
+
+---
+
+## VERIFIED FIXED / OBSOLETE FOR CURRENT FORK
 
 ### Upstream #912 — flirty trait on children
 
-**Status:** INVESTIGATE / safety & quality
+**Status:** VERIFIED FIXED in current `1.21.1`
 
-Our LLM prompt already forbids romantic/flirty child responses, but invalid trait/domain combinations should be prevented in the domain layer, not only hidden by prompt rules.
+Current code in `Personality.getRandom(AgeState)` explicitly excludes `FLIRTY` for `BABY`, `TODDLER`, and `CHILD`. LivingWorld's LLM prompt independently blocks romantic/flirty child responses as defense in depth.
 
-**Our action:** audit trait generation/inheritance/editor paths and prevent age-incompatible traits/behaviors.
+**Our action:** no feature work. Add/retain a regression test when touching personality generation so this rule cannot regress.
 
 ---
 
@@ -182,7 +186,7 @@ An issue remaining `open` upstream is **not** sufficient reason to copy it into 
 1. **Context Snapshot / thread-boundary architecture** — foundation for #1314 and part of #1243.
 2. **Pathfinding + anti-stuck audit** — #884 + #1088 + #862/#929/#1148.
 3. **Blueprint permission audit** — #580.
-4. **Age/kinship/relationship correctness** — #912 + #1140 + #1292.
+4. **Age/kinship/relationship correctness** — reproduce #1140 + implement relationship consequences from #1292; #912 is verified fixed.
 5. **Upstream sync gate** — do not import `7.7.23-alpha` blueprint work until #1373/#1372 are verified.
 
 ## Maintenance
