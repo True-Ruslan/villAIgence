@@ -15,6 +15,7 @@ class LivingWorldConfigTest {
         assertEquals("openai", config.provider);
         assertEquals("https://api.openai.com/v1/chat/completions", config.endpoint);
         assertEquals("gpt-4.1-mini", config.model);
+        assertTrue(config.safeActionsEnabled);
         assertTrue(config.persistentMemoryEnabled);
         assertEquals(16, config.persistentMemoryMaxMessages);
         assertEquals(1200, config.persistentMemoryMaxCharsPerMessage);

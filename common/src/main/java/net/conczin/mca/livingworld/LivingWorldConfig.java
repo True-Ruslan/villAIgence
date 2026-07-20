@@ -3,7 +3,9 @@ package net.conczin.mca.livingworld;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import net.conczin.mca.Config;
 import net.conczin.mca.MCA;
+import net.conczin.mca.livingworld.actions.LivingWorldActionPolicy;
 
 import java.io.File;
 import java.io.FileReader;
@@ -25,6 +27,8 @@ public final class LivingWorldConfig {
 
     public String endpoint = "https://api.openai.com/v1/chat/completions";
     public String model = "gpt-4.1-mini";
+
+    public boolean safeActionsEnabled = true;
 
     public boolean persistentMemoryEnabled = true;
     public int persistentMemoryMaxMessages = 16;
@@ -84,6 +88,7 @@ public final class LivingWorldConfig {
                 LivingWorldConfig config = gson().fromJson(reader, LivingWorldConfig.class);
                 if (config != null && config.version == VERSION) {
                     config.normalize();
+                    applyRuntimeCompatibility(config);
                     config.save();
                     return config;
                 }
@@ -95,8 +100,18 @@ public final class LivingWorldConfig {
             }
         }
         LivingWorldConfig config = new LivingWorldConfig();
+        applyRuntimeCompatibility(config);
         config.save();
         return config;
+    }
+
+    private static void applyRuntimeCompatibility(LivingWorldConfig livingWorld) {
+        Config mca = Config.getInstance();
+        mca.villagerChatAIUseTools = LivingWorldActionPolicy.shouldExposeTools(
+                livingWorld.isConfigured(),
+                livingWorld.safeActionsEnabled,
+                mca.villagerChatAIUseTools
+        );
     }
 
     private void normalize() {

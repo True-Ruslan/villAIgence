@@ -15,6 +15,7 @@ You may instead set `OPENAI_API_KEY` in the server environment. The environment 
 The generated config already contains working defaults for:
 
 - LLM: `gpt-4.1-mini`
+- safe whitelisted NPC actions: enabled
 - persistent per-NPC/per-player conversation memory: enabled, 16 messages, 1200 characters per stored message
 - STT: `gpt-4o-mini-transcribe`
 - TTS: `tts-1`
@@ -28,6 +29,10 @@ For the normal MVP setup, do not change those values.
 
 Never commit a real API key to Git or include it in a modpack. API credentials are only needed by the dedicated server; players do not configure an AI provider.
 
+## Safe actions
+
+`safeActionsEnabled=true` exposes only MCA's hard-coded AI action whitelist. It does not grant arbitrary command execution. See `docs/livingworld/ACTIONS.md`.
+
 ## Persistent memory
 
 LivingWorld stores bounded rolling dialogue memory in `<world>/livingworld/memory.json`. Back it up together with the Minecraft world. See `docs/livingworld/MEMORY.md` for details.
@@ -40,4 +45,4 @@ See `docs/livingworld/VOICE.md` for the interaction flow and troubleshooting.
 
 ## Backward compatibility
 
-If LivingWorld is disabled, uses an unsupported provider, or has no API key, the fork falls back to MCA's existing `mca.json` ChatAI configuration. Persistent LivingWorld memory is used only for the configured direct LivingWorld provider path.
+If LivingWorld is disabled, uses an unsupported provider, or has no API key, the fork falls back to MCA's existing `mca.json` ChatAI configuration. Persistent LivingWorld memory and the LivingWorld safe-action switch are used only for the configured direct LivingWorld provider path.
