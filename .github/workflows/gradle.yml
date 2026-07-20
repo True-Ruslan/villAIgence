@@ -121,7 +121,11 @@ jobs:
               exit 1
             fi
           else
-            mapfile -t candidates < <(find fabric/build/libs -maxdepth 1 -type f -name 'mca-fabric-*.jar' ! -name '*-sources.jar' ! -name '*-dev.jar' | sort)
+            mapfile -t candidates < <(find fabric/build/libs -maxdepth 1 -type f -name 'mca-fabric-*.jar' \
+              ! -name '*-sources.jar' \
+              ! -name '*-dev.jar' \
+              ! -name '*-dev-shadow.jar' \
+              ! -name '*-shadow.jar' | sort)
             if [[ "${#candidates[@]}" -ne 1 ]]; then
               echo "::error title=Unexpected Fabric JAR set::Expected exactly one distributable Fabric JAR, found ${#candidates[@]}."
               printf '%s\n' "${candidates[@]}"
@@ -197,17 +201,17 @@ jobs:
           - Fabric API for Minecraft ${MINECRAFT_VERSION}
           - Simple Voice Chat 2.6.20 or newer
 
-          **Important:** this JAR keeps MCA's internal mod id (`mca`). Remove the original MCA Reborn JAR before installing this fork; do not install both at the same time.
+          **Important:** this JAR keeps MCA's internal mod id mca. Remove the original MCA Reborn JAR before installing this fork; do not install both at the same time.
 
-          For the normal LivingWorld MVP, the server owner only needs to set `OPENAI_API_KEY` or `apiKey` in `config/livingworld.json` after the first server start.
+          For the normal LivingWorld MVP, the server owner only needs to set OPENAI_API_KEY or apiKey in config/livingworld.json after the first server start.
 
           This is an alpha build intended for controlled testing. Back up the world before installing or updating.
 
           **SHA-256**
 
-          ```text
+          ~~~text
           ${checksum}
-          ```
+          ~~~
           EOF
 
           prerelease_args=()
