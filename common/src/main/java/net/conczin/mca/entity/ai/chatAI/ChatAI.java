@@ -13,44 +13,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 public class ChatAI {
-    /**
-     * Max range to find a villager in
-     */
     private static final int VILLAGER_SEARCH_RANGE = 32;
-
-    /**
-     * Max time until a conversation is considered invalid
-     */
     private static final int CONVERSATION_TIME = 20 * 60;
-
-    /**
-     * Max distance until a conversation is considered invalid
-     */
     private static final int CONVERSATION_DISTANCE = 16;
 
-    /**
-     * Map of villager UUIDs to strategies (i.e. managed by InworldAI or GPT3)
-     */
-    private static final Map<UUID, ChatAIStrategy> strategies = new HashMap<>();
-
-    /**
-     * Current conversation of player. <p>
-     * A player can max. have 1 conversation at all times.
-     */
+    private static final Map<UUID, ChatAIStrategy> strategies = new ConcurrentHashMap<>();
     private static final Map<UUID, OpenConversation> currentConversations = new ConcurrentHashMap<>();
 
-    /**
-     * Gets an answer for a specific message for a villager from a player with the villager-specific chat strategy.
-     */
     public static Optional<String> answer(ServerPlayer player, VillagerEntityMCA villager, String msg) {
         ChatAIStrategy strategy = computeStrategyIfAbsent(villager.getUUID());
         openConversation(player, villager);
         return strategy.answer(player, villager, msg);
     }
 
-    /**
-     * Snapshot-aware answer path for LivingWorld. The snapshot must have been captured on the Minecraft server thread.
-     */
+    /** Snapshot-aware answer path for LivingWorld. Snapshot capture happens on the Minecraft server thread. */
     public static Optional<String> answer(
             MinecraftServer server,
             ServerPlayer player,
@@ -66,18 +42,15 @@ public class ChatAI {
         return strategy.answer(player, villager, msg);
     }
 
-    /** Explicitly selects a villager as the player's current AI conversation target. */
     public static void openConversation(ServerPlayer player, VillagerEntityMCA villager) {
         long time = villager.level().getGameTime();
         currentConversations.put(player.getUUID(), new OpenConversation(villager.getUUID(), time));
     }
 
-    /** Cheap gate for microphone packet handling. Full target validation happens on the server thread. */
     public static boolean hasOpenConversation(UUID playerID) {
         return currentConversations.containsKey(playerID);
     }
 
-    /** Returns the current conversation target if it is still nearby and within the existing MCA timeout. */
     public static Optional<VillagerEntityMCA> getActiveConversationVillager(ServerPlayer player) {
         UUID playerUUID = player.getUUID();
         OpenConversation conv = currentConversations.getOrDefault(playerUUID, new OpenConversation(playerUUID, 0L));
@@ -90,7 +63,6 @@ public class ChatAI {
         return Optional.empty();
     }
 
-    /** Searches Config for a map entry for UUID, uses Inworld with said entry if found, else GPT3 (default). */
     private static ChatAIStrategy computeStrategyIfAbsent(UUID villagerID) {
         return strategies.computeIfAbsent(villagerID, v -> {
             String inworldResourceName = Config.getInstance().inworldAIResourceNames.getOrDefault(v, "");
@@ -108,7 +80,6 @@ public class ChatAI {
 
     public static Optional<VillagerEntityMCA> getVillagerForConversation(ServerPlayer player, String msg) {
         List<VillagerEntityMCA> nearbyVillagers = WorldUtils.getCloseEntities(player.level(), player, VILLAGER_SEARCH_RANGE, VillagerEntityMCA.class);
-
         String normalizedMsg = normalizeString(msg);
         for (VillagerEntityMCA villager : nearbyVillagers) {
             String normalizedName = getName(villager);
@@ -133,9 +104,7 @@ public class ChatAI {
         String normalizedSearchName = normalizeString(searchName);
         for (VillagerEntityMCA villager : entities) {
             String villagerName = getName(villager);
-            if (normalizedSearchName.equals(villagerName)) {
-                return Optional.of(villager);
-            }
+            if (normalizedSearchName.equals(villagerName)) return Optional.of(villager);
         }
         return Optional.empty();
     }
