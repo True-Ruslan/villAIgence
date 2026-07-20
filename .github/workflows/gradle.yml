@@ -10,6 +10,7 @@ on:
     paths:
       - '.github/workflows/gradle.yml'
       - 'docs/RELEASING.md'
+      - 'scripts/ci/package-livingworld-release.sh'
       - 'docs/superpowers/specs/2026-07-20-github-alpha-release-design.md'
       - 'docs/superpowers/plans/2026-07-20-github-alpha-release.md'
   workflow_dispatch:
@@ -143,42 +144,8 @@ jobs:
           RELEASE_TAG: ${{ needs.metadata.outputs.tag }}
         run: |
           set -euo pipefail
-          mkdir -p dist
-
-          if [[ "${IS_RELEASE}" == "true" ]]; then
-            source_jar="fabric/build/libs/mca-fabric-${RELEASE_TAG}.jar"
-            if [[ ! -f "${source_jar}" ]]; then
-              echo "::error title=Expected release JAR missing::${source_jar} was not produced."
-              find fabric/build/libs -maxdepth 1 -type f -name '*.jar' -print || true
-              exit 1
-            fi
-          else
-            mapfile -t candidates < <(find fabric/build/libs -maxdepth 1 -type f -name 'mca-fabric-*.jar' \
-              ! -name '*-sources.jar' \
-              ! -name '*-dev.jar' \
-              ! -name '*-dev-shadow.jar' \
-              ! -name '*-shadow.jar' | sort)
-            if [[ "${#candidates[@]}" -ne 1 ]]; then
-              echo "::error title=Unexpected Fabric JAR set::Expected exactly one distributable Fabric JAR, found ${#candidates[@]}."
-              printf '%s\n' "${candidates[@]}"
-              exit 1
-            fi
-            source_jar="${candidates[0]}"
-          fi
-
-          output_jar="dist/mca-livingworld-fabric-${RELEASE_TAG}.jar"
-          cp "${source_jar}" "${output_jar}"
-
-          jar tf "${output_jar}" > dist/jar-contents.txt
-          grep -qx 'fabric.mod.json' dist/jar-contents.txt
-          grep -qx 'net/conczin/mca/livingworld/LivingWorldConfig.class' dist/jar-contents.txt
-          grep -qx 'net/conczin/mca/fabric/livingworld/voice/VoiceConversationService.class' dist/jar-contents.txt
-
-          sha256sum "${output_jar}" > "${output_jar}.sha256"
-          rm dist/jar-contents.txt
-
-          echo "jar=${output_jar}" >> "$GITHUB_OUTPUT"
-          echo "checksum=${output_jar}.sha256" >> "$GITHUB_OUTPUT"
+          chmod +x scripts/ci/package-livingworld-release.sh
+          scripts/ci/package-livingworld-release.sh "${RELEASE_TAG}" "${IS_RELEASE}" dist
 
       - name: Upload verified Fabric package
         uses: actions/upload-artifact@v4
