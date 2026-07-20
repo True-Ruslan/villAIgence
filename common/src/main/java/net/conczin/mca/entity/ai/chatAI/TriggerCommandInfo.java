@@ -2,6 +2,7 @@ package net.conczin.mca.entity.ai.chatAI;
 
 import net.conczin.mca.MCA;
 import net.conczin.mca.entity.VillagerEntityMCA;
+import net.conczin.mca.livingworld.knowledge.WorldEventRecorder;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.function.BiConsumer;
@@ -22,6 +23,7 @@ public class TriggerCommandInfo {
             if (this.isActive != null && !this.isActive.test(player, villager)) return;
             try {
                 call.accept(player, villager);
+                WorldEventRecorder.recordSuccessfulNpcAction(player, villager, command);
             } catch (RuntimeException e) {
                 MCA.LOGGER.warn("AI action '{}' failed for villager {} and player {}", command, villager.getUUID(), player.getUUID(), e);
             }
