@@ -55,3 +55,8 @@ jobs:
           fi
 
           tail -n 80 gradle-build.log
+
+      - name: Verify distributable LivingWorld Fabric package
+        run: |
+          chmod +x scripts/ci/package-livingworld-release.sh
+          scripts/ci/package-livingworld-release.sh "ci-${GITHUB_RUN_NUMBER}" false ci-dist
