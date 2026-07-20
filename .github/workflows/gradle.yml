@@ -176,6 +176,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ needs.metadata.outputs.tag }}
           MOD_VERSION: ${{ needs.metadata.outputs.version }}
           MINECRAFT_VERSION: ${{ needs.metadata.outputs.minecraft_version }}
