@@ -46,21 +46,24 @@ PR #9 closed a real server-authority gap: blueprint/village mutation packets now
 
 **Status:** PARTIALLY IMPLEMENTED / LivingWorld P1 remaining
 
-The direct LivingWorld/OpenAI path now captures an immutable server-thread context snapshot containing dimension, coordinates, biome, day/night, weather, held/equipped item facts, bounded villager inventory facts, existing MCA personality/relationship/village/player context and currently available safe actions. Prompt/memory/network work uses copied snapshot data asynchronously.
+The direct LivingWorld/OpenAI path captures an immutable server-thread context snapshot containing dimension, coordinates, biome, day/night, weather, held/equipped item facts, bounded villager inventory facts, existing MCA personality/relationship/village/player context and currently available safe actions. Prompt/memory/network work uses copied snapshot data asynchronously.
 
-**Remaining action:** nearby relevant entities/events, knowledge provenance and broader migration/verification of historical ChatAI/Inworld callers.
+The Event/Knowledge foundation adds a bounded server-owned factual event journal. Recent same-dimension nearby events are injected into snapshots with explicit `SYSTEM_OBSERVED` provenance; arbitrary player/LLM text is not promoted to factual world state.
+
+**Remaining action:** broader nearby entity/event sources, knowledge provenance beyond direct observations, and migration/verification of historical ChatAI/Inworld callers.
 
 ### Upstream #1243 — NPC memory / awareness / NPC-to-NPC interaction
 
 **Status:** PARTIALLY DONE / ADOPT remaining
 
-- persistent NPC × player memory — **implemented**;
+- persistent NPC × player conversation memory — **implemented**;
 - authoritative basic factual context snapshot — **implemented for direct LivingWorld/OpenAI flow**;
-- nearby event/knowledge awareness — TODO;
+- bounded recent local factual event awareness — **implemented as foundation**;
+- player claims / uncertain beliefs / rumors — future separate knowledge layer;
 - controlled NPC-to-NPC information exchange — future;
 - deeper persistent personality/knowledge model — future.
 
-**Our action:** Event/Knowledge layer → provenance-aware information sharing → controlled NPC-to-NPC exchange.
+**Our action:** expand verified event sources carefully → add belief/provenance model → controlled NPC-to-NPC knowledge exchange. Never collapse world truth, player claims and rumors into one undifferentiated memory stream.
 
 ### Upstream #1292 — Interaction impact with villagers
 
@@ -209,11 +212,12 @@ An issue remaining `open` upstream is **not** sufficient reason to copy it into 
 ## Ordered work derived from this audit
 
 1. **Pathfinding hardening** — PR #11 adds generic stale-path recovery; next isolate doors, water/drowning, unsafe drops and multi-floor/long-range cases under #1088.
-2. **Event/Knowledge + relationship consequences** — remaining #1243 + #1292.
-3. **Data-integrity invariants/reproduction** — #977, #1234, #978, plus family tree/entity lifecycle consistency.
-4. **Age/kinship correctness** — reproduce remaining #1140 behavior; #912 is verified fixed.
-5. **Interaction policy** — #1277 after voice/interaction UX stabilization.
-6. **Upstream sync gate** — do not import `7.7.23-alpha` blueprint work until #1373/#1372 regressions are covered.
+2. **Relationship consequences** — #1292, built on validated/clamped structured deltas and deterministic gameplay effects.
+3. **Knowledge provenance and sharing** — continue #1243 beyond factual event observations into claims/rumors/NPC-to-NPC propagation.
+4. **Data-integrity invariants/reproduction** — #977, #1234, #978, plus family tree/entity lifecycle consistency.
+5. **Age/kinship correctness** — reproduce remaining #1140 behavior; #912 is verified fixed.
+6. **Interaction policy** — #1277 after voice/interaction UX stabilization.
+7. **Upstream sync gate** — do not import `7.7.23-alpha` blueprint work until #1373/#1372 regressions are covered.
 
 ## Maintenance
 

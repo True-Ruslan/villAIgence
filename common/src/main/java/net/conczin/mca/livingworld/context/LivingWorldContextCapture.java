@@ -13,6 +13,9 @@ import net.conczin.mca.entity.ai.chatAI.modules.RelationModule;
 import net.conczin.mca.entity.ai.chatAI.modules.TraitsModule;
 import net.conczin.mca.entity.ai.chatAI.modules.VillageModule;
 import net.conczin.mca.entity.ai.relationship.AgeState;
+import net.conczin.mca.livingworld.LivingWorldConfig;
+import net.conczin.mca.livingworld.knowledge.WorldEvent;
+import net.conczin.mca.livingworld.knowledge.WorldEventStore;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
@@ -48,6 +51,8 @@ public final class LivingWorldContextCapture {
         String biome = villager.level().getBiome(position).unwrapKey()
                 .map(key -> key.location().toString())
                 .orElse("unknown");
+        long gameTime = villager.level().getGameTime();
+        Path worldRoot = player.serverLevel().getServer().getWorldPath(LevelResource.ROOT);
 
         List<String> worldFacts = new ArrayList<>();
         worldFacts.add("Observed dimension: " + dimension + ".");
@@ -70,6 +75,8 @@ public final class LivingWorldContextCapture {
             worldFacts.add("Observed villager inventory (bounded): " + String.join(", ", inventoryFacts) + ".");
         }
 
+        addRecentEventFacts(worldFacts, worldRoot, dimension, position, gameTime);
+
         List<LivingWorldContextSnapshot.ActionDescriptor> actions = Config.getInstance().villagerChatAIUseTools
                 ? TriggerCommandInfos.triggerCommands.stream()
                 .filter(command -> command.isActive == null || command.isActive.test(player, villager))
@@ -79,7 +86,6 @@ public final class LivingWorldContextCapture {
 
         AgeState age = villager.getAgeState();
         boolean child = age == AgeState.BABY || age == AgeState.TODDLER || age == AgeState.CHILD;
-        Path worldRoot = player.serverLevel().getServer().getWorldPath(LevelResource.ROOT);
 
         return new LivingWorldContextSnapshot(
                 player.getUUID(),
@@ -90,12 +96,34 @@ public final class LivingWorldContextCapture {
                 worldFacts,
                 actions,
                 player.serverLevel().getSeed(),
-                villager.level().getGameTime(),
+                gameTime,
                 worldRoot,
                 child,
                 Relationship.IS_RELATIVE.test(villager, player),
                 MCA.language
         );
+    }
+
+    private static void addRecentEventFacts(List<String> worldFacts, Path worldRoot, String dimension, BlockPos position, long gameTime) {
+        LivingWorldConfig config = LivingWorldConfig.getInstance();
+        if (!config.eventMemoryEnabled) return;
+        try {
+            List<WorldEvent> events = WorldEventStore.forWorld(worldRoot).queryRecent(
+                    dimension,
+                    position.getX(),
+                    position.getY(),
+                    position.getZ(),
+                    gameTime,
+                    config.eventMemoryMaxAgeTicks,
+                    config.eventContextRadius,
+                    config.eventContextMaxEvents
+            );
+            for (WorldEvent event : events) {
+                worldFacts.add("Observed recent local event: " + event.description());
+            }
+        } catch (RuntimeException e) {
+            MCA.LOGGER.warn("Unable to load LivingWorld recent event context for villager snapshot", e);
+        }
     }
 
     private static String weather(VillagerEntityMCA villager) {
