@@ -26,6 +26,8 @@ public final class LivingWorldConfig {
     public String endpoint = "https://api.openai.com/v1/chat/completions";
     public String model = "gpt-4.1-mini";
 
+    public boolean safeActionsEnabled = true;
+
     public boolean persistentMemoryEnabled = true;
     public int persistentMemoryMaxMessages = 16;
     public int persistentMemoryMaxCharsPerMessage = 1200;
