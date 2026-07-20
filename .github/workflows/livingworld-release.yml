@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 35
     env:
       GRADLE_OPTS: --enable-native-access=ALL-UNNAMED
-      NO_COLOR: 1
+      NO_COLOR: "1"
     steps:
       - name: Checkout commit
         uses: actions/checkout@v6
@@ -35,25 +35,22 @@ jobs:
           fetch-tags: true
 
       - name: Resolve and verify release metadata
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+        if: github.event_name == 'push'
         shell: bash
         run: |
           set -euo pipefail
-
           tag="${GITHUB_REF_NAME}"
           tag_pattern='^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?[+][0-9]+([.][0-9]+){1,2}$'
           if [[ ! "${tag}" =~ ${tag_pattern} ]]; then
             echo "::error title=Invalid release tag::Expected '<mod_version>+<minecraft_version>', for example '0.1.0-alpha.1+1.21.1'."
             exit 1
           fi
-
           minecraft_version="${tag#*+}"
           configured_minecraft_version="$(grep '^minecraft_version=' gradle.properties | head -n 1 | cut -d= -f2-)"
           if [[ "${minecraft_version}" != "${configured_minecraft_version}" ]]; then
             echo "::error title=Minecraft version mismatch::Tag declares ${minecraft_version}, but gradle.properties declares ${configured_minecraft_version}."
             exit 1
           fi
-
           git fetch origin refs/heads/1.21.1:refs/remotes/origin/1.21.1
           tagged_sha="$(git rev-parse HEAD)"
           branch_sha="$(git rev-parse refs/remotes/origin/1.21.1)"
@@ -61,7 +58,6 @@ jobs:
             echo "::error title=Release tag is not on current 1.21.1 head::Tag commit ${tagged_sha} differs from 1.21.1 ${branch_sha}."
             exit 1
           fi
-
           mapfile -t head_tags < <(git tag --points-at HEAD | sort)
           if [[ "${#head_tags[@]}" -ne 1 || "${head_tags[0]}" != "${tag}" ]]; then
             echo "::error title=Ambiguous release version::Exactly one tag must point at the release commit and it must be ${tag}."
@@ -91,15 +87,13 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x scripts/ci/package-livingworld-release.sh
-
-          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/tags/* ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
             artifact_label="${GITHUB_REF_NAME}"
             is_release=true
           else
             artifact_label="dry-run-${GITHUB_RUN_NUMBER}"
             is_release=false
           fi
-
           scripts/ci/package-livingworld-release.sh "${artifact_label}" "${is_release}" dist
 
       - name: Upload verified Fabric package
@@ -114,7 +108,7 @@ jobs:
 
   github-release:
     needs: build-and-package
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -142,40 +136,40 @@ jobs:
           test -f "${checksum_file}"
 
           checksum="$(cat "${checksum_file}")"
-          cat > release-notes.md <<EOF
-          # LivingWorld ${mod_version}
+          notes_file="release-notes.md"
+          printf '%s\n' \
+            "# LivingWorld ${mod_version}" \
+            "" \
+            "Experimental alpha/testing build of the LivingWorld fork of Minecraft Comes Alive." \
+            "" \
+            "Runtime:" \
+            "- Minecraft ${minecraft_version}" \
+            "- Fabric Loader" \
+            "- Java 21" \
+            "- Fabric API for Minecraft ${minecraft_version}" \
+            "- Simple Voice Chat 2.6.20 or newer" \
+            "" \
+            "Important: this JAR keeps MCA's internal mod id mca. Remove the original MCA Reborn JAR before installing this fork; do not install both at the same time." \
+            "" \
+            "For the normal LivingWorld MVP, the server owner only needs to set OPENAI_API_KEY or apiKey in config/livingworld.json after the first server start." \
+            "" \
+            "This is an alpha build intended for controlled testing. Back up the world before installing or updating." \
+            "" \
+            "SHA-256:" \
+            "${checksum}" \
+            > "${notes_file}"
 
-          Experimental alpha/testing build of the LivingWorld fork of Minecraft Comes Alive.
+          common_args=(
+            "${release_tag}"
+            "${jar_file}"
+            "${checksum_file}"
+            --verify-tag
+            --title "LivingWorld ${mod_version} for Minecraft ${minecraft_version}"
+            --notes-file "${notes_file}"
+          )
 
-          **Runtime:**
-          - Minecraft ${minecraft_version}
-          - Fabric Loader
-          - Java 21
-          - Fabric API for Minecraft ${minecraft_version}
-          - Simple Voice Chat 2.6.20 or newer
-
-          **Important:** this JAR keeps MCA's internal mod id mca. Remove the original MCA Reborn JAR before installing this fork; do not install both at the same time.
-
-          For the normal LivingWorld MVP, the server owner only needs to set OPENAI_API_KEY or apiKey in config/livingworld.json after the first server start.
-
-          This is an alpha build intended for controlled testing. Back up the world before installing or updating.
-
-          **SHA-256**
-
-          ~~~text
-          ${checksum}
-          ~~~
-          EOF
-
-          prerelease_args=()
           if [[ "${mod_version}" == *-* ]]; then
-            prerelease_args+=(--prerelease)
+            gh release create "${common_args[@]}" --prerelease
+          else
+            gh release create "${common_args[@]}"
           fi
-
-          gh release create "${release_tag}" \
-            "${jar_file}" \
-            "${checksum_file}" \
-            --verify-tag \
-            --title "LivingWorld ${mod_version} for Minecraft ${minecraft_version}" \
-            --notes-file release-notes.md \
-            "${prerelease_args[@]}"
