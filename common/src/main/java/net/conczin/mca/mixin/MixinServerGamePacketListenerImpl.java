@@ -1,8 +1,8 @@
 package net.conczin.mca.mixin;
 
-import net.conczin.mca.Config;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.ai.chatAI.ChatAI;
+import net.conczin.mca.livingworld.ai.LivingWorldAI;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundChatPacket;
 import net.minecraft.server.level.ServerPlayer;
@@ -25,7 +25,7 @@ public class MixinServerGamePacketListenerImpl {
 
     @Inject(method = "handleChat", at = @At("HEAD"))
     public void mca$injectHandleChat(ServerboundChatPacket message, CallbackInfo ci) {
-        if (Config.getInstance().enableVillagerChatAI) {
+        if (LivingWorldAI.isChatEnabled()) {
             String msg = StringUtils.normalizeSpace(message.message());
             if (!msg.startsWith("/")) {
                 // Check if there's an eligible villager for the conversation
@@ -44,4 +44,3 @@ public class MixinServerGamePacketListenerImpl {
         });
     }
 }
-
