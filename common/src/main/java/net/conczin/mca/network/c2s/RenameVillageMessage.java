@@ -22,10 +22,10 @@ public record RenameVillageMessage(int id, String name) implements HandleablePay
         if (sanitized.isBlank()) return;
 
         BlueprintServerAuthority.requestedAuthorized(player, id, BlueprintPermissionPolicy.Operation.RENAME)
-                .ifPresentOrElse(
-                        village -> village.setName(sanitized),
-                        () -> BlueprintServerAuthority.deny(player)
-                );
+                .ifPresentOrElse(village -> {
+                    village.setName(sanitized);
+                    village.markDirty();
+                }, () -> BlueprintServerAuthority.deny(player));
     }
 
     @Override
