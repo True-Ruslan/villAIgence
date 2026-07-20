@@ -113,5 +113,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Confirm release job startup
-        run: echo "GitHub release job syntax is valid"
+      - name: Download verified release package
+        uses: actions/download-artifact@v4
+        with:
+          name: livingworld-fabric-package
+          path: dist
