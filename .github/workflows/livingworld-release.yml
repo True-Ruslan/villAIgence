@@ -105,3 +105,13 @@ jobs:
             ${{ steps.package.outputs.checksum }}
           if-no-files-found: error
           retention-days: 30
+
+  github-release:
+    needs: build-and-package
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Confirm release job startup
+        run: echo "GitHub release job syntax is valid"
