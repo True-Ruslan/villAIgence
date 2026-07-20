@@ -40,5 +40,3 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew :common:test :fabric:build --stacktrace --no-daemon
-
-# Baseline workflow lives on 1.21.1; this copy validates feature branches and PRs.
