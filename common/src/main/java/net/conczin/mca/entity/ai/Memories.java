@@ -53,7 +53,7 @@ public class Memories {
     }
 
     public void modHearts(int value) {
-        setHearts(this.hearts += value);
+        setHearts(RelationshipValueMath.saturatingAdd(this.hearts, value));
     }
 
     public int getInteractionFatigue() {
@@ -99,5 +99,4 @@ public class Memories {
 
         return nbt;
     }
-
 }
