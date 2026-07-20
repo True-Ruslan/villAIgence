@@ -26,10 +26,25 @@ Alpha/beta/RC versions are created as GitHub prereleases.
 
 The workflow does not publish to Maven, Modrinth or CurseForge and does not use the original MCA project IDs.
 
+## Dry-run the release packaging without creating a release
+
+After the release workflow is present on `1.21.1`, you can verify packaging without creating a tag:
+
+1. Open GitHub → Actions.
+2. Select `LivingWorld GitHub Release`.
+3. Click `Run workflow`.
+4. Select branch `1.21.1`.
+5. Run the workflow.
+
+A manual run performs tests, the Fabric build, JAR smoke checks, checksum generation and Actions artifact upload, but **never creates a GitHub Release**.
+
+The artifact name is `livingworld-fabric-dry-run-<run number>` and is retained for 30 days.
+
 ## Preconditions before creating a release tag
 
 - All intended changes are merged into `1.21.1`.
 - Required PR checks are green.
+- A manual `LivingWorld GitHub Release` dry-run on `1.21.1` has succeeded.
 - `1.21.1` contains exactly the code you want to ship.
 - Do not create the tag from a feature branch.
 
