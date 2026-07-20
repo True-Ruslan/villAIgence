@@ -118,3 +118,58 @@ jobs:
         with:
           name: livingworld-fabric-package
           path: dist
+
+      - name: Create GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          release_tag="${GITHUB_REF_NAME}"
+          mod_version="${release_tag%%+*}"
+          minecraft_version="${release_tag#*+}"
+          jar_file="dist/mca-livingworld-fabric-${release_tag}.jar"
+          checksum_file="${jar_file}.sha256"
+          test -f "${jar_file}"
+          test -f "${checksum_file}"
+
+          checksum="$(cat "${checksum_file}")"
+          notes_file="release-notes.md"
+          printf '%s\n' \
+            "# LivingWorld ${mod_version}" \
+            "" \
+            "Experimental alpha/testing build of the LivingWorld fork of Minecraft Comes Alive." \
+            "" \
+            "Runtime:" \
+            "- Minecraft ${minecraft_version}" \
+            "- Fabric Loader" \
+            "- Java 21" \
+            "- Fabric API for Minecraft ${minecraft_version}" \
+            "- Simple Voice Chat 2.6.20 or newer" \
+            "" \
+            "Important: this JAR keeps MCA's internal mod id mca. Remove the original MCA Reborn JAR before installing this fork; do not install both at the same time." \
+            "" \
+            "For the normal LivingWorld MVP, the server owner only needs to set OPENAI_API_KEY or apiKey in config/livingworld.json after the first server start." \
+            "" \
+            "This is an alpha build intended for controlled testing. Back up the world before installing or updating." \
+            "" \
+            "SHA-256:" \
+            "${checksum}" \
+            > "${notes_file}"
+
+          common_args=(
+            "${release_tag}"
+            "${jar_file}"
+            "${checksum_file}"
+            --verify-tag
+            --title "LivingWorld ${mod_version} for Minecraft ${minecraft_version}"
+            --notes-file "${notes_file}"
+          )
+
+          if [[ "${mod_version}" == *-* ]]; then
+            gh release create "${common_args[@]}" --prerelease
+          else
+            gh release create "${common_args[@]}"
+          fi
