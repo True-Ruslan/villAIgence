@@ -17,6 +17,7 @@ The generated config already contains working defaults for:
 - LLM: `gpt-4.1-mini`
 - safe whitelisted NPC actions: enabled
 - persistent per-NPC/per-player conversation memory: enabled, 16 messages, 1200 characters per stored message
+- factual local event memory: enabled, 512 stored events, 3 Minecraft days max age, 32-block context radius, 8 events per context snapshot
 - STT: `gpt-4o-mini-transcribe`
 - TTS: `tts-1`
 - voice: `marin`
@@ -33,9 +34,13 @@ Never commit a real API key to Git or include it in a modpack. API credentials a
 
 `safeActionsEnabled=true` exposes only MCA's hard-coded AI action whitelist. It does not grant arbitrary command execution. See `docs/livingworld/ACTIONS.md`.
 
-## Persistent memory
+## Persistent conversation memory
 
 LivingWorld stores bounded rolling dialogue memory in `<world>/livingworld/memory.json`. Back it up together with the Minecraft world. See `docs/livingworld/MEMORY.md` for details.
+
+## Factual event memory
+
+LivingWorld stores bounded server-generated factual events in `<world>/livingworld/events.json`. Only recent nearby events are injected into an NPC's immutable context snapshot. Player/LLM claims are not automatically treated as facts. See `docs/livingworld/EVENTS.md`.
 
 ## Voice requirements
 
@@ -45,4 +50,4 @@ See `docs/livingworld/VOICE.md` for the interaction flow and troubleshooting.
 
 ## Backward compatibility
 
-If LivingWorld is disabled, uses an unsupported provider, or has no API key, the fork falls back to MCA's existing `mca.json` ChatAI configuration. Persistent LivingWorld memory and the LivingWorld safe-action switch are used only for the configured direct LivingWorld provider path.
+If LivingWorld is disabled, uses an unsupported provider, or has no API key, the fork falls back to MCA's existing `mca.json` ChatAI configuration. Persistent conversation memory, factual event recording, and the LivingWorld safe-action switch are used only for the configured direct LivingWorld provider path.
