@@ -21,6 +21,9 @@
     ],
     "client": [
       "net.conczin.mca.fabric.MCAFabricClient"
+    ],
+    "voicechat": [
+      "net.conczin.mca.fabric.livingworld.voice.LivingWorldVoicechatPlugin"
     ]
   },
   "accessWidener": "${mod_id}.classtweaker",
@@ -35,5 +38,6 @@
     "java": ">=17"
   },
   "suggests": {
+    "voicechat_api": ">=2.6.20"
   }
 }
