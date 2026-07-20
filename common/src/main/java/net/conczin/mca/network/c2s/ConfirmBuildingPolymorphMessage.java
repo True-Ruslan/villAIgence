@@ -4,6 +4,7 @@ import net.conczin.mca.MCA;
 import net.conczin.mca.network.HandleablePayload;
 import net.conczin.mca.resources.BuildingTypes;
 import net.conczin.mca.server.world.data.Building;
+import net.conczin.mca.server.world.data.BuildingScanResult;
 import net.conczin.mca.server.world.data.Village;
 import net.conczin.mca.server.world.data.VillageManager;
 import net.minecraft.core.BlockPos;
@@ -48,7 +49,10 @@ public record ConfirmBuildingPolymorphMessage(BlockPos source, boolean strictSca
         }
 
         VillageManager villages = VillageManager.get(player.serverLevel());
-        Building.validationResult result = villages.processBuilding(source, true, strictScan, chosenType);
+        BuildingScanResult scan = villages.analyzeBuilding(source, strictScan);
+        Building.validationResult result = scan.result() == Building.validationResult.SUCCESS && scan.matchesType(chosenType)
+                ? villages.commitBuilding(scan, chosenType)
+                : Building.validationResult.INVALID_TYPE;
         player.displayClientMessage(Component.translatable("blueprint.scan." + result.name().toLowerCase(Locale.ENGLISH)), true);
     }
 
