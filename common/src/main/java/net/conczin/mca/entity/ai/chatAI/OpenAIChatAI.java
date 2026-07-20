@@ -15,12 +15,14 @@ import net.conczin.mca.entity.ai.relationship.AgeState;
 import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.ai.AiProviderSettings;
 import net.conczin.mca.livingworld.ai.LivingWorldAI;
+import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
 import net.conczin.mca.livingworld.memory.PersistentChatMemory;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Tuple;
 import org.apache.commons.io.IOUtils;
@@ -250,24 +252,150 @@ public class OpenAIChatAI implements ChatAIStrategy {
                 }
                 return Optional.ofNullable(response.answer != null ? response.answer.message : null);
             }
-            if (response.error.equals("invalid_model")) {
-                player.displayClientMessage(Component.literal("Invalid model!").withStyle(ChatFormatting.RED), false);
-            } else if (response.error.equals("limit")) {
-                MutableComponent styled = Component.translatable("mca.limit.patreon").withStyle(style -> style
-                        .withColor(ChatFormatting.GOLD)
-                        .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, "https://github.com/Luke100000/minecraft-comes-alive/wiki/GPT3-based-conversations#increase-conversation-limit"))
-                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.translatable("mca.limit.patreon.hover"))));
-                player.displayClientMessage(styled, false);
-            } else if (response.error.equals("limit_premium")) {
-                player.displayClientMessage(Component.translatable("mca.limit.premium").withStyle(ChatFormatting.RED), false);
-            } else {
-                player.displayClientMessage(Component.literal(response.error).withStyle(ChatFormatting.RED), false);
-            }
+            displayLegacyError(player, response.error);
         } catch (Exception e) {
             MCA.LOGGER.error("Failed to parse LLM response!", e);
             player.displayClientMessage(Component.translatable("mca.ai_broken").withStyle(ChatFormatting.RED), false);
         }
         return Optional.empty();
+    }
+
+    /**
+     * Direct LivingWorld/OpenAI path. All prompt facts come from an immutable snapshot captured on the server thread.
+     */
+    public Optional<String> answer(
+            MinecraftServer server,
+            ServerPlayer player,
+            VillagerEntityMCA villager,
+            String msg,
+            LivingWorldContextSnapshot snapshot
+    ) {
+        try {
+            Config config = Config.getInstance();
+            LivingWorldConfig livingWorld = LivingWorldConfig.getInstance();
+            AiProviderSettings provider = LivingWorldAI.resolveChatProviderSettings();
+            boolean isInHouse = provider.endpoint().contains("conczin.net");
+            boolean persistent = livingWorld.isConfigured() && livingWorld.persistentMemoryEnabled;
+            List<Tuple<String, String>> pastDialogue = loadDialogue(snapshot, persistent);
+
+            String system = buildSnapshotSystem(config, isInHouse, snapshot);
+            StringBuilder body = new StringBuilder("{\"model\": ").append(jsonStringQuote(provider.model())).append(",\"messages\": [");
+            if (!config.villagerChatAIFuseSystemPrompt) {
+                body.append("{\"role\": \"system\", \"content\": ").append(jsonStringQuote(system)).append("},");
+            }
+            for (Tuple<String, String> pair : pastDialogue) {
+                String role = pair.getA();
+                String name = role.equals("user") ? snapshot.playerName() : snapshot.villagerName();
+                body.append("{\"role\": ").append(jsonStringQuote(role));
+                if (provider.includeMessageNames()) body.append(", \"name\": ").append(jsonStringQuote(name));
+                body.append(", \"content\": ").append(jsonStringQuote(pair.getB())).append("},");
+            }
+            String userContent = config.villagerChatAIFuseSystemPrompt ? system + "\n\n" + msg : msg;
+            body.append("{\"role\": \"user\"");
+            if (provider.includeMessageNames()) body.append(", \"name\": ").append(jsonStringQuote(snapshot.playerName()));
+            body.append(", \"content\": ").append(jsonStringQuote(userContent)).append("}]}");
+
+            String token = provider.usePlayerNameAsToken() ? snapshot.playerName() : provider.apiKey();
+            Answer response = post(provider, body.toString(), token);
+            if (response.error == null) {
+                if (response.answer != null) {
+                    String assistantMessage = response.answer.message != null ? response.answer.message : "...";
+                    rememberDialogue(snapshot, msg, assistantMessage, pastDialogue, persistent, livingWorld);
+                    applySnapshotCommand(server, player, villager, snapshot, response.answer.optionalCommand());
+                }
+                return Optional.ofNullable(response.answer != null ? response.answer.message : null);
+            }
+            displaySnapshotError(server, player, response.error);
+        } catch (Exception e) {
+            MCA.LOGGER.error("Failed to process LivingWorld snapshot response for player {} and villager {}", snapshot.playerId(), snapshot.villagerId(), e);
+            server.execute(() -> {
+                if (player.isAlive()) player.displayClientMessage(Component.translatable("mca.ai_broken").withStyle(ChatFormatting.RED), false);
+            });
+        }
+        return Optional.empty();
+    }
+
+    private static String buildSnapshotSystem(Config config, boolean isInHouse, LivingWorldContextSnapshot snapshot) {
+        Map<String, String> variables = Map.of("player", snapshot.playerName(), "villager", snapshot.villagerName());
+        StringBuilder systemBuilder = new StringBuilder();
+        if (isInHouse || config.villagerChatAIIncludeSessionInformation) {
+            systemBuilder.append("[world_id:").append(snapshot.worldSeed()).append("]");
+            systemBuilder.append("[player_id:").append(snapshot.playerId()).append("]");
+            systemBuilder.append("[character_id:").append(snapshot.villagerId()).append("]");
+            if (config.villagerChatAIUseLongTermMemory) systemBuilder.append("[use_memory:true]");
+            if (config.villagerChatAIUseSharedLongTermMemory) systemBuilder.append("[shared_memory:true]");
+        }
+        if (!config.villagerChatAISystemPrompt.isEmpty()) {
+            systemBuilder.append(config.villagerChatAISystemPrompt).append('\n');
+        } else if (!isInHouse) {
+            systemBuilder.append("You are a Minecraft villager, fully immersed in their virtual world, unaware of its artificial nature. You respond based on your description, your role, and your knowledge of the world. You have no knowledge of the real world, and do not realize that you are within Minecraft. You are no assistant! You can be sarcastic, funny, or even rude when appropriate.\n");
+        }
+        for (String sourceLine : snapshot.contextLines()) {
+            String line = sourceLine;
+            for (Map.Entry<String, String> entry : variables.entrySet()) line = line.replaceAll("\\$" + entry.getKey(), entry.getValue());
+            systemBuilder.append(line);
+        }
+        if (snapshot.child()) {
+            systemBuilder.append("You are a child/baby and MUST NOT flirt with the player or use any romantic or suggestive language. Keep your responses innocent, child-like, and age-appropriate.\n");
+        } else if (snapshot.relative()) {
+            systemBuilder.append("You are related to the player and MUST NOT flirt with them or use romantic/suggestive language. Keep your responses strictly familial.\n");
+        }
+        if (!snapshot.language().isBlank()) {
+            systemBuilder.append("Match the language of the player, and use ").append(snapshot.language()).append(" when unsure.\n");
+        }
+        if (!snapshot.worldFacts().isEmpty()) {
+            systemBuilder.append("\nObserved factual context from the current Minecraft world. Treat these facts as authoritative for this turn. Data not listed here is unknown, not false:\n");
+            for (String fact : snapshot.worldFacts()) systemBuilder.append("- ").append(fact).append('\n');
+        }
+        if (!snapshot.availableActions().isEmpty()) {
+            String example = new Gson().toJson(new StructuredResponse("example message to say", snapshot.availableActions().getFirst().command()));
+            systemBuilder.append("\nThe reply MUST be in this JSON format: ").append(example).append("\nThe following commands are valid:\n");
+            for (LivingWorldContextSnapshot.ActionDescriptor action : snapshot.availableActions()) {
+                systemBuilder.append("  * ").append(action.command()).append(": ").append(action.description()).append('\n');
+            }
+            systemBuilder.append("Only use a command when the player asks for it.");
+        }
+        return systemBuilder.toString();
+    }
+
+    private static void applySnapshotCommand(
+            MinecraftServer server,
+            ServerPlayer player,
+            VillagerEntityMCA villager,
+            LivingWorldContextSnapshot snapshot,
+            @Nullable String commandName
+    ) {
+        if (commandName == null || commandName.isBlank()) return;
+        boolean wasAllowed = snapshot.availableActions().stream().anyMatch(action -> action.command().equals(commandName));
+        if (!wasAllowed) return;
+        server.execute(() -> {
+            if (!player.isAlive() || villager.isRemoved() || player.level() != villager.level()) return;
+            TriggerCommandInfos.findCommand(commandName, player, villager)
+                    .ifPresent(command -> command.call.accept(player, villager));
+        });
+    }
+
+    private static void displayLegacyError(ServerPlayer player, String error) {
+        if (error.equals("invalid_model")) {
+            player.displayClientMessage(Component.literal("Invalid model!").withStyle(ChatFormatting.RED), false);
+        } else if (error.equals("limit")) {
+            MutableComponent styled = Component.translatable("mca.limit.patreon").withStyle(style -> style
+                    .withColor(ChatFormatting.GOLD)
+                    .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, "https://github.com/Luke100000/minecraft-comes-alive/wiki/GPT3-based-conversations#increase-conversation-limit"))
+                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.translatable("mca.limit.patreon.hover"))));
+            player.displayClientMessage(styled, false);
+        } else if (error.equals("limit_premium")) {
+            player.displayClientMessage(Component.translatable("mca.limit.premium").withStyle(ChatFormatting.RED), false);
+        } else {
+            player.displayClientMessage(Component.literal(error).withStyle(ChatFormatting.RED), false);
+        }
+    }
+
+    private static void displaySnapshotError(MinecraftServer server, ServerPlayer player, String error) {
+        server.execute(() -> {
+            if (!player.isAlive()) return;
+            displayLegacyError(player, error);
+        });
     }
 
     private static List<Tuple<String, String>> loadDialogue(ServerPlayer player, VillagerEntityMCA villager, boolean persistent) {
@@ -281,9 +409,25 @@ public class OpenAIChatAI implements ChatAIStrategy {
         }
         UUID id = villager.getUUID();
         long time = villager.level().getGameTime();
-        if (time > lastInteractions.getOrDefault(id, 0L) + MAX_MEMORY_TIME) memory.remove(id);
-        lastInteractions.put(id, time);
-        List<Tuple<String, String>> dialogue = memory.computeIfAbsent(id, ignored -> Collections.synchronizedList(new LinkedList<>()));
+        return loadLegacyDialogue(id, time);
+    }
+
+    private static List<Tuple<String, String>> loadDialogue(LivingWorldContextSnapshot snapshot, boolean persistent) {
+        if (persistent) {
+            try {
+                return new LinkedList<>(PersistentChatMemory.load(snapshot.worldRoot(), snapshot.villagerId(), snapshot.playerId()));
+            } catch (RuntimeException e) {
+                MCA.LOGGER.warn("Unable to load LivingWorld persistent memory for villager {} and player {}", snapshot.villagerId(), snapshot.playerId(), e);
+                return new LinkedList<>();
+            }
+        }
+        return loadLegacyDialogue(snapshot.villagerId(), snapshot.gameTime());
+    }
+
+    private static List<Tuple<String, String>> loadLegacyDialogue(UUID villagerId, long gameTime) {
+        if (gameTime > lastInteractions.getOrDefault(villagerId, 0L) + MAX_MEMORY_TIME) memory.remove(villagerId);
+        lastInteractions.put(villagerId, gameTime);
+        List<Tuple<String, String>> dialogue = memory.computeIfAbsent(villagerId, ignored -> Collections.synchronizedList(new LinkedList<>()));
         synchronized (dialogue) {
             while (dialogue.stream().mapToInt(value -> value.getB().length() / 4).sum() > MAX_MEMORY && !dialogue.isEmpty()) dialogue.removeFirst();
         }
@@ -299,10 +443,27 @@ public class OpenAIChatAI implements ChatAIStrategy {
                 MCA.LOGGER.warn("Unable to persist LivingWorld memory for villager {} and player {}", villager.getUUID(), player.getUUID(), e);
             }
         } else {
-            synchronized (dialogue) {
-                dialogue.add(new Tuple<>("user", userMessage));
-                dialogue.add(new Tuple<>("assistant", assistantMessage));
+            rememberLegacyDialogue(dialogue, userMessage, assistantMessage);
+        }
+    }
+
+    private static void rememberDialogue(LivingWorldContextSnapshot snapshot, String userMessage, String assistantMessage,
+                                         List<Tuple<String, String>> dialogue, boolean persistent, LivingWorldConfig config) {
+        if (persistent) {
+            try {
+                PersistentChatMemory.append(snapshot.worldRoot(), snapshot.villagerId(), snapshot.playerId(), userMessage, assistantMessage, config);
+            } catch (RuntimeException e) {
+                MCA.LOGGER.warn("Unable to persist LivingWorld memory for villager {} and player {}", snapshot.villagerId(), snapshot.playerId(), e);
             }
+        } else {
+            rememberLegacyDialogue(dialogue, userMessage, assistantMessage);
+        }
+    }
+
+    private static void rememberLegacyDialogue(List<Tuple<String, String>> dialogue, String userMessage, String assistantMessage) {
+        synchronized (dialogue) {
+            dialogue.add(new Tuple<>("user", userMessage));
+            dialogue.add(new Tuple<>("assistant", assistantMessage));
         }
     }
 
