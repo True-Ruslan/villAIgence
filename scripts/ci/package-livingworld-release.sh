@@ -7,11 +7,13 @@ dist_dir="${3:-dist}"
 
 mkdir -p "${dist_dir}"
 
+printf 'Available Fabric JARs:\n'
+find fabric/build/libs -maxdepth 1 -type f -name '*.jar' -print | sort || true
+
 if [[ "${is_release}" == "true" ]]; then
   source_jar="fabric/build/libs/mca-fabric-${artifact_label}.jar"
   if [[ ! -f "${source_jar}" ]]; then
     echo "::error title=Expected release JAR missing::${source_jar} was not produced."
-    find fabric/build/libs -maxdepth 1 -type f -name '*.jar' -print || true
     exit 1
   fi
 else
@@ -34,9 +36,20 @@ cp "${source_jar}" "${output_jar}"
 
 contents_file="${dist_dir}/jar-contents.txt"
 jar tf "${output_jar}" > "${contents_file}"
-grep -qx 'fabric.mod.json' "${contents_file}"
-grep -qx 'net/conczin/mca/livingworld/LivingWorldConfig.class' "${contents_file}"
-grep -qx 'net/conczin/mca/fabric/livingworld/voice/VoiceConversationService.class' "${contents_file}"
+
+require_entry() {
+  local entry="$1"
+  if ! grep -Fqx "${entry}" "${contents_file}"; then
+    echo "::error title=Release JAR smoke-check failed::Missing required JAR entry: ${entry}"
+    echo "Relevant LivingWorld entries present in JAR:"
+    grep -E '(^fabric\.mod\.json$|livingworld|VoiceConversation)' "${contents_file}" | head -n 200 || true
+    exit 1
+  fi
+}
+
+require_entry 'fabric.mod.json'
+require_entry 'net/conczin/mca/livingworld/LivingWorldConfig.class'
+require_entry 'net/conczin/mca/fabric/livingworld/voice/VoiceConversationService.class'
 rm "${contents_file}"
 
 sha256sum "${output_jar}" > "${output_jar}.sha256"
