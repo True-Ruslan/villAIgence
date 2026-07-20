@@ -19,7 +19,7 @@ class LivingWorldConfigTest {
         assertEquals("https://api.openai.com/v1/audio/transcriptions", config.sttEndpoint);
         assertEquals("gpt-4o-mini-transcribe", config.sttModel);
         assertEquals("https://api.openai.com/v1/audio/speech", config.ttsEndpoint);
-        assertEquals("gpt-4o-mini-tts", config.ttsModel);
+        assertEquals("tts-1", config.ttsModel);
         assertEquals("marin", config.ttsVoice);
         assertEquals(800, config.voiceSilenceMillis);
         assertEquals(20, config.voiceMaxSeconds);
