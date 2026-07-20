@@ -57,7 +57,7 @@ public final class ConversationMemoryStore {
             int maxCharsPerMessage
     ) {
         int safeMaxMessages = Math.max(2, maxMessages);
-        int safeMaxChars = Math.max(64, maxCharsPerMessage);
+        int safeMaxChars = Math.max(1, maxCharsPerMessage);
         List<MemoryMessage> messages = data.conversations.computeIfAbsent(
                 key(villagerId, playerId), ignored -> new ArrayList<>()
         );
