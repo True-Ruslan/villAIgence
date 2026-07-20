@@ -54,4 +54,10 @@ jobs:
             exit "$status"
           fi
 
-          tail -n 80 gradle-build.log
+          echo "Gradle succeeded; final 10 log lines:"
+          tail -n 10 gradle-build.log
+
+      - name: Verify distributable LivingWorld Fabric package
+        run: |
+          chmod +x scripts/ci/package-livingworld-release.sh
+          scripts/ci/package-livingworld-release.sh "ci-${GITHUB_RUN_NUMBER}" false ci-dist
