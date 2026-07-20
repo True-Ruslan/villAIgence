@@ -12,6 +12,7 @@ on:
       - 'docs/RELEASING.md'
       - 'docs/superpowers/specs/2026-07-20-github-alpha-release-design.md'
       - 'docs/superpowers/plans/2026-07-20-github-alpha-release.md'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -36,27 +37,41 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-            tag="${GITHUB_REF_NAME}"
-            tag_pattern='^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?[+][0-9]+([.][0-9]+){1,2}$'
+          case "${GITHUB_EVENT_NAME}" in
+            push)
+              tag="${GITHUB_REF_NAME}"
+              tag_pattern='^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?[+][0-9]+([.][0-9]+){1,2}$'
 
-            if [[ ! "${tag}" =~ ${tag_pattern} ]]; then
-              echo "::error title=Invalid release tag::Expected '<mod_version>+<minecraft_version>', for example '0.1.0-alpha.1+1.21.1'."
+              if [[ ! "${tag}" =~ ${tag_pattern} ]]; then
+                echo "::error title=Invalid release tag::Expected '<mod_version>+<minecraft_version>', for example '0.1.0-alpha.1+1.21.1'."
+                exit 1
+              fi
+
+              echo "valid=true" >> "$GITHUB_OUTPUT"
+              echo "is_release=true" >> "$GITHUB_OUTPUT"
+              echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+              echo "version=${tag%%+*}" >> "$GITHUB_OUTPUT"
+              echo "minecraft_version=${tag#*+}" >> "$GITHUB_OUTPUT"
+              ;;
+            pull_request)
+              echo "valid=true" >> "$GITHUB_OUTPUT"
+              echo "is_release=false" >> "$GITHUB_OUTPUT"
+              echo "tag=pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+              echo "version=pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+              echo "minecraft_version=1.21.1" >> "$GITHUB_OUTPUT"
+              ;;
+            workflow_dispatch)
+              echo "valid=true" >> "$GITHUB_OUTPUT"
+              echo "is_release=false" >> "$GITHUB_OUTPUT"
+              echo "tag=dry-run-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+              echo "version=dry-run-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+              echo "minecraft_version=1.21.1" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error title=Unsupported workflow event::${GITHUB_EVENT_NAME}"
               exit 1
-            fi
-
-            echo "valid=true" >> "$GITHUB_OUTPUT"
-            echo "is_release=true" >> "$GITHUB_OUTPUT"
-            echo "tag=${tag}" >> "$GITHUB_OUTPUT"
-            echo "version=${tag%%+*}" >> "$GITHUB_OUTPUT"
-            echo "minecraft_version=${tag#*+}" >> "$GITHUB_OUTPUT"
-          else
-            echo "valid=true" >> "$GITHUB_OUTPUT"
-            echo "is_release=false" >> "$GITHUB_OUTPUT"
-            echo "tag=pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
-            echo "version=pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
-            echo "minecraft_version=1.21.1" >> "$GITHUB_OUTPUT"
-          fi
+              ;;
+          esac
 
   build-and-package:
     needs: metadata
