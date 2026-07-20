@@ -28,6 +28,7 @@ import java.util.List;
 public final class LivingWorldContextCapture {
     private static final int MAX_ARMOR_FACTS = 8;
     private static final int MAX_INVENTORY_FACTS = 12;
+    private static final int MAX_STACK_EXPANSION = 64;
 
     private LivingWorldContextCapture() {
     }
@@ -106,7 +107,8 @@ public final class LivingWorldContextCapture {
     private static void addStackCopies(List<String> output, ItemStack stack) {
         if (stack == null || stack.isEmpty()) return;
         String id = itemId(stack);
-        for (int i = 0; i < Math.max(1, stack.getCount()); i++) output.add(id);
+        int copies = Math.min(MAX_STACK_EXPANSION, Math.max(1, stack.getCount()));
+        for (int i = 0; i < copies; i++) output.add(id);
     }
 
     private static String itemId(ItemStack stack) {
