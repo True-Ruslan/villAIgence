@@ -1,6 +1,8 @@
 package net.conczin.mca.entity.interaction;
 
+import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.VillagerLike;
+import net.conczin.mca.entity.ai.chatAI.ChatAI;
 import net.conczin.mca.network.Network;
 import net.conczin.mca.network.s2c.OpenGuiRequest;
 import net.minecraft.server.level.ServerPlayer;
@@ -38,15 +40,15 @@ public abstract class EntityCommandHandler<T extends Entity & VillagerLike<?>> {
 
     public InteractionResult interactAt(Player player, Vec3 pos, @NotNull InteractionHand hand) {
         if (player instanceof ServerPlayer serverPlayer) {
+            if (entity instanceof VillagerEntityMCA villager) {
+                ChatAI.openConversation(serverPlayer, villager);
+            }
             Network.sendToPlayer(new OpenGuiRequest(OpenGuiRequest.Type.INTERACT, entity), serverPlayer);
         }
         interactingPlayer = player;
         return InteractionResult.SUCCESS;
     }
 
-    /**
-     * Called on the server to respond to button events.
-     */
     public boolean handle(ServerPlayer player, String command) {
         return false;
     }

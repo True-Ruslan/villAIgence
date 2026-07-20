@@ -51,11 +51,40 @@ public class ChatAI {
         ChatAIStrategy strategy = computeStrategyIfAbsent(villager.getUUID());
 
         // Update the current conversation
-        long time = villager.level().getGameTime();
-        currentConversations.put(player.getUUID(), new OpenConversation(villager.getUUID(), time));
+        openConversation(player, villager);
 
         // Get answer
         return strategy.answer(player, villager, msg);
+    }
+
+    /**
+     * Explicitly selects a villager as the player's current AI conversation target.
+     */
+    public static void openConversation(ServerPlayer player, VillagerEntityMCA villager) {
+        long time = villager.level().getGameTime();
+        currentConversations.put(player.getUUID(), new OpenConversation(villager.getUUID(), time));
+    }
+
+    /**
+     * Cheap gate for microphone packet handling. Full target validation happens on the server thread.
+     */
+    public static boolean hasOpenConversation(UUID playerID) {
+        return currentConversations.containsKey(playerID);
+    }
+
+    /**
+     * Returns the current conversation target if it is still nearby and within the existing MCA timeout.
+     */
+    public static Optional<VillagerEntityMCA> getActiveConversationVillager(ServerPlayer player) {
+        UUID playerUUID = player.getUUID();
+        OpenConversation conv = currentConversations.getOrDefault(playerUUID, new OpenConversation(playerUUID, 0L));
+        List<VillagerEntityMCA> nearbyVillagers = WorldUtils.getCloseEntities(player.level(), player, VILLAGER_SEARCH_RANGE, VillagerEntityMCA.class);
+        Optional<VillagerEntityMCA> optionalVillager = nearbyVillagers.stream().filter(v -> conv.villagerUUID.equals(v.getUUID())).findFirst();
+        if (optionalVillager.isPresent() && isInConversationWith(player, optionalVillager.get())) {
+            return optionalVillager;
+        }
+        currentConversations.remove(playerUUID, conv);
+        return Optional.empty();
     }
 
     /**
@@ -74,7 +103,7 @@ public class ChatAI {
     /**
      * Clears the strategy for a specific villager
      *
-     * @param villagerID UUID of the villager
+     * @param villagerID UUID of villager
      */
     public static void clearStrategy(UUID villagerID) {
         strategies.remove(villagerID);
@@ -93,7 +122,6 @@ public class ChatAI {
      * @return {@code Optional.Empty} if no valid villager was found, Optional containing the VillagerEntityMCA object otherwise
      */
     public static Optional<VillagerEntityMCA> getVillagerForConversation(ServerPlayer player, String msg) {
-        UUID playerUUID = player.getUUID();
         // Get nearby villagers
         List<VillagerEntityMCA> nearbyVillagers = WorldUtils.getCloseEntities(player.level(), player, VILLAGER_SEARCH_RANGE, VillagerEntityMCA.class);
 
@@ -110,16 +138,7 @@ public class ChatAI {
         }
 
         // Otherwise get current open conversation of player
-        OpenConversation conv = currentConversations.getOrDefault(playerUUID, new OpenConversation(playerUUID, 0L));
-
-        // Find first nearby villager matching the UUID of the conversation
-        Optional<VillagerEntityMCA> optionalVillager = nearbyVillagers.stream().filter(v -> conv.villagerUUID.equals(v.getUUID())).findFirst();
-        // Return if found
-        if (optionalVillager.isPresent() && isInConversationWith(player, optionalVillager.get())) {
-            return optionalVillager;
-        }
-
-        return Optional.empty();
+        return getActiveConversationVillager(player);
     }
 
     /**
@@ -174,10 +193,9 @@ public class ChatAI {
     /**
      * Information needed to manage an open conversation.
      *
-     * @param villagerUUID        UUID of the villager the conversation is with
-     * @param lastInteractionTime Timestamp of the last interaction with the villager
+     * @param villagerUUID        UUID of villager the conversation is with
+     * @param lastInteractionTime Timestamp of last interaction with villager
      */
     private record OpenConversation(UUID villagerUUID, Long lastInteractionTime) {
     }
-
 }
