@@ -52,7 +52,7 @@ final class VoiceCaptureManager implements AutoCloseable {
         if (!(rawPlayer instanceof ServerPlayer player)) return;
 
         UUID playerId = player.getUUID();
-        if (!ChatAI.hasOpenConversation(playerId)) return;
+        if (!ChatAI.hasOpenConversation(playerId) || conversationService.isBusy(playerId)) return;
 
         byte[] opus = event.getPacket().getOpusEncodedData();
         if (opus == null || opus.length == 0) return;
@@ -60,9 +60,7 @@ final class VoiceCaptureManager implements AutoCloseable {
         try {
             CaptureSession session = sessions.computeIfAbsent(playerId, ignored -> new CaptureSession(voicechatApi.createDecoder()));
             boolean full = session.append(opus, Math.multiplyExact(VOICECHAT_SAMPLE_RATE, config.voiceMaxSeconds));
-            if (full && sessions.remove(playerId, session)) {
-                finish(playerId, session);
-            }
+            if (full && sessions.remove(playerId, session)) finish(playerId, session);
         } catch (RuntimeException e) {
             MCA.LOGGER.warn("LivingWorld failed to decode microphone audio for {}", playerId, e);
             CaptureSession removed = sessions.remove(playerId);
@@ -75,18 +73,14 @@ final class VoiceCaptureManager implements AutoCloseable {
         int silenceMillis = LivingWorldConfig.getInstance().voiceSilenceMillis;
         for (Map.Entry<UUID, CaptureSession> entry : sessions.entrySet()) {
             CaptureSession session = entry.getValue();
-            if (session.isIdle(now, silenceMillis) && sessions.remove(entry.getKey(), session)) {
-                finish(entry.getKey(), session);
-            }
+            if (session.isIdle(now, silenceMillis) && sessions.remove(entry.getKey(), session)) finish(entry.getKey(), session);
         }
     }
 
     private void finish(UUID playerId, CaptureSession session) {
         short[] samples = session.finish();
         int minimumSamples = VOICECHAT_SAMPLE_RATE * LivingWorldConfig.getInstance().voiceMinMillis / 1_000;
-        if (samples.length >= minimumSamples) {
-            conversationService.process(playerId, samples);
-        }
+        if (samples.length >= minimumSamples) conversationService.process(playerId, samples);
     }
 
     @Override
@@ -129,8 +123,10 @@ final class VoiceCaptureManager implements AutoCloseable {
         synchronized short[] finish() {
             if (!closed) close();
             byte[] bytes = pcmBytes.toByteArray();
-            ShortBufferReader reader = new ShortBufferReader(bytes);
-            return reader.readAll();
+            ByteBuffer buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
+            short[] output = new short[bytes.length / 2];
+            for (int i = 0; i < output.length; i++) output[i] = buffer.getShort();
+            return output;
         }
 
         @Override
@@ -138,15 +134,6 @@ final class VoiceCaptureManager implements AutoCloseable {
             if (closed) return;
             closed = true;
             decoder.close();
-        }
-    }
-
-    private record ShortBufferReader(byte[] bytes) {
-        short[] readAll() {
-            ByteBuffer buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
-            short[] output = new short[bytes.length / 2];
-            for (int i = 0; i < output.length; i++) output[i] = buffer.getShort();
-            return output;
         }
     }
 }
