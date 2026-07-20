@@ -24,10 +24,6 @@ public class ChatAI {
         return strategy.answer(player, villager, msg);
     }
 
-    /**
-     * Explicitly selects the villager as the player's current AI conversation target.
-     * Voice input uses this method so ambient microphone audio is never routed to arbitrary NPCs.
-     */
     public static void openConversation(ServerPlayer player, VillagerEntityMCA villager) {
         currentConversations.put(
                 player.getUUID(),
@@ -35,25 +31,35 @@ public class ChatAI {
         );
     }
 
-    /**
-     * Returns the player's still-valid explicit conversation target, if nearby and not expired.
-     */
     public static Optional<VillagerEntityMCA> getActiveConversationVillager(ServerPlayer player) {
         OpenConversation conversation = currentConversations.get(player.getUUID());
         if (conversation == null) return Optional.empty();
 
-        List<VillagerEntityMCA> nearbyVillagers = WorldUtils.getCloseEntities(
-                player.level(), player, VILLAGER_SEARCH_RANGE, VillagerEntityMCA.class
-        );
+        List<VillagerEntityMCA> nearbyVillagers = getNearbyVillagers(player);
         Optional<VillagerEntityMCA> target = nearbyVillagers.stream()
                 .filter(villager -> conversation.villagerUUID.equals(villager.getUUID()))
                 .findFirst();
+        if (target.isPresent() && isInConversationWith(player, target.get())) return target;
 
-        if (target.isPresent() && isInConversationWith(player, target.get())) {
-            return target;
-        }
         currentConversations.remove(player.getUUID(), conversation);
         return Optional.empty();
+    }
+
+    /**
+     * Voice activation first reuses an existing AI conversation. Otherwise it adopts the MCA
+     * villager whose interaction UI the player most recently opened, avoiding ambient/nearest-NPC targeting.
+     */
+    public static Optional<VillagerEntityMCA> getOrOpenInteractionConversation(ServerPlayer player) {
+        Optional<VillagerEntityMCA> active = getActiveConversationVillager(player);
+        if (active.isPresent()) return active;
+
+        Optional<VillagerEntityMCA> interactionTarget = getNearbyVillagers(player).stream()
+                .filter(villager -> villager.getInteractions().getInteractingPlayer()
+                        .filter(interacting -> interacting.getUUID().equals(player.getUUID()))
+                        .isPresent())
+                .min(Comparator.comparingDouble(villager -> villager.distanceToSqr(player)));
+        interactionTarget.ifPresent(villager -> openConversation(player, villager));
+        return interactionTarget;
     }
 
     private static ChatAIStrategy computeStrategyIfAbsent(UUID villagerID) {
@@ -71,25 +77,22 @@ public class ChatAI {
         return normalizeString(villager.getName().getString());
     }
 
-    /**
-     * Checks if the message contains the name of any specific nearby villager. If not, falls back
-     * to the player's explicit active conversation target.
-     */
     public static Optional<VillagerEntityMCA> getVillagerForConversation(ServerPlayer player, String msg) {
-        List<VillagerEntityMCA> nearbyVillagers = WorldUtils.getCloseEntities(
-                player.level(), player, VILLAGER_SEARCH_RANGE, VillagerEntityMCA.class
-        );
+        List<VillagerEntityMCA> nearbyVillagers = getNearbyVillagers(player);
         String normalizedMsg = normalizeString(msg);
         for (VillagerEntityMCA villager : nearbyVillagers) {
             String normalizedName = getName(villager);
-            String[] nameParts = normalizedName.split(" ");
-            for (String part : nameParts) {
+            for (String part : normalizedName.split(" ")) {
                 if (Pattern.compile("\\b" + Pattern.quote(part) + "\\b").matcher(normalizedMsg).find()) {
                     return Optional.of(villager);
                 }
             }
         }
         return getActiveConversationVillager(player);
+    }
+
+    private static List<VillagerEntityMCA> getNearbyVillagers(ServerPlayer player) {
+        return WorldUtils.getCloseEntities(player.level(), player, VILLAGER_SEARCH_RANGE, VillagerEntityMCA.class);
     }
 
     private static boolean isInConversationWith(ServerPlayer player, VillagerEntityMCA villager) {
@@ -101,17 +104,10 @@ public class ChatAI {
     }
 
     public static Optional<VillagerEntityMCA> findVillagerInArea(ServerPlayer player, String searchName) {
-        List<VillagerEntityMCA> entities = WorldUtils.getCloseEntities(
-                player.level(), player, VILLAGER_SEARCH_RANGE, VillagerEntityMCA.class
-        );
         String normalizedSearchName = normalizeString(searchName);
-        for (VillagerEntityMCA villager : entities) {
-            String villagerName = getName(villager);
-            if (normalizedSearchName.equals(villagerName)) {
-                return Optional.of(villager);
-            }
-        }
-        return Optional.empty();
+        return getNearbyVillagers(player).stream()
+                .filter(villager -> normalizedSearchName.equals(getName(villager)))
+                .findFirst();
     }
 
     private static String normalizeString(String string) {
