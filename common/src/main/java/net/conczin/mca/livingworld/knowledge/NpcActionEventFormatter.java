@@ -31,11 +31,10 @@ public final class NpcActionEventFormatter {
         for (int offset = 0; offset < value.length() && normalized.codePointCount(0, normalized.length()) < MAX_NAME_CHARS; ) {
             int codePoint = value.codePointAt(offset);
             offset += Character.charCount(codePoint);
-            if (Character.isISOControl(codePoint)) continue;
             if (Character.isWhitespace(codePoint)) {
                 if (!previousWhitespace && !normalized.isEmpty()) normalized.append(' ');
                 previousWhitespace = true;
-            } else {
+            } else if (!Character.isISOControl(codePoint)) {
                 normalized.appendCodePoint(codePoint);
                 previousWhitespace = false;
             }
