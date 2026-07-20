@@ -2,8 +2,8 @@ package net.conczin.mca.network.c2s;
 
 import net.conczin.mca.MCA;
 import net.conczin.mca.network.HandleablePayload;
+import net.conczin.mca.resources.Rank;
 import net.conczin.mca.server.world.data.Village;
-import net.conczin.mca.server.world.data.VillageManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -31,11 +31,30 @@ public record SaveVillageMessage(
 
     @Override
     public void handleServer(ServerPlayer player) {
-        VillageManager.get(player.serverLevel()).getOrEmpty(id).ifPresent(village -> {
-            village.setTaxes(taxes);
-            village.setPopulationThreshold(populationThreshold);
-            village.setMarriageThreshold(marriageThreshold);
-        });
+        if (!BlueprintPermissionPolicy.isValidRatio(taxes)
+                || !BlueprintPermissionPolicy.isValidRatio(populationThreshold)
+                || !BlueprintPermissionPolicy.isValidRatio(marriageThreshold)) {
+            return;
+        }
+
+        BlueprintServerAuthority.requestedVillage(player, id).ifPresentOrElse(village -> {
+            Rank rank = BlueprintServerAuthority.rank(village, player);
+            boolean taxesChanged = Float.compare(village.getTaxes(), taxes) != 0;
+            boolean populationChanged = Float.compare(village.getPopulationThreshold(), populationThreshold) != 0;
+            boolean marriageChanged = Float.compare(village.getMarriageThreshold(), marriageThreshold) != 0;
+
+            if ((taxesChanged && !BlueprintPermissionPolicy.can(rank, BlueprintPermissionPolicy.Operation.CHANGE_TAXES))
+                    || (populationChanged && !BlueprintPermissionPolicy.can(rank, BlueprintPermissionPolicy.Operation.CHANGE_POPULATION))
+                    || (marriageChanged && !BlueprintPermissionPolicy.can(rank, BlueprintPermissionPolicy.Operation.CHANGE_MARRIAGE))) {
+                BlueprintServerAuthority.deny(player);
+                return;
+            }
+
+            if (taxesChanged) village.setTaxes(taxes);
+            if (populationChanged) village.setPopulationThreshold(populationThreshold);
+            if (marriageChanged) village.setMarriageThreshold(marriageThreshold);
+            if (taxesChanged || populationChanged || marriageChanged) village.markDirty();
+        }, () -> BlueprintServerAuthority.deny(player));
     }
 
     @Override

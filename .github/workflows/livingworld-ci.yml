@@ -31,12 +31,27 @@ jobs:
       - name: Use Java 21 from runner image
         run: |
           if [ -n "${JAVA_HOME_21_X64:-}" ] && [ -d "$JAVA_HOME_21_X64" ]; then
-            echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
-            echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+            export JAVA_HOME="$JAVA_HOME_21_X64"
+            export PATH="$JAVA_HOME/bin:$PATH"
+            echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+            echo "$JAVA_HOME/bin" >> "$GITHUB_PATH"
           fi
           java -version
 
       - name: Run unit tests and Fabric build
         run: |
           chmod +x gradlew
-          ./gradlew :common:test :fabric:build --stacktrace --no-daemon
+          set +e
+          ./gradlew :common:test :fabric:build --stacktrace --no-daemon > gradle-build.log 2>&1
+          status=$?
+          set -e
+
+          if [ "$status" -ne 0 ]; then
+            echo "Gradle failed; extracted diagnostics:"
+            grep -En "error:|FAILURE:|What went wrong:|Execution failed|Could not|Caused by:|FAILED" gradle-build.log | tail -n 120 || true
+            echo "--- final 80 log lines ---"
+            tail -n 80 gradle-build.log
+            exit "$status"
+          fi
+
+          tail -n 80 gradle-build.log

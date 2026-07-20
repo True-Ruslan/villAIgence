@@ -4,6 +4,7 @@ import net.conczin.mca.MCA;
 import net.conczin.mca.network.HandleablePayload;
 import net.conczin.mca.network.Network;
 import net.conczin.mca.network.s2c.BuildingPolymorphMessage;
+import net.conczin.mca.resources.BuildingTypes;
 import net.conczin.mca.server.world.data.Building;
 import net.conczin.mca.server.world.data.BuildingScanResult;
 import net.conczin.mca.server.world.data.Village;
@@ -39,6 +40,15 @@ public record ReportBuildingMessage(Action action, String data) implements Handl
         VillageManager villages = VillageManager.get(player.serverLevel());
         switch (action) {
             case ADD, ADD_ROOM -> {
+                BlueprintPermissionPolicy.Operation operation = action == Action.ADD
+                        ? BlueprintPermissionPolicy.Operation.ADD_BUILDING
+                        : BlueprintPermissionPolicy.Operation.ADD_ROOM;
+                Optional<Village> nearest = BlueprintServerAuthority.nearestVillage(player);
+                if (nearest.isPresent() && !BlueprintServerAuthority.hasPermission(nearest.get(), player, operation)) {
+                    BlueprintServerAuthority.deny(player);
+                    return;
+                }
+
                 boolean isRoom = action == Action.ADD_ROOM;
                 BuildingScanResult scan = villages.analyzeBuilding(player.blockPosition(), isRoom);
                 if (scan.result() == Building.validationResult.SUCCESS && scan.isAmbiguous()) {
@@ -48,64 +58,72 @@ public record ReportBuildingMessage(Action action, String data) implements Handl
                     player.displayClientMessage(Component.translatable("blueprint.scan." + result.name().toLowerCase(Locale.ENGLISH)), true);
                 }
             }
-            case AUTO_SCAN -> villages.findNearestVillage(player).ifPresent(Village::toggleAutoScan);
-            case FULL_SCAN -> villages.findNearestVillage(player).ifPresent(buildings ->
-                    buildings.getBuildings().values().stream().toList().forEach(b ->
-                            villages.processBuilding(b.getCenter(), true, b.isStrictScan())
-                    )
-            );
-            case FORCE_TYPE, REMOVE -> {
-                BlockPos playerPos = player.blockPosition();
-                Optional<Village> village = villages.findNearestVillage(player);
+            case AUTO_SCAN -> BlueprintServerAuthority.nearestAuthorized(player, BlueprintPermissionPolicy.Operation.TOGGLE_AUTO_SCAN)
+                    .ifPresentOrElse(village -> {
+                        village.toggleAutoScan();
+                        village.markDirty();
+                    }, () -> BlueprintServerAuthority.deny(player));
+            case FULL_SCAN -> BlueprintServerAuthority.nearestAuthorized(player, BlueprintPermissionPolicy.Operation.FULL_SCAN)
+                    .ifPresentOrElse(village -> village.getBuildings().values().stream().toList().forEach(building ->
+                                    villages.processBuilding(building.getCenter(), true, building.isStrictScan())),
+                            () -> BlueprintServerAuthority.deny(player));
+            case FORCE_TYPE, REMOVE -> handleAdministrativeBuildingMutation(player, villages);
+        }
+    }
 
-                Building targetBuilding = null;
-                Village targetVillage = null;
-                boolean targetExact = false;
-                double targetDistance = Double.MAX_VALUE;
+    private void handleAdministrativeBuildingMutation(ServerPlayer player, VillageManager villages) {
+        BlueprintPermissionPolicy.Operation operation = action == Action.FORCE_TYPE
+                ? BlueprintPermissionPolicy.Operation.FORCE_BUILDING_TYPE
+                : BlueprintPermissionPolicy.Operation.REMOVE_BUILDING;
+        Optional<Village> authorized = BlueprintServerAuthority.nearestAuthorized(player, operation);
+        if (authorized.isEmpty()) {
+            BlueprintServerAuthority.deny(player);
+            return;
+        }
+        if (action == Action.FORCE_TYPE && (data == null || data.isBlank()
+                || !BuildingTypes.getInstance().getServerBuildingTypes().containsKey(data))) {
+            return;
+        }
 
-                if (village.isPresent()) {
-                    Village v = village.get();
-                    for (Building b : v.getBuildings().values()) {
-                        if (action == Action.FORCE_TYPE && b.getBuildingType().grouped()) {
-                            continue;
-                        }
+        BlockPos playerPos = player.blockPosition();
+        Village village = authorized.get();
+        Building targetBuilding = null;
+        boolean targetExact = false;
+        double targetDistance = Double.MAX_VALUE;
 
-                        boolean exact = b.containsPos(playerPos);
-                        boolean lenient = containsLenient(b, playerPos);
+        for (Building building : village.getBuildings().values()) {
+            if (action == Action.FORCE_TYPE && building.getBuildingType().grouped()) continue;
 
-                        if (!exact && !lenient) {
-                            continue;
-                        }
+            boolean exact = building.containsPos(playerPos);
+            boolean lenient = containsLenient(building, playerPos);
+            if (!exact && !lenient) continue;
 
-                        double distance = b.getCenter().distSqr(playerPos);
-                        if (targetBuilding == null
-                                || (exact && !targetExact)
-                                || (exact == targetExact && distance < targetDistance)) {
-                            targetBuilding = b;
-                            targetVillage = v;
-                            targetExact = exact;
-                            targetDistance = distance;
-                        }
-                    }
-                }
-
-                if (targetBuilding != null && targetVillage != null) {
-                    if (action == Action.FORCE_TYPE) {
-                        if (targetBuilding.getType().equals(data)) {
-                            targetBuilding.setTypeForced(false);
-                            targetBuilding.determineType();
-                        } else {
-                            targetBuilding.setTypeForced(true);
-                            targetBuilding.setType(data);
-                        }
-                        targetVillage.markDirty();
-                    } else {
-                        targetVillage.removeBuilding(targetBuilding.getId());
-                    }
-                } else {
-                    player.displayClientMessage(Component.translatable("blueprint.noBuilding"), true);
-                }
+            double distance = building.getCenter().distSqr(playerPos);
+            if (targetBuilding == null
+                    || (exact && !targetExact)
+                    || (exact == targetExact && distance < targetDistance)) {
+                targetBuilding = building;
+                targetExact = exact;
+                targetDistance = distance;
             }
+        }
+
+        if (targetBuilding == null) {
+            player.displayClientMessage(Component.translatable("blueprint.noBuilding"), true);
+            return;
+        }
+
+        if (action == Action.FORCE_TYPE) {
+            if (targetBuilding.getType().equals(data)) {
+                targetBuilding.setTypeForced(false);
+                targetBuilding.determineType();
+            } else {
+                targetBuilding.setTypeForced(true);
+                targetBuilding.setType(data);
+            }
+            village.markDirty();
+        } else {
+            village.removeBuilding(targetBuilding.getId());
         }
     }
 
