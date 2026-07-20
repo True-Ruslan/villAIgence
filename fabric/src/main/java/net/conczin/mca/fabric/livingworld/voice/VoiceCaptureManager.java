@@ -8,7 +8,6 @@ import de.maxhenkel.voicechat.api.opus.OpusDecoder;
 import net.conczin.mca.MCA;
 import net.conczin.mca.entity.ai.chatAI.ChatAI;
 import net.conczin.mca.livingworld.LivingWorldConfig;
-import net.minecraft.server.level.ServerPlayer;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
@@ -48,10 +47,8 @@ final class VoiceCaptureManager implements AutoCloseable {
 
         VoicechatConnection sender = event.getSenderConnection();
         if (sender == null || sender.getPlayer() == null) return;
-        Object rawPlayer = sender.getPlayer().getPlayer();
-        if (!(rawPlayer instanceof ServerPlayer player)) return;
 
-        UUID playerId = player.getUUID();
+        UUID playerId = sender.getPlayer().getUuid();
         if (!ChatAI.hasOpenConversation(playerId) || conversationService.isBusy(playerId)) return;
 
         byte[] opus = event.getPacket().getOpusEncodedData();
