@@ -57,11 +57,14 @@ public final class WorldEventStore {
         if (dimension == null || dimension.isBlank() || maxResults <= 0 || radius < 0.0D || maxAgeTicks < 0L) return List.of();
         double radiusSquared = radius * radius;
 
+        // Expired events should no longer consume the bounded in-memory journal. Persistence is updated on the
+        // next append so a read-only context lookup never turns into a synchronous disk write.
+        data.events.removeIf(event -> !isValid(event)
+                || (event.gameTime() <= now && now - event.gameTime() > maxAgeTicks));
+
         return data.events.stream()
-                .filter(WorldEventStore::isValid)
                 .filter(event -> dimension.equals(event.dimension()))
                 .filter(event -> event.gameTime() <= now)
-                .filter(event -> now - event.gameTime() <= maxAgeTicks)
                 .filter(event -> distanceSquared(event, x, y, z) <= radiusSquared)
                 .sorted(Comparator.comparingLong(WorldEvent::gameTime).reversed().thenComparing(event -> event.id().toString()))
                 .limit(maxResults)
