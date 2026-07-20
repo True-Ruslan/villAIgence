@@ -18,11 +18,11 @@ Our current upstream base line is `7.7.22` / commit `a3de832`. Experimental `7.7
 
 ### Upstream #884 — Hole villagers cause lag
 
-**Status:** ADOPT / investigate high priority
+**Status:** NEEDS REPRODUCTION / likely partially mitigated
 
-Created by the upstream author as a bug: a stuck NPC appears to run a task without an adequate cooldown, causing lag.
+The upstream author reported that a stuck NPC appeared to run a task without an adequate cooldown, causing lag. Current `1.21.1` code already contains an explicit `SLOWDOWN = 5` gate in `WanderOrTeleportToTargetTask` with a comment that pathfinding is intentionally slowed because it is expensive. Therefore the old open issue is **not sufficient evidence that the original tight-loop bug still exists**.
 
-**Our action:** profile AI goals/brain behavior in stuck states; add rate limiting/retry backoff where needed; add diagnostics/regression coverage.
+**Our action:** do not add a speculative cooldown patch. Reproduce/profile stuck villagers on the current target stack first. If a hotspot remains, identify the exact behavior/task and add bounded retry/backoff plus diagnostics there.
 
 ### Upstream #1088 — Pathfinding Megathread
 
@@ -42,22 +42,25 @@ Blueprint operations can potentially let players mutate villages they do not own
 
 ### Upstream #1314 — ChatAI hallucinates inventory/location
 
-**Status:** ADOPT / LivingWorld P1
+**Status:** PARTIALLY IMPLEMENTED / LivingWorld P1 remaining
 
 The issue explicitly reports that ChatAI does not reliably know its location or what it actually possesses.
 
-**Our action:** implement an immutable world/NPC/player context snapshot captured on the Minecraft server thread, then consumed asynchronously by the LLM. Include bounded factual location/dimension/biome/time/weather, equipment/held items, relevant NPC inventory facts, nearby entities/events, and knowledge provenance.
+The direct LivingWorld/OpenAI voice path now captures an immutable server-thread context snapshot containing dimension, coordinates, biome, day/night, weather, held/equipped item facts, bounded villager inventory facts, existing MCA personality/relationship/village/player context, and currently available safe actions. Prompt/memory/network processing then uses copied snapshot data asynchronously.
+
+**Remaining action:** extend factual context with nearby relevant entities/events and knowledge provenance; migrate/verify legacy historical ChatAI callers before claiming every text/Inworld path has the same thread/factuality boundary.
 
 ### Upstream #1243 — NPC memory / awareness / NPC-to-NPC interaction
 
 **Status:** PARTIALLY DONE / ADOPT remaining
 
-- persistent NPC × player memory — **already implemented by us**;
-- awareness of surroundings — TODO;
+- persistent NPC × player memory — **implemented**;
+- basic factual surroundings snapshot — **implemented for direct LivingWorld/OpenAI voice path**;
+- nearby event/knowledge awareness — TODO;
 - NPC-to-NPC interaction/knowledge exchange — future;
 - deeper persistent personalities — future.
 
-**Our action:** Context Snapshot → Event/Knowledge layer → controlled NPC-to-NPC information exchange.
+**Our action:** Event/Knowledge layer → controlled NPC-to-NPC information exchange → broader context migration.
 
 ### Upstream #1292 — Interaction impact with villagers
 
@@ -73,7 +76,7 @@ Player conversations/actions should have gameplay consequences instead of being 
 
 The original report is for 1.20.1 and says spouses/children can talk as strangers/adults. Current `1.21.1` ChatAI already injects explicit age (`baby`, `toddler`, `child`, `teen`) and relationship facts (`married`, `parent`, `child`, `relative`) into the LLM context, so this is **not** currently proven as a LivingWorld/ChatAI context defect.
 
-**Our action:** reproduce the classic MCA dialogue path on 1.21.1 and add regression tests for spouse/parent/child wording. Keep stronger identity context in the future Context Snapshot.
+**Our action:** reproduce the classic MCA dialogue path on 1.21.1 and add regression tests for spouse/parent/child wording. Keep stronger identity context in the Context Snapshot.
 
 ---
 
@@ -183,10 +186,10 @@ An issue remaining `open` upstream is **not** sufficient reason to copy it into 
 
 ## Ordered work derived from this audit
 
-1. **Context Snapshot / thread-boundary architecture** — foundation for #1314 and part of #1243.
-2. **Pathfinding + anti-stuck audit** — #884 + #1088 + #862/#929/#1148.
-3. **Blueprint permission audit** — #580.
-4. **Age/kinship/relationship correctness** — reproduce #1140 + implement relationship consequences from #1292; #912 is verified fixed.
+1. **Pathfinding reproduction + anti-stuck audit** — #1088 umbrella; #884 is no longer assumed current without profiling.
+2. **Blueprint permission audit** — #580.
+3. **Event/Knowledge + relationship consequences** — remaining #1243 + #1292.
+4. **Age/kinship correctness** — reproduce #1140; #912 is verified fixed.
 5. **Upstream sync gate** — do not import `7.7.23-alpha` blueprint work until #1373/#1372 are verified.
 
 ## Maintenance
