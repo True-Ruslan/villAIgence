@@ -35,9 +35,9 @@
     "fabricloader": ">=0.14",
     "fabric": "*",
     "minecraft": "${minecraft_version}",
-    "java": ">=17"
+    "java": ">=17",
+    "voicechat_api": ">=2.6.20"
   },
   "suggests": {
-    "voicechat_api": ">=2.6.20"
   }
 }
