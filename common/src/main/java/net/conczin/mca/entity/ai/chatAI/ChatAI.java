@@ -2,7 +2,9 @@ package net.conczin.mca.entity.ai.chatAI;
 
 import net.conczin.mca.Config;
 import net.conczin.mca.entity.VillagerEntityMCA;
+import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
 import net.conczin.mca.util.WorldUtils;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.text.Normalizer;
@@ -29,14 +31,13 @@ public class ChatAI {
     /**
      * Map of villager UUIDs to strategies (i.e. managed by InworldAI or GPT3)
      */
-    private static final Map<UUID, ChatAIStrategy> strategies = new HashMap<>();
+    private static final Map<UUID, ChatAIStrategy> strategies = new ConcurrentHashMap<>();
 
     /**
      * Current conversation of player. <p>
      * A player can max. have 1 conversation at all times.
      */
     private static final Map<UUID, OpenConversation> currentConversations = new ConcurrentHashMap<>();
-
 
     /**
      * Gets an answer for a specific message for a villager from a player with the villager-specific chat strategy
@@ -54,6 +55,24 @@ public class ChatAI {
         openConversation(player, villager);
 
         // Get answer
+        return strategy.answer(player, villager, msg);
+    }
+
+    /**
+     * Snapshot-aware answer path for LivingWorld. Snapshot capture happens on the Minecraft server thread.
+     */
+    public static Optional<String> answer(
+            MinecraftServer server,
+            ServerPlayer player,
+            VillagerEntityMCA villager,
+            String msg,
+            LivingWorldContextSnapshot snapshot
+    ) {
+        ChatAIStrategy strategy = computeStrategyIfAbsent(snapshot.villagerId());
+        currentConversations.put(snapshot.playerId(), new OpenConversation(snapshot.villagerId(), snapshot.gameTime()));
+        if (strategy instanceof OpenAIChatAI openAIChatAI) {
+            return openAIChatAI.answer(server, player, villager, msg, snapshot);
+        }
         return strategy.answer(player, villager, msg);
     }
 

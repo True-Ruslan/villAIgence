@@ -8,6 +8,7 @@ import net.minecraft.world.level.storage.LevelResource;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.UUID;
 
 /** Loader-independent bridge from an MCA conversation to the world-local memory store. */
 public final class PersistentChatMemory {
@@ -15,7 +16,11 @@ public final class PersistentChatMemory {
     }
 
     public static List<Tuple<String, String>> load(ServerPlayer player, VillagerEntityMCA villager) {
-        return store(player).getMessages(villager.getUUID(), player.getUUID()).stream()
+        return load(worldRoot(player), villager.getUUID(), player.getUUID());
+    }
+
+    public static List<Tuple<String, String>> load(Path worldRoot, UUID villagerId, UUID playerId) {
+        return ConversationMemoryStore.forWorld(worldRoot).getMessages(villagerId, playerId).stream()
                 .map(message -> new Tuple<>(message.role(), message.content()))
                 .toList();
     }
@@ -27,9 +32,20 @@ public final class PersistentChatMemory {
             String assistantMessage,
             LivingWorldConfig config
     ) {
-        store(player).appendExchange(
-                villager.getUUID(),
-                player.getUUID(),
+        append(worldRoot(player), villager.getUUID(), player.getUUID(), userMessage, assistantMessage, config);
+    }
+
+    public static void append(
+            Path worldRoot,
+            UUID villagerId,
+            UUID playerId,
+            String userMessage,
+            String assistantMessage,
+            LivingWorldConfig config
+    ) {
+        ConversationMemoryStore.forWorld(worldRoot).appendExchange(
+                villagerId,
+                playerId,
                 userMessage,
                 assistantMessage,
                 config.persistentMemoryMaxMessages,
@@ -37,8 +53,7 @@ public final class PersistentChatMemory {
         );
     }
 
-    private static ConversationMemoryStore store(ServerPlayer player) {
-        Path worldRoot = player.serverLevel().getServer().getWorldPath(LevelResource.ROOT);
-        return ConversationMemoryStore.forWorld(worldRoot);
+    private static Path worldRoot(ServerPlayer player) {
+        return player.serverLevel().getServer().getWorldPath(LevelResource.ROOT);
     }
 }
