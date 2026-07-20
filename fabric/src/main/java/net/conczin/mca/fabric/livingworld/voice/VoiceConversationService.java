@@ -14,6 +14,7 @@ import net.conczin.mca.livingworld.voice.OpenAIAudioProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +25,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 final class VoiceConversationService implements AutoCloseable {
+    private static final double MIN_LOOK_DOT = 0.70D;
+
     private final ExecutorService executor = Executors.newFixedThreadPool(2, runnable -> {
         Thread thread = new Thread(runnable, "livingworld-voice-ai");
         thread.setDaemon(true);
@@ -44,10 +47,33 @@ final class VoiceConversationService implements AutoCloseable {
 
     void process(UUID playerId, short[] microphonePcm) {
         if (!busyPlayers.add(playerId)) return;
-        executor.execute(() -> transcribeAndRoute(playerId, microphonePcm));
+
+        Optional<MinecraftServer> optionalServer = MCA.getServer();
+        if (optionalServer.isEmpty()) {
+            busyPlayers.remove(playerId);
+            return;
+        }
+        MinecraftServer server = optionalServer.get();
+        server.execute(() -> validateTargetAndTranscribe(server, playerId, microphonePcm));
     }
 
-    private void transcribeAndRoute(UUID playerId, short[] microphonePcm) {
+    private void validateTargetAndTranscribe(MinecraftServer server, UUID playerId, short[] microphonePcm) {
+        ServerPlayer player = server.getPlayerList().getPlayer(playerId);
+        if (player == null) {
+            busyPlayers.remove(playerId);
+            return;
+        }
+        Optional<VillagerEntityMCA> target = ChatAI.getActiveConversationVillager(player);
+        if (target.isEmpty() || !isAddressingTarget(player, target.get())) {
+            busyPlayers.remove(playerId);
+            return;
+        }
+
+        UUID targetId = target.get().getUUID();
+        executor.execute(() -> transcribeAndRoute(server, playerId, targetId, microphonePcm));
+    }
+
+    private void transcribeAndRoute(MinecraftServer server, UUID playerId, UUID targetId, short[] microphonePcm) {
         try {
             String transcript = audioProvider.transcribe(new PcmAudio(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE, microphonePcm));
             if (transcript.isBlank()) {
@@ -55,19 +81,14 @@ final class VoiceConversationService implements AutoCloseable {
                 return;
             }
 
-            Optional<MinecraftServer> optionalServer = MCA.getServer();
-            if (optionalServer.isEmpty()) {
-                busyPlayers.remove(playerId);
-                return;
-            }
-            MinecraftServer server = optionalServer.get();
             server.execute(() -> {
                 ServerPlayer player = server.getPlayerList().getPlayer(playerId);
                 if (player == null) {
                     busyPlayers.remove(playerId);
                     return;
                 }
-                Optional<VillagerEntityMCA> target = ChatAI.getActiveConversationVillager(player);
+                Optional<VillagerEntityMCA> target = ChatAI.getActiveConversationVillager(player)
+                        .filter(villager -> villager.getUUID().equals(targetId));
                 if (target.isEmpty()) {
                     busyPlayers.remove(playerId);
                     return;
@@ -78,6 +99,13 @@ final class VoiceConversationService implements AutoCloseable {
             busyPlayers.remove(playerId);
             MCA.LOGGER.warn("LivingWorld speech-to-text failed for player {}", playerId, e);
         }
+    }
+
+    private static boolean isAddressingTarget(ServerPlayer player, VillagerEntityMCA villager) {
+        if (!player.hasLineOfSight(villager)) return false;
+        Vec3 toVillager = villager.getEyePosition().subtract(player.getEyePosition());
+        if (toVillager.lengthSqr() < 1.0E-6D) return true;
+        return player.getLookAngle().normalize().dot(toVillager.normalize()) >= MIN_LOOK_DOT;
     }
 
     private void answerAndSpeak(MinecraftServer server, ServerPlayer player, VillagerEntityMCA villager, String transcript) {
