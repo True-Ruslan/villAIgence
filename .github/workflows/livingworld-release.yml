@@ -11,8 +11,6 @@ on:
       - '.github/workflows/livingworld-release.yml'
       - 'docs/RELEASING.md'
       - 'scripts/ci/package-livingworld-release.sh'
-      - 'docs/superpowers/specs/2026-07-20-github-alpha-release-design.md'
-      - 'docs/superpowers/plans/2026-07-20-github-alpha-release.md'
   workflow_dispatch:
 
 permissions:
@@ -23,60 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  metadata:
-    runs-on: ubuntu-latest
-    outputs:
-      valid: ${{ steps.metadata.outputs.valid }}
-      is_release: ${{ steps.metadata.outputs.is_release }}
-      tag: ${{ steps.metadata.outputs.tag }}
-      version: ${{ steps.metadata.outputs.version }}
-      minecraft_version: ${{ steps.metadata.outputs.minecraft_version }}
-    steps:
-      - name: Resolve release metadata
-        id: metadata
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          case "${GITHUB_EVENT_NAME}" in
-            push)
-              tag="${GITHUB_REF_NAME}"
-              tag_pattern='^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?[+][0-9]+([.][0-9]+){1,2}$'
-
-              if [[ ! "${tag}" =~ ${tag_pattern} ]]; then
-                echo "::error title=Invalid release tag::Expected '<mod_version>+<minecraft_version>', for example '0.1.0-alpha.1+1.21.1'."
-                exit 1
-              fi
-
-              echo "valid=true" >> "$GITHUB_OUTPUT"
-              echo "is_release=true" >> "$GITHUB_OUTPUT"
-              echo "tag=${tag}" >> "$GITHUB_OUTPUT"
-              echo "version=${tag%%+*}" >> "$GITHUB_OUTPUT"
-              echo "minecraft_version=${tag#*+}" >> "$GITHUB_OUTPUT"
-              ;;
-            pull_request)
-              echo "valid=true" >> "$GITHUB_OUTPUT"
-              echo "is_release=false" >> "$GITHUB_OUTPUT"
-              echo "tag=pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
-              echo "version=pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
-              echo "minecraft_version=1.21.1" >> "$GITHUB_OUTPUT"
-              ;;
-            workflow_dispatch)
-              echo "valid=true" >> "$GITHUB_OUTPUT"
-              echo "is_release=false" >> "$GITHUB_OUTPUT"
-              echo "tag=dry-run-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-              echo "version=dry-run-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-              echo "minecraft_version=1.21.1" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "::error title=Unsupported workflow event::${GITHUB_EVENT_NAME}"
-              exit 1
-              ;;
-          esac
-
   build-and-package:
-    needs: metadata
-    if: needs.metadata.outputs.valid == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -89,33 +34,37 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Verify release source and metadata
-        if: needs.metadata.outputs.is_release == 'true'
+      - name: Resolve and verify release metadata
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
         shell: bash
-        env:
-          RELEASE_TAG: ${{ needs.metadata.outputs.tag }}
-          TAG_MINECRAFT_VERSION: ${{ needs.metadata.outputs.minecraft_version }}
         run: |
           set -euo pipefail
+
+          tag="${GITHUB_REF_NAME}"
+          tag_pattern='^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?[+][0-9]+([.][0-9]+){1,2}$'
+          if [[ ! "${tag}" =~ ${tag_pattern} ]]; then
+            echo "::error title=Invalid release tag::Expected '<mod_version>+<minecraft_version>', for example '0.1.0-alpha.1+1.21.1'."
+            exit 1
+          fi
+
+          minecraft_version="${tag#*+}"
+          configured_minecraft_version="$(grep '^minecraft_version=' gradle.properties | head -n 1 | cut -d= -f2-)"
+          if [[ "${minecraft_version}" != "${configured_minecraft_version}" ]]; then
+            echo "::error title=Minecraft version mismatch::Tag declares ${minecraft_version}, but gradle.properties declares ${configured_minecraft_version}."
+            exit 1
+          fi
 
           git fetch origin refs/heads/1.21.1:refs/remotes/origin/1.21.1
           tagged_sha="$(git rev-parse HEAD)"
           branch_sha="$(git rev-parse refs/remotes/origin/1.21.1)"
-
           if [[ "${tagged_sha}" != "${branch_sha}" ]]; then
             echo "::error title=Release tag is not on current 1.21.1 head::Tag commit ${tagged_sha} differs from 1.21.1 ${branch_sha}."
             exit 1
           fi
 
-          configured_minecraft_version="$(grep '^minecraft_version=' gradle.properties | head -n 1 | cut -d= -f2-)"
-          if [[ "${TAG_MINECRAFT_VERSION}" != "${configured_minecraft_version}" ]]; then
-            echo "::error title=Minecraft version mismatch::Tag declares ${TAG_MINECRAFT_VERSION}, but gradle.properties declares ${configured_minecraft_version}."
-            exit 1
-          fi
-
           mapfile -t head_tags < <(git tag --points-at HEAD | sort)
-          if [[ "${#head_tags[@]}" -ne 1 || "${head_tags[0]}" != "${RELEASE_TAG}" ]]; then
-            echo "::error title=Ambiguous release version::Exactly one tag must point at the release commit and it must be ${RELEASE_TAG}."
+          if [[ "${#head_tags[@]}" -ne 1 || "${head_tags[0]}" != "${tag}" ]]; then
+            echo "::error title=Ambiguous release version::Exactly one tag must point at the release commit and it must be ${tag}."
             printf 'Tags at HEAD:\n%s\n' "${head_tags[*]:-<none>}"
             exit 1
           fi
@@ -136,21 +85,27 @@ jobs:
           chmod +x gradlew
           ./gradlew :common:test :fabric:build --stacktrace --no-daemon --console=plain
 
-      - name: Package and smoke-check release artifact
+      - name: Package and smoke-check artifact
         id: package
         shell: bash
-        env:
-          IS_RELEASE: ${{ needs.metadata.outputs.is_release }}
-          RELEASE_TAG: ${{ needs.metadata.outputs.tag }}
         run: |
           set -euo pipefail
           chmod +x scripts/ci/package-livingworld-release.sh
-          scripts/ci/package-livingworld-release.sh "${RELEASE_TAG}" "${IS_RELEASE}" dist
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/tags/* ]]; then
+            artifact_label="${GITHUB_REF_NAME}"
+            is_release=true
+          else
+            artifact_label="dry-run-${GITHUB_RUN_NUMBER}"
+            is_release=false
+          fi
+
+          scripts/ci/package-livingworld-release.sh "${artifact_label}" "${is_release}" dist
 
       - name: Upload verified Fabric package
         uses: actions/upload-artifact@v4
         with:
-          name: livingworld-fabric-${{ needs.metadata.outputs.tag }}
+          name: livingworld-fabric-package
           path: |
             ${{ steps.package.outputs.jar }}
             ${{ steps.package.outputs.checksum }}
@@ -158,10 +113,8 @@ jobs:
           retention-days: 30
 
   github-release:
-    needs:
-      - metadata
-      - build-and-package
-    if: needs.metadata.outputs.is_release == 'true'
+    needs: build-and-package
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -169,7 +122,7 @@ jobs:
       - name: Download verified release package
         uses: actions/download-artifact@v4
         with:
-          name: livingworld-fabric-${{ needs.metadata.outputs.tag }}
+          name: livingworld-fabric-package
           path: dist
 
       - name: Create GitHub release
@@ -177,28 +130,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ needs.metadata.outputs.tag }}
-          MOD_VERSION: ${{ needs.metadata.outputs.version }}
-          MINECRAFT_VERSION: ${{ needs.metadata.outputs.minecraft_version }}
         run: |
           set -euo pipefail
 
-          jar_file="dist/mca-livingworld-fabric-${RELEASE_TAG}.jar"
+          release_tag="${GITHUB_REF_NAME}"
+          mod_version="${release_tag%%+*}"
+          minecraft_version="${release_tag#*+}"
+          jar_file="dist/mca-livingworld-fabric-${release_tag}.jar"
           checksum_file="${jar_file}.sha256"
           test -f "${jar_file}"
           test -f "${checksum_file}"
 
           checksum="$(cat "${checksum_file}")"
           cat > release-notes.md <<EOF
-          # LivingWorld ${MOD_VERSION}
+          # LivingWorld ${mod_version}
 
           Experimental alpha/testing build of the LivingWorld fork of Minecraft Comes Alive.
 
           **Runtime:**
-          - Minecraft ${MINECRAFT_VERSION}
+          - Minecraft ${minecraft_version}
           - Fabric Loader
           - Java 21
-          - Fabric API for Minecraft ${MINECRAFT_VERSION}
+          - Fabric API for Minecraft ${minecraft_version}
           - Simple Voice Chat 2.6.20 or newer
 
           **Important:** this JAR keeps MCA's internal mod id mca. Remove the original MCA Reborn JAR before installing this fork; do not install both at the same time.
@@ -215,14 +168,14 @@ jobs:
           EOF
 
           prerelease_args=()
-          if [[ "${MOD_VERSION}" == *-* ]]; then
+          if [[ "${mod_version}" == *-* ]]; then
             prerelease_args+=(--prerelease)
           fi
 
-          gh release create "${RELEASE_TAG}" \
+          gh release create "${release_tag}" \
             "${jar_file}" \
             "${checksum_file}" \
             --verify-tag \
-            --title "LivingWorld ${MOD_VERSION} for Minecraft ${MINECRAFT_VERSION}" \
+            --title "LivingWorld ${mod_version} for Minecraft ${minecraft_version}" \
             --notes-file release-notes.md \
             "${prerelease_args[@]}"
