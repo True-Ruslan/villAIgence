@@ -34,6 +34,12 @@ public final class LivingWorldConfig {
     public int persistentMemoryMaxMessages = 16;
     public int persistentMemoryMaxCharsPerMessage = 1200;
 
+    public boolean eventMemoryEnabled = true;
+    public int eventMemoryMaxEvents = 512;
+    public long eventMemoryMaxAgeTicks = 72_000L;
+    public double eventContextRadius = 32.0D;
+    public int eventContextMaxEvents = 8;
+
     public boolean voiceEnabled = true;
     public String sttEndpoint = "https://api.openai.com/v1/audio/transcriptions";
     public String sttModel = "gpt-4o-mini-transcribe";
@@ -121,6 +127,10 @@ public final class LivingWorldConfig {
         if (model == null || model.isBlank()) model = "gpt-4.1-mini";
         if (persistentMemoryMaxMessages < 2) persistentMemoryMaxMessages = 16;
         if (persistentMemoryMaxCharsPerMessage < 1) persistentMemoryMaxCharsPerMessage = 1200;
+        if (eventMemoryMaxEvents < 1) eventMemoryMaxEvents = 512;
+        if (eventMemoryMaxAgeTicks < 1L) eventMemoryMaxAgeTicks = 72_000L;
+        if (eventContextRadius < 0.0D) eventContextRadius = 32.0D;
+        if (eventContextMaxEvents < 1) eventContextMaxEvents = 8;
         if (sttEndpoint == null || sttEndpoint.isBlank()) sttEndpoint = "https://api.openai.com/v1/audio/transcriptions";
         if (sttModel == null || sttModel.isBlank()) sttModel = "gpt-4o-mini-transcribe";
         if (sttLanguage == null) sttLanguage = "";
