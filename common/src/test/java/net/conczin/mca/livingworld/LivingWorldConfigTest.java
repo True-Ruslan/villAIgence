@@ -19,6 +19,11 @@ class LivingWorldConfigTest {
         assertTrue(config.persistentMemoryEnabled);
         assertEquals(16, config.persistentMemoryMaxMessages);
         assertEquals(1200, config.persistentMemoryMaxCharsPerMessage);
+        assertTrue(config.eventMemoryEnabled);
+        assertEquals(512, config.eventMemoryMaxEvents);
+        assertEquals(72_000L, config.eventMemoryMaxAgeTicks);
+        assertEquals(32.0D, config.eventContextRadius);
+        assertEquals(8, config.eventContextMaxEvents);
         assertTrue(config.voiceEnabled);
         assertEquals("https://api.openai.com/v1/audio/transcriptions", config.sttEndpoint);
         assertEquals("gpt-4o-mini-transcribe", config.sttModel);
