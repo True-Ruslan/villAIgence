@@ -20,9 +20,15 @@ public final class BlueprintPermissionPolicy {
 
     public static String sanitizeName(String value) {
         if (value == null) return "";
-        String sanitized = value.strip();
-        if (sanitized.length() > MAX_VILLAGE_NAME_LENGTH) {
-            sanitized = sanitized.substring(0, MAX_VILLAGE_NAME_LENGTH);
+        String sanitized = value.codePoints()
+                .filter(codePoint -> !Character.isISOControl(codePoint))
+                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+                .toString()
+                .strip();
+        int codePoints = sanitized.codePointCount(0, sanitized.length());
+        if (codePoints > MAX_VILLAGE_NAME_LENGTH) {
+            int end = sanitized.offsetByCodePoints(0, MAX_VILLAGE_NAME_LENGTH);
+            sanitized = sanitized.substring(0, end);
         }
         return sanitized;
     }
