@@ -15,6 +15,7 @@ You may instead set `OPENAI_API_KEY` in the server environment. The environment 
 The generated config already contains working defaults for:
 
 - LLM: `gpt-4.1-mini`
+- persistent per-NPC/per-player conversation memory: enabled, 16 messages, 1200 characters per stored message
 - STT: `gpt-4o-mini-transcribe`
 - TTS: `tts-1`
 - voice: `marin`
@@ -27,6 +28,10 @@ For the normal MVP setup, do not change those values.
 
 Never commit a real API key to Git or include it in a modpack. API credentials are only needed by the dedicated server; players do not configure an AI provider.
 
+## Persistent memory
+
+LivingWorld stores bounded rolling dialogue memory in `<world>/livingworld/memory.json`. Back it up together with the Minecraft world. See `docs/livingworld/MEMORY.md` for details.
+
 ## Voice requirements
 
 For voice conversations, install Simple Voice Chat with API `2.6.20` or newer on both the server and players' clients. The Fabric build declares `voicechat_api >= 2.6.20` so an incompatible older voice-chat API is rejected at load time instead of crashing later.
@@ -35,4 +40,4 @@ See `docs/livingworld/VOICE.md` for the interaction flow and troubleshooting.
 
 ## Backward compatibility
 
-If LivingWorld is disabled, uses an unsupported provider, or has no API key, the fork falls back to MCA's existing `mca.json` ChatAI configuration.
+If LivingWorld is disabled, uses an unsupported provider, or has no API key, the fork falls back to MCA's existing `mca.json` ChatAI configuration. Persistent LivingWorld memory is used only for the configured direct LivingWorld provider path.
