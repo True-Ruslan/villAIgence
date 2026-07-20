@@ -18,6 +18,7 @@ The generated config already contains working defaults for:
 - safe whitelisted NPC actions: enabled
 - persistent per-NPC/per-player conversation memory: enabled, 16 messages, 1200 characters per stored message
 - factual local event memory: enabled, 512 stored events, 3 Minecraft days max age, 32-block context radius, 8 events per context snapshot
+- structured LivingWorld relationship state: enabled, max per-turn proposed delta `2` per axis
 - STT: `gpt-4o-mini-transcribe`
 - TTS: `tts-1`
 - voice: `marin`
@@ -42,6 +43,10 @@ LivingWorld stores bounded rolling dialogue memory in `<world>/livingworld/memor
 
 LivingWorld stores bounded server-generated factual events in `<world>/livingworld/events.json`. Only recent nearby events are injected into an NPC's immutable context snapshot. Player/LLM claims are not automatically treated as facts. See `docs/livingworld/EVENTS.md`.
 
+## Structured relationship state
+
+LivingWorld stores bounded `trust`, `respect`, `fear`, and `affinity` in `<world>/livingworld/relationships.json`. It is separate from MCA hearts/family/marriage data. The snapshot-aware direct LivingWorld path may propose only small per-turn deltas; the server clamps and persists them. See `docs/livingworld/RELATIONSHIPS.md`.
+
 ## Voice requirements
 
 For voice conversations, install Simple Voice Chat with API `2.6.20` or newer on both the server and players' clients. The Fabric build declares `voicechat_api >= 2.6.20` so an incompatible older voice-chat API is rejected at load time instead of crashing later.
@@ -50,4 +55,4 @@ See `docs/livingworld/VOICE.md` for the interaction flow and troubleshooting.
 
 ## Backward compatibility
 
-If LivingWorld is disabled, uses an unsupported provider, or has no API key, the fork falls back to MCA's existing `mca.json` ChatAI configuration. Persistent conversation memory, factual event recording, and the LivingWorld safe-action switch are used only for the configured direct LivingWorld provider path.
+If LivingWorld is disabled, uses an unsupported provider, or has no API key, the fork falls back to MCA's existing `mca.json` ChatAI configuration. Persistent conversation memory, factual event recording, structured relationship state, and the LivingWorld safe-action switch are used only for the configured direct LivingWorld provider path.

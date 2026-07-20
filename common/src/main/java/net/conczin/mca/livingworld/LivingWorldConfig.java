@@ -40,6 +40,9 @@ public final class LivingWorldConfig {
     public double eventContextRadius = 32.0D;
     public int eventContextMaxEvents = 8;
 
+    public boolean relationshipStateEnabled = true;
+    public int relationshipMaxDeltaPerTurn = 2;
+
     public boolean voiceEnabled = true;
     public String sttEndpoint = "https://api.openai.com/v1/audio/transcriptions";
     public String sttModel = "gpt-4o-mini-transcribe";
@@ -131,6 +134,7 @@ public final class LivingWorldConfig {
         if (eventMemoryMaxAgeTicks < 1L) eventMemoryMaxAgeTicks = 72_000L;
         if (eventContextRadius < 0.0D) eventContextRadius = 32.0D;
         if (eventContextMaxEvents < 1) eventContextMaxEvents = 8;
+        if (relationshipMaxDeltaPerTurn < 0) relationshipMaxDeltaPerTurn = 2;
         if (sttEndpoint == null || sttEndpoint.isBlank()) sttEndpoint = "https://api.openai.com/v1/audio/transcriptions";
         if (sttModel == null || sttModel.isBlank()) sttModel = "gpt-4o-mini-transcribe";
         if (sttLanguage == null) sttLanguage = "";
