@@ -2,7 +2,6 @@ package net.conczin.mca.network.c2s;
 
 import net.conczin.mca.MCA;
 import net.conczin.mca.network.HandleablePayload;
-import net.conczin.mca.server.world.data.VillageManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -19,7 +18,14 @@ public record RenameVillageMessage(int id, String name) implements HandleablePay
 
     @Override
     public void handleServer(ServerPlayer player) {
-        VillageManager.get(player.serverLevel()).getOrEmpty(id).ifPresent(v -> v.setName(name));
+        String sanitized = BlueprintPermissionPolicy.sanitizeName(name);
+        if (sanitized.isBlank()) return;
+
+        BlueprintServerAuthority.requestedAuthorized(player, id, BlueprintPermissionPolicy.Operation.RENAME)
+                .ifPresentOrElse(
+                        village -> village.setName(sanitized),
+                        () -> BlueprintServerAuthority.deny(player)
+                );
     }
 
     @Override
