@@ -4,79 +4,99 @@
 
 The upstream repository `Luke100000/minecraft-comes-alive` has a large open backlog mixing current bugs, reports for older Minecraft versions, third-party mod incompatibilities, experimental regressions, and broad feature requests.
 
-This document is our adoption filter. We do **not** copy upstream issues blindly. Every item must be classified by relevance to our `1.21.1` fork and LivingWorld goals.
+This document is the **single canonical, version-controlled adoption filter** for our fork. We do **not** copy upstream issues blindly. Every item must be classified by relevance to our `1.21.1` fork and LivingWorld goals.
 
 ## Audit scope
 
-A coarse triage was performed across all open upstream issue creation ranges from 2022 through 2026. No open issues created before 2022 were returned by upstream search. High-impact candidates were then inspected in more depth using issue bodies/comments and current applicability.
+A coarse triage was performed across all open upstream issue creation ranges from 2022 through 2026, followed by deeper inspection of high-impact candidates and older backlog batches, including the issues visible on older upstream pages such as page 7.
 
-Our current upstream base line is `7.7.22` / commit `a3de832`. Experimental `7.7.23-alpha` regressions are therefore sync blockers/watch items, not current bugs in our fork.
+Our current upstream base line remains the stable `7.7.22` line unless explicitly synchronized. Experimental `7.7.23-alpha` regressions are sync blockers/watch items, not automatically current bugs in our fork.
 
 ---
 
-## P0 / P1 — adopt into our technical backlog
-
-### Upstream #884 — Hole villagers cause lag
-
-**Status:** NEEDS REPRODUCTION / likely partially mitigated
-
-The upstream author reported that a stuck NPC appeared to run a task without an adequate cooldown, causing lag. Current `1.21.1` code already contains an explicit `SLOWDOWN = 5` gate in `WanderOrTeleportToTargetTask` with a comment that pathfinding is intentionally slowed because it is expensive. Therefore the old open issue is **not sufficient evidence that the original tight-loop bug still exists**.
-
-**Our action:** do not add a speculative cooldown patch. Reproduce/profile stuck villagers on the current target stack first. If a hotspot remains, identify the exact behavior/task and add bounded retry/backoff plus diagnostics there.
+## P0 / P1 — adopted technical backlog
 
 ### Upstream #1088 — Pathfinding Megathread
 
-**Status:** ADOPT / umbrella
+**Status:** PARTIALLY MITIGATED / umbrella remains open
 
-Upstream-maintained pathfinding backlog. Reproduced reports include villagers getting stuck behind walls/fences, failure to reach beds across floors, children struggling with doors, unsafe drops into holes, drowning/water traps, and workstation pathing failures.
+Upstream reports cover villagers stuck behind walls/fences, beds across floors, children struggling with doors, unsafe drops, water traps and workstation pathing failures.
 
-**Our action:** dedicated pathfinding/anti-stuck workstream. Prefer generic navigation fixes and bounded failsafes over per-block patches or unconditional teleport hacks.
+**Implemented in fork:** PR #11 adds a bounded progress watchdog to `WanderOrTeleportToTargetTask`. When an NPC makes no meaningful progress towards the same `WALK_TARGET` for a sustained period, the navigation path is recomputed without deleting the target intent and without enabling unconditional teleportation. Movement or target changes reset the watchdog. Both LivingWorld CI and the official Fabric/NeoForge Gradle workflow passed before merge.
+
+**Remaining work:** this is not a claim that #1088 is fully fixed. Door handling, water escape/drowning, unsafe drops, long-range/multi-floor target selection and workstation-specific cases need focused reproduction and generic fixes.
+
+### Upstream #884 — Hole villagers cause lag
+
+**Status:** NEEDS REPRODUCTION / partially protected
+
+Current `1.21.1` already has an explicit `SLOWDOWN = 5` pathfinding gate. PR #11 additionally prevents indefinite stale-path behavior by bounded replanning after lack of progress. This still does not prove the original lag hotspot is gone.
+
+**Our action:** profile current Fabric 1.21.1 before adding any further cooldown/backoff. Fix only the task proven hot by profiling.
 
 ### Upstream #580 — Blueprints locked to Player/Village
 
-**Status:** ADOPT / multiplayer safety
+**Status:** FIXED IN FORK / keep regression coverage
 
-Blueprint operations can potentially let players mutate villages they do not own/manage. Even on a private server this is a permission boundary.
+PR #9 closed a real server-authority gap: blueprint/village mutation packets now enforce server-owned rank and nearest-village checks, validate mutation values/types, sanitize names, prevent destructive confirmation replay paths, and explicitly persist valid changes. Fabric and NeoForge CI passed before merge.
 
-**Our action:** audit all blueprint mutation endpoints and add explicit owner/admin/permission checks where required.
+**Our action:** retain authority-policy tests and re-audit whenever upstream blueprint networking is synchronized.
 
 ### Upstream #1314 — ChatAI hallucinates inventory/location
 
 **Status:** PARTIALLY IMPLEMENTED / LivingWorld P1 remaining
 
-The issue explicitly reports that ChatAI does not reliably know its location or what it actually possesses.
+The direct LivingWorld/OpenAI path now captures an immutable server-thread context snapshot containing dimension, coordinates, biome, day/night, weather, held/equipped item facts, bounded villager inventory facts, existing MCA personality/relationship/village/player context and currently available safe actions. Prompt/memory/network work uses copied snapshot data asynchronously.
 
-The direct LivingWorld/OpenAI voice path now captures an immutable server-thread context snapshot containing dimension, coordinates, biome, day/night, weather, held/equipped item facts, bounded villager inventory facts, existing MCA personality/relationship/village/player context, and currently available safe actions. Prompt/memory/network processing then uses copied snapshot data asynchronously.
-
-**Remaining action:** extend factual context with nearby relevant entities/events and knowledge provenance; migrate/verify legacy historical ChatAI callers before claiming every text/Inworld path has the same thread/factuality boundary.
+**Remaining action:** nearby relevant entities/events, knowledge provenance and broader migration/verification of historical ChatAI/Inworld callers.
 
 ### Upstream #1243 — NPC memory / awareness / NPC-to-NPC interaction
 
 **Status:** PARTIALLY DONE / ADOPT remaining
 
 - persistent NPC × player memory — **implemented**;
-- basic factual surroundings snapshot — **implemented for direct LivingWorld/OpenAI voice path**;
+- authoritative basic factual context snapshot — **implemented for direct LivingWorld/OpenAI flow**;
 - nearby event/knowledge awareness — TODO;
-- NPC-to-NPC interaction/knowledge exchange — future;
-- deeper persistent personalities — future.
+- controlled NPC-to-NPC information exchange — future;
+- deeper persistent personality/knowledge model — future.
 
-**Our action:** Event/Knowledge layer → controlled NPC-to-NPC information exchange → broader context migration.
+**Our action:** Event/Knowledge layer → provenance-aware information sharing → controlled NPC-to-NPC exchange.
 
 ### Upstream #1292 — Interaction impact with villagers
 
 **Status:** ADOPT / LivingWorld P1-P2
 
-Player conversations/actions should have gameplay consequences instead of being cosmetic text only.
+Conversations and actions should have deterministic gameplay consequences instead of being cosmetic text only.
 
-**Our action:** structured relationship deltas (`trust`, `respect`, `fear`, `affinity`) with validation/clamping, world events, persistence, and deterministic consequences such as avoidance/cooperation/trade behavior.
+**Our action:** structured relationship deltas (`trust`, `respect`, `fear`, `affinity`) with schema validation/clamping, persistence and deterministic effects such as cooperation, avoidance, information sharing and trade behavior.
 
 ### Upstream #1140 — spouse/parent/child dialogue identity
 
 **Status:** PARTIALLY COVERED / NEEDS REPRODUCTION
 
-The original report is for 1.20.1 and says spouses/children can talk as strangers/adults. Current `1.21.1` ChatAI already injects explicit age (`baby`, `toddler`, `child`, `teen`) and relationship facts (`married`, `parent`, `child`, `relative`) into the LLM context, so this is **not** currently proven as a LivingWorld/ChatAI context defect.
+The original report targets 1.20.1. Current `1.21.1` ChatAI already injects age and explicit spouse/parent/child/relative facts, so a current LivingWorld context defect is not proven.
 
-**Our action:** reproduce the classic MCA dialogue path on 1.21.1 and add regression tests for spouse/parent/child wording. Keep stronger identity context in the Context Snapshot.
+**Our action:** reproduce classic MCA dialogue behavior on 1.21.1 and add regression tests only for remaining failures.
+
+---
+
+## DATA INTEGRITY — investigate before feature expansion
+
+### Upstream #977 — Negative Billion Hearts
+
+**Status:** INVESTIGATE / potential numeric-state corruption
+
+The report describes relationship hearts jumping to approximately `-2.147B`, strongly suggestive of overflow/sentinel/state corruption, but it lacks a current 1.21.1 reproduction.
+
+**Our action:** audit heart mutation/clamping/serialization paths and reproduce on a clean current stack before patching. Any relationship model added by LivingWorld must use explicit bounds and reject overflow/non-finite inputs.
+
+### Upstream #1234 and #978 — missing/deceased NPC recovery
+
+**Status:** INVESTIGATE / data-consistency class
+
+Reports describe entities disappearing or dying without a recoverable grave/entity record while FamilyTree still retains identity/relationship UUID data. #1234 involved a modded vehicle on 1.20.1; #978 describes broader missing-grave recovery scenarios.
+
+**Our action:** do not assume a current MCA core bug yet. Audit entity lifecycle → family tree → civil registry/grave consistency, define invariants, and add recovery/diagnostic tooling before attempting speculative resurrection logic.
 
 ---
 
@@ -86,9 +106,9 @@ The original report is for 1.20.1 and says spouses/children can talk as stranger
 
 **Status:** VERIFIED FIXED in current `1.21.1`
 
-Current code in `Personality.getRandom(AgeState)` explicitly excludes `FLIRTY` for `BABY`, `TODDLER`, and `CHILD`. LivingWorld's LLM prompt independently blocks romantic/flirty child responses as defense in depth.
+`Personality.getRandom(AgeState)` excludes `FLIRTY` for `BABY`, `TODDLER` and `CHILD`. LivingWorld additionally blocks romantic/flirty child responses in LLM context.
 
-**Our action:** no feature work. Add/retain a regression test when touching personality generation so this rule cannot regress.
+**Our action:** retain regression protection when personality generation changes.
 
 ---
 
@@ -96,23 +116,23 @@ Current code in `Personality.getRandom(AgeState)` explicitly excludes `FLIRTY` f
 
 ### Upstream #838 — API for addons / extensibility
 
-Custom building rules, professions, conditions, and pack integration align with our adapter/data-driven direction. Defer until core stability is stronger.
+Custom building rules, professions, conditions and pack integration align with a data-driven adapter direction. Defer until core reliability is stronger.
 
 ### Upstream #1277 — Carry On / right-click interaction conflicts
 
-Useful modpack UX issue. Consider an explicit interaction keybind/gesture after voice targeting and interaction UX are stabilized.
+Valid modpack/UX design problem and relevant because interaction also selects a LivingWorld voice target. Prefer a unified configurable interaction policy/keybind/gesture rather than a Carry On-specific hack.
 
 ### Upstream #1132 — configurable modded threats
 
-Good extension point for world awareness/modpacks. Prefer tags/config/data-driven threat definitions over hardcoding individual mods.
+Prefer tags/config/data-driven threat definitions over hardcoding individual mods.
 
 ### Upstream #929 / #1148 — Dramatic Doors / modded bridges pathing
 
-Fold into #1088 pathfinding workstream. Avoid one-off compatibility patches where a generic path/navigation abstraction can solve the class of problems.
+Remain under #1088. Prefer generic navigation fixes over per-mod block patches.
 
 ### Upstream #862 — villagers cannot exit water
 
-Also part of #1088. Needs generic water escape/navigation behavior.
+Remain under #1088. Needs generic water escape/navigation behavior and drowning safety.
 
 ### Upstream #524 — Rose Gold tags / Tinkers compatibility
 
@@ -126,29 +146,31 @@ Potential low-risk compatibility/data-quality fix. Verify current 1.21.1 tags be
 
 **Status:** WATCH / upstream-sync blocker
 
-Reported regressions include multi-floor inns not recognized correctly, two-block-tall blocks double-counted, open patios/doorless entries causing volume errors, and scan-height sensitivity.
-
-Our base is `7.7.22`, so these are not current fork bugs. Do not import the experimental blueprint rewrite until these behaviors are checked/fixed and covered by tests.
+Reported regressions include multi-floor inns, double-counted multi-block objects, open patios/doorless entries, volume errors and scan-height sensitivity. These belong to experimental upstream work not automatically present in our stable fork.
 
 ### Upstream #1372 — candle blockstate counts / water scanning
 
-Valid scanner enhancement, but tied to the newer/experimental building system. Not a current blocker.
+Valid scanner enhancement tied to newer/experimental building work. Include in regression tests before any sync.
 
 ### Upstream #1369 — VulkanMod Reforged visual incompatibility
 
-Current NeoForge-specific compatibility report. Our main LivingWorld MVP target is Fabric 1.21.1. Track only if NeoForge becomes a supported deployment target.
+NeoForge-specific compatibility report. Track if it affects an actually supported deployment/modpack.
 
 ### Upstream #1363 — VillagerTradeFix infinite trades
 
-Reproduced on Fabric 1.20.1 with a third-party mod. Do not adopt without reproduction on 1.21.1 and without that mod being part of our target modpack.
+Reproduced on Fabric 1.20.1 with a third-party mod. Requires 1.21.1 reproduction before adoption, but independently preserve the invariant that profession switching must not grow offers/entity data without bounds.
+
+### Upstream #1283 — player hitbox/block-interaction regression
+
+Reported on NeoForge 1.21.1: water placement/raycast behavior changes with MCA. Treat as a high-value reproduction candidate because it affects core Minecraft interaction. Compare Fabric/NeoForge, vanilla/MCA model and hitbox/model configuration before patching.
 
 ### Upstream #1282 — Chunky + MCA slow pregeneration
 
-Upstream comments include profiling that attributes most of the cost to vanilla `finalizeSpawn()` synchronously searching/loading chunks while pregenerating. Do **not** classify as a direct MCA bug without new evidence. Spawn strategy optimization may still be useful later.
+Profiling in the issue attributes most cost to vanilla villager `finalizeSpawn()` while pregenerating unloaded chunks. Do not classify as an MCA bug without fork-specific profiling.
 
 ### Upstream #1263 — Invisible Buildings
 
-Old 1.20.1 building-system report with non-deterministic reproduction; likely partly superseded by later blueprint work. Requires target-version reproduction before adoption.
+Old 1.20.1 non-deterministic building-system report; requires target-version reproduction.
 
 ---
 
@@ -158,15 +180,15 @@ Old 1.20.1 building-system report with non-deterministic reproduction; likely pa
 
 **Status:** REJECT for LivingWorld security model
 
-LivingWorld must never give an LLM/NPC unrestricted command execution. Only hard-coded whitelisted actions with schema validation, permission/precondition checks, and server-thread execution are allowed.
+An LLM/NPC must never receive unrestricted command execution. Only hard-coded whitelisted actions with schema validation, permission/precondition checks and server-thread execution are allowed. The fork already follows this model.
 
 ### Broad content requests
 
-War/industrial age, complete pillager factions, large furniture/content packs, dozens of professions, infection progression, etc. are product epics rather than core defects. Consider only after reliability, context, memory, relationships, world events, and NPC autonomy are mature.
+War/industrial age, complete pillager factions, furniture/content packs, dozens of professions and similar proposals are product epics, not bug-fix imports. Split and prioritize only after reliability, context, memory, relationships, events and NPC autonomy are mature.
 
 ### Ancient mod-specific reports
 
-1.18/1.19/1.20 compatibility reports without reproduction on our 1.21.1 target are not automatically adopted as bugs. Reproduce first; then prefer generic compatibility fixes where possible.
+1.18/1.19/1.20 compatibility reports without reproduction on target 1.21.1 are not automatically adopted. Prefer generic compatibility fixes where possible.
 
 ---
 
@@ -174,10 +196,10 @@ War/industrial age, complete pillager factions, large furniture/content packs, d
 
 An upstream issue becomes actionable for our fork when at least one condition is true:
 
-1. it reproduces on our target stack (Fabric 1.21.1);
+1. it reproduces on our target stack (primarily Fabric 1.21.1);
 2. it is a cross-version architectural defect (security, data loss, deadlock, severe lag, unsafe threading);
 3. it is confirmed/maintained upstream and affects core behavior;
-4. it directly advances LivingWorld goals: memory, context, relationships, world events, safe actions, voice, or NPC autonomy;
+4. it directly advances LivingWorld goals: memory, context, relationships, events, safe actions, voice or NPC autonomy;
 5. it is a third-party compatibility issue for a mod actually included in our target server/modpack.
 
 An issue remaining `open` upstream is **not** sufficient reason to copy it into our roadmap.
@@ -186,17 +208,19 @@ An issue remaining `open` upstream is **not** sufficient reason to copy it into 
 
 ## Ordered work derived from this audit
 
-1. **Pathfinding reproduction + anti-stuck audit** — #1088 umbrella; #884 is no longer assumed current without profiling.
-2. **Blueprint permission audit** — #580.
-3. **Event/Knowledge + relationship consequences** — remaining #1243 + #1292.
-4. **Age/kinship correctness** — reproduce #1140; #912 is verified fixed.
-5. **Upstream sync gate** — do not import `7.7.23-alpha` blueprint work until #1373/#1372 are verified.
+1. **Pathfinding hardening** — PR #11 adds generic stale-path recovery; next isolate doors, water/drowning, unsafe drops and multi-floor/long-range cases under #1088.
+2. **Event/Knowledge + relationship consequences** — remaining #1243 + #1292.
+3. **Data-integrity invariants/reproduction** — #977, #1234, #978, plus family tree/entity lifecycle consistency.
+4. **Age/kinship correctness** — reproduce remaining #1140 behavior; #912 is verified fixed.
+5. **Interaction policy** — #1277 after voice/interaction UX stabilization.
+6. **Upstream sync gate** — do not import `7.7.23-alpha` blueprint work until #1373/#1372 regressions are covered.
 
 ## Maintenance
 
-At each upstream sync:
+At each upstream sync or meaningful fork milestone:
 
-1. inspect new upstream issues and relevant recent commits;
+1. inspect new upstream issues and relevant commits;
 2. update this audit first;
-3. only then create implementation work for adopted items;
-4. record when an adopted issue becomes fixed, obsolete, or superseded.
+3. create implementation work only for adopted/testable findings;
+4. record linked PRs and downgrade/remove resolved findings;
+5. keep this file as the single canonical issue audit to avoid split-brain backlog documents.
