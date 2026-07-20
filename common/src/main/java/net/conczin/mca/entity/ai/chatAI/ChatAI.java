@@ -13,20 +13,54 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 public class ChatAI {
+    /**
+     * Max range to find a villager in
+     */
     private static final int VILLAGER_SEARCH_RANGE = 32;
+
+    /**
+     * Max time until a conversation is considered invalid
+     */
     private static final int CONVERSATION_TIME = 20 * 60;
+
+    /**
+     * Max distance until a conversation is considered invalid
+     */
     private static final int CONVERSATION_DISTANCE = 16;
 
+    /**
+     * Map of villager UUIDs to strategies (i.e. managed by InworldAI or GPT3)
+     */
     private static final Map<UUID, ChatAIStrategy> strategies = new ConcurrentHashMap<>();
+
+    /**
+     * Current conversation of player. <p>
+     * A player can max. have 1 conversation at all times.
+     */
     private static final Map<UUID, OpenConversation> currentConversations = new ConcurrentHashMap<>();
 
+    /**
+     * Gets an answer for a specific message for a villager from a player with the villager-specific chat strategy
+     *
+     * @param player   ServerPlayerEntity of the player
+     * @param villager VillagerEntityMCA of the villager
+     * @param msg      Message in question
+     * @return {@code Optional.EMPTY} if answer couldn't be generated, Optional containing answer String otherwise.
+     */
     public static Optional<String> answer(ServerPlayer player, VillagerEntityMCA villager, String msg) {
+        // Get villager-specific strategy
         ChatAIStrategy strategy = computeStrategyIfAbsent(villager.getUUID());
+
+        // Update the current conversation
         openConversation(player, villager);
+
+        // Get answer
         return strategy.answer(player, villager, msg);
     }
 
-    /** Snapshot-aware answer path for LivingWorld. Snapshot capture happens on the Minecraft server thread. */
+    /**
+     * Snapshot-aware answer path for LivingWorld. Snapshot capture happens on the Minecraft server thread.
+     */
     public static Optional<String> answer(
             MinecraftServer server,
             ServerPlayer player,
@@ -42,15 +76,24 @@ public class ChatAI {
         return strategy.answer(player, villager, msg);
     }
 
+    /**
+     * Explicitly selects a villager as the player's current AI conversation target.
+     */
     public static void openConversation(ServerPlayer player, VillagerEntityMCA villager) {
         long time = villager.level().getGameTime();
         currentConversations.put(player.getUUID(), new OpenConversation(villager.getUUID(), time));
     }
 
+    /**
+     * Cheap gate for microphone packet handling. Full target validation happens on the server thread.
+     */
     public static boolean hasOpenConversation(UUID playerID) {
         return currentConversations.containsKey(playerID);
     }
 
+    /**
+     * Returns the current conversation target if it is still nearby and within the existing MCA timeout.
+     */
     public static Optional<VillagerEntityMCA> getActiveConversationVillager(ServerPlayer player) {
         UUID playerUUID = player.getUUID();
         OpenConversation conv = currentConversations.getOrDefault(playerUUID, new OpenConversation(playerUUID, 0L));
@@ -63,6 +106,12 @@ public class ChatAI {
         return Optional.empty();
     }
 
+    /**
+     * Searches Config for a map entry for UUID, uses Inworld with said entry if found, else GPT3 (default)
+     *
+     * @param villagerID UUID of villager
+     * @return Object implementing the ChatAIStrategy interface
+     */
     private static ChatAIStrategy computeStrategyIfAbsent(UUID villagerID) {
         return strategies.computeIfAbsent(villagerID, v -> {
             String inworldResourceName = Config.getInstance().inworldAIResourceNames.getOrDefault(v, "");
@@ -70,6 +119,11 @@ public class ChatAI {
         });
     }
 
+    /**
+     * Clears the strategy for a specific villager
+     *
+     * @param villagerID UUID of villager
+     */
     public static void clearStrategy(UUID villagerID) {
         strategies.remove(villagerID);
     }
@@ -78,8 +132,19 @@ public class ChatAI {
         return normalizeString(villager.getName().getString());
     }
 
+    /**
+     * Checks if the message contains the name of any specific villagers and that villager is nearby. First match.
+     * If not, checks if the player has a valid active conversation with a nearby villager.
+     *
+     * @param player The player in the conversation
+     * @param msg    The message
+     * @return {@code Optional.Empty} if no valid villager was found, Optional containing the VillagerEntityMCA object otherwise
+     */
     public static Optional<VillagerEntityMCA> getVillagerForConversation(ServerPlayer player, String msg) {
+        // Get nearby villagers
         List<VillagerEntityMCA> nearbyVillagers = WorldUtils.getCloseEntities(player.level(), player, VILLAGER_SEARCH_RANGE, VillagerEntityMCA.class);
+
+        // Find name in message
         String normalizedMsg = normalizeString(msg);
         for (VillagerEntityMCA villager : nearbyVillagers) {
             String normalizedName = getName(villager);
@@ -90,29 +155,66 @@ public class ChatAI {
                 }
             }
         }
+
+        // Otherwise get current open conversation of player
         return getActiveConversationVillager(player);
     }
 
+    /**
+     * Checks if a player is in a conversation with a villager
+     *
+     * @param player   ServerPlayerEntity of the player to be checked
+     * @param villager VillagerEntityMCA entity of the villager to be checked
+     * @return {@code true} if all the following conditions are met: <p>
+     * 1. Villager is within {@value CONVERSATION_DISTANCE} blocks of the player<p>
+     * 2. Last conversation interaction with this villager wasn't longer than {@value CONVERSATION_TIME} ago
+     */
     private static boolean isInConversationWith(ServerPlayer player, VillagerEntityMCA villager) {
         OpenConversation conversation = currentConversations.getOrDefault(player.getUUID(), new OpenConversation(villager.getUUID(), 0L));
         return villager.distanceTo(player) < CONVERSATION_DISTANCE
                && villager.level().getGameTime() < conversation.lastInteractionTime + CONVERSATION_TIME;
     }
 
+    /**
+     * Scans the local area in a {@value #VILLAGER_SEARCH_RANGE} block range of the player for a villager with searchName. <p>
+     * searchName is {@link #normalizeString normalized}.
+     *
+     * @param player     ServerPlayerEntity object of the reference player
+     * @param searchName Name of the villager
+     * @return Optional containing the VillagerEntityMCA of the first villager with the matching name, empty Optional otherwise
+     */
     public static Optional<VillagerEntityMCA> findVillagerInArea(ServerPlayer player, String searchName) {
         List<VillagerEntityMCA> entities = WorldUtils.getCloseEntities(player.level(), player, VILLAGER_SEARCH_RANGE, VillagerEntityMCA.class);
+
+        // Get specific villager
         String normalizedSearchName = normalizeString(searchName);
+
+        // Go through list, look for first match for name
         for (VillagerEntityMCA villager : entities) {
             String villagerName = getName(villager);
-            if (normalizedSearchName.equals(villagerName)) return Optional.of(villager);
+            if (normalizedSearchName.equals(villagerName)) {
+                return Optional.of(villager);
+            }
         }
         return Optional.empty();
     }
 
+    /**
+     * Normalizes the String according to NFD and removes any accents, umlauts, etc.
+     *
+     * @param string The String to be normalized
+     * @see <a href="https://unicode.org/reports/tr15/#Examples">Unicode Normalization Forms</a>
+     */
     private static String normalizeString(String string) {
         return Normalizer.normalize(string, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * Information needed to manage an open conversation.
+     *
+     * @param villagerUUID        UUID of villager the conversation is with
+     * @param lastInteractionTime Timestamp of last interaction with villager
+     */
     private record OpenConversation(UUID villagerUUID, Long lastInteractionTime) {
     }
 }
