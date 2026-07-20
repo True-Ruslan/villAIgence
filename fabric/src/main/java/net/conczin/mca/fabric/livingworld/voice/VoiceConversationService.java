@@ -10,6 +10,8 @@ import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.ai.chatAI.ChatAI;
 import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.audio.PcmAudio;
+import net.conczin.mca.livingworld.context.LivingWorldContextCapture;
+import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
 import net.conczin.mca.livingworld.voice.OpenAIAudioProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -98,7 +100,16 @@ final class VoiceConversationService implements AutoCloseable {
                     release(playerId, targetId);
                     return;
                 }
-                executor.execute(() -> answerAndSpeak(server, player, target.get(), transcript));
+
+                LivingWorldContextSnapshot snapshot;
+                try {
+                    snapshot = LivingWorldContextCapture.capture(player, target.get());
+                } catch (RuntimeException e) {
+                    MCA.LOGGER.warn("LivingWorld context snapshot failed for player {} and villager {}", playerId, targetId, e);
+                    release(playerId, targetId);
+                    return;
+                }
+                executor.execute(() -> answerAndSpeak(server, player, target.get(), snapshot, transcript));
             });
         } catch (Exception e) {
             release(playerId, targetId);
@@ -113,11 +124,17 @@ final class VoiceConversationService implements AutoCloseable {
         return player.getLookAngle().normalize().dot(toVillager.normalize()) >= MIN_LOOK_DOT;
     }
 
-    private void answerAndSpeak(MinecraftServer server, ServerPlayer player, VillagerEntityMCA villager, String transcript) {
-        UUID playerId = player.getUUID();
-        UUID villagerId = villager.getUUID();
+    private void answerAndSpeak(
+            MinecraftServer server,
+            ServerPlayer player,
+            VillagerEntityMCA villager,
+            LivingWorldContextSnapshot snapshot,
+            String transcript
+    ) {
+        UUID playerId = snapshot.playerId();
+        UUID villagerId = snapshot.villagerId();
         try {
-            Optional<String> answer = ChatAI.answer(player, villager, transcript);
+            Optional<String> answer = ChatAI.answer(server, player, villager, transcript, snapshot);
             if (answer.isEmpty() || answer.get().isBlank()) return;
             String text = answer.get().trim();
 
