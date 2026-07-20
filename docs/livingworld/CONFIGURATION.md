@@ -16,7 +16,7 @@ The generated config already contains working defaults for:
 
 - LLM: `gpt-4.1-mini`
 - STT: `gpt-4o-mini-transcribe`
-- TTS: `gpt-4o-mini-tts`
+- TTS: `tts-1`
 - voice: `marin`
 - OpenAI chat, transcription, and speech endpoints
 - voice segmentation, duration limits, spatial range, and network timeouts
@@ -29,12 +29,10 @@ Never commit a real API key to Git or include it in a modpack. API credentials a
 
 ## Voice requirements
 
-For voice conversations, install a compatible Simple Voice Chat version on both the server and players' clients. The LivingWorld integration targets Simple Voice Chat API `2.6.20`.
+For voice conversations, install Simple Voice Chat with API `2.6.20` or newer on both the server and players' clients. The Fabric build declares `voicechat_api >= 2.6.20` so an incompatible older voice-chat API is rejected at load time instead of crashing later.
 
 See `docs/livingworld/VOICE.md` for the interaction flow and troubleshooting.
 
 ## Backward compatibility
 
 If LivingWorld is disabled, uses an unsupported provider, or has no API key, the fork falls back to MCA's existing `mca.json` ChatAI configuration.
-
-Simple Voice Chat integration is isolated to the Fabric module. The MCA/LivingWorld text conversation path remains independent of microphone capture.
