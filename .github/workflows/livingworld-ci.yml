@@ -1,0 +1,42 @@
+name: LivingWorld CI
+
+on:
+  pull_request:
+    branches:
+      - '1.21.1'
+  push:
+    branches:
+      - 'feat/**'
+      - 'fix/**'
+      - '1.21.1'
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git init .
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+
+      - name: Use Java 21 from runner image
+        run: |
+          if [ -n "${JAVA_HOME_21_X64:-}" ] && [ -d "$JAVA_HOME_21_X64" ]; then
+            echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+            echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+          fi
+          java -version
+
+      - name: Run unit tests and Fabric build
+        run: |
+          chmod +x gradlew
+          ./gradlew :common:test :fabric:build --stacktrace --no-daemon
