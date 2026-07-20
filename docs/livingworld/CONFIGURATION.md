@@ -1,6 +1,6 @@
 # LivingWorld configuration
 
-LivingWorld is designed so the MVP normally needs only one server-side secret.
+LivingWorld is designed so the normal MVP needs only one server-side secret.
 
 ## First run
 
@@ -10,37 +10,31 @@ LivingWorld is designed so the MVP normally needs only one server-side secret.
 4. Put your OpenAI API key into `apiKey`.
 5. Start the server again.
 
-Example:
+You may instead set `OPENAI_API_KEY` in the server environment. The environment variable takes precedence over the JSON value and is the recommended production setup.
 
-```json
-{
-  "version": 1,
-  "enabled": true,
-  "apiKey": "YOUR_OPENAI_API_KEY",
-  "provider": "openai",
-  "endpoint": "https://api.openai.com/v1/chat/completions",
-  "model": "gpt-4.1-mini",
-  "connectTimeoutSeconds": 10,
-  "readTimeoutSeconds": 60
-}
-```
+The generated config already contains working defaults for:
 
-For the normal MVP setup, do not change the other values.
+- LLM: `gpt-4.1-mini`
+- STT: `gpt-4o-mini-transcribe`
+- TTS: `gpt-4o-mini-tts`
+- voice: `marin`
+- OpenAI chat, transcription, and speech endpoints
+- voice segmentation, duration limits, spatial range, and network timeouts
 
-## Recommended secret setup
+For the normal MVP setup, do not change those values.
 
-For a managed or hosted server, set the environment variable `OPENAI_API_KEY` instead of writing the key into JSON. The environment variable takes precedence over `apiKey`.
+## Secret handling
 
-Never commit a real API key to Git or include it in a modpack.
+Never commit a real API key to Git or include it in a modpack. API credentials are only needed by the dedicated server; players do not configure an AI provider.
 
-## Client requirements
+## Voice requirements
 
-Players do not need an API key and do not configure an AI provider. AI requests are initiated by the server.
+For voice conversations, install a compatible Simple Voice Chat version on both the server and players' clients. The LivingWorld integration targets Simple Voice Chat API `2.6.20`.
+
+See `docs/livingworld/VOICE.md` for the interaction flow and troubleshooting.
 
 ## Backward compatibility
 
-If LivingWorld is disabled, uses an unsupported provider, or has no API key, the fork falls back to MCA's existing `mca.json` ChatAI configuration. Existing MCA servers therefore keep their previous behavior unless LivingWorld is explicitly configured.
+If LivingWorld is disabled, uses an unsupported provider, or has no API key, the fork falls back to MCA's existing `mca.json` ChatAI configuration.
 
-## Current MVP scope
-
-This foundation covers server-side LLM chat configuration and reuses MCA's existing NPC context/conversation pipeline. Voice input, STT, TTS spatial playback, persistent world knowledge, and factions are separate milestones.
+Simple Voice Chat integration is isolated to the Fabric module. The MCA/LivingWorld text conversation path remains independent of microphone capture.
