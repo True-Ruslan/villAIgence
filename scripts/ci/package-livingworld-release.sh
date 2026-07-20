@@ -19,6 +19,7 @@ if [[ "${is_release}" == "true" ]]; then
 else
   mapfile -t candidates < <(find fabric/build/libs -maxdepth 1 -type f -name 'mca-fabric-*.jar' \
     ! -name '*-sources.jar' \
+    ! -name '*-javadoc.jar' \
     ! -name '*-dev.jar' \
     ! -name '*-dev-shadow.jar' \
     ! -name '*-shadow.jar' | sort)
