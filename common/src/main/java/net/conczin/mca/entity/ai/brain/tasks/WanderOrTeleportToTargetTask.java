@@ -2,6 +2,7 @@ package net.conczin.mca.entity.ai.brain.tasks;
 
 import net.conczin.mca.Config;
 import net.conczin.mca.entity.ai.navigation.PathfindingBlacklist;
+import net.conczin.mca.entity.ai.navigation.PathfindingProgressTracker;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
@@ -10,9 +11,17 @@ import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 public class WanderOrTeleportToTargetTask extends MoveToTargetSink {
     // Pathfinding is one of the slowest components, let's slow it down a bit.
     private static final int SLOWDOWN = 5;
+    // Replan only after sustained lack of meaningful movement. This avoids expensive path churn on short pauses.
+    private static final int STUCK_THRESHOLD_TICKS = 20 * 8;
+    private static final double MIN_PROGRESS_BLOCKS = 0.5D;
+
+    private final Map<Mob, PathfindingProgressTracker> progressTrackers = new WeakHashMap<>();
     private int cooldown = SLOWDOWN;
 
     public WanderOrTeleportToTargetTask() {
@@ -32,16 +41,27 @@ public class WanderOrTeleportToTargetTask extends MoveToTargetSink {
 
     @Override
     protected void tick(ServerLevel world, Mob entity, long l) {
-        if (Config.getInstance().allowVillagerTeleporting) {
-            entity.getBrain().getMemoryInternal(MemoryModuleType.WALK_TARGET).ifPresent(walkTarget -> {
-                BlockPos targetPos = walkTarget.getTarget().currentBlockPosition();
+        entity.getBrain().getMemoryInternal(MemoryModuleType.WALK_TARGET).ifPresentOrElse(walkTarget -> {
+            BlockPos targetPos = walkTarget.getTarget().currentBlockPosition();
+            PathfindingProgressTracker tracker = progressTrackers.computeIfAbsent(
+                    entity,
+                    ignored -> new PathfindingProgressTracker(STUCK_THRESHOLD_TICKS, MIN_PROGRESS_BLOCKS)
+            );
 
-                // If the target is more than x blocks away, teleport to it immediately.
-                if (!targetPos.closerToCenterThan(entity.position(), Config.getInstance().villagerMinTeleportationDistance)) {
-                    tryTeleport(world, entity, targetPos);
-                }
-            });
-        }
+            if (tracker.update(
+                    targetPos.getX(), targetPos.getY(), targetPos.getZ(),
+                    entity.getX(), entity.getY(), entity.getZ()
+            )) {
+                // Keep the WALK_TARGET intent, but invalidate/recompute the navigation path. This lets vanilla/MCA
+                // choose an alternative route without a tight pathfinding loop or an unconditional teleport.
+                entity.getNavigation().recomputePath();
+            }
+
+            if (Config.getInstance().allowVillagerTeleporting
+                    && !targetPos.closerToCenterThan(entity.position(), Config.getInstance().villagerMinTeleportationDistance)) {
+                tryTeleport(world, entity, targetPos);
+            }
+        }, () -> progressTrackers.remove(entity));
 
         super.tick(world, entity, l);
     }
