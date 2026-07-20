@@ -31,7 +31,7 @@ public final class LivingWorldConfig {
     public String sttModel = "gpt-4o-mini-transcribe";
     public String sttLanguage = "";
     public String ttsEndpoint = "https://api.openai.com/v1/audio/speech";
-    public String ttsModel = "gpt-4o-mini-tts";
+    public String ttsModel = "tts-1";
     public String ttsVoice = "marin";
     public int voiceSilenceMillis = 800;
     public int voiceMinMillis = 250;
@@ -104,7 +104,7 @@ public final class LivingWorldConfig {
         if (sttModel == null || sttModel.isBlank()) sttModel = "gpt-4o-mini-transcribe";
         if (sttLanguage == null) sttLanguage = "";
         if (ttsEndpoint == null || ttsEndpoint.isBlank()) ttsEndpoint = "https://api.openai.com/v1/audio/speech";
-        if (ttsModel == null || ttsModel.isBlank()) ttsModel = "gpt-4o-mini-tts";
+        if (ttsModel == null || ttsModel.isBlank()) ttsModel = "tts-1";
         if (ttsVoice == null || ttsVoice.isBlank()) ttsVoice = "marin";
         if (voiceSilenceMillis < 200) voiceSilenceMillis = 800;
         if (voiceMinMillis < 100) voiceMinMillis = 250;
