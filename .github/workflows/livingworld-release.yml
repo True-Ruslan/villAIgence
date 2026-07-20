@@ -3,7 +3,7 @@ name: LivingWorld GitHub Release
 on:
   push:
     tags:
-      - '*+*'
+      - '**'
   pull_request:
     branches:
       - '1.21.1'
