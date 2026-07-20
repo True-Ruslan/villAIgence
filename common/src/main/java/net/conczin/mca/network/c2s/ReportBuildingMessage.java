@@ -59,7 +59,10 @@ public record ReportBuildingMessage(Action action, String data) implements Handl
                 }
             }
             case AUTO_SCAN -> BlueprintServerAuthority.nearestAuthorized(player, BlueprintPermissionPolicy.Operation.TOGGLE_AUTO_SCAN)
-                    .ifPresentOrElse(Village::toggleAutoScan, () -> BlueprintServerAuthority.deny(player));
+                    .ifPresentOrElse(village -> {
+                        village.toggleAutoScan();
+                        village.markDirty();
+                    }, () -> BlueprintServerAuthority.deny(player));
             case FULL_SCAN -> BlueprintServerAuthority.nearestAuthorized(player, BlueprintPermissionPolicy.Operation.FULL_SCAN)
                     .ifPresentOrElse(village -> village.getBuildings().values().stream().toList().forEach(building ->
                                     villages.processBuilding(building.getCenter(), true, building.isStrictScan())),
