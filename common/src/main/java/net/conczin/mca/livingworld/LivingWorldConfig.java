@@ -11,13 +11,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Locale;
 
-/**
- * Server-side LivingWorld configuration.
- *
- * <p>The MVP is deliberately opinionated: OpenAI-compatible chat is the only provider and
- * every setting except the API key has a working default. The API key may be supplied via
- * {@code OPENAI_API_KEY}, which takes precedence over the JSON file.</p>
- */
+/** Server-side LivingWorld configuration. */
 public final class LivingWorldConfig {
     private static final int VERSION = 1;
     private static final String OPENAI_API_KEY_ENV = "OPENAI_API_KEY";
@@ -28,8 +22,22 @@ public final class LivingWorldConfig {
     public boolean enabled = true;
     public String apiKey = "";
     public String provider = "openai";
+
     public String endpoint = "https://api.openai.com/v1/chat/completions";
     public String model = "gpt-4.1-mini";
+
+    public boolean voiceEnabled = true;
+    public String sttEndpoint = "https://api.openai.com/v1/audio/transcriptions";
+    public String sttModel = "gpt-4o-mini-transcribe";
+    public String sttLanguage = "";
+    public String ttsEndpoint = "https://api.openai.com/v1/audio/speech";
+    public String ttsModel = "gpt-4o-mini-tts";
+    public String ttsVoice = "marin";
+    public int voiceSilenceMillis = 800;
+    public int voiceMinMillis = 250;
+    public int voiceMaxSeconds = 20;
+    public float voiceDistance = 32.0f;
+
     public int connectTimeoutSeconds = 10;
     public int readTimeoutSeconds = 60;
 
@@ -49,6 +57,10 @@ public final class LivingWorldConfig {
         return isConfiguredWithKey(resolvedApiKey());
     }
 
+    public boolean isVoiceConfigured() {
+        return voiceEnabled && isConfigured();
+    }
+
     boolean isConfiguredWithKey(String resolvedKey) {
         return enabled
                 && "openai".equals(provider == null ? "" : provider.trim().toLowerCase(Locale.ROOT))
@@ -57,9 +69,7 @@ public final class LivingWorldConfig {
     }
 
     static String resolveApiKey(String environmentKey, String configuredKey) {
-        if (environmentKey != null && !environmentKey.isBlank()) {
-            return environmentKey.trim();
-        }
+        if (environmentKey != null && !environmentKey.isBlank()) return environmentKey.trim();
         return configuredKey == null ? "" : configuredKey.trim();
     }
 
@@ -80,7 +90,6 @@ public final class LivingWorldConfig {
                 MCA.LOGGER.error("Unable to read LivingWorld config; creating fresh defaults", e);
             }
         }
-
         LivingWorldConfig config = new LivingWorldConfig();
         config.save();
         return config;
@@ -91,6 +100,16 @@ public final class LivingWorldConfig {
         if (provider == null || provider.isBlank()) provider = "openai";
         if (endpoint == null || endpoint.isBlank()) endpoint = "https://api.openai.com/v1/chat/completions";
         if (model == null || model.isBlank()) model = "gpt-4.1-mini";
+        if (sttEndpoint == null || sttEndpoint.isBlank()) sttEndpoint = "https://api.openai.com/v1/audio/transcriptions";
+        if (sttModel == null || sttModel.isBlank()) sttModel = "gpt-4o-mini-transcribe";
+        if (sttLanguage == null) sttLanguage = "";
+        if (ttsEndpoint == null || ttsEndpoint.isBlank()) ttsEndpoint = "https://api.openai.com/v1/audio/speech";
+        if (ttsModel == null || ttsModel.isBlank()) ttsModel = "gpt-4o-mini-tts";
+        if (ttsVoice == null || ttsVoice.isBlank()) ttsVoice = "marin";
+        if (voiceSilenceMillis < 200) voiceSilenceMillis = 800;
+        if (voiceMinMillis < 100) voiceMinMillis = 250;
+        if (voiceMaxSeconds <= 0) voiceMaxSeconds = 20;
+        if (voiceDistance <= 0) voiceDistance = 32.0f;
         if (connectTimeoutSeconds <= 0) connectTimeoutSeconds = 10;
         if (readTimeoutSeconds <= 0) readTimeoutSeconds = 60;
     }
@@ -102,7 +121,6 @@ public final class LivingWorldConfig {
             MCA.LOGGER.warn("Could not create LivingWorld config directory: {}", parent.getAbsolutePath());
             return;
         }
-
         try (FileWriter writer = new FileWriter(file)) {
             gson().toJson(this, writer);
         } catch (IOException e) {
