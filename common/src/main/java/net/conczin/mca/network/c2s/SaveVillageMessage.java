@@ -53,6 +53,7 @@ public record SaveVillageMessage(
             if (taxesChanged) village.setTaxes(taxes);
             if (populationChanged) village.setPopulationThreshold(populationThreshold);
             if (marriageChanged) village.setMarriageThreshold(marriageThreshold);
+            if (taxesChanged || populationChanged || marriageChanged) village.markDirty();
         }, () -> BlueprintServerAuthority.deny(player));
     }
 
