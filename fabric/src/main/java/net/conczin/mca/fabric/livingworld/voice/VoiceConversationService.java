@@ -109,7 +109,7 @@ final class VoiceConversationService implements AutoCloseable {
                     release(playerId, targetId);
                     return;
                 }
-                executor.execute(() -> answerAndSpeak(server, player, target.get(), snapshot, transcript));
+                executor.execute(() -> answerAndRespond(server, player, target.get(), snapshot, transcript));
             });
         } catch (Exception e) {
             release(playerId, targetId);
@@ -124,7 +124,7 @@ final class VoiceConversationService implements AutoCloseable {
         return player.getLookAngle().normalize().dot(toVillager.normalize()) >= MIN_LOOK_DOT;
     }
 
-    private void answerAndSpeak(
+    private void answerAndRespond(
             MinecraftServer server,
             ServerPlayer player,
             VillagerEntityMCA villager,
@@ -143,6 +143,9 @@ final class VoiceConversationService implements AutoCloseable {
                     villager.conversationManager.addMessage(player, Component.literal(text));
                 }
             });
+
+            LivingWorldConfig config = LivingWorldConfig.getInstance();
+            if (!config.isVoiceOutputConfigured()) return;
 
             PcmAudio speech = audioProvider.synthesize(text).resampleTo(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE);
             server.execute(() -> playSpatial(villager, speech.samples()));

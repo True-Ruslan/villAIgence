@@ -8,9 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LivingWorldConfigTest {
     @Test
-    void defaultsRequireOnlyAnApiKeyForOpenAiMvp() {
+    void defaultsUseVoiceInputWithTextOnlyNpcReplies() {
         LivingWorldConfig config = new LivingWorldConfig();
 
+        assertEquals(2, config.version);
         assertTrue(config.enabled);
         assertEquals("openai", config.provider);
         assertEquals("https://api.openai.com/v1/chat/completions", config.endpoint);
@@ -26,7 +27,10 @@ class LivingWorldConfigTest {
         assertEquals(8, config.eventContextMaxEvents);
         assertTrue(config.relationshipStateEnabled);
         assertEquals(2, config.relationshipMaxDeltaPerTurn);
-        assertTrue(config.voiceEnabled);
+        assertTrue(config.voiceInputEnabled);
+        assertFalse(config.voiceOutputEnabled);
+        assertEquals("auto", config.sttRequestFormat);
+        assertEquals("", config.sttApiKey);
         assertEquals("https://api.openai.com/v1/audio/transcriptions", config.sttEndpoint);
         assertEquals("gpt-4o-mini-transcribe", config.sttModel);
         assertEquals("https://api.openai.com/v1/audio/speech", config.ttsEndpoint);
@@ -41,10 +45,72 @@ class LivingWorldConfigTest {
     }
 
     @Test
-    void environmentKeyWinsOverFileKey() {
-        assertEquals("sk-env", LivingWorldConfig.resolveApiKey("sk-env", "sk-file"));
-        assertEquals("sk-file", LivingWorldConfig.resolveApiKey("  ", "sk-file"));
-        assertEquals("", LivingWorldConfig.resolveApiKey(null, null));
+    void providerSpecificEnvironmentKeyWinsOverConfiguredKey() {
+        assertEquals("sk-or-env", LivingWorldConfig.resolveProviderApiKey("openrouter", "sk-or-env", "sk-oa-env", "sk-file"));
+        assertEquals("sk-oa-env", LivingWorldConfig.resolveProviderApiKey("openai", "sk-or-env", "sk-oa-env", "sk-file"));
+        assertEquals("sk-file", LivingWorldConfig.resolveProviderApiKey("openrouter", "  ", "sk-oa-env", "sk-file"));
+        assertEquals("", LivingWorldConfig.resolveProviderApiKey("openrouter", null, null, null));
+    }
+
+    @Test
+    void dedicatedSttKeySupportsOpenRouterWithoutChangingChatProvider() {
+        assertEquals("sk-or-env", LivingWorldConfig.resolveSttApiKey(
+                "https://openrouter.ai/api/v1/audio/transcriptions", "sk-or-env", "sk-stt-file", "sk-main"));
+        assertEquals("sk-stt-file", LivingWorldConfig.resolveSttApiKey(
+                "https://openrouter.ai/api/v1/audio/transcriptions", "", "sk-stt-file", "sk-main"));
+        assertEquals("sk-main", LivingWorldConfig.resolveSttApiKey(
+                "https://api.openai.com/v1/audio/transcriptions", "sk-or-env", "", "sk-main"));
+    }
+
+    @Test
+    void openRouterIsAcceptedAsOpenAiCompatibleProvider() {
+        LivingWorldConfig config = new LivingWorldConfig();
+        config.provider = "openrouter";
+        assertTrue(config.isConfiguredWithKey("sk-or-test"));
+    }
+
+    @Test
+    void legacyVoiceEnabledTrueMigratesToFullVoice() {
+        LivingWorldConfig config = LivingWorldConfig.parseJson("""
+                {
+                  "version": 1,
+                  "voiceEnabled": true
+                }
+                """);
+
+        assertEquals(2, config.version);
+        assertTrue(config.voiceInputEnabled);
+        assertTrue(config.voiceOutputEnabled);
+    }
+
+    @Test
+    void legacyVoiceEnabledFalseMigratesToNoVoice() {
+        LivingWorldConfig config = LivingWorldConfig.parseJson("""
+                {
+                  "version": 1,
+                  "voiceEnabled": false
+                }
+                """);
+
+        assertEquals(2, config.version);
+        assertFalse(config.voiceInputEnabled);
+        assertFalse(config.voiceOutputEnabled);
+    }
+
+    @Test
+    void versionTwoPreservesIndependentVoiceFlags() {
+        LivingWorldConfig config = LivingWorldConfig.parseJson("""
+                {
+                  "version": 2,
+                  "voiceInputEnabled": true,
+                  "voiceOutputEnabled": false,
+                  "sttRequestFormat": "json_base64"
+                }
+                """);
+
+        assertTrue(config.voiceInputEnabled);
+        assertFalse(config.voiceOutputEnabled);
+        assertEquals("json_base64", config.sttRequestFormat);
     }
 
     @Test

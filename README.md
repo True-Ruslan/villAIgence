@@ -1,6 +1,6 @@
 # LivingWorld — AI-powered Minecraft Comes Alive fork
 
-LivingWorld is an experimental fork of **Minecraft Comes Alive Reborn (MCA)** for **Minecraft 1.21.1 / Fabric**. It keeps MCA's villagers, relationships and family systems, and adds server-driven AI conversations, voice interaction, persistent memory, factual world context, bounded social state and safe NPC actions.
+LivingWorld is an experimental fork of **Minecraft Comes Alive Reborn (MCA)** for **Minecraft 1.21.1 / Fabric**. It keeps MCA's villagers, relationships and family systems, and adds server-driven AI conversations, microphone input, persistent memory, factual world context, bounded social state and safe NPC actions.
 
 > **Alpha software:** back up your world before installing or updating.
 
@@ -33,29 +33,50 @@ Download LivingWorld from this repository's **GitHub Releases** page.
 5. Start the server once, then stop it. LivingWorld creates `config/livingworld.json`.
 6. Configure the AI API key on the **server only**.
 
-Recommended: set the environment variable before starting Minecraft:
+For OpenAI:
 
 ```bash
 export OPENAI_API_KEY="your-api-key"
 ```
 
-Or edit:
+For OpenRouter:
 
-```text
-config/livingworld.json
+```bash
+export OPENROUTER_API_KEY="sk-or-v1-..."
 ```
 
-and set:
-
-```json
-{
-  "apiKey": "your-api-key"
-}
-```
+Secrets may also be placed in `config/livingworld.json`, but environment variables are recommended for production servers. Never commit a real key to Git or distribute it in a modpack.
 
 7. Start the server again.
 
-The default configuration already contains working defaults for chat, speech-to-text, text-to-speech, memory, events, relationships and safe NPC actions. For a first test, normally only the API key is required.
+## Recommended: microphone input, text-only NPC answers
+
+This mode avoids TTS requests and synthesis cost:
+
+```text
+player microphone → OpenRouter STT → LivingWorld NPC AI → text in Minecraft chat
+```
+
+Set the following values in `config/livingworld.json`:
+
+```json
+{
+  "version": 2,
+  "provider": "openrouter",
+  "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+  "model": "your-chat-model-slug",
+  "voiceInputEnabled": true,
+  "voiceOutputEnabled": false,
+  "sttEndpoint": "https://openrouter.ai/api/v1/audio/transcriptions",
+  "sttModel": "openai/gpt-4o-mini-transcribe",
+  "sttRequestFormat": "json_base64",
+  "sttLanguage": "ru"
+}
+```
+
+`sttRequestFormat="auto"` is also valid and automatically selects JSON/Base64 for an `openrouter.ai` endpoint.
+
+OpenRouter STT is paid usage. HTTP `402 Payment Required` means the OpenRouter account has no usable credits; add balance and retry. No TTS request is made while `voiceOutputEnabled=false`.
 
 ## Client setup
 
@@ -67,18 +88,45 @@ Each player installs into the client `mods/` folder:
 
 Remove the original MCA Reborn JAR from the client as well.
 
-**Clients do not need an OpenAI/API key and do not need any separate AI application.**
+**Clients do not need an OpenAI/OpenRouter key and do not need any separate AI application.**
 
-After joining the server, verify that Simple Voice Chat is connected and configure the microphone / push-to-talk key normally.
+Simple Voice Chat remains required on clients even when NPC speech output is disabled because LivingWorld uses it to capture and transport microphone audio.
 
-## Talking to an NPC by voice
+## Talking to an NPC by microphone
 
 1. Interact normally with an MCA villager to select that NPC as the current conversation target.
 2. Look toward the villager.
 3. Hold the normal Simple Voice Chat push-to-talk key and speak.
-4. Stop speaking briefly; LivingWorld sends the utterance through STT → NPC AI → TTS and plays the answer spatially from the NPC.
+4. Stop speaking briefly; LivingWorld sends the utterance through STT and NPC AI.
+5. The NPC answer appears in the existing MCA conversation/chat UI.
+6. When `voiceOutputEnabled=true`, the same answer is additionally synthesized and played spatially from the NPC.
 
 Normal player-to-player voice chat continues to work normally. Ambient voice is not intentionally sent to the AI unless an NPC has been selected and the server validates the conversation target.
+
+## Voice switches
+
+| Setting | Effect |
+|---|---|
+| `voiceInputEnabled` | Captures microphone speech and runs STT |
+| `voiceOutputEnabled` | Runs TTS and spatially plays NPC speech |
+
+Recommended low-cost mode:
+
+```json
+{
+  "voiceInputEnabled": true,
+  "voiceOutputEnabled": false
+}
+```
+
+Full voice dialogue:
+
+```json
+{
+  "voiceInputEnabled": true,
+  "voiceOutputEnabled": true
+}
+```
 
 ## What is stored on the server
 
@@ -93,7 +141,7 @@ LivingWorld keeps its persistent world data under the Minecraft world directory:
 
 Back these files up together with the world.
 
-The API key stays server-side. Raw microphone audio is processed in memory and is not intentionally stored by LivingWorld.
+API keys stay server-side. Raw microphone audio is processed in memory and is not intentionally stored by LivingWorld.
 
 ## Common problems
 
@@ -109,11 +157,24 @@ Check that:
 
 ### NPC AI does not answer
 
-Check `config/livingworld.json` or the `OPENAI_API_KEY` environment variable, then inspect the dedicated server log for the provider error.
+Check `config/livingworld.json`, `OPENAI_API_KEY` or `OPENROUTER_API_KEY`, then inspect the dedicated server log for the provider error.
 
-### Text works, but voice does not
+### OpenRouter STT returns HTTP 402
 
-Check that Simple Voice Chat is installed and connected on both server and client. Interact with the NPC again, look toward it and use the normal push-to-talk key.
+The request format is valid, but the OpenRouter account needs credits. Add balance in OpenRouter and retry. Free-tier chat availability does not guarantee free speech-to-text usage.
+
+### Text works, but microphone input does not
+
+Check that:
+
+- `voiceInputEnabled=true`;
+- Simple Voice Chat is installed and connected on both server and client;
+- the player interacted with the NPC and is looking toward it;
+- the STT endpoint/model/key are configured.
+
+### Text appears, but the NPC is silent
+
+This is expected when `voiceOutputEnabled=false`. Enable it only when TTS and its cost are desired.
 
 ### Server and client report mod mismatch
 
@@ -121,10 +182,10 @@ Use the same LivingWorld release JAR on both sides and remove any second/origina
 
 ## Advanced configuration
 
-Most users should keep the generated defaults. Additional documentation:
+Additional documentation:
 
 - [LivingWorld configuration](docs/livingworld/CONFIGURATION.md)
-- [Voice interaction](docs/livingworld/VOICE.md)
+- [Voice and STT modes](docs/livingworld/VOICE.md)
 - [Persistent memory](docs/livingworld/MEMORY.md)
 - [Factual events](docs/livingworld/EVENTS.md)
 - [Relationships](docs/livingworld/RELATIONSHIPS.md)
@@ -153,8 +214,6 @@ MCA is generally compatible with other mods, though item recognition, villager i
 ## Contributing
 
 Contributions are welcome. Keep changes scoped, test Fabric 1.21.1 behavior and preserve server authority around AI actions and persistent data.
-
-For upstream MCA development information, see the original project's documentation and repository.
 
 ## Credits
 

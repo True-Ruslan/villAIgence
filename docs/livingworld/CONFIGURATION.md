@@ -1,58 +1,159 @@
 # LivingWorld configuration
 
-LivingWorld is designed so the normal MVP needs only one server-side secret.
+LivingWorld keeps all AI credentials and provider settings on the dedicated server. Clients never need an API key.
 
 ## First run
 
-1. Start the Minecraft server once with the LivingWorld-enabled MCA build.
+1. Start the server once with LivingWorld installed.
 2. Stop the server.
 3. Open `config/livingworld.json`.
-4. Put your OpenAI API key into `apiKey`.
+4. Configure the chat provider and API key.
 5. Start the server again.
 
-You may instead set `OPENAI_API_KEY` in the server environment. The environment variable takes precedence over the JSON value and is the recommended production setup.
+Environment variables are recommended over storing keys in JSON:
 
-The generated config already contains working defaults for:
+```bash
+# OpenAI
+export OPENAI_API_KEY="sk-..."
 
-- LLM: `gpt-4.1-mini`
-- safe whitelisted NPC actions: enabled
-- persistent per-NPC/per-player conversation memory: enabled, 16 messages, 1200 characters per stored message
-- factual local event memory: enabled, 512 stored events, 3 Minecraft days max age, 32-block context radius, 8 events per context snapshot
-- structured LivingWorld relationship state: enabled, max per-turn proposed delta `2` per axis
-- STT: `gpt-4o-mini-transcribe`
-- TTS: `tts-1`
-- voice: `marin`
-- OpenAI chat, transcription, and speech endpoints
-- voice segmentation, duration limits, spatial range, and network timeouts
+# OpenRouter
+export OPENROUTER_API_KEY="sk-or-v1-..."
+```
 
-For the normal MVP setup, do not change those values.
+`provider` accepts:
+
+- `openai`
+- `openrouter`
+
+Both use OpenAI-compatible chat requests; only endpoint, model slug and credential source differ.
+
+## Recommended OpenRouter text-only voice mode
+
+This is the recommended low-cost configuration:
+
+```text
+microphone → OpenRouter STT → NPC AI → text answer
+```
+
+```json
+{
+  "version": 2,
+  "enabled": true,
+  "provider": "openrouter",
+  "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+  "model": "your-chat-model-slug",
+  "voiceInputEnabled": true,
+  "voiceOutputEnabled": false,
+  "sttEndpoint": "https://openrouter.ai/api/v1/audio/transcriptions",
+  "sttModel": "openai/gpt-4o-mini-transcribe",
+  "sttRequestFormat": "json_base64",
+  "sttLanguage": "ru"
+}
+```
+
+`OPENROUTER_API_KEY` is used automatically for OpenRouter chat and STT. A separate `sttApiKey` may be configured when chat and STT use different accounts/providers.
+
+OpenRouter expects JSON with a raw Base64 WAV value in `input_audio.data`. `sttRequestFormat="auto"` detects `openrouter.ai` and selects this format automatically.
+
+OpenRouter speech-to-text is paid usage. HTTP `402 Payment Required` means the account needs credits/balance; it is not a malformed-audio error.
+
+## Voice input and output switches
+
+The old single `voiceEnabled` field was replaced by independent controls:
+
+| Setting | Default for new configs | Behavior |
+|---|---:|---|
+| `voiceInputEnabled` | `true` | capture microphone audio and call STT |
+| `voiceOutputEnabled` | `false` | call TTS and play NPC speech spatially |
+
+Text-only answers:
+
+```json
+{
+  "voiceInputEnabled": true,
+  "voiceOutputEnabled": false
+}
+```
+
+Full voice dialogue:
+
+```json
+{
+  "voiceInputEnabled": true,
+  "voiceOutputEnabled": true
+}
+```
+
+No TTS request is made while `voiceOutputEnabled=false`.
+
+## STT request formats
+
+`sttRequestFormat` accepts:
+
+- `auto` — JSON/Base64 for OpenRouter, multipart file upload otherwise;
+- `json_base64` — force JSON with `input_audio.data` and `input_audio.format`;
+- `multipart` — force OpenAI-style `multipart/form-data` file upload.
+
+Invalid values normalize to `auto`.
+
+## Credential resolution
+
+Main chat key:
+
+- `provider=openrouter`: `OPENROUTER_API_KEY`, then `apiKey`;
+- `provider=openai`: `OPENAI_API_KEY`, then `apiKey`.
+
+STT key:
+
+1. `OPENROUTER_API_KEY` for an OpenRouter STT endpoint;
+2. `sttApiKey`;
+3. the resolved main provider key.
+
+This allows OpenAI chat with OpenRouter STT, OpenRouter chat with OpenAI STT, or a single key for both.
+
+## Existing config migration
+
+Config version 1 is migrated automatically to version 2:
+
+- `voiceEnabled=true` becomes `voiceInputEnabled=true` and `voiceOutputEnabled=true`;
+- `voiceEnabled=false` becomes both new switches `false`.
+
+The migrated file is rewritten on server startup. Existing full-voice installations therefore preserve their previous behavior, while new installations default to microphone input with text-only answers.
+
+## Other defaults
+
+The generated config also enables:
+
+- safe whitelisted NPC actions;
+- persistent NPC/player dialogue memory;
+- bounded factual event memory;
+- bounded `trust`, `respect`, `fear`, and `affinity` state;
+- 800 ms speech segmentation silence;
+- 250 ms minimum utterance;
+- 20 second maximum utterance;
+- 10 second connect timeout;
+- 60 second read timeout.
 
 ## Secret handling
 
-Never commit a real API key to Git or include it in a modpack. API credentials are only needed by the dedicated server; players do not configure an AI provider.
+Never commit a real API key to Git or include it in a modpack. API credentials belong only on the dedicated server.
 
-## Safe actions
+## Persistent data
 
-`safeActionsEnabled=true` exposes only MCA's hard-coded AI action whitelist. It does not grant arbitrary command execution. See `docs/livingworld/ACTIONS.md`.
+LivingWorld stores server-owned data under `<world>/livingworld/`:
 
-## Persistent conversation memory
+- `memory.json`
+- `events.json`
+- `relationships.json`
 
-LivingWorld stores bounded rolling dialogue memory in `<world>/livingworld/memory.json`. Back it up together with the Minecraft world. See `docs/livingworld/MEMORY.md` for details.
-
-## Factual event memory
-
-LivingWorld stores bounded server-generated factual events in `<world>/livingworld/events.json`. Only recent nearby events are injected into an NPC's immutable context snapshot. Player/LLM claims are not automatically treated as facts. See `docs/livingworld/EVENTS.md`.
-
-## Structured relationship state
-
-LivingWorld stores bounded `trust`, `respect`, `fear`, and `affinity` in `<world>/livingworld/relationships.json`. It is separate from MCA hearts/family/marriage data. The snapshot-aware direct LivingWorld path may propose only small per-turn deltas; the server clamps and persists them. See `docs/livingworld/RELATIONSHIPS.md`.
+Back these files up with the Minecraft world.
 
 ## Voice requirements
 
-For voice conversations, install Simple Voice Chat with API `2.6.20` or newer on both the server and players' clients. The Fabric build declares `voicechat_api >= 2.6.20` so an incompatible older voice-chat API is rejected at load time instead of crashing later.
+Simple Voice Chat 2.6.20 or newer is required on the server and clients whenever `voiceInputEnabled=true`, even if NPC speech output is disabled. LivingWorld uses its microphone packet and Opus decoding APIs.
 
-See `docs/livingworld/VOICE.md` for the interaction flow and troubleshooting.
+See `docs/livingworld/VOICE.md` for the full interaction flow and troubleshooting.
 
 ## Backward compatibility
 
-If LivingWorld is disabled, uses an unsupported provider, or has no API key, the fork falls back to MCA's existing `mca.json` ChatAI configuration. Persistent conversation memory, factual event recording, structured relationship state, and the LivingWorld safe-action switch are used only for the configured direct LivingWorld provider path.
+If LivingWorld is disabled, uses an unsupported provider, or lacks the required main chat credential, the fork falls back to MCA's legacy ChatAI configuration. LivingWorld memory, factual events, structured relationships and new voice routing apply to the configured direct LivingWorld provider path.
