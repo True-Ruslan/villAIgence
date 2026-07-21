@@ -61,6 +61,18 @@ class NpcVoiceCatalogTest {
     }
 
     @Test
+    void neutralYoungNpcFallsBackToNeutralAdultBeforeGlobal() {
+        NpcVoiceCatalog sparse = new NpcVoiceCatalog(new NpcVoiceCatalog.VoicePools(
+                List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(),
+                List.of("man"), List.of("woman"), List.of("neutral-adult"),
+                List.of("global"), "legacy"
+        ));
+
+        assertEquals("neutral-adult", sparse.select(new UUID(13L, 14L), NpcVoiceGender.NEUTRAL, NpcVoiceAgeGroup.CHILD));
+    }
+
+    @Test
     void neutralThenGlobalThenLegacyAreSafeFallbacks() {
         NpcVoiceCatalog neutral = new NpcVoiceCatalog(new NpcVoiceCatalog.VoicePools(
                 List.of(), List.of(), List.of("neutral-child"),
