@@ -8,6 +8,7 @@ import com.google.gson.JsonSyntaxException;
 import net.conczin.mca.Config;
 import net.conczin.mca.MCA;
 import net.conczin.mca.livingworld.actions.LivingWorldActionPolicy;
+import net.conczin.mca.livingworld.voice.NpcVoiceCatalog;
 import net.conczin.mca.livingworld.voice.SttRequestFormat;
 
 import java.io.File;
@@ -15,6 +16,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 
 /** Server-side LivingWorld configuration. */
@@ -61,7 +64,21 @@ public final class LivingWorldConfig {
     public String sttLanguage = "";
     public String ttsEndpoint = "https://api.openai.com/v1/audio/speech";
     public String ttsModel = "tts-1";
+    /** Legacy/final fallback voice. Persistent NPC profiles use the pools below first. */
     public String ttsVoice = "marin";
+
+    /** LivingWorld defaults only; providers do not formally classify built-in voices by gender/age. */
+    public List<String> maleChildVoices = List.of("ash", "echo");
+    public List<String> femaleChildVoices = List.of("shimmer", "coral");
+    public List<String> neutralChildVoices = List.of("alloy", "verse");
+    public List<String> maleTeenVoices = List.of("ash", "echo", "cedar");
+    public List<String> femaleTeenVoices = List.of("coral", "nova", "shimmer");
+    public List<String> neutralTeenVoices = List.of("alloy", "verse");
+    public List<String> maleAdultVoices = List.of("cedar", "onyx", "echo", "ash");
+    public List<String> femaleAdultVoices = List.of("marin", "coral", "nova", "shimmer", "sage");
+    public List<String> neutralAdultVoices = List.of("alloy", "verse", "fable", "ballad");
+    public List<String> globalVoiceFallbacks = List.of("marin", "cedar", "alloy");
+
     public int voiceSilenceMillis = 800;
     public int voiceMinMillis = 250;
     public int voiceMaxSeconds = 20;
@@ -111,6 +128,22 @@ public final class LivingWorldConfig {
     /** Compatibility helper for callers that only need to know whether either voice direction is enabled. */
     public boolean isVoiceConfigured() {
         return isVoiceInputConfigured() || isVoiceOutputConfigured();
+    }
+
+    public NpcVoiceCatalog.VoicePools voicePools() {
+        return new NpcVoiceCatalog.VoicePools(
+                normalizeVoiceList(maleChildVoices),
+                normalizeVoiceList(femaleChildVoices),
+                normalizeVoiceList(neutralChildVoices),
+                normalizeVoiceList(maleTeenVoices),
+                normalizeVoiceList(femaleTeenVoices),
+                normalizeVoiceList(neutralTeenVoices),
+                normalizeVoiceList(maleAdultVoices),
+                normalizeVoiceList(femaleAdultVoices),
+                normalizeVoiceList(neutralAdultVoices),
+                normalizeVoiceList(globalVoiceFallbacks),
+                ttsVoice == null ? "" : ttsVoice.trim()
+        );
     }
 
     boolean isConfiguredWithKey(String resolvedKey) {
@@ -248,12 +281,31 @@ public final class LivingWorldConfig {
         if (ttsEndpoint == null || ttsEndpoint.isBlank()) ttsEndpoint = "https://api.openai.com/v1/audio/speech";
         if (ttsModel == null || ttsModel.isBlank()) ttsModel = "tts-1";
         if (ttsVoice == null || ttsVoice.isBlank()) ttsVoice = "marin";
+        maleChildVoices = normalizeVoiceList(maleChildVoices);
+        femaleChildVoices = normalizeVoiceList(femaleChildVoices);
+        neutralChildVoices = normalizeVoiceList(neutralChildVoices);
+        maleTeenVoices = normalizeVoiceList(maleTeenVoices);
+        femaleTeenVoices = normalizeVoiceList(femaleTeenVoices);
+        neutralTeenVoices = normalizeVoiceList(neutralTeenVoices);
+        maleAdultVoices = normalizeVoiceList(maleAdultVoices);
+        femaleAdultVoices = normalizeVoiceList(femaleAdultVoices);
+        neutralAdultVoices = normalizeVoiceList(neutralAdultVoices);
+        globalVoiceFallbacks = normalizeVoiceList(globalVoiceFallbacks);
         if (voiceSilenceMillis < 200) voiceSilenceMillis = 800;
         if (voiceMinMillis < 100) voiceMinMillis = 250;
         if (voiceMaxSeconds <= 0) voiceMaxSeconds = 20;
         if (voiceDistance <= 0) voiceDistance = 32.0f;
         if (connectTimeoutSeconds <= 0) connectTimeoutSeconds = 10;
         if (readTimeoutSeconds <= 0) readTimeoutSeconds = 60;
+    }
+
+    private static List<String> normalizeVoiceList(List<String> values) {
+        if (values == null || values.isEmpty()) return List.of();
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String value : values) {
+            if (value != null && !value.isBlank()) normalized.add(value.trim());
+        }
+        return List.copyOf(normalized);
     }
 
     private void save() {
