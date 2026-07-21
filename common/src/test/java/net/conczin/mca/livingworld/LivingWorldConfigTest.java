@@ -1,6 +1,9 @@
 package net.conczin.mca.livingworld;
 
+import net.conczin.mca.livingworld.voice.NpcVoiceCatalog;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -42,6 +45,34 @@ class LivingWorldConfigTest {
         assertEquals(60, config.readTimeoutSeconds);
         assertFalse(config.isConfiguredWithKey(""));
         assertTrue(config.isConfiguredWithKey("sk-test"));
+
+        NpcVoiceCatalog.VoicePools pools = config.voicePools();
+        assertFalse(pools.maleChild().isEmpty());
+        assertFalse(pools.femaleChild().isEmpty());
+        assertFalse(pools.maleTeen().isEmpty());
+        assertFalse(pools.femaleTeen().isEmpty());
+        assertFalse(pools.maleAdult().isEmpty());
+        assertFalse(pools.femaleAdult().isEmpty());
+        assertEquals("marin", pools.legacyFallback());
+    }
+
+    @Test
+    void voicePoolsNormalizeBlanksDuplicatesAndKeepLegacyTtsVoiceFallback() {
+        LivingWorldConfig config = LivingWorldConfig.parseJson("""
+                {
+                  "version": 2,
+                  "ttsVoice": "legacy-voice",
+                  "maleChildVoices": [" ash ", "", "ash", null],
+                  "femaleChildVoices": [],
+                  "globalVoiceFallbacks": [" alloy ", "alloy", "verse"]
+                }
+                """);
+
+        NpcVoiceCatalog.VoicePools pools = config.voicePools();
+        assertEquals(List.of("ash"), pools.maleChild());
+        assertEquals(List.of(), pools.femaleChild());
+        assertEquals(List.of("alloy", "verse"), pools.globalFallback());
+        assertEquals("legacy-voice", pools.legacyFallback());
     }
 
     @Test
