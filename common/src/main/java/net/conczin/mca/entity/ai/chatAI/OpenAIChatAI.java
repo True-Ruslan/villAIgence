@@ -15,6 +15,7 @@ import net.conczin.mca.entity.ai.relationship.AgeState;
 import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.ai.AiProviderSettings;
 import net.conczin.mca.livingworld.ai.LivingWorldAI;
+import net.conczin.mca.livingworld.ai.StructuredAiResponseParser;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
 import net.conczin.mca.livingworld.memory.PersistentChatMemory;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipDelta;
@@ -66,22 +67,19 @@ public class OpenAIChatAI implements ChatAIStrategy {
 
     private static Answer parseAnswer(String body) {
         JsonObject map = JsonParser.parseString(body).getAsJsonObject();
-        String message = map.has("choices")
+        String content = map.has("choices")
                 ? map.getAsJsonArray("choices").get(0).getAsJsonObject().getAsJsonObject("message").getAsJsonPrimitive("content").getAsString()
                 : null;
         String error = parseError(map.get("error"));
-        if (message != null) {
-            message = message.replaceAll("```", "");
-            int start = message.indexOf("{");
-            int end = message.lastIndexOf("}");
-            if (end > start && start != -1) message = message.substring(start, end + 1);
-        }
-        StructuredResponse reply;
-        try {
-            reply = new Gson().fromJson(message, StructuredResponse.class);
-        } catch (JsonSyntaxException | IllegalStateException e) {
-            MCA.LOGGER.warn("Error parsing structured AI answer: {} ({})", message, e.getMessage());
-            reply = new StructuredResponse(cleanupAnswer(message), "");
+
+        StructuredAiResponseParser.ParsedResponse parsed = StructuredAiResponseParser.parse(content);
+        StructuredResponse reply = new StructuredResponse(
+                parsed.message(),
+                parsed.optionalCommand(),
+                parsed.relationshipDelta()
+        );
+        if (content != null && parsed.message() == null) {
+            MCA.LOGGER.warn("AI answer contained no usable user-visible message after structured response sanitization");
         }
         return new Answer(reply, error);
     }
@@ -214,14 +212,15 @@ public class OpenAIChatAI implements ChatAIStrategy {
             } else if (Relationship.IS_RELATIVE.test(villager, player)) {
                 systemBuilder.append("You are related to the player and MUST NOT flirt with them or use romantic/suggestive language. Keep your responses strictly familial.\n");
             }
-            if (MCA.language != null) systemBuilder.append("Match the language of the player, and use ").append(MCA.language).append(" when unsure.");
+            systemBuilder.append("Reply in the same natural language as the player's latest message. Never switch to English unless the player used English or explicitly requested English. ");
+            if (MCA.language != null) systemBuilder.append("Use ").append(MCA.language).append(" only as a fallback when the player's language is genuinely ambiguous.");
 
             List<TriggerCommandInfo> commands = config.villagerChatAIUseTools
                     ? TriggerCommandInfos.triggerCommands.stream().filter(c -> c.isActive == null || c.isActive.test(player, villager)).toList()
                     : List.of();
             if (!commands.isEmpty()) {
                 String example = new Gson().toJson(new StructuredResponse("example message to say", commands.getFirst().command));
-                systemBuilder.append("\n\nThe reply MUST be in this JSON format: ").append(example).append("\nThe following commands are valid:\n");
+                systemBuilder.append("\n\nThe reply MUST be in this JSON format: ").append(example).append("\nThe message field MUST contain only the NPC reply in the same natural language as the player's latest message.\nThe following commands are valid:\n");
                 for (TriggerCommandInfo command : commands) systemBuilder.append("  * ").append(command.command).append(": ").append(command.description).append('\n');
                 systemBuilder.append("Only use a command when the player asks for it.");
             }
@@ -343,8 +342,11 @@ public class OpenAIChatAI implements ChatAIStrategy {
         } else if (snapshot.relative()) {
             systemBuilder.append("You are related to the player and MUST NOT flirt with them or use romantic/suggestive language. Keep your responses strictly familial.\n");
         }
+        systemBuilder.append("Reply in the same natural language as the player's latest message. Never switch to English unless the player used English or explicitly requested English. ");
         if (!snapshot.language().isBlank()) {
-            systemBuilder.append("Match the language of the player, and use ").append(snapshot.language()).append(" when unsure.\n");
+            systemBuilder.append("Use ").append(snapshot.language()).append(" only as a fallback when the player's language is genuinely ambiguous.\n");
+        } else {
+            systemBuilder.append('\n');
         }
         if (!snapshot.worldFacts().isEmpty()) {
             systemBuilder.append("\nObserved factual context from the current Minecraft world. Treat these facts as authoritative for this turn. Data not listed here is unknown, not false:\n");
@@ -359,6 +361,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
             LivingWorldRelationshipDelta exampleDelta = relationshipEnabled ? LivingWorldRelationshipDelta.NONE : null;
             String example = new Gson().toJson(new StructuredResponse("example message to say", exampleCommand, exampleDelta));
             systemBuilder.append("\nThe reply MUST be in this JSON format: ").append(example).append('\n');
+            systemBuilder.append("The message field MUST contain only the NPC's natural-language reply and MUST use the same language as the player's latest message. Never put JSON, metadata, explanations, or code fences inside message.\n");
 
             if (actionsEnabled) {
                 systemBuilder.append("The following commands are valid:\n");
