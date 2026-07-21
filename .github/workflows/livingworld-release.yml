@@ -119,7 +119,7 @@ jobs:
           name: livingworld-fabric-package
           path: dist
 
-      - name: Create GitHub release
+      - name: Create or update GitHub release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -159,17 +159,40 @@ jobs:
             "${checksum}" \
             > "${notes_file}"
 
-          common_args=(
-            "${release_tag}"
-            "${jar_file}"
-            "${checksum_file}"
-            --verify-tag
-            --title "LivingWorld ${mod_version} for Minecraft ${minecraft_version}"
-            --notes-file "${notes_file}"
-          )
+          title="LivingWorld ${mod_version} for Minecraft ${minecraft_version}"
 
-          if [[ "${mod_version}" == *-* ]]; then
-            gh release create "${common_args[@]}" --prerelease
+          if gh release view "${release_tag}" >/dev/null 2>&1; then
+            echo "Release ${release_tag} already exists; updating metadata and replacing assets."
+            if [[ "${mod_version}" == *-* ]]; then
+              gh release edit "${release_tag}" \
+                --title "${title}" \
+                --notes-file "${notes_file}" \
+                --draft=false \
+                --prerelease=true
+            else
+              gh release edit "${release_tag}" \
+                --title "${title}" \
+                --notes-file "${notes_file}" \
+                --draft=false \
+                --prerelease=false
+            fi
+            gh release upload "${release_tag}" \
+              "${jar_file}" \
+              "${checksum_file}" \
+              --clobber
           else
-            gh release create "${common_args[@]}"
+            common_args=(
+              "${release_tag}"
+              "${jar_file}"
+              "${checksum_file}"
+              --verify-tag
+              --title "${title}"
+              --notes-file "${notes_file}"
+            )
+
+            if [[ "${mod_version}" == *-* ]]; then
+              gh release create "${common_args[@]}" --prerelease
+            else
+              gh release create "${common_args[@]}"
+            fi
           fi
