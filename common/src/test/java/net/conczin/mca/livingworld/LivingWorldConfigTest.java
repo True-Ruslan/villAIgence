@@ -39,6 +39,7 @@ class LivingWorldConfigTest {
         assertEquals("https://api.openai.com/v1/audio/speech", config.ttsEndpoint);
         assertEquals("tts-1", config.ttsModel);
         assertEquals("marin", config.ttsVoice);
+        assertEquals("", config.ttsApiKey);
         assertEquals(800, config.voiceSilenceMillis);
         assertEquals(20, config.voiceMaxSeconds);
         assertEquals(10, config.connectTimeoutSeconds);
@@ -91,6 +92,16 @@ class LivingWorldConfigTest {
                 "https://openrouter.ai/api/v1/audio/transcriptions", "", "sk-stt-file", "sk-main"));
         assertEquals("sk-main", LivingWorldConfig.resolveSttApiKey(
                 "https://api.openai.com/v1/audio/transcriptions", "sk-or-env", "", "sk-main"));
+    }
+
+    @Test
+    void ttsCredentialIsResolvedIndependentlyFromChatProvider() {
+        assertEquals("sk-openai-env", LivingWorldConfig.resolveTtsApiKey(
+                "https://api.openai.com/v1/audio/speech", "sk-openai-env", "sk-tts-file", "sk-openrouter-main"));
+        assertEquals("sk-tts-file", LivingWorldConfig.resolveTtsApiKey(
+                "https://example-tts.invalid/v1/speech", "sk-openai-env", "sk-tts-file", "sk-main"));
+        assertEquals("sk-main", LivingWorldConfig.resolveTtsApiKey(
+                "https://example-tts.invalid/v1/speech", "", "", "sk-main"));
     }
 
     @Test
