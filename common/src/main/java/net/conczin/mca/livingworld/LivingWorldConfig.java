@@ -2,21 +2,26 @@ package net.conczin.mca.livingworld;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import net.conczin.mca.Config;
 import net.conczin.mca.MCA;
 import net.conczin.mca.livingworld.actions.LivingWorldActionPolicy;
+import net.conczin.mca.livingworld.voice.SttRequestFormat;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Locale;
 
 /** Server-side LivingWorld configuration. */
 public final class LivingWorldConfig {
-    private static final int VERSION = 1;
+    private static final int VERSION = 2;
     private static final String OPENAI_API_KEY_ENV = "OPENAI_API_KEY";
+    private static final String OPENROUTER_API_KEY_ENV = "OPENROUTER_API_KEY";
 
     @SuppressWarnings("unused")
     public String README = "docs/livingworld/CONFIGURATION.md";
@@ -43,7 +48,14 @@ public final class LivingWorldConfig {
     public boolean relationshipStateEnabled = true;
     public int relationshipMaxDeltaPerTurn = 2;
 
-    public boolean voiceEnabled = true;
+    /** Capture microphone audio and route it through STT into the NPC AI. */
+    public boolean voiceInputEnabled = true;
+    /** Synthesize NPC answers and play them spatially. Text answers are always shown. */
+    public boolean voiceOutputEnabled = false;
+    /** auto, multipart, or json_base64. */
+    public String sttRequestFormat = "auto";
+    /** Optional dedicated STT key. Prefer OPENROUTER_API_KEY for OpenRouter. */
+    public String sttApiKey = "";
     public String sttEndpoint = "https://api.openai.com/v1/audio/transcriptions";
     public String sttModel = "gpt-4o-mini-transcribe";
     public String sttLanguage = "";
@@ -67,48 +79,126 @@ public final class LivingWorldConfig {
     }
 
     public String resolvedApiKey() {
-        return resolveApiKey(System.getenv(OPENAI_API_KEY_ENV), apiKey);
+        return resolveProviderApiKey(
+                provider,
+                System.getenv(OPENROUTER_API_KEY_ENV),
+                System.getenv(OPENAI_API_KEY_ENV),
+                apiKey
+        );
+    }
+
+    public String resolvedSttApiKey() {
+        return resolveSttApiKey(
+                sttEndpoint,
+                System.getenv(OPENROUTER_API_KEY_ENV),
+                sttApiKey,
+                resolvedApiKey()
+        );
     }
 
     public boolean isConfigured() {
         return isConfiguredWithKey(resolvedApiKey());
     }
 
+    public boolean isVoiceInputConfigured() {
+        return voiceInputEnabled && isConfigured() && !resolvedSttApiKey().isBlank();
+    }
+
+    public boolean isVoiceOutputConfigured() {
+        return voiceOutputEnabled && isConfigured();
+    }
+
+    /** Compatibility helper for callers that only need to know whether either voice direction is enabled. */
     public boolean isVoiceConfigured() {
-        return voiceEnabled && isConfigured();
+        return isVoiceInputConfigured() || isVoiceOutputConfigured();
     }
 
     boolean isConfiguredWithKey(String resolvedKey) {
+        String normalizedProvider = provider == null ? "" : provider.trim().toLowerCase(Locale.ROOT);
         return enabled
-                && "openai".equals(provider == null ? "" : provider.trim().toLowerCase(Locale.ROOT))
+                && ("openai".equals(normalizedProvider) || "openrouter".equals(normalizedProvider))
                 && resolvedKey != null
                 && !resolvedKey.isBlank();
     }
 
-    static String resolveApiKey(String environmentKey, String configuredKey) {
-        if (environmentKey != null && !environmentKey.isBlank()) return environmentKey.trim();
+    static String resolveProviderApiKey(
+            String provider,
+            String openRouterEnvironmentKey,
+            String openAiEnvironmentKey,
+            String configuredKey
+    ) {
+        String normalizedProvider = provider == null ? "" : provider.trim().toLowerCase(Locale.ROOT);
+        if ("openrouter".equals(normalizedProvider)) {
+            if (openRouterEnvironmentKey != null && !openRouterEnvironmentKey.isBlank()) {
+                return openRouterEnvironmentKey.trim();
+            }
+        } else if (openAiEnvironmentKey != null && !openAiEnvironmentKey.isBlank()) {
+            return openAiEnvironmentKey.trim();
+        }
         return configuredKey == null ? "" : configuredKey.trim();
+    }
+
+    static String resolveSttApiKey(
+            String endpoint,
+            String openRouterEnvironmentKey,
+            String configuredSttKey,
+            String mainProviderKey
+    ) {
+        if (SttRequestFormat.isOpenRouterEndpoint(endpoint)
+                && openRouterEnvironmentKey != null
+                && !openRouterEnvironmentKey.isBlank()) {
+            return openRouterEnvironmentKey.trim();
+        }
+        if (configuredSttKey != null && !configuredSttKey.isBlank()) return configuredSttKey.trim();
+        return mainProviderKey == null ? "" : mainProviderKey.trim();
+    }
+
+    static LivingWorldConfig parseJson(String json) {
+        try {
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+            int storedVersion = root.has("version") && !root.get("version").isJsonNull()
+                    ? root.get("version").getAsInt()
+                    : 1;
+            if (storedVersion != 1 && storedVersion != VERSION) {
+                throw new JsonSyntaxException("Unsupported LivingWorld config version: " + storedVersion);
+            }
+
+            LivingWorldConfig config = gson().fromJson(root, LivingWorldConfig.class);
+            if (config == null) config = new LivingWorldConfig();
+
+            if (storedVersion == 1) {
+                boolean legacyVoiceEnabled = !root.has("voiceEnabled")
+                        || root.get("voiceEnabled").isJsonNull()
+                        || root.get("voiceEnabled").getAsBoolean();
+                config.voiceInputEnabled = legacyVoiceEnabled;
+                config.voiceOutputEnabled = legacyVoiceEnabled;
+            }
+
+            config.version = VERSION;
+            config.normalize();
+            return config;
+        } catch (RuntimeException e) {
+            if (e instanceof JsonSyntaxException syntaxException) throw syntaxException;
+            throw new JsonSyntaxException("Invalid LivingWorld config", e);
+        }
     }
 
     private static LivingWorldConfig loadOrCreate() {
         File file = getConfigFile();
         if (file.exists()) {
-            try (FileReader reader = new FileReader(file)) {
-                LivingWorldConfig config = gson().fromJson(reader, LivingWorldConfig.class);
-                if (config != null && config.version == VERSION) {
-                    config.normalize();
-                    applyRuntimeCompatibility(config);
-                    config.save();
-                    return config;
-                }
-                MCA.LOGGER.warn("LivingWorld config version is missing or unsupported; creating fresh defaults");
+            try {
+                LivingWorldConfig config = parseJson(Files.readString(file.toPath(), StandardCharsets.UTF_8));
+                applyRuntimeCompatibility(config);
+                config.save();
+                return config;
             } catch (JsonSyntaxException e) {
-                MCA.LOGGER.error("LivingWorld config is invalid JSON; creating fresh defaults", e);
+                MCA.LOGGER.error("LivingWorld config is invalid or unsupported; creating fresh defaults", e);
             } catch (IOException e) {
                 MCA.LOGGER.error("Unable to read LivingWorld config; creating fresh defaults", e);
             }
         }
         LivingWorldConfig config = new LivingWorldConfig();
+        config.normalize();
         applyRuntimeCompatibility(config);
         config.save();
         return config;
@@ -126,8 +216,15 @@ public final class LivingWorldConfig {
     private void normalize() {
         if (apiKey == null) apiKey = "";
         if (provider == null || provider.isBlank()) provider = "openai";
-        if (endpoint == null || endpoint.isBlank()) endpoint = "https://api.openai.com/v1/chat/completions";
-        if (model == null || model.isBlank()) model = "gpt-4.1-mini";
+        provider = provider.trim().toLowerCase(Locale.ROOT);
+        if (endpoint == null || endpoint.isBlank()) {
+            endpoint = "openrouter".equals(provider)
+                    ? "https://openrouter.ai/api/v1/chat/completions"
+                    : "https://api.openai.com/v1/chat/completions";
+        }
+        if (model == null || model.isBlank()) {
+            model = "openrouter".equals(provider) ? "openai/gpt-4.1-mini" : "gpt-4.1-mini";
+        }
         if (persistentMemoryMaxMessages < 2) persistentMemoryMaxMessages = 16;
         if (persistentMemoryMaxCharsPerMessage < 1) persistentMemoryMaxCharsPerMessage = 1200;
         if (eventMemoryMaxEvents < 1) eventMemoryMaxEvents = 512;
@@ -135,8 +232,18 @@ public final class LivingWorldConfig {
         if (eventContextRadius < 0.0D) eventContextRadius = 32.0D;
         if (eventContextMaxEvents < 1) eventContextMaxEvents = 8;
         if (relationshipMaxDeltaPerTurn < 0) relationshipMaxDeltaPerTurn = 2;
-        if (sttEndpoint == null || sttEndpoint.isBlank()) sttEndpoint = "https://api.openai.com/v1/audio/transcriptions";
-        if (sttModel == null || sttModel.isBlank()) sttModel = "gpt-4o-mini-transcribe";
+        if (sttApiKey == null) sttApiKey = "";
+        sttRequestFormat = SttRequestFormat.parse(sttRequestFormat).configValue();
+        if (sttEndpoint == null || sttEndpoint.isBlank()) {
+            sttEndpoint = "openrouter".equals(provider)
+                    ? "https://openrouter.ai/api/v1/audio/transcriptions"
+                    : "https://api.openai.com/v1/audio/transcriptions";
+        }
+        if (sttModel == null || sttModel.isBlank()) {
+            sttModel = SttRequestFormat.isOpenRouterEndpoint(sttEndpoint)
+                    ? "openai/gpt-4o-mini-transcribe"
+                    : "gpt-4o-mini-transcribe";
+        }
         if (sttLanguage == null) sttLanguage = "";
         if (ttsEndpoint == null || ttsEndpoint.isBlank()) ttsEndpoint = "https://api.openai.com/v1/audio/speech";
         if (ttsModel == null || ttsModel.isBlank()) ttsModel = "tts-1";
@@ -156,7 +263,7 @@ public final class LivingWorldConfig {
             MCA.LOGGER.warn("Could not create LivingWorld config directory: {}", parent.getAbsolutePath());
             return;
         }
-        try (FileWriter writer = new FileWriter(file)) {
+        try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
             gson().toJson(this, writer);
         } catch (IOException e) {
             MCA.LOGGER.error("Unable to save LivingWorld config", e);
