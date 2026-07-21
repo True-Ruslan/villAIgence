@@ -34,7 +34,7 @@ public final class NpcVoiceCatalog {
         NpcVoiceAgeGroup safeAge = ageGroup == null ? NpcVoiceAgeGroup.ADULT : ageGroup;
         List<List<String>> result = new ArrayList<>();
         result.add(exactPool(safeGender, safeAge));
-        if (safeAge != NpcVoiceAgeGroup.ADULT && safeGender != NpcVoiceGender.NEUTRAL) {
+        if (safeAge != NpcVoiceAgeGroup.ADULT) {
             result.add(exactPool(safeGender, NpcVoiceAgeGroup.ADULT));
         }
         if (safeGender != NpcVoiceGender.NEUTRAL) {
