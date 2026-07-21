@@ -43,7 +43,7 @@ final class VoiceCaptureManager implements AutoCloseable {
 
     void onMicrophonePacket(MicrophonePacketEvent event) {
         LivingWorldConfig config = LivingWorldConfig.getInstance();
-        if (!config.isVoiceConfigured()) return;
+        if (!config.isVoiceInputConfigured()) return;
 
         VoicechatConnection sender = event.getSenderConnection();
         if (sender == null || sender.getPlayer() == null) return;
