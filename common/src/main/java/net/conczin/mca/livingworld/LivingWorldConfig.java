@@ -120,6 +120,7 @@ public final class LivingWorldConfig {
                 ttsEndpoint,
                 System.getenv(OPENAI_API_KEY_ENV),
                 ttsApiKey,
+                provider,
                 resolvedApiKey()
         );
     }
@@ -201,14 +202,19 @@ public final class LivingWorldConfig {
             String endpoint,
             String openAiEnvironmentKey,
             String configuredTtsKey,
+            String mainProvider,
             String mainProviderKey
     ) {
-        if (isOpenAiEndpoint(endpoint)
-                && openAiEnvironmentKey != null
-                && !openAiEnvironmentKey.isBlank()) {
-            return openAiEnvironmentKey.trim();
+        if (isOpenAiEndpoint(endpoint)) {
+            if (openAiEnvironmentKey != null && !openAiEnvironmentKey.isBlank()) {
+                return openAiEnvironmentKey.trim();
+            }
+            if (configuredTtsKey != null && !configuredTtsKey.isBlank()) return configuredTtsKey.trim();
+            String normalizedProvider = mainProvider == null ? "" : mainProvider.trim().toLowerCase(Locale.ROOT);
+            if (!"openai".equals(normalizedProvider)) return "";
+        } else if (configuredTtsKey != null && !configuredTtsKey.isBlank()) {
+            return configuredTtsKey.trim();
         }
-        if (configuredTtsKey != null && !configuredTtsKey.isBlank()) return configuredTtsKey.trim();
         return mainProviderKey == null ? "" : mainProviderKey.trim();
     }
 
