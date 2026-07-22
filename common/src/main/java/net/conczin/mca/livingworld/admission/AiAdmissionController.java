@@ -20,6 +20,7 @@ public final class AiAdmissionController {
     private static final StageState CHAT = new StageState();
     private static final StageState STT = new StageState();
     private static final StageState TTS = new StageState();
+    private static final AtomicLong RATE_LIMIT_COOLDOWN_MILLIS = new AtomicLong(5_000L);
 
     private AiAdmissionController() {
     }
@@ -41,6 +42,7 @@ public final class AiAdmissionController {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(actorId, "actorId");
         Objects.requireNonNull(settings, "settings");
+        RATE_LIMIT_COOLDOWN_MILLIS.set(Math.max(0L, settings.providerRateLimitCooldownMillis()));
 
         StageState state = state(operation);
         if (state.providerCooldownUntilNanos.get() > nowNanos) {
@@ -62,6 +64,11 @@ public final class AiAdmissionController {
         }
 
         return new AiAdmissionResult(AiAdmissionDecision.ALLOWED, new Permit(state));
+    }
+
+    /** Uses the most recently observed runtime settings from an admission attempt. */
+    public static void onRateLimited(AiOperation operation) {
+        onRateLimited(operation, RATE_LIMIT_COOLDOWN_MILLIS.get(), System.nanoTime());
     }
 
     public static void onRateLimited(AiOperation operation, long cooldownMillis) {
@@ -153,6 +160,7 @@ public final class AiAdmissionController {
         CHAT.reset();
         STT.reset();
         TTS.reset();
+        RATE_LIMIT_COOLDOWN_MILLIS.set(5_000L);
     }
 
     public static final class Permit implements AutoCloseable {
