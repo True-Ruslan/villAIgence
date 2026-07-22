@@ -6,7 +6,78 @@ import java.util.Locale;
 
 /** Safe bridge from OpenAI-compatible chat completion metadata into the diagnostics registry. */
 public final class ChatDiagnosticsRecorder {
+    private static final ThreadLocal<RequestState> REQUEST = ThreadLocal.withInitial(RequestState::empty);
+
     private ChatDiagnosticsRecorder() {
+    }
+
+    /** Starts an isolated logical chat request on the current worker thread. */
+    public static void beginRequest() {
+        REQUEST.set(RequestState.empty());
+    }
+
+    /**
+     * Captures only non-content metadata from one provider attempt.
+     * Raw assistant content and provider error messages are deliberately discarded here.
+     */
+    public static void captureCompletion(ChatCompletionResponseParser.ParsedCompletion completion) {
+        if (completion == null) return;
+        RequestState current = REQUEST.get();
+        AttemptMetadata safe = new AttemptMetadata(
+                AiOperationStatus.sanitize(completion.finishReason()),
+                AiOperationStatus.sanitize(completion.errorType()),
+                AiOperationStatus.sanitize(completion.generationId()),
+                completion.reasoningPresent(),
+                completion.content() != null && !completion.content().isBlank(),
+                completion.error() != null && !completion.error().isBlank()
+        );
+        REQUEST.set(new RequestState(current.attempts() + 1, safe));
+    }
+
+    /** Finishes one logical request and clears all per-thread attempt metadata. */
+    public static void finishRequest(
+            String endpoint,
+            String model,
+            long durationMillis,
+            boolean success
+    ) {
+        RequestState state = REQUEST.get();
+        REQUEST.remove();
+        AttemptMetadata latest = state.latest();
+        int attempts = Math.max(1, state.attempts());
+
+        if (success) {
+            recordSafe(
+                    AiOperationState.SUCCESS,
+                    endpoint,
+                    model,
+                    durationMillis,
+                    attempts,
+                    latest,
+                    "success"
+            );
+            return;
+        }
+
+        String detailCode;
+        if (latest == null) {
+            detailCode = "request_failed";
+        } else if (latest.hadError()) {
+            detailCode = "provider_error";
+        } else if (!latest.hadContent()) {
+            detailCode = "empty_response";
+        } else {
+            detailCode = "response_unusable";
+        }
+        recordSafe(
+                AiOperationState.FAILURE,
+                endpoint,
+                model,
+                durationMillis,
+                attempts,
+                latest,
+                detailCode
+        );
     }
 
     public static void recordSuccess(
@@ -16,15 +87,14 @@ public final class ChatDiagnosticsRecorder {
             int attempts,
             ChatCompletionResponseParser.ParsedCompletion completion
     ) {
-        AiDiagnostics.recordSuccess(
-                AiOperation.CHAT,
-                durationMillis,
-                providerLabel(endpoint),
+        recordSafe(
+                AiOperationState.SUCCESS,
+                endpoint,
                 model,
-                completion == null ? null : completion.finishReason(),
-                completion == null ? null : completion.errorType(),
-                completion == null ? null : completion.generationId(),
-                detail("success", attempts, completion)
+                durationMillis,
+                attempts,
+                metadata(completion),
+                "success"
         );
     }
 
@@ -36,15 +106,14 @@ public final class ChatDiagnosticsRecorder {
             ChatCompletionResponseParser.ParsedCompletion completion,
             String detailCode
     ) {
-        AiDiagnostics.recordFailure(
-                AiOperation.CHAT,
-                durationMillis,
-                providerLabel(endpoint),
+        recordSafe(
+                AiOperationState.FAILURE,
+                endpoint,
                 model,
-                completion == null ? null : completion.finishReason(),
-                completion == null ? null : completion.errorType(),
-                completion == null ? null : completion.generationId(),
-                detail(detailCode, attempts, completion)
+                durationMillis,
+                attempts,
+                metadata(completion),
+                detailCode
         );
     }
 
@@ -62,15 +131,77 @@ public final class ChatDiagnosticsRecorder {
         return Math.max(0L, (System.nanoTime() - startedNanos) / 1_000_000L);
     }
 
-    private static String detail(
-            String code,
+    private static AttemptMetadata metadata(ChatCompletionResponseParser.ParsedCompletion completion) {
+        if (completion == null) return null;
+        return new AttemptMetadata(
+                AiOperationStatus.sanitize(completion.finishReason()),
+                AiOperationStatus.sanitize(completion.errorType()),
+                AiOperationStatus.sanitize(completion.generationId()),
+                completion.reasoningPresent(),
+                completion.content() != null && !completion.content().isBlank(),
+                completion.error() != null && !completion.error().isBlank()
+        );
+    }
+
+    private static void recordSafe(
+            AiOperationState state,
+            String endpoint,
+            String model,
+            long durationMillis,
             int attempts,
-            ChatCompletionResponseParser.ParsedCompletion completion
+            AttemptMetadata metadata,
+            String detailCode
     ) {
+        String finishReason = metadata == null ? null : metadata.finishReason();
+        String errorType = metadata == null ? null : metadata.errorType();
+        String generationId = metadata == null ? null : metadata.generationId();
+        String detail = detail(detailCode, attempts, metadata != null && metadata.reasoningPresent());
+        if (state == AiOperationState.SUCCESS) {
+            AiDiagnostics.recordSuccess(
+                    AiOperation.CHAT,
+                    durationMillis,
+                    providerLabel(endpoint),
+                    model,
+                    finishReason,
+                    errorType,
+                    generationId,
+                    detail
+            );
+        } else {
+            AiDiagnostics.recordFailure(
+                    AiOperation.CHAT,
+                    durationMillis,
+                    providerLabel(endpoint),
+                    model,
+                    finishReason,
+                    errorType,
+                    generationId,
+                    detail
+            );
+        }
+    }
+
+    private static String detail(String code, int attempts, boolean reasoningPresent) {
         String safeCode = AiOperationStatus.sanitize(code);
         String prefix = safeCode.isBlank() ? "result" : safeCode;
         return prefix
                 + "; attempts=" + Math.max(1, attempts)
-                + "; reasoningPresent=" + (completion != null && completion.reasoningPresent());
+                + "; reasoningPresent=" + reasoningPresent;
+    }
+
+    private record AttemptMetadata(
+            String finishReason,
+            String errorType,
+            String generationId,
+            boolean reasoningPresent,
+            boolean hadContent,
+            boolean hadError
+    ) {
+    }
+
+    private record RequestState(int attempts, AttemptMetadata latest) {
+        private static RequestState empty() {
+            return new RequestState(0, null);
+        }
     }
 }
