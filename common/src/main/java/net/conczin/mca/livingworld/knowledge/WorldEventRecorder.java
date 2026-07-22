@@ -29,23 +29,24 @@ public final class WorldEventRecorder {
         );
         if (description.isEmpty()) return;
 
-        BlockPos position = villager.blockPosition();
-        Path worldRoot = player.serverLevel().getServer().getWorldPath(LevelResource.ROOT);
-        WorldEvent event = new WorldEvent(
-                UUID.randomUUID(),
-                WorldEvent.Type.NPC_ACTION,
-                description.get(),
-                WorldEvent.Provenance.SYSTEM_OBSERVED,
-                villager.level().dimension().location().toString(),
-                position.getX(),
-                position.getY(),
-                position.getZ(),
-                villager.level().getGameTime(),
-                villager.getUUID(),
-                player.getUUID()
-        );
-
+        Path worldRoot;
+        WorldEvent event;
         try {
+            BlockPos position = villager.blockPosition();
+            worldRoot = player.serverLevel().getServer().getWorldPath(LevelResource.ROOT);
+            event = new WorldEvent(
+                    UUID.randomUUID(),
+                    WorldEvent.Type.NPC_ACTION,
+                    description.get(),
+                    WorldEvent.Provenance.SYSTEM_OBSERVED,
+                    villager.level().dimension().location().toString(),
+                    position.getX(),
+                    position.getY(),
+                    position.getZ(),
+                    villager.level().getGameTime(),
+                    villager.getUUID(),
+                    player.getUUID()
+            );
             WorldEventStore.forWorld(worldRoot).append(event, config.eventMemoryMaxEvents);
         } catch (RuntimeException e) {
             MCA.LOGGER.warn(
