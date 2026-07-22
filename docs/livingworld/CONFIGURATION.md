@@ -81,6 +81,48 @@ Tuning guidance:
 
 Existing `version=2` config files do not require migration. Missing admission fields receive the defaults above.
 
+## Memory 2.0 authoritative ingestion
+
+Memory 2.0 uses a separate world-local store at `<world>/livingworld/memory2.json`.
+
+Current ingestion controls:
+
+```json
+{
+  "memory2Enabled": true,
+  "memory2MaxEventsPerNpc": 256
+}
+```
+
+| Setting | Default | Normalized range | Meaning |
+|---|---:|---:|---|
+| `memory2Enabled` | `true` | boolean | enables secondary Memory 2.0 ingestion of eligible authoritative server-observed events |
+| `memory2MaxEventsPerNpc` | `256` | `1..512` | maximum persisted Memory 2.0 events retained for one NPC |
+
+The first automatic ingestion path is intentionally narrow:
+
+```text
+successful whitelisted NPC action
+→ SYSTEM_OBSERVED events.json record succeeds
+→ actor-owned ACTION memory in memory2.json
+```
+
+`eventMemoryEnabled` and `memory2Enabled` are separate controls:
+
+- `eventMemoryEnabled=false` disables creation of the authoritative factual action event, so this ingestion path has no source event to copy;
+- `eventMemoryEnabled=true` + `memory2Enabled=false` keeps the existing `events.json` factual event behavior but skips the secondary `memory2.json` entry;
+- both enabled gives the normal authoritative event → actor-owned memory flow.
+
+Memory 2.0 failure is fail-soft after factual event persistence. It does not undo the successful NPC action or invalidate the existing `events.json` record.
+
+The source `WorldEvent` UUID is reused as the `MemoryEvent` UUID, so retries/redelivery of the same source event cannot create duplicate memory entries for the acting NPC.
+
+Current relationship numeric deltas are **not** automatically stored as relationship-reason memories because the existing relationship path has no separately server-validated reason. VillAIgence does not invent one or promote an LLM explanation to authoritative truth.
+
+Config version remains `2`; existing version-2 configs require no migration. Missing Memory 2.0 fields receive safe defaults.
+
+See [MEMORY_2.md](MEMORY_2.md) for the persistence, provenance, ranking and truth-boundary design.
+
 ## Voice switches
 
 | Setting | Default | Behavior |
@@ -338,6 +380,7 @@ The VillAIgence rebrand does **not** rename `config/livingworld.json` or seriali
 ```text
 <world>/livingworld/
 ├── memory.json
+├── memory2.json
 ├── events.json
 ├── relationships.json
 └── voices.json
