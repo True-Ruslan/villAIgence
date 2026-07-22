@@ -1,6 +1,6 @@
 # Persistent NPC Voice Profiles Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Give each NPC a persistent, gender/age-aware voice identity and apply dynamic mood styling without coupling voice identity to the chat/LLM model.
 
@@ -16,104 +16,78 @@
 - Mood changes delivery style, never base voice identity.
 - Mutable Minecraft entity state is captured only on the server thread.
 - `ttsVoice` remains the final backward-compatible fallback.
+- TTS credentials are resolved independently from chat credentials.
 - Full LivingWorld CI and official Fabric/NeoForge CI must pass before merge.
 
 ---
 
-### Task 1: Provider-neutral voice identity model and deterministic catalog
+### Task 1: Provider-neutral voice identity model and deterministic catalog — complete
 
 **Files:**
-- Create: `common/src/main/java/net/conczin/mca/livingworld/voice/NpcVoiceGender.java`
-- Create: `common/src/main/java/net/conczin/mca/livingworld/voice/NpcVoiceAgeGroup.java`
-- Create: `common/src/main/java/net/conczin/mca/livingworld/voice/NpcVoiceProfile.java`
-- Create: `common/src/main/java/net/conczin/mca/livingworld/voice/NpcVoiceCatalog.java`
-- Test: `common/src/test/java/net/conczin/mca/livingworld/voice/NpcVoiceCatalogTest.java`
+- `common/src/main/java/net/conczin/mca/livingworld/voice/NpcVoiceGender.java`
+- `common/src/main/java/net/conczin/mca/livingworld/voice/NpcVoiceAgeGroup.java`
+- `common/src/main/java/net/conczin/mca/livingworld/voice/NpcVoiceProfile.java`
+- `common/src/main/java/net/conczin/mca/livingworld/voice/NpcVoiceCatalog.java`
+- `common/src/test/java/net/conczin/mca/livingworld/voice/NpcVoiceCatalogTest.java`
 
-**Produces:** deterministic `NpcVoiceCatalog.select(UUID, gender, age, config)` and immutable `NpcVoiceProfile`.
+Implemented deterministic UUID-based selection, exact/fallback pools, neutral-young fallback, and legacy `ttsVoice` fallback.
 
-- [ ] Write tests proving same UUID/bucket always selects the same voice, different UUIDs distribute across a pool, empty exact pools follow fallback order, and `ttsVoice` is the terminal fallback.
-- [ ] Implement gender and age normalization enums independent of Minecraft classes so isolated unit tests do not load game classes.
-- [ ] Implement immutable profile record and deterministic floor-mod UUID hashing.
-- [ ] Run `./gradlew :common:test --tests '*NpcVoiceCatalogTest'` and require PASS.
-
-### Task 2: Persistent voice store and age-transition semantics
+### Task 2: Persistent voice store and age-transition semantics — complete
 
 **Files:**
-- Create: `common/src/main/java/net/conczin/mca/livingworld/voice/PersistentNpcVoiceStore.java`
-- Test: `common/src/test/java/net/conczin/mca/livingworld/voice/PersistentNpcVoiceStoreTest.java`
+- `common/src/main/java/net/conczin/mca/livingworld/voice/PersistentNpcVoiceStore.java`
+- `common/src/test/java/net/conczin/mca/livingworld/voice/PersistentNpcVoiceStoreTest.java`
 
-**Produces:** `resolve(Path worldRoot, UUID npcId, NpcVoiceGender gender, NpcVoiceAgeGroup age, NpcVoiceCatalog catalog)`.
+Implemented synchronized world-local persistence, reload stability, age/gender transition reassignment, temp-file replacement, atomic move where supported, and corrupt-file fail-open recovery.
 
-- [ ] Write tests for create/reload stability, one profile per UUID, atomic persistence, and reassignment only when age/gender bucket changes or stored voice is invalid for all fallbacks.
-- [ ] Implement synchronized lazy load, temp-file + atomic replace, fail-open recovery and pretty JSON.
-- [ ] Run focused tests and require PASS.
-
-### Task 3: Configurable voice pools with backward-compatible defaults
+### Task 3: Configurable voice pools with backward-compatible defaults — complete
 
 **Files:**
-- Modify: `common/src/main/java/net/conczin/mca/livingworld/LivingWorldConfig.java`
-- Modify: `common/src/test/java/net/conczin/mca/livingworld/LivingWorldConfigTest.java`
+- `common/src/main/java/net/conczin/mca/livingworld/LivingWorldConfig.java`
+- `common/src/test/java/net/conczin/mca/livingworld/LivingWorldConfigTest.java`
 
-**Produces:** normalized voice-pool lists for child/teen/adult by gender plus global fallback.
+Implemented configurable normalized child/teen/adult pools by gender, global fallbacks, and `ttsVoice` compatibility. Built-in classifications are explicitly documented as LivingWorld defaults rather than provider metadata.
 
-- [ ] Add failing tests for non-null normalized pools and `ttsVoice` compatibility.
-- [ ] Add configurable lists with conservative built-in OpenAI voice ids; document that classification is a LivingWorld default, not provider metadata.
-- [ ] Normalize null/blank/duplicate entries without making config version migration destructive.
-- [ ] Run focused config tests and require PASS.
-
-### Task 4: Provider-neutral mood/style request contract
+### Task 4: Provider-neutral mood/style request contract — complete
 
 **Files:**
-- Create: `common/src/main/java/net/conczin/mca/livingworld/voice/NpcVoiceMood.java`
-- Create: `common/src/main/java/net/conczin/mca/livingworld/voice/TtsVoiceStyle.java`
-- Create: `common/src/main/java/net/conczin/mca/livingworld/voice/TtsRequest.java`
-- Create: `common/src/main/java/net/conczin/mca/livingworld/voice/NpcVoiceMoodResolver.java`
-- Modify: `common/src/main/java/net/conczin/mca/livingworld/voice/TextToSpeechProvider.java`
-- Test: `common/src/test/java/net/conczin/mca/livingworld/voice/NpcVoiceMoodResolverTest.java`
+- `common/src/main/java/net/conczin/mca/livingworld/voice/NpcVoiceMood.java`
+- `common/src/main/java/net/conczin/mca/livingworld/voice/TtsVoiceStyle.java`
+- `common/src/main/java/net/conczin/mca/livingworld/voice/TtsRequest.java`
+- `common/src/main/java/net/conczin/mca/livingworld/voice/NpcVoiceMoodResolver.java`
+- `common/src/main/java/net/conczin/mca/livingworld/voice/TextToSpeechProvider.java`
+- `common/src/test/java/net/conczin/mca/livingworld/voice/NpcVoiceMoodResolverTest.java`
 
-**Produces:** immutable mood snapshot inputs and `TtsRequest` consumed by providers.
+Implemented authoritative mood resolution for afraid/sad/angry/happy/tired/neutral and age-aware style composition. The existing abstract `synthesize(String)` contract is preserved for compatibility; rich `synthesize(TtsRequest)` is a default extension point.
 
-- [ ] Test `AFRAID > SAD > TIRED > NEUTRAL` priority from immutable booleans/health ratio.
-- [ ] Map moods to bounded speed and concise delivery instructions; child/teen age guidance is composed separately from mood.
-- [ ] Change the functional TTS interface to one abstract `synthesize(TtsRequest)` method and keep a backward-compatible default `synthesize(String)` helper.
-- [ ] Run focused tests and require PASS.
-
-### Task 5: OpenAI-compatible adapter capabilities
+### Task 5: OpenAI-compatible adapter capabilities and credential isolation — complete
 
 **Files:**
-- Modify: `common/src/main/java/net/conczin/mca/livingworld/voice/OpenAIAudioProvider.java`
-- Modify: `common/src/test/java/net/conczin/mca/livingworld/voice/OpenAIAudioProviderTest.java`
+- `common/src/main/java/net/conczin/mca/livingworld/voice/OpenAIAudioProvider.java`
+- `common/src/main/java/net/conczin/mca/livingworld/LivingWorldConfig.java`
+- related tests
 
-**Produces:** TTS JSON payload with per-NPC voice, bounded speed, and best-effort instructions.
+Implemented per-NPC voice, bounded speed, model-capability-based instructions, legacy-model omission, dedicated `ttsApiKey`, provider-aware fallback, and hostname-safe OpenAI endpoint detection. OpenRouter chat credentials are not reused for the OpenAI speech endpoint.
 
-- [ ] Add tests that `voice` always comes from `TtsRequest`, speed is included, `gpt-4o-mini-tts*` includes instructions, and `tts-1`/`tts-1-hd` omit unsupported instructions.
-- [ ] Implement pure `createSpeechBody(TtsRequest, model)` helper for testability.
-- [ ] Keep endpoint/auth/WAV behavior unchanged.
-- [ ] Run focused tests and require PASS.
-
-### Task 6: Server-thread capture and runtime integration
+### Task 6: Server-thread capture and runtime integration — complete
 
 **Files:**
-- Create: `common/src/main/java/net/conczin/mca/livingworld/voice/NpcVoiceSnapshot.java`
-- Modify: `fabric/src/main/java/net/conczin/mca/fabric/livingworld/voice/VoiceConversationService.java`
+- `common/src/main/java/net/conczin/mca/livingworld/voice/NpcVoiceSnapshot.java`
+- `fabric/src/main/java/net/conczin/mca/fabric/livingworld/voice/VoiceConversationService.java`
 
-**Produces:** immutable voice snapshot captured before async AI/TTS and stable profile resolution.
+Implemented server-thread capture of UUID, MCA gender/age, panic and health; stable profile resolution; relationship-informed mood; provider-neutral TTS requests; text publication before TTS; existing busy gates, target validation and spatial playback preserved.
 
-- [ ] On the server thread capture UUID, `getGenetics().getGender()`, `getAgeState()`, `getVillagerBrain().isPanicking()`, and health ratio.
-- [ ] Normalize MCA-specific values into provider-neutral enums immediately.
-- [ ] Resolve persistent profile using `snapshot.worldRoot()` before TTS; pass only immutable profile/style data to async synthesis.
-- [ ] Preserve text publication before TTS, busy gates, target validation and spatial playback.
-- [ ] Build Fabric and NeoForge and require compilation success.
-
-### Task 7: Documentation and full verification
+### Task 7: Documentation and final verification — implementation complete, CI gate pending
 
 **Files:**
-- Modify: `README.md`
-- Modify: `docs/livingworld/CONFIGURATION.md`
-- Modify: `docs/livingworld/VOICE.md`
+- `README.md`
+- `docs/livingworld/CONFIGURATION.md`
+- `docs/livingworld/VOICE.md`
 
-- [ ] Document `voices.json`, stable UUID assignment, age/gender pools, mood best-effort behavior, provider/model independence and fallback semantics.
-- [ ] Explain that OpenAI built-in voices are classified by LivingWorld configuration and can be overridden.
-- [ ] Run `./gradlew :common:test :fabric:build`.
-- [ ] Run the repository LivingWorld package smoke-check and official Fabric/NeoForge CI.
-- [ ] Open focused PR, review diff, and merge only after all required checks are green.
+Documented `voices.json`, stable UUID assignment, age/gender pools, mood best-effort behavior, model/provider independence, TTS credential isolation and fallback semantics.
+
+Final merge gate remains:
+
+- `LivingWorld CI` green on the final PR head;
+- official Fabric + NeoForge Gradle CI green on the same final PR head;
+- focused PR diff review with no unresolved critical/important issues.
