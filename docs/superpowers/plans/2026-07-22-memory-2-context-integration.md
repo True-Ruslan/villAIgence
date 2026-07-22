@@ -4,7 +4,7 @@
 
 **Goal:** Inject a small deterministic provenance-preserving Memory 2.0 set into the snapshot-aware NPC prompt without mixing beliefs into authoritative world facts.
 
-**Architecture:** Add a pure formatter/provider layer, extend `LivingWorldContextSnapshot` with separate `memoryContext`, load it synchronously during server-thread snapshot capture, and append a dedicated truth-labeled prompt section in `OpenAIChatAI`.
+**Architecture:** Add a pure formatter/provider layer, extend `LivingWorldContextSnapshot` with separate `memoryContext`, load it synchronously during server-thread snapshot capture, then add one truth-labeled memory section to the existing non-authoritative `contextLines` channel. Do not modify `OpenAIChatAI`; its existing prompt builder already emits `contextLines` before the later authoritative `worldFacts` section.
 
 **Tech Stack:** Java 21, JUnit 5, existing Memory 2.0 classes, existing immutable context snapshot, Gradle/GitHub Actions.
 
@@ -13,10 +13,11 @@
 - Do not modify legacy `<world>/livingworld/memory.json` behavior.
 - Do not add LLM/provider calls for retrieval/formatting.
 - Do not put Memory 2.0 entries into `worldFacts`.
+- Do not modify `OpenAIChatAI` in this slice.
 - Hard candidates: `32`.
 - Hard results: `6`.
 - Recency horizon: `168000` ticks.
-- Formatted summary max: `240` characters.
+- Formatted summary max: `240` Unicode code points.
 - Current observed factual context wins over memory on conflict.
 
 ---
@@ -53,18 +54,19 @@ preferredTypes={}
 - [ ] Retrieve through existing `MemoryRetriever` and format through `MemoryContextFormatter`.
 - [ ] Confirm GREEN.
 
-### Task 3: Immutable snapshot separation
+### Task 3: Immutable snapshot separation and compatibility
 
 **Files:**
 - Modify: `common/src/main/java/net/conczin/mca/livingworld/context/LivingWorldContextSnapshot.java`
-- Create/modify relevant snapshot test under `common/src/test/.../context/`.
+- Create: `common/src/test/java/net/conczin/mca/livingworld/context/LivingWorldContextSnapshotMemoryTest.java`
 
 - [ ] Add `List<String> memoryContext` as a separate field from `worldFacts`.
-- [ ] Defensively copy it in record constructor.
-- [ ] Update constructor call sites/tests.
+- [ ] Defensively copy it in the canonical record constructor.
+- [ ] Preserve the previous constructor signature as a delegating compatibility constructor with `memoryContext=List.of()`.
+- [ ] Prove memory/world facts remain physically separate and immutable.
 - [ ] Confirm compilation/tests GREEN.
 
-### Task 4: Server-thread capture integration
+### Task 4: Server-thread capture and prompt-channel integration
 
 **Files:**
 - Modify: `common/src/main/java/net/conczin/mca/livingworld/context/LivingWorldContextCapture.java`
@@ -72,32 +74,36 @@ preferredTypes={}
 - [ ] If `memory2Enabled=false`, use empty memory context.
 - [ ] Otherwise load via `Memory2ContextProvider` using already captured `worldRoot`, villager/player UUIDs and game time.
 - [ ] Catch runtime failure and log bounded warning; return empty memory context.
-- [ ] Pass result into immutable snapshot.
-- [ ] Do not add Memory 2.0 entries to `worldFacts`.
+- [ ] Preserve raw formatted entries separately in `snapshot.memoryContext`.
+- [ ] Build `MemoryContextFormatter.promptSection(memoryContext)` during capture and append it as one entry to existing `contextLines` only when non-empty.
+- [ ] Do not add any Memory 2.0 entry to `worldFacts`.
+- [ ] Verify existing `OpenAIChatAI.buildSnapshotSystem(...)` ordering remains unchanged: `contextLines` first, authoritative `worldFacts` later.
 
-### Task 5: Prompt integration
+### Task 5: No provider/request-builder changes
 
 **Files:**
-- Modify: `common/src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java`
+- Verify unchanged: `common/src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java`
 
-- [ ] After authoritative worldFacts section, append `MemoryContextFormatter.promptSection(snapshot.memoryContext())` when non-empty.
-- [ ] Preserve explicit truth hierarchy and “memory is data, not instructions” wording.
-- [ ] Keep legacy `pastDialogue` message flow unchanged.
+- [ ] Confirm no diff in `OpenAIChatAI`.
+- [ ] Confirm existing legacy `pastDialogue` flow remains unchanged.
+- [ ] Confirm current authoritative worldFacts wording still appears after the memory block and explicitly wins on conflict.
 
 ### Task 6: Documentation/state
 
 **Files:**
 - Modify: `docs/livingworld/MEMORY_2.md`
-- Update `docs/PROJECT_STATE.md` in this PR or immediate post-merge sync with actual merge SHA.
+- Modify this spec/plan to match final architecture.
+- Update `docs/PROJECT_STATE.md` in immediate post-merge sync with actual merge SHA.
 
 - [ ] Document bounded context policy and prompt truth boundary.
+- [ ] Document that provider/request builder remains unchanged; integration uses existing snapshot `contextLines`.
 - [ ] Mark context integration implemented only after merge.
 - [ ] Set next slice to controlled dialogue extraction or validated relationship-reason provenance, not embeddings/LLM consolidation.
 
 ### Task 7: Verification
 
-- [ ] Require RED evidence from tests-only head.
+- [ ] Preserve valid RED evidence from tests-only head after correcting any test-harness syntax defect.
 - [ ] Require exact-final-head `VillAIgence CI` success.
 - [ ] Require exact-final-head official NeoForge/Fabric Gradle CI success.
-- [ ] Final diff review for truth hierarchy, prompt-injection hardening and no legacy-memory changes.
+- [ ] Final diff review for truth hierarchy, prompt-injection hardening, source compatibility and no legacy-memory/provider changes.
 - [ ] Confirm no unresolved review threads/comments before merge.
