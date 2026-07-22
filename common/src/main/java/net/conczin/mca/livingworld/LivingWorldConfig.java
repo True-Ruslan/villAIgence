@@ -64,7 +64,7 @@ public final class LivingWorldConfig {
     public String sttEndpoint = "https://api.openai.com/v1/audio/transcriptions";
     public String sttModel = "gpt-4o-mini-transcribe";
     public String sttLanguage = "";
-    /** Optional dedicated TTS key. OPENAI_API_KEY is preferred for the OpenAI speech endpoint. */
+    /** Optional dedicated TTS key. Endpoint-specific environment keys take priority. */
     public String ttsApiKey = "";
     public String ttsEndpoint = "https://api.openai.com/v1/audio/speech";
     public String ttsModel = "tts-1";
@@ -124,6 +124,7 @@ public final class LivingWorldConfig {
     public String resolvedTtsApiKey() {
         return resolveTtsApiKey(
                 ttsEndpoint,
+                System.getenv(OPENROUTER_API_KEY_ENV),
                 System.getenv(OPENAI_API_KEY_ENV),
                 ttsApiKey,
                 provider,
@@ -206,21 +207,33 @@ public final class LivingWorldConfig {
 
     static String resolveTtsApiKey(
             String endpoint,
+            String openRouterEnvironmentKey,
             String openAiEnvironmentKey,
             String configuredTtsKey,
             String mainProvider,
             String mainProviderKey
     ) {
+        String normalizedProvider = mainProvider == null ? "" : mainProvider.trim().toLowerCase(Locale.ROOT);
+
+        if (TtsResponseFormat.isOpenRouterEndpoint(endpoint)) {
+            if (openRouterEnvironmentKey != null && !openRouterEnvironmentKey.isBlank()) {
+                return openRouterEnvironmentKey.trim();
+            }
+            if (configuredTtsKey != null && !configuredTtsKey.isBlank()) return configuredTtsKey.trim();
+            if (!"openrouter".equals(normalizedProvider)) return "";
+            return mainProviderKey == null ? "" : mainProviderKey.trim();
+        }
+
         if (isOpenAiEndpoint(endpoint)) {
             if (openAiEnvironmentKey != null && !openAiEnvironmentKey.isBlank()) {
                 return openAiEnvironmentKey.trim();
             }
             if (configuredTtsKey != null && !configuredTtsKey.isBlank()) return configuredTtsKey.trim();
-            String normalizedProvider = mainProvider == null ? "" : mainProvider.trim().toLowerCase(Locale.ROOT);
             if (!"openai".equals(normalizedProvider)) return "";
-        } else if (configuredTtsKey != null && !configuredTtsKey.isBlank()) {
-            return configuredTtsKey.trim();
+            return mainProviderKey == null ? "" : mainProviderKey.trim();
         }
+
+        if (configuredTtsKey != null && !configuredTtsKey.isBlank()) return configuredTtsKey.trim();
         return mainProviderKey == null ? "" : mainProviderKey.trim();
     }
 
