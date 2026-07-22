@@ -189,7 +189,7 @@ Configuration:
 
 ## Bounded context integration
 
-Memory 2.0 can now contribute a small selected set to the snapshot-aware NPC turn.
+Memory 2.0 can contribute a small selected set to the snapshot-aware NPC turn.
 
 Server-thread capture uses only already available immutable identifiers/boundaries:
 
@@ -238,7 +238,7 @@ VERIFIED | provenance=SYSTEM_OBSERVED | type=ACTION | confidence=100 | summary="
 Claims/beliefs:
 
 ```text
-BELIEF | provenance=PLAYER_TOLD | type=DIALOGUE | confidence=70 | summary="..."
+BELIEF | provenance=PLAYER_TOLD | type=DIALOGUE | confidence=60 | summary="..."
 ```
 
 The memory section explicitly tells the model:
@@ -268,6 +268,78 @@ Other dollar text such as `$other` or `$5` is left unchanged. The persisted `Mem
 
 Summaries also collapse newlines/control whitespace, escape quoted-string backslashes/quotes, and cap output length. Raw `MemoryEvent` JSON and hidden ranking internals are never dumped into the prompt.
 
+## Controlled successful dialogue ingestion
+
+Successful usable snapshot-aware OpenAI conversations now become bounded episodic Memory 2.0 events.
+
+The event records that the NPC experienced a conversation. It does **not** promote the semantic content of either speaker into authoritative world truth.
+
+Lifecycle:
+
+```text
+snapshot-aware ChatAI.answer(...)
+→ OpenAIChatAI completes its existing provider/parser/retry + post-success flow
+→ returns Optional<String>
+→ present and nonblank result
+→ Memory2DialogueIngestor.recordIfEnabled(...)
+→ DIALOGUE MemoryEvent append
+→ original Optional returned unchanged
+```
+
+`OpenAIChatAI` itself is not modified by this integration. Provider/retry/parser behavior, legacy `memory.json`, command handling, and relationship-delta behavior remain unchanged.
+
+No dialogue event is created for an absent/blank result, provider failure, exhausted `content:null`/empty completion, processing failure returning no usable answer, disabled Memory 2.0, non-snapshot path, or Inworld fallback path.
+
+### Dialogue event mapping
+
+```text
+MemoryEvent.type                 = DIALOGUE
+MemoryEvent.ownerNpcId           = villagerId
+MemoryEvent.participants         = [villagerId, playerId]
+MemoryEvent.provenance           = PLAYER_TOLD
+MemoryEvent.gameTime             = immutable snapshot game time
+MemoryEvent.createdAtEpochMillis = post-answer ingestion timestamp
+MemoryEvent.importance           = 40
+MemoryEvent.emotionalWeight      = 0
+MemoryEvent.confidence           = 60
+MemoryEvent.relationshipReasons  = []
+```
+
+`PLAYER_TOLD` is intentionally conservative: the server knows the conversation happened, but the player's claim and generated NPC reply remain belief/dialogue data rather than `SYSTEM_OBSERVED` facts.
+
+Stored summary:
+
+```text
+Player said: <bounded player utterance> | NPC replied: <bounded NPC utterance>
+```
+
+Each utterance:
+
+- collapses whitespace/control/newlines;
+- is trimmed;
+- is independently capped to 240 Unicode code points;
+- is stored without LLM summarization or semantic rewriting.
+
+### Replay-safe deterministic identity
+
+The event UUID is derived from:
+
+```text
+memory2-dialogue-v1
+villager UUID
+player UUID
+snapshot game time
+full normalized player message
+```
+
+NPC reply text and wall-clock timestamp are excluded.
+
+Therefore replay/redelivery of the same turn cannot multiply persistent dialogue memories even if a provider would produce different wording or the replay occurs at another wall-clock time. `MemoryEventStore` keeps the first successfully persisted event for that deterministic UUID.
+
+### Failure boundary
+
+Memory 2.0 dialogue persistence is an auxiliary side effect. Runtime persistence failure is caught and logged by the `ChatAI` orchestration helper and never replaces or removes the already-produced visible answer.
+
 ## Relationship reasons are deliberately deferred
 
 The current relationship path applies bounded numeric LLM-proposed deltas for `trust`, `respect`, `fear`, and `affinity`.
@@ -280,8 +352,9 @@ VillAIgence therefore does not invent a relationship reason or promote an LLM ex
 
 Memory 2.0 does not yet automatically:
 
-- convert ordinary dialogue into durable episodic events;
 - persist validated relationship-change reasons;
+- orchestrate a separate working-memory layer beyond existing bounded dialogue context;
+- maintain a dedicated semantic facts/beliefs layer;
 - migrate legacy `memory.json` history;
 - perform LLM summarization/consolidation;
 - implement forgetting/decay mutation;
@@ -291,13 +364,13 @@ Memory 2.0 does not yet automatically:
 
 ## Next recommended slices
 
-Now that persistence, deterministic retrieval, authoritative ingestion, and bounded context integration exist, the next work should remain incremental:
+Now that persistence, deterministic retrieval, authoritative ingestion, bounded context integration, and controlled dialogue episodic ingestion exist, the next work should remain incremental:
 
 ```text
-1. controlled dialogue → episodic-memory extraction with explicit provenance
-2. validated relationship-reason provenance contract
-3. working-memory orchestration / duplicate handling
-4. consolidation and forgetting/decay
+1. validated relationship-reason provenance contract
+2. working-memory orchestration + semantic facts/beliefs design
+3. duplicate handling and deterministic consolidation policy
+4. forgetting/decay
 5. migration from legacy memory.json
 ```
 
