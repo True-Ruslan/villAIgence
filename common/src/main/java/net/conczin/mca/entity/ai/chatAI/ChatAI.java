@@ -189,7 +189,7 @@ public class ChatAI {
         // Get specific villager
         String normalizedSearchName = normalizeString(searchName);
 
-        // Find first matching villager
+        // Go through list, look for first match for name
         for (VillagerEntityMCA villager : entities) {
             String villagerName = getName(villager);
             if (normalizedSearchName.equals(villagerName)) {
@@ -202,8 +202,8 @@ public class ChatAI {
     /**
      * Normalizes the String according to NFD and removes any accents, umlauts, etc.
      *
-     * @param string The string to normalize
-     * @return lowercase ASCII-ish comparison form
+     * @param string The String to be normalized
+     * @see <a href="https://unicode.org/reports/tr15/#Examples">Unicode Normalization Forms</a>
      */
     private static String normalizeString(String string) {
         return Normalizer.normalize(string, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT);
