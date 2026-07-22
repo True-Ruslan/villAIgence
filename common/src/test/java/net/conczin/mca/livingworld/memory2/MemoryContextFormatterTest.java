@@ -36,6 +36,26 @@ class MemoryContextFormatterTest {
     }
 
     @Test
+    void neutralizesReservedPromptTemplateMarkersWithoutChangingStoredMemory() {
+        RankedMemory ranked = ranked(
+                MemoryEvent.Provenance.PLAYER_TOLD,
+                MemoryEvent.Type.DIALOGUE,
+                "$player told $villager to remember $other and a $5 price",
+                50
+        );
+
+        String line = MemoryContextFormatter.format(List.of(ranked)).getFirst();
+
+        assertFalse(line.contains("$player"));
+        assertFalse(line.contains("$villager"));
+        assertTrue(line.contains("＄player"));
+        assertTrue(line.contains("＄villager"));
+        assertTrue(line.contains("$other"));
+        assertTrue(line.contains("$5"));
+        assertEquals("$player told $villager to remember $other and a $5 price", ranked.event().summary());
+    }
+
+    @Test
     void capsSummaryLengthAndReturnsImmutableOutput() {
         RankedMemory ranked = ranked(
                 MemoryEvent.Provenance.INFERRED,
