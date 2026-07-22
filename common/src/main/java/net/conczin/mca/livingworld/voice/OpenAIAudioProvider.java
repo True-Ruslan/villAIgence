@@ -84,17 +84,25 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
         String voice = request.voiceId().isBlank() ? config.ttsVoice : request.voiceId();
         TtsRequest resolved = new TtsRequest(request.text(), voice, request.style());
         TtsResponseFormat format = TtsResponseFormat.parse(config.ttsResponseFormat).resolve(config.ttsEndpoint);
-        AudioHttpResponse response = execute(
-                open(config.ttsEndpoint, "application/json", config.resolvedTtsApiKey()),
-                createSpeechBody(resolved, config.ttsModel, format).getBytes(StandardCharsets.UTF_8),
-                "text-to-speech"
-        );
+        try {
+            AudioHttpResponse response = execute(
+                    open(config.ttsEndpoint, "application/json", config.resolvedTtsApiKey()),
+                    createSpeechBody(resolved, config.ttsModel, format).getBytes(StandardCharsets.UTF_8),
+                    "text-to-speech"
+            );
 
-        return switch (format) {
-            case PCM -> decodePcmResponse(response, config.ttsPcmSampleRate);
-            case WAV -> decodeWavResponse(response);
-            case AUTO -> throw new IOException("TTS response format AUTO was not resolved");
-        };
+            return switch (format) {
+                case PCM -> decodePcmResponse(response, config.ttsPcmSampleRate);
+                case WAV -> decodeWavResponse(response);
+                case AUTO -> throw new IOException("TTS response format AUTO was not resolved");
+            };
+        } catch (IOException e) {
+            throw new IOException(
+                    "TTS failed [model=" + safeValue(config.ttsModel)
+                            + ", responseFormat=" + format.configValue() + "]: " + e.getMessage(),
+                    e
+            );
+        }
     }
 
     static String createSpeechBody(TtsRequest request, String model) {
