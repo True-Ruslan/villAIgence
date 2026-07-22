@@ -12,6 +12,8 @@ import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.audio.PcmAudio;
 import net.conczin.mca.livingworld.context.LivingWorldContextCapture;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
+import net.conczin.mca.livingworld.diagnostics.AiOperation;
+import net.conczin.mca.livingworld.diagnostics.VoiceDiagnosticsRecorder;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipState;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipStore;
 import net.conczin.mca.livingworld.voice.NpcVoiceAgeGroup;
@@ -23,7 +25,9 @@ import net.conczin.mca.livingworld.voice.NpcVoiceProfile;
 import net.conczin.mca.livingworld.voice.NpcVoiceSnapshot;
 import net.conczin.mca.livingworld.voice.OpenAIAudioProvider;
 import net.conczin.mca.livingworld.voice.PersistentNpcVoiceStore;
+import net.conczin.mca.livingworld.voice.SttRequestFormat;
 import net.conczin.mca.livingworld.voice.TtsRequest;
+import net.conczin.mca.livingworld.voice.TtsResponseFormat;
 import net.conczin.mca.livingworld.voice.TtsVoiceStyle;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -93,42 +97,63 @@ final class VoiceConversationService implements AutoCloseable {
     }
 
     private void transcribeAndRoute(MinecraftServer server, UUID playerId, UUID targetId, short[] microphonePcm) {
+        LivingWorldConfig config = LivingWorldConfig.getInstance();
+        String sttFormat = SttRequestFormat.parse(config.sttRequestFormat).resolve(config.sttEndpoint).configValue();
+        String transcript;
+        long startedNanos = System.nanoTime();
         try {
-            String transcript = audioProvider.transcribe(new PcmAudio(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE, microphonePcm));
-            if (transcript.isBlank()) {
+            transcript = audioProvider.transcribe(new PcmAudio(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE, microphonePcm));
+            VoiceDiagnosticsRecorder.recordSuccess(
+                    AiOperation.STT,
+                    config.sttEndpoint,
+                    config.sttModel,
+                    sttFormat,
+                    VoiceDiagnosticsRecorder.elapsedMillis(startedNanos)
+            );
+        } catch (Exception e) {
+            VoiceDiagnosticsRecorder.recordFailure(
+                    AiOperation.STT,
+                    config.sttEndpoint,
+                    config.sttModel,
+                    sttFormat,
+                    VoiceDiagnosticsRecorder.elapsedMillis(startedNanos),
+                    e
+            );
+            release(playerId, targetId);
+            MCA.LOGGER.warn("LivingWorld speech-to-text failed for player {}", playerId, e);
+            return;
+        }
+
+        if (transcript.isBlank()) {
+            release(playerId, targetId);
+            return;
+        }
+
+        server.execute(() -> {
+            ServerPlayer player = server.getPlayerList().getPlayer(playerId);
+            if (player == null) {
+                release(playerId, targetId);
+                return;
+            }
+            Optional<VillagerEntityMCA> target = ChatAI.getActiveConversationVillager(player)
+                    .filter(villager -> villager.getUUID().equals(targetId));
+            if (target.isEmpty()) {
                 release(playerId, targetId);
                 return;
             }
 
-            server.execute(() -> {
-                ServerPlayer player = server.getPlayerList().getPlayer(playerId);
-                if (player == null) {
-                    release(playerId, targetId);
-                    return;
-                }
-                Optional<VillagerEntityMCA> target = ChatAI.getActiveConversationVillager(player)
-                        .filter(villager -> villager.getUUID().equals(targetId));
-                if (target.isEmpty()) {
-                    release(playerId, targetId);
-                    return;
-                }
-
-                LivingWorldContextSnapshot snapshot;
-                NpcVoiceSnapshot voiceSnapshot;
-                try {
-                    snapshot = LivingWorldContextCapture.capture(player, target.get());
-                    voiceSnapshot = captureVoiceSnapshot(target.get());
-                } catch (RuntimeException e) {
-                    MCA.LOGGER.warn("LivingWorld context snapshot failed for player {} and villager {}", playerId, targetId, e);
-                    release(playerId, targetId);
-                    return;
-                }
-                executor.execute(() -> answerAndRespond(server, player, target.get(), snapshot, voiceSnapshot, transcript));
-            });
-        } catch (Exception e) {
-            release(playerId, targetId);
-            MCA.LOGGER.warn("LivingWorld speech-to-text failed for player {}", playerId, e);
-        }
+            LivingWorldContextSnapshot snapshot;
+            NpcVoiceSnapshot voiceSnapshot;
+            try {
+                snapshot = LivingWorldContextCapture.capture(player, target.get());
+                voiceSnapshot = captureVoiceSnapshot(target.get());
+            } catch (RuntimeException e) {
+                MCA.LOGGER.warn("LivingWorld context snapshot failed for player {} and villager {}", playerId, targetId, e);
+                release(playerId, targetId);
+                return;
+            }
+            executor.execute(() -> answerAndRespond(server, player, target.get(), snapshot, voiceSnapshot, transcript));
+        });
     }
 
     private static boolean isAddressingTarget(ServerPlayer player, VillagerEntityMCA villager) {
@@ -191,8 +216,30 @@ final class VoiceConversationService implements AutoCloseable {
                     relationship.affinity()
             );
             TtsVoiceStyle style = NpcVoiceMoodResolver.style(mood, voiceSnapshot.ageGroup());
-            PcmAudio speech = audioProvider.synthesize(new TtsRequest(text, profile.voiceId(), style))
-                    .resampleTo(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE);
+            String ttsFormat = TtsResponseFormat.parse(config.ttsResponseFormat).resolve(config.ttsEndpoint).configValue();
+            PcmAudio speech;
+            long startedNanos = System.nanoTime();
+            try {
+                speech = audioProvider.synthesize(new TtsRequest(text, profile.voiceId(), style))
+                        .resampleTo(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE);
+                VoiceDiagnosticsRecorder.recordSuccess(
+                        AiOperation.TTS,
+                        config.ttsEndpoint,
+                        config.ttsModel,
+                        ttsFormat,
+                        VoiceDiagnosticsRecorder.elapsedMillis(startedNanos)
+                );
+            } catch (Exception e) {
+                VoiceDiagnosticsRecorder.recordFailure(
+                        AiOperation.TTS,
+                        config.ttsEndpoint,
+                        config.ttsModel,
+                        ttsFormat,
+                        VoiceDiagnosticsRecorder.elapsedMillis(startedNanos),
+                        e
+                );
+                throw e;
+            }
             server.execute(() -> playSpatial(villager, speech.samples()));
         } catch (Exception e) {
             MCA.LOGGER.warn("LivingWorld voice conversation failed for player {} and villager {}", playerId, villagerId, e);
