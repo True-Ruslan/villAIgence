@@ -40,6 +40,8 @@ class LivingWorldConfigTest {
         assertEquals("tts-1", config.ttsModel);
         assertEquals("marin", config.ttsVoice);
         assertEquals("", config.ttsApiKey);
+        assertEquals("auto", config.ttsResponseFormat);
+        assertEquals(24_000, config.ttsPcmSampleRate);
         assertEquals(800, config.voiceSilenceMillis);
         assertEquals(20, config.voiceMaxSeconds);
         assertEquals(10, config.connectTimeoutSeconds);
@@ -74,6 +76,41 @@ class LivingWorldConfigTest {
         assertEquals(List.of(), pools.femaleChild());
         assertEquals(List.of("alloy", "verse"), pools.globalFallback());
         assertEquals("legacy-voice", pools.legacyFallback());
+    }
+
+    @Test
+    void ttsResponseFormatAndPcmRateNormalizeWithoutBreakingVersionTwoConfigs() {
+        LivingWorldConfig omitted = LivingWorldConfig.parseJson("""
+                {
+                  "version": 2,
+                  "voiceInputEnabled": true,
+                  "voiceOutputEnabled": false
+                }
+                """);
+        assertEquals("auto", omitted.ttsResponseFormat);
+        assertEquals(24_000, omitted.ttsPcmSampleRate);
+
+        LivingWorldConfig explicit = LivingWorldConfig.parseJson("""
+                {
+                  "version": 2,
+                  "ttsResponseFormat": " PCM ",
+                  "ttsPcmSampleRate": 48000
+                }
+                """);
+        assertEquals("pcm", explicit.ttsResponseFormat);
+        assertEquals(48_000, explicit.ttsPcmSampleRate);
+
+        LivingWorldConfig wav = LivingWorldConfig.parseJson("""
+                {"version":2,"ttsResponseFormat":"wav","ttsPcmSampleRate":16000}
+                """);
+        assertEquals("wav", wav.ttsResponseFormat);
+        assertEquals(16_000, wav.ttsPcmSampleRate);
+
+        LivingWorldConfig invalid = LivingWorldConfig.parseJson("""
+                {"version":2,"ttsResponseFormat":"bogus","ttsPcmSampleRate":0}
+                """);
+        assertEquals("auto", invalid.ttsResponseFormat);
+        assertEquals(24_000, invalid.ttsPcmSampleRate);
     }
 
     @Test
@@ -159,6 +196,8 @@ class LivingWorldConfigTest {
         assertTrue(config.voiceInputEnabled);
         assertFalse(config.voiceOutputEnabled);
         assertEquals("json_base64", config.sttRequestFormat);
+        assertEquals("auto", config.ttsResponseFormat);
+        assertEquals(24_000, config.ttsPcmSampleRate);
     }
 
     @Test
