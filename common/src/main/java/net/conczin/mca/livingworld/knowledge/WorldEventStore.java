@@ -80,7 +80,7 @@ public final class WorldEventStore {
             loaded.events.removeIf(event -> !isValid(event));
             return loaded;
         } catch (IOException | RuntimeException e) {
-            throw new IllegalStateException("Unable to load LivingWorld events from " + file, e);
+            return new EventFile();
         }
     }
 
