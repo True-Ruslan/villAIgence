@@ -33,6 +33,54 @@ Main chat credential resolution:
 - `provider=openrouter`: `OPENROUTER_API_KEY`, then `apiKey`;
 - `provider=openai`: `OPENAI_API_KEY`, then `apiKey`.
 
+## AI admission, backpressure and cooldowns
+
+VillAIgence protects Chat, STT and TTS provider boundaries with non-blocking admission control. Requests never wait for capacity on the Minecraft server thread and no unbounded AI queue is created.
+
+Defaults:
+
+```json
+{
+  "aiChatMaxConcurrentRequests": 4,
+  "aiSttMaxConcurrentRequests": 2,
+  "aiTtsMaxConcurrentRequests": 2,
+  "aiPerPlayerCooldownMillis": 750,
+  "aiProviderRateLimitCooldownMillis": 5000
+}
+```
+
+| Setting | Default | Normalized range | Meaning |
+|---|---:|---:|---|
+| `aiChatMaxConcurrentRequests` | `4` | `1..64` | maximum concurrent Chat/LLM requests |
+| `aiSttMaxConcurrentRequests` | `2` | `1..64` | maximum concurrent STT requests |
+| `aiTtsMaxConcurrentRequests` | `2` | `1..64` | maximum concurrent TTS requests |
+| `aiPerPlayerCooldownMillis` | `750` | `0..60000` | minimum interval for the same player within the same AI stage |
+| `aiProviderRateLimitCooldownMillis` | `5000` | `0..300000` | temporary stage-local cooldown after a detected `429`/rate-limit signal |
+
+Admission checks are non-blocking:
+
+```text
+provider cooldown
+→ stage concurrency capacity
+→ same-player/same-stage cooldown
+→ allow immediately or reject immediately
+```
+
+Chat, STT and TTS use separate stage state, so the normal voice chain `STT → Chat → TTS` does not block itself simply by moving between stages.
+
+On local rejection, no provider request is made. `/villaigence ai status` exposes safe `admission_*` rejection types and process-local admission metrics.
+
+Tuning guidance:
+
+- keep defaults unless a real multiplayer load test shows a reason to change them;
+- lower concurrency for providers with strict quotas or expensive speech endpoints;
+- raise concurrency gradually and watch rate limits, latency and server behavior;
+- `aiPerPlayerCooldownMillis=0` disables only the per-player interval, not concurrency protection;
+- `aiProviderRateLimitCooldownMillis=0` disables local cooldown after a detected rate-limit signal;
+- TTS admission happens after the text response is published, so TTS backpressure does not remove valid NPC text.
+
+Existing `version=2` config files do not require migration. Missing admission fields receive the defaults above.
+
 ## Voice switches
 
 | Setting | Default | Behavior |
@@ -251,11 +299,11 @@ AI answer
 → spatial playback
 ```
 
-A TTS HTTP/format/decode failure does not remove the text reply, disconnect the player or automatically retry the same utterance.
+A TTS HTTP/format/decode failure or local TTS admission rejection does not remove the text reply, disconnect the player or automatically retry the same utterance.
 
 ## AI diagnostics status
 
-Server operators can inspect non-secret configuration readiness and the latest runtime outcome of Chat, STT and TTS with:
+Server operators can inspect non-secret configuration readiness, the latest runtime outcome and admission/backpressure state of Chat, STT and TTS with:
 
 ```text
 /villaigence ai status
@@ -271,7 +319,9 @@ Configuration readiness is reported as:
 
 Runtime status is process-local. `last: NEVER` means no completed operation for that stage has been observed since the server process started.
 
-Credential values, Authorization headers, prompts, transcripts, NPC answers, TTS input, reasoning content and raw provider payloads are not included. Credential presence is represented only as a boolean and endpoints are reduced to host names.
+Admission lines report current `active/max`, total local `rejected` count and remaining `providerCooldownMs` for each stage.
+
+Credential values, Authorization headers, prompts, transcripts, NPC answers, TTS input, reasoning content, raw provider payloads and player UUIDs are not included. Credential presence is represented only as a boolean and endpoints are reduced to host names.
 
 See [DIAGNOSTICS.md](DIAGNOSTICS.md) for field meanings, privacy guarantees and troubleshooting examples.
 
