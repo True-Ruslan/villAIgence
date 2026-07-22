@@ -117,7 +117,7 @@ public final class MCAFabric implements ModInitializer {
         registerReloadListener(managerHelper, BodySkinList.ID, new BodySkinList());
         managerHelper.registerReloadListener(new FabricClothingList());
         registerReloadListener(managerHelper, HairStyleList.ID, new HairStyleList());
-        managerHelper.registerReloadListener(new LayeredHairList());
+        registerReloadListener(managerHelper, LayeredHairList.ID, new LayeredHairList());
         managerHelper.registerReloadListener(new FabricGiftLoader());
         managerHelper.registerReloadListener(new FabricDialogues());
         managerHelper.registerReloadListener(new FabricTasks());
