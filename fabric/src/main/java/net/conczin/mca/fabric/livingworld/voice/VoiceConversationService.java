@@ -9,9 +9,13 @@ import net.conczin.mca.MCA;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.ai.chatAI.ChatAI;
 import net.conczin.mca.livingworld.LivingWorldConfig;
+import net.conczin.mca.livingworld.admission.AiAdmissionController;
+import net.conczin.mca.livingworld.admission.AiAdmissionResult;
+import net.conczin.mca.livingworld.admission.AiAdmissionSettings;
 import net.conczin.mca.livingworld.audio.PcmAudio;
 import net.conczin.mca.livingworld.context.LivingWorldContextCapture;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
+import net.conczin.mca.livingworld.diagnostics.AdmissionDiagnosticsRecorder;
 import net.conczin.mca.livingworld.diagnostics.AiOperation;
 import net.conczin.mca.livingworld.diagnostics.VoiceDiagnosticsRecorder;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipState;
@@ -98,10 +102,21 @@ final class VoiceConversationService implements AutoCloseable {
 
     private void transcribeAndRoute(MinecraftServer server, UUID playerId, UUID targetId, short[] microphonePcm) {
         LivingWorldConfig config = LivingWorldConfig.getInstance();
+        AiAdmissionResult admission = AiAdmissionController.tryAcquire(
+                AiOperation.STT,
+                playerId,
+                AiAdmissionSettings.from(config)
+        );
+        if (!admission.allowed()) {
+            AdmissionDiagnosticsRecorder.recordRejected(AiOperation.STT, admission.decision());
+            release(playerId, targetId);
+            return;
+        }
+
         String sttFormat = SttRequestFormat.parse(config.sttRequestFormat).resolve(config.sttEndpoint).configValue();
         String transcript;
         long startedNanos = System.nanoTime();
-        try {
+        try (AiAdmissionController.Permit ignored = admission.permit()) {
             transcript = audioProvider.transcribe(new PcmAudio(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE, microphonePcm));
             VoiceDiagnosticsRecorder.recordSuccess(
                     AiOperation.STT,
@@ -217,9 +232,20 @@ final class VoiceConversationService implements AutoCloseable {
             );
             TtsVoiceStyle style = NpcVoiceMoodResolver.style(mood, voiceSnapshot.ageGroup());
             String ttsFormat = TtsResponseFormat.parse(config.ttsResponseFormat).resolve(config.ttsEndpoint).configValue();
+
+            AiAdmissionResult admission = AiAdmissionController.tryAcquire(
+                    AiOperation.TTS,
+                    playerId,
+                    AiAdmissionSettings.from(config)
+            );
+            if (!admission.allowed()) {
+                AdmissionDiagnosticsRecorder.recordRejected(AiOperation.TTS, admission.decision());
+                return;
+            }
+
             PcmAudio speech;
             long startedNanos = System.nanoTime();
-            try {
+            try (AiAdmissionController.Permit ignored = admission.permit()) {
                 speech = audioProvider.synthesize(new TtsRequest(text, profile.voiceId(), style))
                         .resampleTo(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE);
                 VoiceDiagnosticsRecorder.recordSuccess(
