@@ -9,7 +9,7 @@ Server and clients:
 - this LivingWorld fork
 - Simple Voice Chat 2.6.20 or newer
 
-Only the server needs OpenAI/OpenRouter credentials.
+Only the server needs AI/STT/TTS credentials.
 
 Simple Voice Chat is still required when NPC TTS is disabled because LivingWorld uses its microphone packets and Opus decoder for voice input.
 
@@ -41,6 +41,51 @@ player microphone → STT → LivingWorld NPC AI → text + TTS spatial NPC audi
 }
 ```
 
+## Stable NPC voice identity
+
+TTS voice selection is independent from the chat/LLM model.
+
+For every NPC, LivingWorld uses:
+
+```text
+NPC UUID + MCA gender + MCA age state
+→ compatible configured voice pool
+→ deterministic voice selection
+→ persistent profile in <world>/livingworld/voices.json
+```
+
+The profile survives server restarts. Changing from one chat model/provider to another does not change the NPC's stored voice.
+
+MCA age mapping:
+
+- `BABY`, `TODDLER`, `CHILD` → child voice profile;
+- `TEEN` → teen voice profile;
+- `ADULT`, `UNASSIGNED` → adult voice profile.
+
+There is no separate elder state in current MCA 1.21.1, so no synthetic elder classification is used.
+
+The configured male/female/neutral voice pools are LivingWorld defaults only. They can be replaced with any IDs supported by the chosen TTS provider. LivingWorld does not rely on a provider formally labeling a voice as male, female, child or teen.
+
+A voice profile is resolved again only when the NPC changes gender/age bucket or the stored voice no longer belongs to the configured compatible fallback pools.
+
+## Mood-aware delivery
+
+Mood changes **how** an NPC speaks, never **which persistent voice** belongs to that NPC.
+
+LivingWorld derives delivery mood from server-owned state, not from arbitrary LLM text. Current signals include:
+
+- panic / high fear;
+- current health ratio;
+- persistent trust and affinity with the player.
+
+The resulting moods are neutral, happy, sad, angry, afraid or tired. They map to bounded speaking speed and natural-language delivery hints such as restrained irritation, subdued sadness or tense fear.
+
+The TTS adapter applies capabilities on a best-effort basis:
+
+- instruction-capable speech models receive style instructions plus speed;
+- legacy models that do not support instructions still receive the persistent voice and supported speed control;
+- unsupported style features do not replace or randomize the NPC voice.
+
 ## How to talk to an NPC
 
 1. Interact normally with an MCA villager to select it as the current conversation target.
@@ -49,7 +94,7 @@ player microphone → STT → LivingWorld NPC AI → text + TTS spatial NPC audi
 4. The server verifies that the target is still selected, visible and in the player's view before sending audio to STT.
 5. The server runs STT and routes the transcript through the immutable LivingWorld context snapshot.
 6. The answer is added to the existing MCA conversation text path.
-7. When `voiceOutputEnabled=true`, LivingWorld additionally runs TTS and plays the result spatially from the NPC.
+7. When `voiceOutputEnabled=true`, LivingWorld resolves the NPC's stable voice profile, derives current delivery mood, runs TTS and plays the result spatially from that NPC.
 
 The selected target expires using MCA's existing conversation distance and timeout rules. Interact with the villager again to re-select it.
 
@@ -89,6 +134,26 @@ The Base64 value is raw audio bytes, not a `data:audio/...` URI.
 
 `sttRequestFormat="auto"` selects `json_base64` automatically for `openrouter.ai`; non-OpenRouter endpoints retain multipart WAV upload compatibility.
 
+## Using OpenRouter chat with OpenAI TTS
+
+Chat and TTS credentials are resolved independently. A common full-voice setup can use:
+
+```text
+OpenRouter key → chat/LLM
+OpenRouter or another STT key → transcription
+OpenAI key → TTS
+```
+
+For the default OpenAI speech endpoint, set:
+
+```bash
+export OPENAI_API_KEY="sk-..."
+```
+
+or configure a dedicated server-only `ttsApiKey`.
+
+This prevents an OpenRouter chat key from being incorrectly sent to the OpenAI speech endpoint.
+
 ## Important behavior
 
 - Ambient player voice is not sent to STT unless a villager was intentionally selected and the player is addressing that target.
@@ -98,6 +163,7 @@ The Base64 value is raw audio bytes, not a `data:audio/...` URI.
 - Audio shorter than 250 ms is ignored.
 - Text answers are produced independently from TTS availability.
 - NPC spatial audio uses an entity-bound Simple Voice Chat channel with a default 32-block range only when output is enabled.
+- Mutable MCA gender/age/panic/health state is captured on the Minecraft server thread before asynchronous TTS work.
 - Raw microphone audio is processed in memory and is not intentionally persisted.
 
 ## Data flows
@@ -120,7 +186,10 @@ Full voice mode adds:
 
 ```text
 NPC text
-→ TTS
++ persistent NPC voice profile
++ server-derived mood style
+→ provider-neutral TTS request
+→ TTS adapter
 → PCM/WAV decode
 → 48 kHz resample
 → Simple Voice Chat spatial NPC audio
@@ -144,7 +213,19 @@ Verify:
 
 ### Text works, but the NPC is silent
 
-This is expected when `voiceOutputEnabled=false`. Enable it only if TTS output and its cost are desired.
+Verify:
+
+- `voiceOutputEnabled=true`;
+- the TTS endpoint/model supports the configured voice IDs;
+- the TTS credential is configured. For the default OpenAI TTS endpoint, use `OPENAI_API_KEY` or `ttsApiKey` even when chat uses OpenRouter.
+
+### NPC got a different voice after growing up
+
+This is expected only when the NPC crosses a real MCA age bucket, for example child → teen or teen → adult. The new compatible voice is persisted for the new age bucket.
+
+### NPC voices need different classification
+
+Edit the `male*Voices`, `female*Voices`, `neutral*Voices` and `globalVoiceFallbacks` arrays in `config/livingworld.json`. The built-in grouping is a LivingWorld default, not provider gender metadata.
 
 ### Wrong language recognition
 
