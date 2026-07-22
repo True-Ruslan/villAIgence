@@ -1,8 +1,11 @@
 package net.conczin.mca.entity.ai.chatAI;
 
 import net.conczin.mca.Config;
+import net.conczin.mca.MCA;
 import net.conczin.mca.entity.VillagerEntityMCA;
+import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
+import net.conczin.mca.livingworld.memory2.Memory2DialogueIngestor;
 import net.conczin.mca.util.WorldUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -71,9 +74,43 @@ public class ChatAI {
         ChatAIStrategy strategy = computeStrategyIfAbsent(snapshot.villagerId());
         currentConversations.put(snapshot.playerId(), new OpenConversation(snapshot.villagerId(), snapshot.gameTime()));
         if (strategy instanceof OpenAIChatAI openAIChatAI) {
-            return openAIChatAI.answer(server, player, villager, msg, snapshot);
+            Optional<String> answer = openAIChatAI.answer(server, player, villager, msg, snapshot);
+            rememberMemory2Dialogue(snapshot, msg, answer);
+            return answer;
         }
         return strategy.answer(player, villager, msg);
+    }
+
+    private static void rememberMemory2Dialogue(
+            LivingWorldContextSnapshot snapshot,
+            String playerMessage,
+            Optional<String> answer
+    ) {
+        if (answer == null || answer.isEmpty()) return;
+        String npcReply = answer.get();
+        if (npcReply.isBlank()) return;
+
+        LivingWorldConfig config = LivingWorldConfig.getInstance();
+        try {
+            Memory2DialogueIngestor.recordIfEnabled(
+                    config.memory2Enabled,
+                    snapshot.worldRoot(),
+                    snapshot.villagerId(),
+                    snapshot.playerId(),
+                    snapshot.gameTime(),
+                    playerMessage,
+                    npcReply,
+                    config.memory2MaxEventsPerNpc,
+                    System.currentTimeMillis()
+            );
+        } catch (RuntimeException e) {
+            MCA.LOGGER.warn(
+                    "Unable to persist Memory 2.0 dialogue event for villager {} and player {}",
+                    snapshot.villagerId(),
+                    snapshot.playerId(),
+                    e
+            );
+        }
     }
 
     /**
@@ -166,8 +203,8 @@ public class ChatAI {
      * @param player   ServerPlayerEntity of the player to be checked
      * @param villager VillagerEntityMCA entity of the villager to be checked
      * @return {@code true} if all the following conditions are met: <p>
-     * 1. Villager is within {@value CONVERSATION_DISTANCE} blocks of the player<p>
-     * 2. Last conversation interaction with this villager wasn't longer than {@value CONVERSATION_TIME} ago
+     * 1. Villager is within {@value #CONVERSATION_DISTANCE} blocks of the player<p>
+     * 2. Last conversation interaction with this villager wasn't longer than {@value #CONVERSATION_TIME} ago
      */
     private static boolean isInConversationWith(ServerPlayer player, VillagerEntityMCA villager) {
         OpenConversation conversation = currentConversations.getOrDefault(player.getUUID(), new OpenConversation(villager.getUUID(), 0L));
@@ -189,7 +226,6 @@ public class ChatAI {
         // Get specific villager
         String normalizedSearchName = normalizeString(searchName);
 
-        // Go through list, look for first match for name
         for (VillagerEntityMCA villager : entities) {
             String villagerName = getName(villager);
             if (normalizedSearchName.equals(villagerName)) {
