@@ -4,7 +4,7 @@
 >
 > Last major state update: **2026-07-22**.
 >
-> This file records implemented repository state, current release anchors, architectural boundaries and the first unimplemented development priority. Always reconcile it with recent PRs/releases/CI before active work.
+> This file records implemented repository state, release anchors, architectural boundaries and the first unimplemented development priority. Always reconcile it with recent PRs/releases/CI before active work.
 
 ## Executive snapshot
 
@@ -14,8 +14,8 @@ Current anchors:
 
 ```text
 base branch: 1.21.1
-current implemented HEAD after PR #35:
-7ed77c5e2fae9f544021ea798dc2a9e9174792a4
+current implemented HEAD after PR #37:
+bb1097fb26df5052b405642202e167e4afae3fee
 
 latest published release:
 0.1.8+1.21.1
@@ -35,6 +35,7 @@ The following Memory 2.0 work is newer than that release and currently exists on
 PR #31  persistent MemoryEvent foundation
 PR #33  deterministic bounded retrieval/ranking
 PR #35  authoritative safe-action WorldEvent ingestion
+PR #37  bounded provenance-preserving NPC context integration
 ```
 
 ---
@@ -48,7 +49,7 @@ PR #35  authoritative safe-action WorldEvent ingestion
 - **Primary branch:** `1.21.1`
 - **Minecraft:** 1.21.1
 - **Primary release target:** Fabric
-- **NeoForge:** compile compatibility remains required in PR CI
+- **NeoForge:** compile compatibility required in PR CI
 - **Java:** 21
 
 Compatibility-sensitive identifiers intentionally remain:
@@ -127,9 +128,9 @@ Storage:
 <world>/livingworld/voices.json
 ```
 
-Identity is derived from NPC UUID + MCA gender + MCA age bucket and is independent from chat provider/model.
+Identity derives from NPC UUID + MCA gender + MCA age bucket and is independent from provider/model.
 
-Mood-aware delivery changes style, not persistent voice identity.
+Mood-aware delivery changes style, not persistent base identity.
 
 ## Safe actions and server authority
 
@@ -146,7 +147,7 @@ Arbitrary console/OP authority is not granted to the LLM.
 
 Async AI uses immutable server-thread-captured context rather than freely reading mutable Minecraft state.
 
-Current snapshot includes stable identity/time/world-root boundaries needed for future Memory 2.0 retrieval integration.
+The snapshot now also carries a physically separate bounded `memoryContext` field for Memory 2.0 while retaining separate authoritative `worldFacts`.
 
 ## Structured response/provider hardening
 
@@ -179,7 +180,7 @@ Merge anchor:
 90b32ee1125ad451d2fe9f7242ee903e8680a131
 ```
 
-Diagnostics are read-only and intentionally exclude credentials, prompts, transcripts, answers, TTS input, reasoning and raw provider payloads.
+Diagnostics are read-only and exclude credentials, prompts, transcripts, answers, TTS input, reasoning and raw provider payloads.
 
 ## Non-blocking admission/backpressure
 
@@ -228,8 +229,6 @@ voices.json
 
 Malformed/unreadable auxiliary JSON fails open; a later successful normal mutation may rewrite valid current-format data.
 
-This is availability recovery, not data reconstruction.
-
 Live reliability checklist:
 
 ```text
@@ -246,7 +245,7 @@ docs/livingworld/PLAYTEST_CHECKLIST.md
 <world>/livingworld/memory.json
 ```
 
-This remains the proven `0.1.x` dialogue-history path and has not yet been migrated into Memory 2.0.
+This remains the proven `0.1.x` dialogue-history path and has **not** yet been migrated into Memory 2.0.
 
 ## Authoritative factual world events
 
@@ -279,7 +278,7 @@ General persistent `NPC ↔ NPC` social graph remains roadmap `0.3`.
 
 ---
 
-# Memory 2.0 — implemented foundation
+# Memory 2.0 — active implementation
 
 ## PR #31 — persistent MemoryEvent domain
 
@@ -333,17 +332,10 @@ INFERRED
 Truth boundary:
 
 - `SYSTEM_OBSERVED` means server-verified evidence;
-- `PLAYER_TOLD`, `NPC_TOLD`, and `INFERRED` remain claims/beliefs;
+- told/inferred entries remain claims/beliefs;
 - persistence never upgrades a claim into authoritative world truth.
 
-`MemoryEventStore` provides:
-
-- per-NPC isolation;
-- bounded retention;
-- idempotent event UUIDs;
-- deterministic newest-first access;
-- atomic temp+replace writes;
-- fail-open malformed-file recovery.
+`MemoryEventStore` provides per-NPC isolation, bounded retention, idempotent event UUIDs, atomic persistence and fail-open recovery.
 
 ## PR #33 — deterministic bounded retrieval
 
@@ -356,7 +348,7 @@ Merge commit:
 Implemented:
 
 - immutable `MemoryQuery`;
-- hard `candidateLimit` bound `1..512`;
+- hard `candidateLimit` `1..512`;
 - hard `maxResults <= candidateLimit`;
 - participant/type relevance;
 - deterministic game-time recency;
@@ -374,18 +366,7 @@ recency    20%
 confidence 15%
 ```
 
-Total:
-
-```text
-(relevance*40 + importance*25 + recency*20 + confidence*15) / 100
-```
-
-Important non-goals still preserved:
-
-- no embeddings/vector DB;
-- no provider/LLM ranking;
-- no mutable Minecraft access;
-- no prompt integration yet.
+No embeddings/vector DB, provider/LLM ranking, or mutable Minecraft access.
 
 ## PR #35 — authoritative safe-action ingestion
 
@@ -395,13 +376,11 @@ Merge commit:
 7ed77c5e2fae9f544021ea798dc2a9e9174792a4
 ```
 
-This is the first production source feeding Memory 2.0.
-
-Lifecycle:
+First production source feeding Memory 2.0:
 
 ```text
 whitelisted NPC action succeeds
-→ WorldEventRecorder creates SYSTEM_OBSERVED WorldEvent
+→ SYSTEM_OBSERVED WorldEvent
 → events.json persistence succeeds
 → same source event maps to actor-owned ACTION MemoryEvent
 → memory2.json append
@@ -409,24 +388,13 @@ whitelisted NPC action succeeds
 
 Guarantees:
 
-- Memory 2.0 ingestion never precedes authoritative source persistence;
-- secondary memory failure cannot roll back a successful gameplay action or factual event;
-- source `WorldEvent.id` is reused as `MemoryEvent.id`, making redelivery idempotent;
+- ingestion never precedes authoritative source persistence;
+- secondary memory failure cannot roll back gameplay/factual event success;
+- source `WorldEvent.id` is reused as `MemoryEvent.id` for idempotency;
 - only the acting NPC owns this memory in the current slice;
-- nearby NPC propagation is not implied;
 - no LLM decides event truth or importance.
 
-Mapping defaults for authoritative NPC actions:
-
-```text
-type = ACTION
-provenance = SYSTEM_OBSERVED
-importance = 60
-emotionalWeight = 0
-confidence = 100
-```
-
-Configuration added without version bump:
+Configuration:
 
 ```text
 memory2Enabled = true
@@ -437,20 +405,71 @@ config version remains 2
 
 Existing version-2 configs require no migration.
 
-### Relationship reasons deliberately not ingested yet
+## PR #37 — bounded provenance-preserving context integration
 
-Current relationship flow has numeric LLM-proposed deltas but **no separately server-validated reason**.
-
-VillAIgence therefore does not invent a relationship reason or promote an LLM explanation to authoritative memory.
-
-A later dedicated provenance contract is required before `RELATIONSHIP_CHANGE.relationshipReasons` becomes production data.
-
-Documentation:
+Merge commit:
 
 ```text
-docs/livingworld/MEMORY_2.md
-docs/livingworld/CONFIGURATION.md
+bb1097fb26df5052b405642202e167e4afae3fee
 ```
+
+Memory 2.0 now contributes selected memories to real snapshot-aware NPC turns.
+
+Turn retrieval policy:
+
+```text
+candidateLimit = 32
+maxResults = 6
+recencyHorizonTicks = 168000   // 7 Minecraft days
+maxSummaryChars = 240 Unicode code points
+participant relevance = current player UUID
+```
+
+Flow:
+
+```text
+server-thread LivingWorldContextCapture
+→ worldRoot/villagerId/playerId/gameTime
+→ Memory2ContextProvider
+→ MemoryEventStore
+→ MemoryQuery / MemoryRetriever
+→ MemoryContextFormatter
+→ immutable snapshot.memoryContext
+→ bounded labeled memory section in existing non-authoritative context channel
+```
+
+Truth/prompt boundary:
+
+- `SYSTEM_OBSERVED` renders as `VERIFIED`;
+- `PLAYER_TOLD`, `NPC_TOLD`, `INFERRED` render as `BELIEF`;
+- memory entries are data, never instructions;
+- BELIEF entries may be false/incomplete;
+- current authoritative `worldFacts` wins on conflict;
+- Memory 2.0 entries are never inserted into `worldFacts`;
+- `OpenAIChatAI` provider/request builder remains unchanged.
+
+Prompt-safety formatting:
+
+- collapse newline/control whitespace;
+- escape quotes/backslashes;
+- cap summary to 240 Unicode code points;
+- do not dump raw MemoryEvent JSON/ranking internals;
+- neutralize reserved historical prompt template markers only in prompt copy:
+
+```text
+$player   → ＄player
+$villager → ＄villager
+```
+
+Persisted `MemoryEvent.summary` is never mutated.
+
+Memory context loading/retrieval/formatting is fail-soft; failure leaves existing personality, world facts, actions, relationships and legacy dialogue history intact.
+
+### Relationship reasons deliberately not ingested yet
+
+Current relationship flow has numeric LLM-proposed deltas but no separately server-validated reason.
+
+VillAIgence therefore does not invent a reason or promote an LLM explanation to authoritative memory.
 
 ---
 
@@ -472,7 +491,7 @@ workflow conclusion: SUCCESS
 
 The release includes reliability work through PR #30.
 
-Memory 2.0 PRs #31/#33/#35 are post-release development and are not yet in a published artifact.
+Memory 2.0 PRs #31/#33/#35/#37 are post-release development and are not yet in a published artifact.
 
 Never move an already-published release tag.
 
@@ -493,20 +512,29 @@ Java Pull Request CI with Gradle
 → Fabric build
 ```
 
-PR #35 TDD evidence:
+PR #37 evidence:
 
 ```text
-RED tests-only head:
-6f0769053cb50fb5c79207d4dd2110ce9c825044
-VillAIgence CI 29921694337 → expected FAILURE at :common:compileTestJava
+valid main RED head:
+bd1da9aa8bcd70a27f41388504a7ece1cb4518fb
+VillAIgence CI 29923707297 → expected FAILURE for missing formatter/provider/snapshot contract
+
+review-found template-safety RED head:
+e74715f634b22cb9901587842241e42626a57c49
+VillAIgence CI 29924889537 → expected FAILURE on reserved template-marker regression test
 
 final head:
-75a2c0efc45d50e62fd241dd04718258e8bbd633
-VillAIgence CI 29922482649 → SUCCESS
-Java Pull Request CI 29922482470 → SUCCESS
+787e32abaa53024b4aac19f8f9871daa80213e65
+VillAIgence CI 29925211476 → SUCCESS
+Java Pull Request CI 29925211473 → SUCCESS
 ```
 
-Final lifecycle review also caught and corrected an intermediate boundary regression before merge: `WorldEvent` capture/persistence was restored inside its original protected `try` before secondary Memory 2.0 ingestion.
+Final review confirmed:
+
+- `OpenAIChatAI` absent from PR diff;
+- legacy `memory.json` path absent from PR diff;
+- no Memory 2.0 entry inserted into `worldFacts`;
+- no unresolved review threads/comments.
 
 ---
 
@@ -525,7 +553,7 @@ Remaining field evidence:
 - provider 429/cooldown behavior where safely reproducible;
 - operator diagnostics feedback.
 
-Any concrete release-blocking defect should be fixed as a narrow reliability patch rather than mixed into Memory 2.0.
+Any concrete release-blocking defect should be a narrow reliability patch rather than mixed into Memory 2.0.
 
 ## 0.2 Memory 2.0 — active, partial
 
@@ -538,15 +566,15 @@ MemoryEvent domain
 + idempotent event IDs
 + deterministic bounded retrieval/ranking
 + first authoritative production ingestion path from successful safe actions
++ bounded provenance-preserving context integration into real NPC turns
 ```
 
 Still not implemented:
 
-- bounded ranked Memory 2.0 injection into NPC context/prompts;
-- dialogue-to-episodic-memory extraction;
+- controlled ordinary dialogue → episodic-memory extraction;
+- validated relationship-reason provenance/ingestion;
 - working-memory orchestration;
 - semantic facts/beliefs layer;
-- validated relationship-reason provenance/ingestion;
 - consolidation/summarization;
 - forgetting/decay;
 - semantic duplicate merging;
@@ -556,32 +584,30 @@ Still not implemented:
 
 ### Next recommended development slice
 
-Build **bounded Memory 2.0 context integration** through the existing immutable snapshot boundary.
+Build **controlled dialogue → episodic-memory extraction with explicit provenance**, without LLM authority.
 
-Recommended contract:
+Recommended first contract:
 
 ```text
-LivingWorldContextSnapshot
-(villagerId, playerId, gameTime, worldRoot)
-→ build bounded MemoryQuery
-→ MemoryRetriever
-→ small ranked result set
-→ provenance-preserving deterministic formatter
-→ append labeled memory/belief lines to AI context
+successful player↔NPC dialogue turn
+→ deterministic bounded DIALOGUE MemoryEvent owned by NPC
+→ player statement represented as PLAYER_TOLD / belief data
+→ NPC reply preserved as conversational history, not authoritative fact
+→ deterministic event ID / duplicate safety
+→ bounded summary generated without an LLM in first slice
 ```
 
 Requirements:
 
-- hard candidate/result bounds;
-- no mutable entity/world reads off-thread;
-- explicit provenance labels preserved in prompt/context;
-- `SYSTEM_OBSERVED` facts distinguishable from told/inferred beliefs;
-- no raw JSON/schema dump into prompt;
-- Memory 2.0 I/O/retrieval failure must fail soft and not remove existing AI context;
-- do not replace/migrate legacy `memory.json` in this slice;
-- no LLM summarization required to retrieve/format memories.
+- no automatic promotion of player text or NPC reply to `SYSTEM_OBSERVED`;
+- no raw unlimited transcript duplication into memory2.json;
+- strict per-event summary length;
+- deterministic/idempotent event identity;
+- only store successful usable dialogue turns;
+- provider failure/empty response must not create a dialogue MemoryEvent;
+- keep legacy `memory.json` intact until a dedicated migration design exists.
 
-After bounded context integration is stable, next slices can address dialogue extraction, relationship-reason provenance, consolidation, forgetting/decay and migration separately.
+After controlled dialogue extraction is stable, define separately validated relationship-reason provenance, then consolidation/forgetting/migration in later slices.
 
 ## 0.3 Personality + NPC↔NPC social graph
 
@@ -611,16 +637,16 @@ Continue real-server validation of released 0.1.8 using PLAYTEST_CHECKLIST.md.
 Fix only concrete blocking reliability regressions found in use.
 
 Priority B
-Continue 0.2 with bounded provenance-preserving Memory 2.0 context integration.
+Continue 0.2 with controlled dialogue → episodic-memory extraction using explicit PLAYER_TOLD/belief provenance.
 
 Priority C
-Then define controlled dialogue extraction and/or validated relationship-reason provenance as separate slices.
+Define validated relationship-reason provenance as a separate contract.
 
 Priority D
-Later add consolidation, forgetting/decay and migration after retrieval/context boundaries are proven.
+Later add working-memory orchestration, consolidation, forgetting/decay and migration.
 ```
 
-Do **not** jump directly to embeddings or LLM summarization before bounded context integration and provenance handling are tested.
+Do **not** jump directly to embeddings or LLM summarization before deterministic extraction/provenance and memory lifecycle behavior are proven.
 
 ---
 
