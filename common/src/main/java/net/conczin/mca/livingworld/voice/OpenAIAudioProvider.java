@@ -87,7 +87,7 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
         try {
             AudioHttpResponse response = execute(
                     open(config.ttsEndpoint, "application/json", config.resolvedTtsApiKey()),
-                    createSpeechBody(resolved, config.ttsModel, format).getBytes(StandardCharsets.UTF_8),
+                    createSpeechBody(resolved, config.ttsModel, format, config.ttsEndpoint).getBytes(StandardCharsets.UTF_8),
                     "text-to-speech"
             );
 
@@ -106,10 +106,14 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
     }
 
     static String createSpeechBody(TtsRequest request, String model) {
-        return createSpeechBody(request, model, TtsResponseFormat.WAV);
+        return createSpeechBody(request, model, TtsResponseFormat.WAV, null);
     }
 
     static String createSpeechBody(TtsRequest request, String model, TtsResponseFormat format) {
+        return createSpeechBody(request, model, format, null);
+    }
+
+    static String createSpeechBody(TtsRequest request, String model, TtsResponseFormat format, String endpoint) {
         TtsResponseFormat resolvedFormat = format == null || format == TtsResponseFormat.AUTO
                 ? TtsResponseFormat.WAV
                 : format;
@@ -119,8 +123,19 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
         body.addProperty("input", request.text());
         body.addProperty("response_format", resolvedFormat.configValue());
         body.addProperty("speed", request.style().speed());
+
         if (supportsInstructions(model) && !request.style().instructions().isBlank()) {
-            body.addProperty("instructions", request.style().instructions());
+            if (TtsResponseFormat.isOpenRouterEndpoint(endpoint)) {
+                JsonObject openAiOptions = new JsonObject();
+                openAiOptions.addProperty("instructions", request.style().instructions());
+                JsonObject options = new JsonObject();
+                options.add("openai", openAiOptions);
+                JsonObject provider = new JsonObject();
+                provider.add("options", options);
+                body.add("provider", provider);
+            } else {
+                body.addProperty("instructions", request.style().instructions());
+            }
         }
         return new Gson().toJson(body);
     }
