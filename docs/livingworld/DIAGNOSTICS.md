@@ -10,10 +10,11 @@ The command is available to permission level 2+ operators and to the integrated 
 
 ## What the command does
 
-It combines two kinds of information:
+It combines three kinds of information:
 
 1. **configuration readiness** for Chat, STT and TTS;
-2. the **latest runtime result** observed for each stage during the current server process.
+2. the **latest runtime result** observed for each stage during the current server process;
+3. **admission/backpressure state** for each external AI stage.
 
 Running the command does **not** call OpenAI, OpenRouter or another provider. It does not spend tokens, consume speech credits, retry a failed request, mutate NPC state or write persistent data.
 
@@ -27,6 +28,9 @@ STT: CONFIGURED | enabled=true | credential=true | provider=openrouter | model=.
   last: FAILURE | 391 ms | provider=openrouter | model=... | type=http_402 | detail=format=json_base64
 TTS: DISABLED | enabled=false | credential=true | provider=openrouter | model=... | endpoint=openrouter.ai | format=pcm
   last: NEVER
+Admission CHAT: active=1/4 | rejected=3 | providerCooldownMs=0
+Admission STT: active=0/2 | rejected=1 | providerCooldownMs=4200
+Admission TTS: active=0/2 | rejected=0 | providerCooldownMs=0
 ```
 
 Exact values depend on the configured providers and what has happened since the server process started.
@@ -78,11 +82,11 @@ For STT/TTS, safe metadata can include:
 
 ### `FAILURE`
 
-The latest logical operation failed.
+The latest logical operation failed or was locally rejected before a provider call.
 
 Chat may report safe structured metadata such as provider error type, `finish_reason`, generation ID, bounded attempt count, or controlled result codes such as `empty_response`.
 
-STT/TTS classify failures into controlled types where possible, including:
+STT/TTS classify provider failures into controlled types where possible, including:
 
 ```text
 http_402
@@ -92,7 +96,42 @@ io_error
 runtime_error
 ```
 
+Local admission rejection types are separate from provider failures:
+
+```text
+admission_saturated
+admission_player_cooldown
+admission_provider_cooldown
+```
+
+A local rejection has `detail=local_rejection` and intentionally carries no provider/model result metadata. It means VillAIgence rejected the request before making that external call.
+
 Raw provider error bodies are not copied into the status surface.
+
+## Admission/backpressure metrics
+
+Each stage has a non-blocking gate. VillAIgence never waits for AI capacity on the Minecraft server thread and never creates an unbounded provider queue.
+
+Status fields:
+
+- `active=X/Y` — current in-flight external requests versus configured maximum;
+- `rejected=N` — total local rejections for that stage since process start;
+- `providerCooldownMs=N` — remaining stage-local cooldown after a rate-limit signal.
+
+Admission checks happen in this order:
+
+```text
+provider cooldown
+→ concurrency capacity
+→ per-player/per-stage cooldown
+→ allow with permit or reject immediately
+```
+
+Chat, STT and TTS use separate stage capacity/cooldown state. The normal `STT → Chat → TTS` voice chain therefore does not self-block merely because it advances between stages.
+
+HTTP/provider `429` rate-limit signals activate a temporary stage cooldown. While it is active, new requests for that stage are rejected locally with `admission_provider_cooldown` instead of repeatedly hitting the provider.
+
+For TTS, admission happens after the valid NPC text reply has already been published. TTS backpressure therefore never removes a valid text answer.
 
 ## Privacy and secret-safety
 
@@ -106,7 +145,8 @@ Raw provider error bodies are not copied into the status surface.
 - NPC-visible answers;
 - TTS input text;
 - reasoning content;
-- raw provider request/response payloads.
+- raw provider request/response payloads;
+- player UUIDs in admission metrics.
 
 Credential status is represented only as a boolean such as `credential=true`.
 
@@ -117,6 +157,8 @@ Endpoints are reduced to their host name for display. Query parameters, embedded
 Chat diagnostics represent the **final logical request**, not every intermediate retry as a separate user-visible status.
 
 For the bounded empty-completion retry path, the final recorded metadata comes from the latest provider attempt and the detail includes the total attempt count. The retry still occurs entirely before memory, relationship changes, actions and TTS, preserving the existing no-duplicate-side-effects guarantee.
+
+Admission rejection itself does not introduce retries.
 
 ## Troubleshooting flow
 
@@ -132,13 +174,17 @@ Then read the stages in order:
 Chat configuration/runtime
 STT configuration/runtime   (for microphone input)
 TTS configuration/runtime   (when voice output is enabled)
+Admission CHAT/STT/TTS
 ```
 
 Typical interpretations:
 
 - `MISCONFIGURED` + `credential=false` — fix server-side credentials;
 - `FAILURE type=http_402` — provider account/balance problem;
-- `FAILURE type=http_429` — rate limiting; the later roadmap backpressure/cooldown layer is the next reliability milestone;
+- `FAILURE type=http_429` — the provider rate-limited the request; VillAIgence activates temporary local cooldown for that stage;
+- `FAILURE type=admission_saturated` — the configured concurrent request limit is currently full;
+- `FAILURE type=admission_player_cooldown` — the same player repeated that stage faster than the configured interval;
+- `FAILURE type=admission_provider_cooldown` — VillAIgence is still locally cooling down that stage after rate limiting;
 - `FAILURE detail=empty_response` — provider returned no usable chat content after the bounded retry policy;
 - `CONFIGURED` + `last: NEVER` — no completed request for that stage has been observed since restart;
 - TTS `DISABLED` — expected when `voiceOutputEnabled=false`.

@@ -4,8 +4,12 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.conczin.mca.livingworld.admission.AiAdmissionController;
+import net.conczin.mca.livingworld.diagnostics.AiOperation;
 import net.conczin.mca.livingworld.diagnostics.ChatDiagnosticsRecorder;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Locale;
 
 /**
  * Parses the outer OpenAI-compatible Chat Completions response envelope.
@@ -64,8 +68,24 @@ public final class ChatCompletionResponseParser {
     }
 
     private static ParsedCompletion captured(ParsedCompletion completion) {
+        if (isRateLimited(completion)) AiAdmissionController.onRateLimited(AiOperation.CHAT);
         ChatDiagnosticsRecorder.captureCompletion(completion);
         return completion;
+    }
+
+    private static boolean isRateLimited(ParsedCompletion completion) {
+        String type = normalize(completion.errorType());
+        String error = normalize(completion.error());
+        return "http_429".equals(type)
+                || "429".equals(type)
+                || type.contains("rate_limit")
+                || error.contains("http 429")
+                || error.contains("rate limit")
+                || error.contains("rate_limit");
+    }
+
+    private static String normalize(@Nullable String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
     @Nullable
@@ -90,12 +110,13 @@ public final class ChatCompletionResponseParser {
             JsonObject error = element.getAsJsonObject();
             String message = clean(readString(error.get("message")));
             String type = clean(readString(error.get("error_type")));
+            String code = clean(readString(error.get("code")));
             JsonElement metadataElement = error.get("metadata");
             if ((type == null || type.isBlank()) && metadataElement != null && metadataElement.isJsonObject()) {
                 type = clean(readString(metadataElement.getAsJsonObject().get("error_type")));
             }
+            if ((type == null || type.isBlank()) && "429".equals(code)) type = "http_429";
             if (message == null || message.isBlank()) {
-                String code = clean(readString(error.get("code")));
                 if (code != null && !code.isBlank()) message = code;
             }
             return new ErrorInfo(message, type);

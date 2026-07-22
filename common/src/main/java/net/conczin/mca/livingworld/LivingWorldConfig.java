@@ -38,6 +38,13 @@ public final class LivingWorldConfig {
     public String endpoint = "https://api.openai.com/v1/chat/completions";
     public String model = "gpt-4.1-mini";
 
+    /** Non-blocking admission limits for external AI operations. */
+    public int aiChatMaxConcurrentRequests = 4;
+    public int aiSttMaxConcurrentRequests = 2;
+    public int aiTtsMaxConcurrentRequests = 2;
+    public int aiPerPlayerCooldownMillis = 750;
+    public int aiProviderRateLimitCooldownMillis = 5_000;
+
     public boolean safeActionsEnabled = true;
 
     public boolean persistentMemoryEnabled = true;
@@ -321,6 +328,11 @@ public final class LivingWorldConfig {
         if (model == null || model.isBlank()) {
             model = "openrouter".equals(provider) ? "openai/gpt-4.1-mini" : "gpt-4.1-mini";
         }
+        aiChatMaxConcurrentRequests = Math.max(1, Math.min(64, aiChatMaxConcurrentRequests));
+        aiSttMaxConcurrentRequests = Math.max(1, Math.min(64, aiSttMaxConcurrentRequests));
+        aiTtsMaxConcurrentRequests = Math.max(1, Math.min(64, aiTtsMaxConcurrentRequests));
+        aiPerPlayerCooldownMillis = Math.max(0, Math.min(60_000, aiPerPlayerCooldownMillis));
+        aiProviderRateLimitCooldownMillis = Math.max(0, Math.min(300_000, aiProviderRateLimitCooldownMillis));
         if (persistentMemoryMaxMessages < 2) persistentMemoryMaxMessages = 16;
         if (persistentMemoryMaxCharsPerMessage < 1) persistentMemoryMaxCharsPerMessage = 1200;
         if (eventMemoryMaxEvents < 1) eventMemoryMaxEvents = 512;

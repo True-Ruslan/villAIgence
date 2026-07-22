@@ -3,6 +3,8 @@ package net.conczin.mca.server.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import net.conczin.mca.livingworld.LivingWorldConfig;
+import net.conczin.mca.livingworld.admission.AiAdmissionController;
+import net.conczin.mca.livingworld.admission.AiAdmissionSettings;
 import net.conczin.mca.livingworld.diagnostics.AiDiagnostics;
 import net.conczin.mca.livingworld.diagnostics.AiDiagnosticsConfigSnapshot;
 import net.conczin.mca.livingworld.diagnostics.AiStatusReport;
@@ -24,8 +26,10 @@ public final class VillAIgenceCommand {
     }
 
     private static int status(CommandContext<CommandSourceStack> context) {
-        AiDiagnosticsConfigSnapshot config = AiDiagnosticsConfigSnapshot.from(LivingWorldConfig.getInstance());
-        for (String line : AiStatusReport.format(config, AiDiagnostics.snapshot())) {
+        LivingWorldConfig livingWorld = LivingWorldConfig.getInstance();
+        AiDiagnosticsConfigSnapshot config = AiDiagnosticsConfigSnapshot.from(livingWorld);
+        AiAdmissionSettings settings = AiAdmissionSettings.from(livingWorld);
+        for (String line : AiStatusReport.format(config, AiDiagnostics.snapshot(), AiAdmissionController.snapshot(settings))) {
             context.getSource().sendSuccess(() -> Component.literal(line), false);
         }
         return 1;
