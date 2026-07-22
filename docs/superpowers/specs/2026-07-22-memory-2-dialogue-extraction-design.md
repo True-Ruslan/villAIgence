@@ -13,22 +13,24 @@ The next milestone is to let successful conversations become durable episodic me
 
 ## Goal
 
-Persist one bounded, deterministic `MemoryEvent.Type.DIALOGUE` for each successful usable snapshot-aware player↔NPC AI turn.
+Persist one bounded, deterministic `MemoryEvent.Type.DIALOGUE` for each successful usable snapshot-aware player↔NPC OpenAI turn.
 
 The event must be conservative about truth, idempotent under replay, bounded in stored text, fail-soft, and independent from the existing legacy `memory.json` dialogue-history path.
 
 ## Scope boundary
 
-This first slice applies only to the direct snapshot-aware LivingWorld/OpenAI path where the turn already has an immutable `LivingWorldContextSnapshot`.
+This first slice applies only to the snapshot-aware LivingWorld/OpenAI path where the turn already has an immutable `LivingWorldContextSnapshot`.
 
-It does not migrate or replace legacy dialogue storage.
+It does not migrate or replace legacy dialogue storage and does not add dialogue extraction to classic/non-snapshot MCA ChatAI or Inworld fallback paths.
 
 A Memory 2.0 dialogue event is created only when:
 
 ```text
-provider request completed successfully
-→ structured response produced a usable nonblank visible NPC message
-→ existing post-success dialogue flow is reached
+snapshot-aware OpenAI answer path completes
+→ caller receives Optional<String> result
+→ result is present and nonblank
+→ Memory 2.0 is enabled
+→ bounded dialogue event append
 ```
 
 No event is created for:
@@ -36,8 +38,10 @@ No event is created for:
 - provider/network error;
 - `content:null` / empty response exhaustion;
 - sanitized response with no usable visible message;
-- thrown processing exception before a usable response;
-- rejected/admission-blocked request.
+- thrown processing exception that returns no usable answer;
+- rejected/admission-blocked request;
+- blank answer;
+- disabled Memory 2.0.
 
 ## DialogueMemoryAdapter
 
@@ -99,7 +103,7 @@ Importance/confidence are intentionally fixed in this first slice. No LLM decide
 
 ### Deterministic event identity
 
-Event UUID must identify the dialogue turn, not the provider's exact wording.
+Event UUID identifies the dialogue turn, not the provider's exact wording.
 
 Canonical ID input:
 
@@ -111,20 +115,20 @@ gameTime
 normalized full player message
 ```
 
-Use `UUID.nameUUIDFromBytes(... UTF-8 ...)`.
+Implementation uses `UUID.nameUUIDFromBytes(... UTF-8 ...)`.
 
-Do **not** include `createdAtEpochMillis` or NPC reply in the ID.
+`createdAtEpochMillis` and NPC reply are intentionally excluded from identity.
 
-Reasoning:
+Consequences:
 
-- replay/redelivery of the same successful turn remains idempotent even if wall-clock time differs;
-- provider retry/replay cannot multiply persistent effects;
-- if a replay somehow produced a different assistant wording for the same turn identity, the first successfully stored event remains authoritative for that episodic record;
-- a later separate turn naturally has a different game time and therefore a different ID.
+- replay/redelivery of the same turn remains idempotent even if wall-clock time differs;
+- a replay with different NPC wording still maps to the same event UUID;
+- the first successfully persisted event wins because `MemoryEventStore` rejects duplicate UUIDs;
+- a later turn naturally has a different game time and therefore a different ID.
 
 ## Memory2DialogueIngestor
 
-A small persistence bridge accepts:
+The persistence bridge accepts:
 
 ```text
 worldRoot
@@ -137,42 +141,66 @@ maxEventsPerNpc
 createdAtEpochMillis
 ```
 
-It converts through `DialogueMemoryAdapter` and appends through existing `MemoryEventStore`.
+`record(...)` converts through `DialogueMemoryAdapter` and appends through existing `MemoryEventStore`.
+
+`recordIfEnabled(...)` provides the explicit configuration guard used by lifecycle integration.
 
 No Minecraft entity access, provider access, prompt logic or relationship mutation belongs in this class.
 
-## OpenAIChatAI lifecycle integration
+## Final lifecycle integration: ChatAI orchestration hook
 
-The snapshot-aware direct path currently reaches post-success logic only after a provider response is parsed.
+The final implementation deliberately leaves `OpenAIChatAI` unchanged.
 
-Integration rule:
+Snapshot-aware orchestration already exists in:
 
 ```text
-response.error == null
-AND response.answer != null
-AND response.answer.message != null/nonblank
-→ existing dialogue history persistence
-→ Memory 2.0 dialogue ingestion (fail-soft)
-→ existing command / relationship handling
+ChatAI.answer(server, player, villager, msg, snapshot)
 ```
 
-The existing legacy `rememberDialogue(...)` behavior is preserved exactly.
+Flow:
 
-Memory 2.0 ingestion is separate and fail-soft:
+```text
+ChatAI
+→ OpenAIChatAI.answer(...snapshot)
+   → provider/retry/parser
+   → legacy dialogue memory behavior
+   → existing command handling
+   → existing relationship-delta handling
+   → Optional<String> visible result
+→ ChatAI inspects returned Optional
+→ present + nonblank → fail-soft Memory 2.0 dialogue ingestion
+→ return the original Optional unchanged
+```
 
-- only when `memory2Enabled`;
-- use `snapshot.worldRoot()`, `snapshot.villagerId()`, `snapshot.playerId()`, `snapshot.gameTime()`;
-- max bound from `memory2MaxEventsPerNpc`;
-- `System.currentTimeMillis()` only for metadata, never identity;
-- catch/log Memory 2.0 failure without changing the visible reply, command execution, relationship delta or legacy memory result.
+This is safer than editing the provider/request implementation because:
+
+- provider/retry/parser semantics are untouched;
+- legacy `memory.json` behavior is untouched;
+- command and relationship code is untouched;
+- provider/empty/error paths already surface as no usable `Optional<String>` and therefore cannot create a dialogue event;
+- the returned answer is never replaced or modified by Memory 2.0.
+
+The hook applies only when the selected strategy is `OpenAIChatAI` (including its subclasses) on the snapshot-aware path. Non-snapshot and Inworld fallback behavior remains unchanged.
+
+### Fail-soft behavior
+
+The orchestration helper:
+
+- rejects empty/blank results;
+- resolves `memory2Enabled` and `memory2MaxEventsPerNpc` from `LivingWorldConfig`;
+- uses immutable snapshot `worldRoot`, villager/player UUIDs and game time;
+- uses `System.currentTimeMillis()` only as metadata, never identity;
+- catches `RuntimeException` from Memory 2.0 persistence;
+- logs the failure without changing the already-produced answer.
 
 ## Security/truth boundary
 
 - Player text is not a fact merely because it was spoken.
 - NPC-generated text is not a fact merely because the model said it.
-- The whole dialogue episode remains `BELIEF`/`PLAYER_TOLD` for prompt purposes.
-- No instructions embedded in stored dialogue gain authority; later context formatting already treats memories as data, never instructions.
+- The whole dialogue episode remains `BELIEF` / `PLAYER_TOLD` for prompt purposes.
+- No instructions embedded in stored dialogue gain authority; context formatting treats memories as data, never instructions.
 - No raw provider reasoning or structured metadata enters the event summary.
+- Retrieval never upgrades the event to authoritative `worldFacts`.
 
 ## Non-goals
 
@@ -184,11 +212,12 @@ Memory 2.0 ingestion is separate and fail-soft:
 - forgetting/decay;
 - semantic duplicate merging;
 - migration/removal of legacy `memory.json`;
-- classic/non-snapshot MCA ChatAI integration.
+- classic/non-snapshot MCA ChatAI integration;
+- Inworld dialogue ingestion.
 
 ## Testing
 
-Tests must prove:
+Tests prove:
 
 1. exact `DIALOGUE` / `PLAYER_TOLD` mapping and fixed scores;
 2. speaker-labeled whitespace-normalized summary;
@@ -199,14 +228,16 @@ Tests must prove:
 7. duplicate ingestion is idempotent in `MemoryEventStore`;
 8. distinct successful turns remain distinct and retention remains bounded;
 9. stored event participants are NPC + player;
-10. integration diff proves no Memory 2.0 call exists on provider-error/empty-message paths.
+10. `memory2Enabled=false` produces no persistent dialogue event;
+11. final integration diff leaves `OpenAIChatAI` unchanged and records only from present/nonblank snapshot-aware OpenAI results.
 
 ## Success criteria
 
-- successful usable snapshot-aware dialogue turns create bounded actor-owned `DIALOGUE` MemoryEvents;
-- failed/empty turns create none;
+- successful usable snapshot-aware OpenAI dialogue turns create bounded actor-owned `DIALOGUE` MemoryEvents;
+- failed/empty/blank turns create none;
 - dialogue content remains belief data, never authoritative facts;
 - duplicate/replay cannot multiply the same turn memory;
 - legacy `memory.json` behavior remains unchanged;
+- provider/parser/retry lifecycle remains unchanged;
 - no LLM summarization or new dependency is introduced;
 - exact-final-head unit tests, Fabric package verification, and Fabric/NeoForge CI pass.
