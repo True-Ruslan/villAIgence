@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.conczin.mca.livingworld.diagnostics.ChatDiagnosticsRecorder;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -18,17 +19,17 @@ public final class ChatCompletionResponseParser {
 
     public static ParsedCompletion parse(String body) {
         if (body == null || body.isBlank()) {
-            return new ParsedCompletion(null, "AI provider returned an empty response body", "empty_response", null, null, false);
+            return captured(new ParsedCompletion(null, "AI provider returned an empty response body", "empty_response", null, null, false));
         }
 
         JsonElement rootElement;
         try {
             rootElement = JsonParser.parseString(body);
         } catch (RuntimeException e) {
-            return new ParsedCompletion(null, "AI provider returned invalid JSON", "invalid_json", null, null, false);
+            return captured(new ParsedCompletion(null, "AI provider returned invalid JSON", "invalid_json", null, null, false));
         }
         if (!rootElement.isJsonObject()) {
-            return new ParsedCompletion(null, "AI provider returned a non-object JSON response", "invalid_response", null, null, false);
+            return captured(new ParsedCompletion(null, "AI provider returned a non-object JSON response", "invalid_response", null, null, false));
         }
 
         JsonObject root = rootElement.getAsJsonObject();
@@ -52,14 +53,19 @@ public final class ChatCompletionResponseParser {
         if (content != null && content.isBlank()) content = null;
         boolean reasoningPresent = hasReasoning(message);
 
-        return new ParsedCompletion(
+        return captured(new ParsedCompletion(
                 content,
                 error.message(),
                 error.errorType(),
                 finishReason,
                 generationId,
                 reasoningPresent
-        );
+        ));
+    }
+
+    private static ParsedCompletion captured(ParsedCompletion completion) {
+        ChatDiagnosticsRecorder.captureCompletion(completion);
+        return completion;
     }
 
     @Nullable
