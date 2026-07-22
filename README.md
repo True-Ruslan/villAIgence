@@ -1,12 +1,28 @@
-# LivingWorld — AI-powered Minecraft Comes Alive fork
+# VillAIgence
 
-LivingWorld is an experimental fork of **Minecraft Comes Alive Reborn (MCA)** for **Minecraft 1.21.1 / Fabric**. It keeps MCA's villagers, relationships and family systems, and adds server-driven AI conversations, microphone input, persistent memory, factual world context, bounded social state and safe NPC actions.
+**Vill-AI-gence** — *Giving villagers a mind of their own.*
 
-> **Alpha software:** back up your world before installing or updating.
+VillAIgence is an AI-driven Minecraft mod built on **Minecraft Comes Alive Reborn (MCA)** for **Minecraft 1.21.1**. It keeps MCA's human-like villagers, families and relationship systems, then adds persistent AI conversations, microphone input, memory, world context, social state, stable NPC voices and safe server-authoritative actions.
+
+`LivingWorld` remains the name of the internal AI/living-world engine and its compatibility-sensitive paths. The public mod is **VillAIgence**.
+
+> **Experimental software:** back up your world before installing or updating.
+
+## What VillAIgence adds
+
+- AI conversations with individual NPCs;
+- microphone → STT → NPC AI → text and optional spatial TTS;
+- persistent dialogue memory;
+- factual world-event context;
+- trust, respect, fear and affinity;
+- stable per-NPC voices based on UUID, gender and age pools;
+- mood-aware voice delivery;
+- safe whitelisted NPC actions;
+- server-only API credentials.
 
 ## Quick install
 
-### Required on both server and client
+### Required on server and client
 
 | Component | Requirement |
 |---|---|
@@ -14,103 +30,63 @@ LivingWorld is an experimental fork of **Minecraft Comes Alive Reborn (MCA)** fo
 | Java | **21** |
 | Fabric Loader | compatible with Minecraft 1.21.1 |
 | Fabric API | compatible with Minecraft 1.21.1 |
-| LivingWorld | the same release JAR on server and clients |
+| VillAIgence | the same release JAR on server and clients |
 | Simple Voice Chat | **2.6.20 or newer** |
 
-Download LivingWorld from this repository's **GitHub Releases** page.
+Download VillAIgence from this repository's **GitHub Releases** page.
 
-**Do not install the original MCA Reborn JAR together with LivingWorld.** This fork keeps MCA's internal mod id `mca`, so the original mod and this fork cannot be loaded at the same time.
+**Do not install original MCA Reborn together with VillAIgence.** For compatibility, VillAIgence intentionally keeps MCA's internal mod id `mca`, so both JARs cannot be loaded at the same time.
 
 ## Server setup
 
-1. **Back up the Minecraft world.**
-2. Install Fabric for Minecraft 1.21.1 and run the server with **Java 21**.
-3. Put these files into the server `mods/` folder:
-   - LivingWorld release JAR;
+1. Back up the Minecraft world.
+2. Install Fabric for Minecraft 1.21.1 and run the server with Java 21.
+3. Put into the server `mods/` directory:
+   - VillAIgence release JAR;
    - Fabric API;
    - Simple Voice Chat 2.6.20+.
-4. Remove the original MCA Reborn JAR if it is present.
-5. Start the server once, then stop it. LivingWorld creates `config/livingworld.json`.
-6. Configure the AI API key on the **server only**.
+4. Remove the original MCA Reborn JAR if present.
+5. Start the server once, then stop it. The internal LivingWorld engine creates `config/livingworld.json`.
+6. Configure AI credentials on the **server only**.
 
-For OpenAI:
+OpenAI:
 
 ```bash
 export OPENAI_API_KEY="your-api-key"
 ```
 
-For OpenRouter:
+OpenRouter:
 
 ```bash
 export OPENROUTER_API_KEY="sk-or-v1-..."
 ```
 
-Secrets may also be placed in `config/livingworld.json`, but environment variables are recommended for production servers. Never commit a real key to Git or distribute it in a modpack.
+Keys may also be configured in `config/livingworld.json`, but environment variables are preferred. Never commit real credentials or distribute them in a client modpack.
 
 7. Start the server again.
 
-## Recommended: microphone input, text-only NPC answers
-
-This mode avoids TTS requests and synthesis cost:
-
-```text
-player microphone → OpenRouter STT → LivingWorld NPC AI → text in Minecraft chat
-```
-
-Set the following values in `config/livingworld.json`:
-
-```json
-{
-  "version": 2,
-  "provider": "openrouter",
-  "endpoint": "https://openrouter.ai/api/v1/chat/completions",
-  "model": "your-chat-model-slug",
-  "voiceInputEnabled": true,
-  "voiceOutputEnabled": false,
-  "sttEndpoint": "https://openrouter.ai/api/v1/audio/transcriptions",
-  "sttModel": "openai/gpt-4o-mini-transcribe",
-  "sttRequestFormat": "json_base64",
-  "sttLanguage": "ru"
-}
-```
-
-`sttRequestFormat="auto"` is also valid and automatically selects JSON/Base64 for an `openrouter.ai` endpoint.
-
-OpenRouter STT is paid usage. HTTP `402 Payment Required` means the OpenRouter account has no usable credits; add balance and retry. No TTS request is made while `voiceOutputEnabled=false`.
-
 ## Client setup
 
-Each player installs into the client `mods/` folder:
+Each player installs:
 
-- the **same LivingWorld JAR** as the server;
+- the same VillAIgence JAR as the server;
 - Fabric API;
 - Simple Voice Chat 2.6.20+.
 
-Remove the original MCA Reborn JAR from the client as well.
+Remove original MCA Reborn from the client as well.
 
-**Clients do not need an OpenAI/OpenRouter key and do not need any separate AI application.**
+Clients do **not** need OpenAI/OpenRouter keys or a separate AI application.
 
-Simple Voice Chat remains required on clients even when NPC speech output is disabled because LivingWorld uses it to capture and transport microphone audio.
-
-## Talking to an NPC by microphone
-
-1. Interact normally with an MCA villager to select that NPC as the current conversation target.
-2. Look toward the villager.
-3. Hold the normal Simple Voice Chat push-to-talk key and speak.
-4. Stop speaking briefly; LivingWorld sends the utterance through STT and NPC AI.
-5. The NPC answer appears in the existing MCA conversation/chat UI.
-6. When `voiceOutputEnabled=true`, the same answer is additionally synthesized and played spatially from the NPC.
-
-Normal player-to-player voice chat continues to work normally. Ambient voice is not intentionally sent to the AI unless an NPC has been selected and the server validates the conversation target.
-
-## Voice switches
-
-| Setting | Effect |
-|---|---|
-| `voiceInputEnabled` | Captures microphone speech and runs STT |
-| `voiceOutputEnabled` | Runs TTS and spatially plays NPC speech |
+## Voice modes
 
 Recommended low-cost mode:
+
+```text
+player microphone
+→ STT
+→ VillAIgence NPC AI
+→ clean text reply
+```
 
 ```json
 {
@@ -119,7 +95,17 @@ Recommended low-cost mode:
 }
 ```
 
-Full voice dialogue:
+Full voice mode:
+
+```text
+player microphone
+→ STT
+→ NPC AI
+→ clean text reply
+→ persistent NPC voice + mood
+→ TTS
+→ spatial voice from the NPC
+```
 
 ```json
 {
@@ -128,15 +114,33 @@ Full voice dialogue:
 }
 ```
 
-### Persistent NPC voices
+`voiceOutputEnabled=false` remains the default.
 
-When TTS is enabled, LivingWorld assigns each NPC a stable voice profile based on its UUID, MCA gender and age group. Children, teens and adults use separate configurable voice pools where possible. The selected voice is persisted in `<world>/livingworld/voices.json`, so changing the chat/LLM model does **not** change an NPC's voice.
+## Talking to an NPC
 
-Mood changes delivery style, not voice identity. LivingWorld derives mood from server-owned state such as panic, health and relationship state. TTS providers/models that support richer style instructions use them; older models safely fall back to supported controls such as speaking speed.
+1. Interact with an MCA villager to select it.
+2. Look toward the selected NPC.
+3. Hold the normal Simple Voice Chat push-to-talk key and speak.
+4. Stop speaking; VillAIgence segments the utterance and sends it to STT.
+5. The selected NPC receives the recognized text and generates a response.
+6. The clean response appears in the MCA conversation UI.
+7. When TTS is enabled, the same response is played spatially from that NPC.
 
-## What is stored on the server
+Normal player-to-player Simple Voice Chat traffic remains unaffected.
 
-LivingWorld keeps its persistent world data under the Minecraft world directory:
+## Persistent NPC voices
+
+VillAIgence assigns each NPC a stable voice identity based on its UUID, MCA gender and age bucket. The profile is stored in:
+
+```text
+<world>/livingworld/voices.json
+```
+
+Changing the chat/LLM model does not change an NPC's persisted voice. Mood affects delivery style, not voice identity.
+
+## Server-side data
+
+The internal LivingWorld engine stores persistent data under:
 
 ```text
 <world>/livingworld/
@@ -146,9 +150,38 @@ LivingWorld keeps its persistent world data under the Minecraft world directory:
 └── voices.json
 ```
 
-Back these files up together with the world.
+Compatibility-sensitive paths intentionally keep the `livingworld` name. They are **not** renamed by the VillAIgence rebrand, so existing worlds and configs continue to work without migration.
 
-API keys stay server-side. Raw microphone audio is processed in memory and is not intentionally stored by LivingWorld.
+Configuration remains:
+
+```text
+config/livingworld.json
+```
+
+API keys remain server-side. Raw microphone and synthesized audio are processed in memory and are not intentionally persisted.
+
+## OpenRouter voice example
+
+VillAIgence supports OpenRouter STT and raw PCM TTS. For TTS, `ttsResponseFormat="auto"` resolves OpenRouter endpoints to PCM and other OpenAI-compatible endpoints to WAV.
+
+See:
+
+- [Configuration](docs/livingworld/CONFIGURATION.md)
+- [Voice, STT and TTS](docs/livingworld/VOICE.md)
+
+## Compatibility identity
+
+VillAIgence is a new public product built on MCA, but this release deliberately preserves these internals:
+
+```text
+mod id:            mca
+Java namespace:    net.conczin.mca
+config:            config/livingworld.json
+world data:        <world>/livingworld/
+internal engine:   LivingWorld
+```
+
+This prevents a branding change from becoming a breaking world/config migration.
 
 ## Common problems
 
@@ -157,54 +190,51 @@ API keys stay server-side. Raw microphone audio is processed in memory and is no
 Check that:
 
 - Minecraft is exactly 1.21.1;
-- the server runs Java 21;
+- Java 21 is used;
 - Fabric API is installed;
 - Simple Voice Chat 2.6.20+ is installed;
-- the original MCA Reborn JAR is not installed alongside LivingWorld.
+- original MCA Reborn is not installed alongside VillAIgence.
 
 ### NPC AI does not answer
 
-Check `config/livingworld.json`, `OPENAI_API_KEY` or `OPENROUTER_API_KEY`, then inspect the dedicated server log for the provider error.
+Check `config/livingworld.json`, `OPENAI_API_KEY` / `OPENROUTER_API_KEY`, then inspect the dedicated server log.
 
-### OpenRouter STT returns HTTP 402
+### OpenRouter returns HTTP 402
 
-The request format is valid, but the OpenRouter account needs credits. Add balance in OpenRouter and retry. Free-tier chat availability does not guarantee free speech-to-text usage.
+The account does not have enough usable credits for the selected speech request/model. Free chat models do not imply free STT/TTS.
 
 ### Text works, but microphone input does not
 
-Check that:
+Check:
 
 - `voiceInputEnabled=true`;
-- Simple Voice Chat is installed and connected on both server and client;
-- the player interacted with the NPC and is looking toward it;
-- the STT endpoint/model/key are configured.
+- Simple Voice Chat is connected on server and client;
+- the NPC was selected and is still the active target;
+- STT endpoint/model/key are valid.
 
-### Text appears, but the NPC is silent
+### Text works, but NPC is silent
 
-This is expected when `voiceOutputEnabled=false`. Enable it only when TTS and its cost are desired. For an OpenAI TTS endpoint, configure `OPENAI_API_KEY` or a dedicated `ttsApiKey` even when chat uses OpenRouter.
+Check:
 
-### Server and client report mod mismatch
+- `voiceOutputEnabled=true`;
+- TTS endpoint/model/key are valid;
+- voice pools contain IDs supported by the selected TTS provider;
+- `ttsResponseFormat` matches the endpoint (`auto` is recommended).
 
-Use the same LivingWorld release JAR on both sides and remove any second/original MCA JAR.
+Text replies are intentionally published before TTS, so a TTS failure does not remove the NPC's text response.
 
-## Advanced configuration
+## Documentation
 
-Additional documentation:
-
-- [LivingWorld configuration](docs/livingworld/CONFIGURATION.md)
-- [Voice and STT modes](docs/livingworld/VOICE.md)
+- [Configuration](docs/livingworld/CONFIGURATION.md)
+- [Voice and STT/TTS](docs/livingworld/VOICE.md)
 - [Persistent memory](docs/livingworld/MEMORY.md)
 - [Factual events](docs/livingworld/EVENTS.md)
 - [Relationships](docs/livingworld/RELATIONSHIPS.md)
 - [Release process](docs/RELEASING.md)
 
----
-
 ## About Minecraft Comes Alive Reborn
 
-Minecraft Comes Alive replaces vanilla villagers with human-like NPCs. Villagers can be interacted with, build relationships, marry, have children, manage villages and participate in the broader MCA simulation.
-
-LivingWorld is built on the work of the original **Minecraft Comes Alive Reborn** project and remains licensed under **GPL-3.0**.
+VillAIgence is built on **Minecraft Comes Alive Reborn**, whose villagers, families, relationships, rendering and simulation provide the foundation for this project.
 
 Upstream project:
 
@@ -212,28 +242,14 @@ Upstream project:
 - [MCA Reborn on Modrinth](https://modrinth.com/mod/minecraft-comes-alive-reborn)
 - [MCA Reborn on CurseForge](https://www.curseforge.com/minecraft/mc-mods/minecraft-comes-alive-reborn)
 
-The Modrinth and CurseForge links above refer to the **original MCA Reborn project**, not to LivingWorld releases from this fork.
+The Modrinth and CurseForge links above refer to the **original MCA Reborn project**, not VillAIgence releases.
 
-## Compatibility
-
-MCA is generally compatible with other mods, though item recognition, villager interaction hooks, rendering and pathfinding can vary between modpacks. LivingWorld-specific compatibility findings are tracked separately in this fork.
+VillAIgence remains licensed under **GPL-3.0** and retains attribution to MCA Reborn and its contributors.
 
 ## Contributing
 
-Contributions are welcome. Keep changes scoped, test Fabric 1.21.1 behavior and preserve server authority around AI actions and persistent data.
+Keep changes scoped, test Fabric/NeoForge behavior where relevant, preserve server authority around AI actions/data, and do not change compatibility-sensitive `mca`/`livingworld` identities without an explicit migration design.
 
 ## Credits
 
-LivingWorld builds on Minecraft Comes Alive Reborn and the work of its contributors, including:
-
-- Cleora
-- WildBamaBoy
-- SheWolfDeadly
-- ntzrmtthihu777
-- ko2fan
-- Akjosch
-- Innectic
-- Sollace
-- CDAGaming
-- Luke100000
-- and the many MCA contributors listed in [`contributors.json`](resources/assets/mca/api/supporters/contributors.json).
+VillAIgence builds on Minecraft Comes Alive Reborn and the work of its contributors, including Cleora, WildBamaBoy, SheWolfDeadly, ntzrmtthihu777, ko2fan, Akjosch, Innectic, Sollace, CDAGaming, Luke100000 and the many MCA contributors listed in [`contributors.json`](resources/assets/mca/api/supporters/contributors.json).
