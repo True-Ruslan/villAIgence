@@ -17,7 +17,6 @@ import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.knowledge.WorldEvent;
 import net.conczin.mca.livingworld.knowledge.WorldEventStore;
 import net.conczin.mca.livingworld.memory2.Memory2ContextProvider;
-import net.conczin.mca.livingworld.memory2.MemoryContextFormatter;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipActionPolicy;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipState;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipStore;
@@ -89,9 +88,6 @@ public final class LivingWorldContextCapture {
                 player.getUUID(),
                 gameTime
         );
-        String memoryPromptSection = MemoryContextFormatter.promptSection(memoryContext);
-        if (!memoryPromptSection.isEmpty()) context.add(memoryPromptSection);
-
         LivingWorldRelationshipState relationshipState = loadRelationshipState(livingWorld, worldFacts, worldRoot, villager, player);
 
         List<LivingWorldContextSnapshot.ActionDescriptor> actions = Config.getInstance().villagerChatAIUseTools
