@@ -86,7 +86,7 @@ Idempotent event IDs preserve the project rule that retries/replays must not mul
 
 ## Deterministic retrieval/ranking
 
-The second Memory 2.0 slice adds `MemoryQuery`, `MemoryRetriever`, and inspectable `RankedMemory` results above persistence.
+`MemoryQuery`, `MemoryRetriever`, and inspectable `RankedMemory` results provide a deterministic bounded layer above persistence.
 
 Retrieval flow:
 
@@ -124,7 +124,7 @@ Rules:
 
 ### Relevance
 
-This slice intentionally uses only explicit structured signals.
+This layer intentionally uses only explicit structured signals.
 
 For each specified dimension:
 
@@ -149,11 +149,11 @@ age >= horizon  → 0
 otherwise        → linear 100..0
 ```
 
-Wall-clock creation time remains metadata and is used only as a late deterministic tie-break in this slice.
+Wall-clock creation time remains metadata and is used only as a late deterministic tie-break in this layer.
 
 ### Ranking weights
 
-Fixed first-policy weights:
+Fixed current-policy weights:
 
 ```text
 relevance  40%
@@ -183,7 +183,7 @@ importanceScore
 confidenceScore
 ```
 
-This allows tests and future diagnostics to explain why a memory ranked highly without relying on hidden model reasoning.
+This makes ranking explainable without hidden model reasoning.
 
 ### Stable tie-breaking
 
@@ -202,13 +202,74 @@ Equal memories are ordered by:
 
 The final UUID tie-break makes ordering stable across JVM runs.
 
+## Authoritative safe-action ingestion
+
+The first production ingestion path uses only an already server-authoritative event source.
+
+Lifecycle:
+
+```text
+whitelisted NPC action succeeds on the server
+→ WorldEventRecorder creates SYSTEM_OBSERVED WorldEvent
+→ events.json persistence succeeds
+→ same WorldEvent is converted to actor-owned MemoryEvent
+→ memory2.json append
+```
+
+Memory 2.0 ingestion never happens before the source factual event is accepted.
+
+If Memory 2.0 persistence fails, the already successful gameplay action and factual `events.json` record remain valid. The secondary memory failure is logged separately and fails soft.
+
+### Mapping
+
+For `WorldEvent.Type.NPC_ACTION` with `SYSTEM_OBSERVED` provenance and a valid actor:
+
+```text
+MemoryEvent.id                   = WorldEvent.id
+MemoryEvent.ownerNpcId           = WorldEvent.actorId
+MemoryEvent.type                 = ACTION
+MemoryEvent.summary              = WorldEvent.description
+MemoryEvent.participants         = actorId + subjectId when present
+MemoryEvent.provenance           = SYSTEM_OBSERVED
+MemoryEvent.gameTime             = WorldEvent.gameTime
+MemoryEvent.createdAtEpochMillis = ingestion timestamp
+MemoryEvent.importance           = 60
+MemoryEvent.emotionalWeight      = 0
+MemoryEvent.confidence           = 100
+MemoryEvent.relationshipReasons  = []
+```
+
+Reusing the source `WorldEvent.id` gives natural idempotency: replaying/redelivering the same source event cannot create another copy in the same NPC memory bucket.
+
+Only the acting NPC owns this memory in the current slice. Nearby NPCs do not automatically remember or learn the event; NPC-to-NPC knowledge propagation belongs to later roadmap work.
+
+### Configuration
+
+```json
+{
+  "memory2Enabled": true,
+  "memory2MaxEventsPerNpc": 256
+}
+```
+
+- `memory2Enabled=false` disables secondary Memory 2.0 ingestion while leaving existing factual `events.json` behavior controlled separately by `eventMemoryEnabled`;
+- `memory2MaxEventsPerNpc` is normalized to `1..512`;
+- config version remains `2`; existing version-2 configs require no migration.
+
+## Relationship reasons are deliberately deferred
+
+The current relationship path applies bounded numeric LLM-proposed deltas for `trust`, `respect`, `fear`, and `affinity`.
+
+It does **not** currently carry a separately server-validated reason explaining why that change occurred.
+
+Therefore VillAIgence does not invent a relationship reason or promote an LLM explanation to authoritative memory. A dedicated future contract must define reason provenance before `RELATIONSHIP_CHANGE` memories can safely store reasons.
+
 ## Not integrated yet
 
 Memory 2.0 still does not automatically:
 
-- convert dialogue into durable events;
-- convert authoritative world events into per-NPC memories;
-- persist explicit relationship-change reasons from gameplay;
+- convert dialogue into durable episodic events;
+- persist validated relationship-change reasons;
 - inject ranked memories into AI prompts;
 - migrate legacy `memory.json` history;
 - perform LLM summarization/consolidation;
@@ -219,16 +280,16 @@ Memory 2.0 still does not automatically:
 
 ## Next recommended slice
 
-Add controlled server-owned adapters:
+With persistence, deterministic retrieval, and the first authoritative ingestion path in place, the next high-value slice is **bounded context integration**:
 
 ```text
-authoritative WorldEvent
-→ SYSTEM_OBSERVED MemoryEvent
-
-explicit server-approved relationship reason
-→ RELATIONSHIP_CHANGE MemoryEvent
+immutable NPC snapshot
++ MemoryQuery
+→ MemoryRetriever
+→ small bounded ranked memory set
+→ explicitly labeled memory/belief context for the NPC turn
 ```
 
-Those adapters must preserve provenance, deterministic IDs/idempotency, and per-NPC ownership.
+The context formatter must preserve provenance labels so claims remain distinguishable from `SYSTEM_OBSERVED` facts.
 
-Only after authoritative inputs can enter Memory 2.0 safely should bounded ranked memories be injected into NPC context. Dialogue extraction, consolidation/summarization, forgetting/decay and migration remain later slices.
+Dialogue extraction, relationship-reason provenance, consolidation/summarization, forgetting/decay and migration should remain separate later slices.
