@@ -67,7 +67,7 @@ public final class MCAFabric implements ModInitializer {
             } else {
                 PayloadTypeRegistry.playS2C().register(type, codec);
                 if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
-                    ClientProxy.register(type, codec);
+                    ClientProxy.register(type);
                 }
             }
         }
@@ -154,7 +154,7 @@ public final class MCAFabric implements ModInitializer {
     }
 
     private static final class ClientProxy {
-        public static <T extends HandleablePayload> void register(HandleablePayload.Type<T> type, StreamCodec<? super RegistryFriendlyByteBuf, T> codec) {
+        public static <T extends HandleablePayload> void register(HandleablePayload.Type<T> type) {
             ClientPlayNetworking.registerGlobalReceiver(type, (payload, ctx) -> ctx.client().execute(() -> payload.handle(ctx.player())));
         }
     }
