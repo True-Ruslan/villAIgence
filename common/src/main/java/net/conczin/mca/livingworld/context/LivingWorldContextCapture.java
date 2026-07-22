@@ -16,6 +16,7 @@ import net.conczin.mca.entity.ai.relationship.AgeState;
 import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.knowledge.WorldEvent;
 import net.conczin.mca.livingworld.knowledge.WorldEventStore;
+import net.conczin.mca.livingworld.memory2.Memory2ContextProvider;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipActionPolicy;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipState;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipStore;
@@ -80,6 +81,13 @@ public final class LivingWorldContextCapture {
         }
 
         addRecentEventFacts(worldFacts, worldRoot, dimension, position, gameTime);
+        List<String> memoryContext = loadMemory2Context(
+                livingWorld,
+                worldRoot,
+                villager.getUUID(),
+                player.getUUID(),
+                gameTime
+        );
         LivingWorldRelationshipState relationshipState = loadRelationshipState(livingWorld, worldFacts, worldRoot, villager, player);
 
         List<LivingWorldContextSnapshot.ActionDescriptor> actions = Config.getInstance().villagerChatAIUseTools
@@ -101,6 +109,7 @@ public final class LivingWorldContextCapture {
                 villager.getName().getString(),
                 context,
                 worldFacts,
+                memoryContext,
                 actions,
                 player.serverLevel().getSeed(),
                 gameTime,
@@ -109,6 +118,22 @@ public final class LivingWorldContextCapture {
                 Relationship.IS_RELATIVE.test(villager, player),
                 MCA.language
         );
+    }
+
+    private static List<String> loadMemory2Context(
+            LivingWorldConfig config,
+            Path worldRoot,
+            java.util.UUID villagerId,
+            java.util.UUID playerId,
+            long gameTime
+    ) {
+        if (!config.memory2Enabled) return List.of();
+        try {
+            return Memory2ContextProvider.load(worldRoot, villagerId, playerId, gameTime);
+        } catch (RuntimeException e) {
+            MCA.LOGGER.warn("Unable to load bounded Memory 2.0 context for villager {} and player {}", villagerId, playerId, e);
+            return List.of();
+        }
     }
 
     private static LivingWorldRelationshipState loadRelationshipState(
