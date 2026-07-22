@@ -28,7 +28,7 @@ class MemoryContextFormatterTest {
         List<String> lines = MemoryContextFormatter.format(List.of(verified, belief));
 
         assertTrue(lines.get(0).startsWith("VERIFIED | provenance=SYSTEM_OBSERVED | type=ACTION | confidence=100 | summary=\""));
-        assertTrue(lines.get(0).contains("First line Second \\"quoted\\" \\\\ path value"));
+        assertTrue(lines.get(0).contains("First line Second \\\"quoted\\\" \\\\ path value"));
         assertFalse(lines.get(0).contains("\n"));
         assertFalse(lines.get(0).contains("\t"));
 
