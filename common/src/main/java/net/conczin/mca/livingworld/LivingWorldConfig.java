@@ -57,6 +57,10 @@ public final class LivingWorldConfig {
     public double eventContextRadius = 32.0D;
     public int eventContextMaxEvents = 8;
 
+    /** Memory 2.0 ingestion of authoritative server-observed events. */
+    public boolean memory2Enabled = true;
+    public int memory2MaxEventsPerNpc = 256;
+
     public boolean relationshipStateEnabled = true;
     public int relationshipMaxDeltaPerTurn = 2;
 
@@ -339,6 +343,7 @@ public final class LivingWorldConfig {
         if (eventMemoryMaxAgeTicks < 1L) eventMemoryMaxAgeTicks = 72_000L;
         if (eventContextRadius < 0.0D) eventContextRadius = 32.0D;
         if (eventContextMaxEvents < 1) eventContextMaxEvents = 8;
+        memory2MaxEventsPerNpc = Math.max(1, Math.min(512, memory2MaxEventsPerNpc));
         if (relationshipMaxDeltaPerTurn < 0) relationshipMaxDeltaPerTurn = 2;
         if (sttApiKey == null) sttApiKey = "";
         sttRequestFormat = SttRequestFormat.parse(sttRequestFormat).configValue();
