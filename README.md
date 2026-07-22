@@ -193,9 +193,11 @@ Server operators can inspect current AI configuration readiness and the latest r
 
 The command is read-only. It does **not** call a provider, spend tokens/credits, retry a request or mutate NPC/world state. It reports only safe operational metadata such as configured provider/model/endpoint host, stage state, duration, controlled error type, chat `finish_reason`, generation ID and attempt count where available.
 
+It also shows process-local non-blocking admission/backpressure metrics for Chat, STT and TTS: current `active/max`, total locally rejected requests and remaining provider cooldown after detected rate limiting. VillAIgence rejects overload immediately instead of blocking the Minecraft server thread or building an unbounded AI queue. A locally rejected request does not call the external provider, and TTS backpressure never removes an already-published valid text reply.
+
 API keys, Authorization headers, prompts, transcripts, NPC answers, TTS input, reasoning content and raw provider payloads are never intentionally included in the status surface. `last: NEVER` means no completed operation for that stage has been observed since the current server process started.
 
-See [AI diagnostics](docs/livingworld/DIAGNOSTICS.md) for the full interpretation guide.
+See [AI diagnostics](docs/livingworld/DIAGNOSTICS.md) and [Configuration](docs/livingworld/CONFIGURATION.md) for the full interpretation and tuning guide.
 
 ## Common problems
 
@@ -235,7 +237,7 @@ Check:
 - voice pools contain IDs supported by the selected TTS provider;
 - `ttsResponseFormat` matches the endpoint (`auto` is recommended).
 
-Text replies are intentionally published before TTS, so a TTS failure does not remove the NPC's text response.
+Text replies are intentionally published before TTS, so a TTS failure or local TTS admission rejection does not remove the NPC's text response.
 
 ## Documentation
 
