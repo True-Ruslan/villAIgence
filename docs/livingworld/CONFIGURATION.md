@@ -160,7 +160,9 @@ For the default OpenAI speech endpoint, TTS credential priority is:
 
 1. `OPENAI_API_KEY`;
 2. `ttsApiKey`;
-3. the resolved main provider key.
+3. the resolved main provider key **only when the main provider is also `openai`**.
+
+If chat uses OpenRouter and neither `OPENAI_API_KEY` nor `ttsApiKey` is configured, OpenAI TTS is treated as not configured. The OpenRouter key is never sent to the OpenAI speech endpoint.
 
 For a custom/non-OpenAI TTS endpoint:
 
