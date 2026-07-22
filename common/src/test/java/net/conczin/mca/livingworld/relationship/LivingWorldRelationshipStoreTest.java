@@ -9,6 +9,8 @@ import java.nio.file.Path;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LivingWorldRelationshipStoreTest {
     @TempDir
@@ -45,6 +47,74 @@ class LivingWorldRelationshipStoreTest {
         }
 
         assertEquals(new LivingWorldRelationshipState(100, -100, 100, -100), store.get(villager, player));
+    }
+
+    @Test
+    void reportsExactPersistedBeforeAfterAndAppliedDelta() {
+        UUID villager = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        LivingWorldRelationshipStore store = new LivingWorldRelationshipStore(tempDir.resolve("relationships.json"));
+        store.applyDelta(villager, player, new LivingWorldRelationshipDelta(10, 4, 1, 7), 100);
+
+        LivingWorldRelationshipChange change = store.applyDeltaWithResult(
+                villager,
+                player,
+                new LivingWorldRelationshipDelta(2, -1, -1, 1),
+                5
+        );
+
+        assertEquals(new LivingWorldRelationshipState(10, 4, 1, 7), change.before());
+        assertEquals(new LivingWorldRelationshipState(12, 3, 0, 8), change.after());
+        assertEquals(new LivingWorldRelationshipDelta(2, -1, -1, 1), change.appliedDelta());
+        assertTrue(change.changed());
+        assertEquals(change.after(), store.get(villager, player));
+    }
+
+    @Test
+    void reportsActualAppliedDeltaAfterRelationshipBounds() {
+        UUID villager = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        LivingWorldRelationshipStore store = new LivingWorldRelationshipStore(tempDir.resolve("relationships.json"));
+        store.applyDelta(villager, player, new LivingWorldRelationshipDelta(99, -99, 0, 0), 100);
+
+        LivingWorldRelationshipChange change = store.applyDeltaWithResult(
+                villager,
+                player,
+                new LivingWorldRelationshipDelta(5, -5, 3, 0),
+                5
+        );
+
+        assertEquals(new LivingWorldRelationshipState(99, -99, 0, 0), change.before());
+        assertEquals(new LivingWorldRelationshipState(100, -100, 3, 0), change.after());
+        assertEquals(new LivingWorldRelationshipDelta(1, -1, 3, 0), change.appliedDelta());
+        assertTrue(change.changed());
+    }
+
+    @Test
+    void saturatedNoOpReportsUnchangedAndPreservesCompatibilityMethod() {
+        UUID villager = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        LivingWorldRelationshipStore store = new LivingWorldRelationshipStore(tempDir.resolve("relationships.json"));
+        LivingWorldRelationshipState saturated = store.applyDelta(
+                villager,
+                player,
+                new LivingWorldRelationshipDelta(100, -100, 0, 0),
+                100
+        );
+
+        assertEquals(new LivingWorldRelationshipState(100, -100, 0, 0), saturated);
+
+        LivingWorldRelationshipChange change = store.applyDeltaWithResult(
+                villager,
+                player,
+                new LivingWorldRelationshipDelta(5, -5, 0, 0),
+                5
+        );
+
+        assertEquals(saturated, change.before());
+        assertEquals(saturated, change.after());
+        assertEquals(LivingWorldRelationshipDelta.NONE, change.appliedDelta());
+        assertFalse(change.changed());
     }
 
     @Test

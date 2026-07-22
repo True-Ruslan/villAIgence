@@ -47,15 +47,26 @@ public final class LivingWorldRelationshipStore {
             LivingWorldRelationshipDelta proposed,
             int maxDeltaPerTurn
     ) {
-        if (villagerId == null || playerId == null || proposed == null) return get(villagerId, playerId);
-        String key = key(villagerId, playerId);
-        LivingWorldRelationshipState current = data.relationships.getOrDefault(key, LivingWorldRelationshipState.NEUTRAL);
-        LivingWorldRelationshipState updated = current.apply(proposed, maxDeltaPerTurn);
-        if (!updated.equals(current)) {
-            data.relationships.put(key, updated);
+        return applyDeltaWithResult(villagerId, playerId, proposed, maxDeltaPerTurn).after();
+    }
+
+    public synchronized LivingWorldRelationshipChange applyDeltaWithResult(
+            UUID villagerId,
+            UUID playerId,
+            LivingWorldRelationshipDelta proposed,
+            int maxDeltaPerTurn
+    ) {
+        LivingWorldRelationshipState before = get(villagerId, playerId);
+        if (villagerId == null || playerId == null || proposed == null) {
+            return LivingWorldRelationshipChange.between(before, before);
+        }
+
+        LivingWorldRelationshipState after = before.apply(proposed, maxDeltaPerTurn);
+        if (!after.equals(before)) {
+            data.relationships.put(key(villagerId, playerId), after);
             save();
         }
-        return updated;
+        return LivingWorldRelationshipChange.between(before, after);
     }
 
     private RelationshipFile load() {

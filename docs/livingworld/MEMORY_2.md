@@ -286,7 +286,7 @@ snapshot-aware ChatAI.answer(...)
 → original Optional returned unchanged
 ```
 
-`OpenAIChatAI` itself is not modified by this integration. Provider/retry/parser behavior, legacy `memory.json`, command handling, and relationship-delta behavior remain unchanged.
+Provider/retry/parser behavior, legacy `memory.json`, command handling, and relationship-delta behavior are unchanged by dialogue ingestion.
 
 No dialogue event is created for an absent/blank result, provider failure, exhausted `content:null`/empty completion, processing failure returning no usable answer, disabled Memory 2.0, non-snapshot path, or Inworld fallback path.
 
@@ -340,19 +340,105 @@ Therefore replay/redelivery of the same turn cannot multiply persistent dialogue
 
 Memory 2.0 dialogue persistence is an auxiliary side effect. Runtime persistence failure is caught and logged by the `ChatAI` orchestration helper and never replaces or removes the already-produced visible answer.
 
+## Server-observed relationship-change ingestion
+
+A real successfully persisted player↔NPC relationship transition now becomes a deterministic `RELATIONSHIP_CHANGE` Memory 2.0 event.
+
+The important distinction is between the model's **proposal** and the server's **actual applied result**:
+
+```text
+LLM proposes relationshipDelta
+→ server clamps/applies against current relationship state
+→ relationships.json save succeeds
+→ exact before / after states are known
+→ actual applied delta = after - before
+→ RELATIONSHIP_CHANGE MemoryEvent
+```
+
+For example, if `trust=99` and the model proposes `trust +5`, the bounded final state is `trust=100`, so the remembered applied delta is `+1`, not `+5`.
+
+### Exact mutation result
+
+`LivingWorldRelationshipStore.applyDeltaWithResult(...)` returns an immutable `LivingWorldRelationshipChange` containing:
+
+```text
+before
+after
+appliedDelta
+changed
+```
+
+The existing `applyDelta(...) -> LivingWorldRelationshipState` API remains source-compatible and delegates to the richer result method.
+
+A changed result is produced only after the existing `relationships.json` save path returns successfully. Memory 2.0 ingestion is therefore downstream of relationship persistence, never upstream of it.
+
+### Relationship-change event mapping
+
+```text
+MemoryEvent.type                 = RELATIONSHIP_CHANGE
+MemoryEvent.ownerNpcId           = villagerId
+MemoryEvent.participants         = [villagerId, playerId]
+MemoryEvent.provenance           = SYSTEM_OBSERVED
+MemoryEvent.gameTime             = immutable snapshot game time
+MemoryEvent.createdAtEpochMillis = post-persistence ingestion timestamp
+MemoryEvent.importance           = 55
+MemoryEvent.emotionalWeight      = 0
+MemoryEvent.confidence           = 100
+MemoryEvent.relationshipReasons  = []
+```
+
+The summary is deterministic and contains only server-observed numeric evidence:
+
+```text
+Relationship with player changed: trust +2, respect -1, fear -1, affinity +1; now trust=12, respect=3, fear=0, affinity=8.
+```
+
+All four dimensions are always present. Positive deltas use `+`, zero uses `0`.
+
+### Replay-safe identity
+
+The event UUID is derived from:
+
+```text
+memory2-relationship-change-v1
+villager UUID
+player UUID
+snapshot game time
+before trust,respect,fear,affinity
+after trust,respect,fear,affinity
+```
+
+Wall-clock time is excluded, so replay/redelivery of the exact same persisted transition maps to the same UUID and remains idempotent through `MemoryEventStore`.
+
+### Persistence/failure ordering
+
+```text
+relationshipStateEnabled
+→ applyDeltaWithResult(...)
+→ relationships.json save succeeds if changed
+→ unchanged? stop
+→ memory2Enabled?
+→ Memory2RelationshipChangeIngestor
+→ memory2.json append
+```
+
+Relationship persistence and Memory 2.0 persistence have separate failure boundaries. If relationship persistence fails, no relationship memory is attempted. If secondary `memory2.json` persistence fails, the already persisted relationship state is not rolled back and the visible NPC answer remains unaffected.
+
 ## Relationship reasons are deliberately deferred
 
-The current relationship path applies bounded numeric LLM-proposed deltas for `trust`, `respect`, `fear`, and `affinity`.
+VillAIgence now remembers **that** a server-owned numeric relationship transition occurred, but it still does not claim to know **why** it occurred.
 
-It does **not** currently carry a separately server-validated reason explaining why that change occurred.
+The current structured response carries only numeric LLM-proposed `trust`, `respect`, `fear`, and `affinity` deltas. It does not carry a separately server-validated causal explanation.
 
-VillAIgence therefore does not invent a relationship reason or promote an LLM explanation to authoritative memory. A dedicated provenance contract is required before `RELATIONSHIP_CHANGE.relationshipReasons` becomes production data.
+Therefore `RELATIONSHIP_CHANGE.relationshipReasons` remains empty in production memory. A statement such as “trust increased by +1” may be `SYSTEM_OBSERVED`; a statement such as “trust increased because the player was brave” is not server-verified and must not be silently promoted to authoritative memory.
+
+Future causal explanations require an explicit provenance contract (`PLAYER_TOLD`, `NPC_TOLD`, or `INFERRED`) or a genuinely server-owned cause source.
 
 ## Still not implemented
 
 Memory 2.0 does not yet automatically:
 
-- persist validated relationship-change reasons;
+- persist validated causal relationship-change reasons;
 - orchestrate a separate working-memory layer beyond existing bounded dialogue context;
 - maintain a dedicated semantic facts/beliefs layer;
 - migrate legacy `memory.json` history;
@@ -364,14 +450,14 @@ Memory 2.0 does not yet automatically:
 
 ## Next recommended slices
 
-Now that persistence, deterministic retrieval, authoritative ingestion, bounded context integration, and controlled dialogue episodic ingestion exist, the next work should remain incremental:
+Now that persistence, deterministic retrieval, authoritative action ingestion, bounded context integration, controlled dialogue episodic ingestion, and server-observed relationship-change ingestion exist, the next work should remain incremental:
 
 ```text
-1. validated relationship-reason provenance contract
-2. working-memory orchestration + semantic facts/beliefs design
-3. duplicate handling and deterministic consolidation policy
-4. forgetting/decay
-5. migration from legacy memory.json
+1. working-memory orchestration + semantic facts/beliefs design
+2. deterministic duplicate handling and consolidation policy
+3. forgetting/decay
+4. migration from legacy memory.json
+5. causal relationship reasons only when a trustworthy provenance source exists
 ```
 
 Embeddings, vector search, and LLM-driven consolidation should remain later choices rather than prerequisites for correct deterministic memory behavior.

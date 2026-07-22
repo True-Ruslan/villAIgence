@@ -20,6 +20,8 @@ import net.conczin.mca.livingworld.ai.LivingWorldAI;
 import net.conczin.mca.livingworld.ai.StructuredAiResponseParser;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
 import net.conczin.mca.livingworld.memory.PersistentChatMemory;
+import net.conczin.mca.livingworld.memory2.Memory2RelationshipChangeIngestor;
+import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipChange;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipDelta;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipStore;
 import net.minecraft.ChatFormatting;
@@ -507,8 +509,10 @@ public class OpenAIChatAI implements ChatAIStrategy {
             LivingWorldConfig config
     ) {
         if (!config.relationshipStateEnabled || proposed == null) return;
+
+        LivingWorldRelationshipChange change;
         try {
-            LivingWorldRelationshipStore.forWorld(snapshot.worldRoot()).applyDelta(
+            change = LivingWorldRelationshipStore.forWorld(snapshot.worldRoot()).applyDeltaWithResult(
                     snapshot.villagerId(),
                     snapshot.playerId(),
                     proposed,
@@ -516,6 +520,24 @@ public class OpenAIChatAI implements ChatAIStrategy {
             );
         } catch (RuntimeException e) {
             MCA.LOGGER.warn("Unable to persist LivingWorld relationship delta for villager {} and player {}",
+                    snapshot.villagerId(), snapshot.playerId(), e);
+            return;
+        }
+
+        if (!change.changed()) return;
+        try {
+            Memory2RelationshipChangeIngestor.recordIfEnabled(
+                    config.memory2Enabled,
+                    snapshot.worldRoot(),
+                    snapshot.villagerId(),
+                    snapshot.playerId(),
+                    snapshot.gameTime(),
+                    change,
+                    config.memory2MaxEventsPerNpc,
+                    System.currentTimeMillis()
+            );
+        } catch (RuntimeException e) {
+            MCA.LOGGER.warn("Unable to persist Memory 2.0 relationship change for villager {} and player {}",
                     snapshot.villagerId(), snapshot.playerId(), e);
         }
     }
