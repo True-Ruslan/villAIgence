@@ -30,39 +30,12 @@
 - Modify: `common/src/main/java/net/conczin/mca/livingworld/relationship/LivingWorldRelationshipStore.java`
 - Modify/Test: `common/src/test/java/net/conczin/mca/livingworld/relationship/LivingWorldRelationshipStoreTest.java`
 
-**Interfaces:**
-- Produces: `LivingWorldRelationshipChange(before, after, appliedDelta)` and `boolean changed()`.
-- Produces: `LivingWorldRelationshipStore.applyDeltaWithResult(UUID, UUID, LivingWorldRelationshipDelta, int)`.
-- Preserves: existing `applyDelta(...)` returning `LivingWorldRelationshipState`.
-
-- [ ] Add RED tests proving exact before/after/applied delta, saturation behavior, no-op `changed=false`, and compatibility of existing `applyDelta`.
-- [ ] Run `VillAIgence CI` on tests-only head and confirm expected compile/test failure because the new result contract does not exist.
-- [ ] Implement immutable result with applied delta computed strictly as `after - before`.
-- [ ] Refactor store so `applyDelta(...)` delegates to `applyDeltaWithResult(...).after()`.
-- [ ] Preserve existing save-before-return behavior: changed result is returned only after successful `save()`.
-- [ ] Run focused/full tests to GREEN.
-
-Expected core logic:
-
-```java
-public synchronized LivingWorldRelationshipChange applyDeltaWithResult(
-        UUID villagerId,
-        UUID playerId,
-        LivingWorldRelationshipDelta proposed,
-        int maxDeltaPerTurn
-) {
-    LivingWorldRelationshipState before = get(villagerId, playerId);
-    if (villagerId == null || playerId == null || proposed == null) {
-        return LivingWorldRelationshipChange.between(before, before);
-    }
-    LivingWorldRelationshipState after = before.apply(proposed, maxDeltaPerTurn);
-    if (!after.equals(before)) {
-        data.relationships.put(key(villagerId, playerId), after);
-        save();
-    }
-    return LivingWorldRelationshipChange.between(before, after);
-}
-```
+- [x] Add RED tests proving exact before/after/applied delta, saturation behavior, no-op `changed=false`, and compatibility of existing `applyDelta`.
+- [x] Confirm valid RED on tests-only head `f4c6eaf59c79cb08621c8dcdd31e7317976c3ebd`; `VillAIgence CI` run `29931503379` failed at `:common:compileTestJava` for the missing result contract.
+- [x] Implement immutable result with applied delta computed strictly as `after - before`.
+- [x] Refactor store so `applyDelta(...)` delegates to `applyDeltaWithResult(...).after()`.
+- [x] Preserve existing save-before-return behavior: changed result is returned only after successful `save()`.
+- [x] Confirm GREEN on head `1e824314e1cde6fec933dc27df745e73de4bc59e`; `VillAIgence CI` `29931884301` and Java PR CI `29931884183` succeeded.
 
 ---
 
@@ -72,28 +45,11 @@ public synchronized LivingWorldRelationshipChange applyDeltaWithResult(
 - Create: `common/src/main/java/net/conczin/mca/livingworld/memory2/RelationshipChangeMemoryAdapter.java`
 - Create: `common/src/test/java/net/conczin/mca/livingworld/memory2/RelationshipChangeMemoryAdapterTest.java`
 
-**Interfaces:**
-
-```java
-Optional<MemoryEvent> toMemoryEvent(
-    UUID npcId,
-    UUID playerId,
-    long gameTime,
-    LivingWorldRelationshipChange change,
-    long createdAtEpochMillis
-)
-```
-
-- [ ] Add RED tests for mapping, deterministic summary, `SYSTEM_OBSERVED`, scores, empty `relationshipReasons`, no-op rejection, wall-clock-independent ID, and transition-sensitive ID.
-- [ ] Confirm RED because adapter does not exist.
-- [ ] Implement deterministic summary:
-
-```text
-Relationship with player changed: trust +2, respect 0, fear -1, affinity +1; now trust=12, respect=4, fear=0, affinity=8.
-```
-
-- [ ] Implement UUID namespace `memory2-relationship-change-v1` using NPC/player IDs, game time, before tuple and after tuple.
-- [ ] Confirm GREEN.
+- [x] Add RED tests for mapping, deterministic summary, `SYSTEM_OBSERVED`, scores, empty `relationshipReasons`, no-op rejection, wall-clock-independent ID, and transition-sensitive ID.
+- [x] Confirm valid RED on head `f415fde9e52e45bd200f1b73fbde362a3b171e2a`; `VillAIgence CI` `29932123694` failed at `:common:compileTestJava` for the missing adapter.
+- [x] Implement deterministic summary with exact applied delta and final state.
+- [x] Implement UUID namespace `memory2-relationship-change-v1` using NPC/player IDs, game time, before tuple and after tuple.
+- [x] Confirm GREEN on head `289a9327c3ddaeec9568baa820c743238559d449`; `VillAIgence CI` `29932432475` and Java PR CI `29932431905` succeeded.
 
 ---
 
@@ -103,25 +59,10 @@ Relationship with player changed: trust +2, respect 0, fear -1, affinity +1; now
 - Create: `common/src/main/java/net/conczin/mca/livingworld/memory2/Memory2RelationshipChangeIngestor.java`
 - Create: `common/src/test/java/net/conczin/mca/livingworld/memory2/Memory2RelationshipChangeIngestorTest.java`
 
-**Interfaces:**
-
-```java
-recordIfEnabled(
-    boolean enabled,
-    Path worldRoot,
-    UUID npcId,
-    UUID playerId,
-    long gameTime,
-    LivingWorldRelationshipChange change,
-    int maxEventsPerNpc,
-    long createdAtEpochMillis
-)
-```
-
-- [ ] Add RED tests proving disabled/no-op creates no memory, duplicate replay is idempotent, distinct transitions remain distinct, and retention is bounded.
-- [ ] Confirm RED.
-- [ ] Implement adapter → `MemoryEventStore.forWorld(worldRoot).append(...)`.
-- [ ] Confirm GREEN.
+- [x] Add RED tests proving disabled/no-op creates no memory, duplicate replay is idempotent, distinct transitions remain distinct, and retention is bounded.
+- [x] Confirm valid RED on head `38b614b8508d20f9085dc4290ab9cf95f9ff5ff6`; `VillAIgence CI` `29932750358` failed at `:common:compileTestJava` for the missing ingestor.
+- [x] Implement adapter → `MemoryEventStore.forWorld(worldRoot).append(...)` with explicit enablement guard.
+- [x] Confirm GREEN on head `4b4390863d6a36523cfeda84c5f5082cb133df3f`; `VillAIgence CI` `29933043431` and Java PR CI `29933043451` succeeded.
 
 ---
 
@@ -132,30 +73,12 @@ recordIfEnabled(
 
 **Boundary:** Modify only `applySnapshotRelationshipDelta(...)` and required imports. Do not touch provider request construction, response parser, retry policy, dialogue memory, command handling, or visible-answer logic.
 
-- [ ] Replace the existing direct `applyDelta(...)` call with `applyDeltaWithResult(...)` inside the existing relationship persistence try/catch.
-- [ ] Return immediately on relationship persistence failure.
-- [ ] If result is unchanged, perform no Memory 2.0 write.
-- [ ] If changed, invoke `Memory2RelationshipChangeIngestor.recordIfEnabled(...)` in a separate try/catch using `memory2Enabled`, snapshot IDs/gameTime/worldRoot and `memory2MaxEventsPerNpc`.
-- [ ] Log secondary Memory 2.0 failure separately without changing relationship state or visible response.
-- [ ] Review diff to prove only the narrow relationship helper changed in `OpenAIChatAI`.
-
-Target flow:
-
-```java
-LivingWorldRelationshipChange change;
-try {
-    change = LivingWorldRelationshipStore.forWorld(snapshot.worldRoot()).applyDeltaWithResult(...);
-} catch (RuntimeException e) {
-    log relationship persistence failure;
-    return;
-}
-if (!change.changed()) return;
-try {
-    Memory2RelationshipChangeIngestor.recordIfEnabled(...);
-} catch (RuntimeException e) {
-    log secondary Memory 2.0 failure;
-}
-```
+- [x] Replace the existing direct `applyDelta(...)` call with `applyDeltaWithResult(...)` inside the existing relationship persistence try/catch.
+- [x] Return immediately on relationship persistence failure.
+- [x] If result is unchanged, perform no Memory 2.0 write.
+- [x] If changed, invoke `Memory2RelationshipChangeIngestor.recordIfEnabled(...)` in a separate try/catch using `memory2Enabled`, snapshot IDs/gameTime/worldRoot and `memory2MaxEventsPerNpc`.
+- [x] Log secondary Memory 2.0 failure separately without changing relationship state or visible response.
+- [x] Review per-file patch: only two imports and the narrow relationship helper changed in `OpenAIChatAI`.
 
 ---
 
@@ -163,15 +86,15 @@ try {
 
 **Files:**
 - Modify: `docs/livingworld/MEMORY_2.md`
-- Modify: `docs/superpowers/specs/2026-07-22-memory-2-relationship-change-design.md` only if implementation review changes the final architecture.
 - Update: `docs/PROJECT_STATE.md` in an immediate post-merge state-sync PR using the actual merge SHA.
 
-- [ ] Document `RELATIONSHIP_CHANGE` server-observed numeric evidence.
-- [ ] Explicitly state that `relationshipReasons` remains empty and causal explanations are still unimplemented.
-- [ ] Document exact applied delta vs raw proposed delta.
-- [ ] Document deterministic event identity and fail-soft ordering.
+- [x] Document `RELATIONSHIP_CHANGE` server-observed numeric evidence.
+- [x] Explicitly state that `relationshipReasons` remains empty and causal explanations are still unimplemented.
+- [x] Document exact applied delta vs raw proposed delta.
+- [x] Document deterministic event identity and fail-soft ordering.
 - [ ] Require exact-final-head `VillAIgence CI` success: `:common:test`, Fabric build, distributable package verification.
 - [ ] Require exact-final-head official Gradle CI success: NeoForge + Fabric.
 - [ ] Final diff review: no `relationships.json` schema change, no provider/parser/retry/dialogue behavior change, no memory ingestion before successful relationship persistence.
 - [ ] Confirm no unresolved review threads/comments.
 - [ ] Merge with pinned expected head SHA only after all gates are green.
+- [ ] Immediately synchronize canonical `docs/PROJECT_STATE.md` with the actual merge SHA in a separate PR.
