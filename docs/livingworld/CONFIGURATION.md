@@ -1,13 +1,15 @@
-# LivingWorld configuration
+# VillAIgence configuration
 
-LivingWorld keeps AI, STT and TTS credentials on the dedicated server. Clients never need API keys.
+VillAIgence keeps AI, STT and TTS credentials on the dedicated server. Clients never need API keys.
+
+The file remains named `config/livingworld.json` because **LivingWorld is the internal engine namespace**. This compatibility-sensitive path is intentionally not renamed by the VillAIgence rebrand.
 
 ## First run
 
-1. Start the server once with LivingWorld installed.
+1. Start the server once with VillAIgence installed.
 2. Stop the server.
 3. Edit `config/livingworld.json`.
-4. Configure the provider/model/credentials you need.
+4. Configure provider/model/credentials.
 5. Start the server again.
 
 Environment variables are preferred:
@@ -38,7 +40,7 @@ Main chat credential resolution:
 | `voiceInputEnabled` | `true` | microphone → STT → NPC AI |
 | `voiceOutputEnabled` | `false` | synthesize and spatially play NPC speech |
 
-Text-only low-cost mode:
+Recommended text-only mode:
 
 ```json
 {
@@ -59,8 +61,6 @@ Full voice mode:
 No TTS request is made while `voiceOutputEnabled=false`.
 
 ## OpenRouter STT
-
-Example:
 
 ```json
 {
@@ -94,8 +94,6 @@ OpenRouter STT is billed API usage. HTTP `402 Payment Required` means the accoun
 
 ## TTS response format
 
-New optional settings:
-
 ```json
 {
   "ttsResponseFormat": "auto",
@@ -107,26 +105,26 @@ New optional settings:
 
 - `auto` — raw PCM for `openrouter.ai`, WAV for other OpenAI-compatible endpoints;
 - `pcm` — force headerless PCM16 little-endian decoding;
-- `wav` — force the existing WAV decoder.
+- `wav` — force WAV decoding.
 
 Unknown values normalize to `auto`.
 
-`ttsPcmSampleRate` is used only when a raw PCM response does not provide a valid `rate` parameter in `Content-Type`. Invalid/non-positive values normalize to `24000`.
+`ttsPcmSampleRate` is used when a raw PCM response does not provide a valid `rate` parameter in `Content-Type`. Invalid/non-positive values normalize to `24000`.
 
-For PCM responses LivingWorld:
+For PCM responses VillAIgence:
 
-1. requires the base `Content-Type` to be `audio/pcm`;
-2. uses `rate` when present, otherwise `ttsPcmSampleRate`;
+1. requires base `Content-Type` `audio/pcm`;
+2. uses MIME `rate` when present, otherwise `ttsPcmSampleRate`;
 3. accepts missing `channels` as mono;
-4. rejects an explicit channel count other than `1`;
-5. decodes signed PCM16 little-endian directly, without adding a fake WAV header;
-6. resamples the resulting audio to Simple Voice Chat's 48 kHz playback rate.
+4. rejects explicit channel count other than `1`;
+5. decodes signed PCM16 little-endian directly;
+6. resamples to Simple Voice Chat's 48 kHz playback rate.
 
-WAV mode preserves the existing `WavCodec.decodePcm16Mono()` path.
+No fake WAV header is added. WAV mode preserves the existing WAV decoder path.
 
 ## OpenRouter TTS example
 
-Example for an OpenRouter TTS model using raw PCM:
+Example using a provider/model whose supported voice IDs are `eve`, `ara`, `rex`, `sal`, `leo`:
 
 ```json
 {
@@ -160,25 +158,25 @@ Example for an OpenRouter TTS model using raw PCM:
 }
 ```
 
-The model and voice IDs above are configuration examples only; runtime code does not hardcode them.
+Model and voice IDs are configuration examples only; runtime code does not hardcode them.
 
-Voice IDs are provider/model-specific. The repeated pools above intentionally avoid claiming provider-defined gender or age classifications. Server owners may classify supported voices into narrower LivingWorld pools after listening/testing them.
+Voice IDs are provider/model-specific. The repeated pools above intentionally avoid claiming provider-defined gender or age classifications. Server owners can classify validated voices into narrower VillAIgence pools.
 
-When switching TTS providers, update the voice pools as well as `ttsVoice`. If a stored NPC profile contains a voice that is no longer eligible under the new configured pools, LivingWorld resolves and persists a compatible replacement automatically.
-
-OpenRouter TTS is billed API usage. Check the selected model/provider pricing before enabling `voiceOutputEnabled`.
+When switching TTS providers, update voice pools as well as `ttsVoice`. A stored NPC profile whose voice is no longer eligible is automatically resolved to a compatible configured replacement.
 
 ## Persistent NPC voices
 
-When TTS is enabled, profiles are stored at:
+Profiles are stored at:
 
 ```text
 <world>/livingworld/voices.json
 ```
 
-The profile is keyed by NPC UUID and stores normalized gender, age bucket and selected voice ID.
+The `livingworld` path remains unchanged for backward compatibility.
 
-Age mapping follows MCA 1.21.1:
+Each profile is keyed by NPC UUID and stores normalized gender, age bucket and selected voice ID.
+
+MCA 1.21.1 age mapping:
 
 - `BABY`, `TODDLER`, `CHILD` → child;
 - `TEEN` → teen;
@@ -194,7 +192,7 @@ Selection fallback order:
 4. global fallback pool;
 5. legacy `ttsVoice`.
 
-The built-in groupings are LivingWorld configuration defaults, not provider-supplied gender labels.
+Built-in groupings are VillAIgence defaults, not provider-supplied gender labels.
 
 ## Mood-aware delivery
 
@@ -202,46 +200,44 @@ Mood changes delivery, not persistent voice identity.
 
 Current server-owned signals include panic, health, trust, fear and affinity. They resolve to neutral/happy/sad/angry/afraid/tired delivery styles.
 
-Supported TTS controls are applied best-effort. `speed` is sent as a bounded standard speech parameter. For OpenAI speech models routed through OpenRouter, OpenAI-specific `instructions` are placed under `provider.options.openai` instead of being sent as an unsupported top-level standard field. Model-specific unsupported controls do not change or randomize the assigned voice.
+Supported controls are applied best-effort. `speed` is bounded. For OpenAI speech models routed through OpenRouter, OpenAI-specific `instructions` are placed under `provider.options.openai`.
 
 ## TTS credentials
 
-Credential selection follows the **TTS endpoint**, not only the chat provider.
+Credential selection follows the **TTS endpoint**.
 
-For an OpenRouter speech endpoint:
+For OpenRouter speech:
 
 1. `OPENROUTER_API_KEY`;
 2. `ttsApiKey`;
-3. resolved main provider key only when the main provider is also `openrouter`.
+3. main provider key only when the main provider is `openrouter`.
 
-For an OpenAI speech endpoint:
+For OpenAI speech:
 
 1. `OPENAI_API_KEY`;
 2. `ttsApiKey`;
-3. resolved main provider key only when the main provider is also `openai`.
+3. main provider key only when the main provider is `openai`.
 
 For another custom TTS endpoint:
 
 1. `ttsApiKey`;
 2. resolved main provider key.
 
-This prevents cross-provider credential leakage: an OpenRouter key is not sent to the OpenAI speech endpoint, and an OpenAI main key is not sent to the OpenRouter speech endpoint unless explicitly supplied as a dedicated `ttsApiKey` by the server owner.
-
-With `provider=openrouter` and an OpenRouter TTS endpoint, the same server-side `OPENROUTER_API_KEY` can be used for chat/STT/TTS.
+This prevents accidental cross-provider credential leakage.
 
 ## Structured AI response safety
 
-LivingWorld treats the visible NPC message independently from optional command and relationship metadata.
+VillAIgence treats the visible NPC message independently from optional command and relationship metadata.
 
 - malformed `optionalCommand` is ignored without discarding a valid message;
-- malformed relationship fields are ignored rather than exposed;
-- relationship values must be integers before they are accepted;
-- server-side relationship application performs the configured per-turn clamping;
-- if the whole JSON object is syntactically malformed, LivingWorld attempts to recover only a valid top-level JSON string field named `message`;
-- JSON metadata/tails are never used as fallback visible text;
-- if a JSON-looking response contains no safely recoverable message, no NPC answer is published from that response.
+- malformed relationship fields are ignored;
+- relationship values must be integers before acceptance;
+- server-side relationship application performs configured per-turn clamping;
+- syntactically malformed JSON may recover only a safe top-level JSON string `message`;
+- JSON metadata/tails are never used as visible fallback text;
+- unrecoverable JSON-looking responses produce no unsafe answer.
 
-The same sanitized message is used for text and TTS, so malformed structured metadata cannot become spoken audio.
+The same sanitized message is used for text and TTS.
 
 ## Text survives TTS failure
 
@@ -255,13 +251,15 @@ AI answer
 → spatial playback
 ```
 
-A TTS HTTP/format/decode failure does not remove the text reply, does not disconnect the player, and does not automatically retry the same utterance. Busy player/NPC locks are released normally.
+A TTS HTTP/format/decode failure does not remove the text reply, disconnect the player or automatically retry the same utterance.
 
 ## Existing config migration
 
-Config version remains `2`. Existing version-2 files do not require a migration step: missing `ttsResponseFormat` and `ttsPcmSampleRate` receive safe defaults (`auto`, `24000`).
+Config version remains `2`. Existing version-2 files do not require migration: missing newer fields receive safe defaults.
 
 Legacy version-1 `voiceEnabled` migration remains unchanged.
+
+The VillAIgence rebrand does **not** rename `config/livingworld.json` or serialized field names.
 
 ## Persistent server data
 
@@ -275,10 +273,10 @@ Legacy version-1 `voiceEnabled` migration remains unchanged.
 
 Back these files up with the Minecraft world.
 
-Raw microphone audio and synthesized audio are processed in memory and are not intentionally persisted by LivingWorld.
+Raw microphone and synthesized audio are processed in memory and are not intentionally persisted.
 
 ## Voice requirements
 
-Simple Voice Chat 2.6.20 or newer is required on server and clients when microphone input is used. The same LivingWorld release JAR must be installed on server and clients.
+Simple Voice Chat 2.6.20+ is required on server and clients when microphone input is used. The same VillAIgence release JAR must be installed on server and clients.
 
-See `docs/livingworld/VOICE.md` for interaction flow and troubleshooting.
+See [VOICE.md](VOICE.md) for interaction flow and troubleshooting.
