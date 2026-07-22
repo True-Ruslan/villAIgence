@@ -33,7 +33,7 @@ public enum TtsResponseFormat {
         return isOpenRouterEndpoint(endpoint) ? PCM : WAV;
     }
 
-    static boolean isOpenRouterEndpoint(String endpoint) {
+    public static boolean isOpenRouterEndpoint(String endpoint) {
         if (endpoint == null || endpoint.isBlank()) return false;
         try {
             String host = URI.create(endpoint.trim()).getHost();
