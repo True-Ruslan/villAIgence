@@ -10,7 +10,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-// RED contract intentionally references production types that do not exist yet.
 class Memory2DialogueIngestorTest {
     @TempDir
     Path tempDir;
@@ -53,6 +52,26 @@ class Memory2DialogueIngestorTest {
         UUID player = UUID.randomUUID();
 
         Memory2DialogueIngestor.record(tempDir, npc, player, 100L, "hello", "   ", 16, 1_000L);
+
+        assertEquals(List.of(), MemoryEventStore.forWorld(tempDir).getRecent(npc, 16));
+    }
+
+    @Test
+    void disabledMemory2DoesNotPersistDialogue() {
+        UUID npc = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+
+        Memory2DialogueIngestor.recordIfEnabled(
+                false,
+                tempDir,
+                npc,
+                player,
+                100L,
+                "hello",
+                "reply",
+                16,
+                1_000L
+        );
 
         assertEquals(List.of(), MemoryEventStore.forWorld(tempDir).getRecent(npc, 16));
     }
