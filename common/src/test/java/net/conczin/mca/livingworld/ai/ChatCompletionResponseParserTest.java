@@ -85,7 +85,7 @@ class ChatCompletionResponseParserTest {
                 {
                   "id": "gen-ok-1",
                   "choices": [{
-                    "message": {"role": "assistant", "content": "{\"message\":\"Привет!\",\"optionalCommand\":\"\"}"},
+                    "message": {"role": "assistant", "content": "{\\"message\\":\\"Привет!\\",\\"optionalCommand\\":\\"\\"}"},
                     "finish_reason": "stop"
                   }]
                 }
