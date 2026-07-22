@@ -14,6 +14,7 @@ import net.conczin.mca.livingworld.voice.SttRequestFormat;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.LinkedHashSet;
@@ -220,8 +221,14 @@ public final class LivingWorldConfig {
 
     private static boolean isOpenAiEndpoint(String endpoint) {
         if (endpoint == null || endpoint.isBlank()) return false;
-        String normalized = endpoint.trim().toLowerCase(Locale.ROOT);
-        return normalized.contains("api.openai.com/") || normalized.equals("https://api.openai.com");
+        try {
+            String host = URI.create(endpoint.trim()).getHost();
+            if (host == null) return false;
+            String normalizedHost = host.toLowerCase(Locale.ROOT);
+            return normalizedHost.equals("api.openai.com") || normalizedHost.endsWith(".api.openai.com");
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 
     static LivingWorldConfig parseJson(String json) {
