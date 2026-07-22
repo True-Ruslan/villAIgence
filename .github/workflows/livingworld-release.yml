@@ -1,4 +1,4 @@
-name: LivingWorld GitHub Release
+name: VillAIgence GitHub Release
 
 on:
   push:
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: livingworld-release-${{ github.ref }}
+  group: villaigence-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
           tag="${GITHUB_REF_NAME}"
           tag_pattern='^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?[+][0-9]+([.][0-9]+){1,2}$'
           if [[ ! "${tag}" =~ ${tag_pattern} ]]; then
-            echo "::error title=Invalid release tag::Expected '<mod_version>+<minecraft_version>', for example '0.1.0-alpha.1+1.21.1'."
+            echo "::error title=Invalid release tag::Expected '<mod_version>+<minecraft_version>', for example '0.1.5+1.21.1'."
             exit 1
           fi
           minecraft_version="${tag#*+}"
@@ -81,7 +81,7 @@ jobs:
           chmod +x gradlew
           ./gradlew :common:test :fabric:build --stacktrace --no-daemon --console=plain
 
-      - name: Package and smoke-check artifact
+      - name: Package and smoke-check VillAIgence artifact
         id: package
         shell: bash
         run: |
@@ -96,10 +96,10 @@ jobs:
           fi
           scripts/ci/package-livingworld-release.sh "${artifact_label}" "${is_release}" dist
 
-      - name: Upload verified Fabric package
+      - name: Upload verified VillAIgence Fabric package
         uses: actions/upload-artifact@v4
         with:
-          name: livingworld-fabric-package
+          name: villaigence-fabric-package
           path: |
             ${{ steps.package.outputs.jar }}
             ${{ steps.package.outputs.checksum }}
@@ -113,13 +113,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download verified release package
+      - name: Download verified VillAIgence release package
         uses: actions/download-artifact@v4
         with:
-          name: livingworld-fabric-package
+          name: villaigence-fabric-package
           path: dist
 
-      - name: Create or update GitHub release
+      - name: Create or update VillAIgence GitHub release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -130,7 +130,7 @@ jobs:
           release_tag="${GITHUB_REF_NAME}"
           mod_version="${release_tag%%+*}"
           minecraft_version="${release_tag#*+}"
-          jar_file="dist/mca-livingworld-fabric-${release_tag}.jar"
+          jar_file="dist/villaigence-fabric-${release_tag}.jar"
           checksum_file="${jar_file}.sha256"
           test -f "${jar_file}"
           test -f "${checksum_file}"
@@ -138,9 +138,11 @@ jobs:
           checksum="$(cat "${checksum_file}")"
           notes_file="release-notes.md"
           printf '%s\n' \
-            "# LivingWorld ${mod_version}" \
+            "# VillAIgence ${mod_version}" \
             "" \
-            "Experimental alpha/testing build of the LivingWorld fork of Minecraft Comes Alive." \
+            "Vill-AI-gence — Giving villagers a mind of their own." \
+            "" \
+            "VillAIgence is an experimental AI-driven evolution of Minecraft Comes Alive Reborn. LivingWorld remains the internal engine name for compatibility-sensitive classes, config and world-data paths." \
             "" \
             "Runtime:" \
             "- Minecraft ${minecraft_version}" \
@@ -149,17 +151,17 @@ jobs:
             "- Fabric API for Minecraft ${minecraft_version}" \
             "- Simple Voice Chat 2.6.20 or newer" \
             "" \
-            "Important: this JAR keeps MCA's internal mod id mca. Remove the original MCA Reborn JAR before installing this fork; do not install both at the same time." \
+            "Important: this JAR intentionally keeps MCA's internal mod id mca. Remove the original MCA Reborn JAR before installing VillAIgence; do not install both at the same time." \
             "" \
-            "For the normal LivingWorld MVP, the server owner only needs to set OPENAI_API_KEY or apiKey in config/livingworld.json after the first server start." \
+            "Server configuration remains config/livingworld.json. API credentials stay server-side." \
             "" \
-            "This is an alpha build intended for controlled testing. Back up the world before installing or updating." \
+            "Back up the world before installing or updating experimental builds." \
             "" \
             "SHA-256:" \
             "${checksum}" \
             > "${notes_file}"
 
-          title="LivingWorld ${mod_version} for Minecraft ${minecraft_version}"
+          title="VillAIgence ${mod_version} for Minecraft ${minecraft_version}"
 
           if gh release view "${release_tag}" >/dev/null 2>&1; then
             echo "Release ${release_tag} already exists; updating metadata and replacing assets."
