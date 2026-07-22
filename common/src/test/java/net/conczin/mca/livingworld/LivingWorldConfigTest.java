@@ -106,6 +106,8 @@ class LivingWorldConfigTest {
                 "https://api.openai.com/v1/audio/speech", "", "", "openrouter", "sk-openrouter-main"));
         assertEquals("sk-openai-main", LivingWorldConfig.resolveTtsApiKey(
                 "https://api.openai.com/v1/audio/speech", "", "", "openai", "sk-openai-main"));
+        assertEquals("sk-tts-file", LivingWorldConfig.resolveTtsApiKey(
+                "https://evil.example/proxy/api.openai.com/v1/audio/speech", "sk-openai-env", "sk-tts-file", "openrouter", "sk-main"));
     }
 
     @Test
