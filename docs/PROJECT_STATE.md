@@ -378,6 +378,42 @@ Compatibility identifiers (`mca`, Java namespace, livingworld config/data paths)
 
 ---
 
+## 13. Operator AI diagnostics — implemented
+
+Implemented in PR #28 (`feat: add safe VillAIgence AI diagnostics status`).
+
+Operator command:
+
+```text
+/villaigence ai status
+```
+
+Implemented behavior:
+
+- separate public `/villaigence` command root without renaming the compatibility-sensitive `/mca`/`mca` internals;
+- permission level 2+ or integrated single-player server owner;
+- read-only status surface with **no provider/network probe** and therefore no token/credit spend;
+- safe configuration readiness for Chat/STT/TTS: `CONFIGURED`, `MISCONFIGURED`, `DISABLED`;
+- process-local latest runtime state for each stage: `NEVER`, `SUCCESS`, `FAILURE`;
+- Chat diagnostics include safe provider/model/duration metadata plus `finish_reason`, provider `error_type`, generation ID, bounded attempt count and reasoning-presence boolean where available;
+- bounded retry diagnostics reflect the final logical request rather than duplicating game-side effects;
+- STT/TTS diagnostics include safe provider/model/resolved format/duration and controlled failure classifications such as `http_402`, `http_429`, `timeout`, `io_error` and `runtime_error`;
+- STT is recorded at the actual transcription boundary, so later target/context failures do not incorrectly become STT failures;
+- TTS is recorded at the actual synthesis boundary;
+- diagnostics reset on process restart and are intentionally not persisted into world data.
+
+Security/privacy boundary:
+
+- API key values and environment credentials are never stored in the diagnostics snapshot;
+- credential readiness is boolean-only;
+- endpoints are reduced to host names;
+- prompts, transcripts, NPC answers, TTS input text, reasoning content, Authorization headers and raw provider payloads are excluded;
+- raw provider error bodies are not copied into the operator status surface.
+
+Detailed operator documentation: `docs/livingworld/DIAGNOSTICS.md`.
+
+---
+
 # Release state
 
 ## Known release sequence relevant to current development
@@ -386,13 +422,13 @@ Existing historical tags include releases through `0.1.5+1.21.1`.
 
 `0.1.5+1.21.1` points to the pre-PR-26 state and contains the reported `content: null` crash.
 
-The next patch version intended for the merged null-content/provider-hardening fix is:
+The next patch version intended for the merged provider-hardening and reliability work is:
 
 ```text
 0.1.6+1.21.1
 ```
 
-At the time of this state file creation, `0.1.6+1.21.1` had **not** been found as an existing tag. Before publishing it, verify that:
+At the time of this state file update, `0.1.6+1.21.1` had **not** been confirmed as an existing published tag. Before publishing it, verify that:
 
 1. `1.21.1` HEAD is the exact intended release commit;
 2. the release workflow/tag validation rules still match;
@@ -491,13 +527,12 @@ The following roadmap features are **planned, not complete**:
 
 Recommended next tasks:
 
-1. publish/test the `0.1.6+1.21.1` hotfix release containing PR #26;
-2. add a clear `/villaigence ai status` / diagnostics surface;
-3. improve rate-limit/backpressure/cooldown handling;
-4. run multiplayer concurrency and repeated voice-dialogue soak tests;
-5. validate restart/reconnect/world-backup behavior for all persistent JSON stores;
-6. collect real server feedback on STT/LLM/TTS provider failure modes;
-7. decide whether the default/recommended free LLM should change from unstable free-provider choices.
+1. publish/test the `0.1.6+1.21.1` hotfix/reliability release from the exact intended `1.21.1` HEAD;
+2. improve rate-limit/backpressure/cooldown handling;
+3. run multiplayer concurrency and repeated voice-dialogue soak tests;
+4. validate restart/reconnect/world-backup behavior for all persistent JSON stores;
+5. collect real server feedback on STT/LLM/TTS provider failure modes using `/villaigence ai status` plus bounded logs;
+6. decide whether the default/recommended free LLM should change from unstable free-provider choices.
 
 ## Priority B — begin `0.2 Memory 2.0`
 
@@ -588,5 +623,4 @@ Any PR/release that materially changes one of the following should update this f
 - next immediate priority.
 
 `docs/ROADMAP.md` answers **“Where are we going?”**
-
 `docs/PROJECT_STATE.md` answers **“Where are we now, and what should happen next?”**
