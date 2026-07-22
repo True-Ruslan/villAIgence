@@ -49,22 +49,24 @@ public final class DiagnosticsOpenAIChatAI extends OpenAIChatAI {
             return Optional.empty();
         }
 
-        AiProviderSettings provider = LivingWorldAI.resolveChatProviderSettings();
-        ChatDiagnosticsRecorder.beginRequest();
-        long startedNanos = System.nanoTime();
-        boolean success = false;
         try (AiAdmissionController.Permit ignored = Objects.requireNonNull(admission.permit())) {
-            Optional<String> result = operation.get();
-            success = result.isPresent() && !result.get().isBlank();
-            return result;
-        } finally {
-            long durationMillis = Math.max(0L, (System.nanoTime() - startedNanos) / 1_000_000L);
-            ChatDiagnosticsRecorder.finishRequest(
-                    provider.endpoint(),
-                    provider.model(),
-                    durationMillis,
-                    success
-            );
+            AiProviderSettings provider = LivingWorldAI.resolveChatProviderSettings();
+            ChatDiagnosticsRecorder.beginRequest();
+            long startedNanos = System.nanoTime();
+            boolean success = false;
+            try {
+                Optional<String> result = operation.get();
+                success = result.isPresent() && !result.get().isBlank();
+                return result;
+            } finally {
+                long durationMillis = Math.max(0L, (System.nanoTime() - startedNanos) / 1_000_000L);
+                ChatDiagnosticsRecorder.finishRequest(
+                        provider.endpoint(),
+                        provider.model(),
+                        durationMillis,
+                        success
+                );
+            }
         }
     }
 }
