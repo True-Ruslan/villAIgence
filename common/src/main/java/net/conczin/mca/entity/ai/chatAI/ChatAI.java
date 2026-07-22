@@ -5,11 +5,13 @@ import net.conczin.mca.MCA;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
-import net.conczin.mca.livingworld.memory2.Memory2DialogueIngestor;
+import net.conczin.mca.livingworld.memory2.Memory2DialogueLifecycle;
 import net.conczin.mca.util.WorldUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.storage.LevelResource;
 
+import java.nio.file.Path;
 import java.text.Normalizer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -57,8 +59,16 @@ public class ChatAI {
         // Update the current conversation
         openConversation(player, villager);
 
+        DialogueMemoryCoordinates memoryCoordinates = strategy instanceof OpenAIChatAI
+                ? captureDialogueMemoryCoordinates(player, villager)
+                : null;
+
         // Get answer
-        return strategy.answer(player, villager, msg);
+        Optional<String> answer = strategy.answer(player, villager, msg);
+        if (memoryCoordinates != null) {
+            rememberMemory2Dialogue(memoryCoordinates, msg, answer);
+        }
+        return answer;
     }
 
     /**
@@ -75,39 +85,67 @@ public class ChatAI {
         currentConversations.put(snapshot.playerId(), new OpenConversation(snapshot.villagerId(), snapshot.gameTime()));
         if (strategy instanceof OpenAIChatAI openAIChatAI) {
             Optional<String> answer = openAIChatAI.answer(server, player, villager, msg, snapshot);
-            rememberMemory2Dialogue(snapshot, msg, answer);
+            rememberMemory2Dialogue(
+                    new DialogueMemoryCoordinates(
+                            snapshot.worldRoot(),
+                            snapshot.villagerId(),
+                            snapshot.playerId(),
+                            snapshot.gameTime()
+                    ),
+                    msg,
+                    answer
+            );
             return answer;
         }
         return strategy.answer(player, villager, msg);
     }
 
+    private static DialogueMemoryCoordinates captureDialogueMemoryCoordinates(
+            ServerPlayer player,
+            VillagerEntityMCA villager
+    ) {
+        try {
+            return new DialogueMemoryCoordinates(
+                    player.serverLevel().getServer().getWorldPath(LevelResource.ROOT),
+                    villager.getUUID(),
+                    player.getUUID(),
+                    villager.level().getGameTime()
+            );
+        } catch (RuntimeException e) {
+            MCA.LOGGER.warn(
+                    "Unable to capture Memory 2.0 dialogue coordinates for villager {} and player {}",
+                    villager.getUUID(),
+                    player.getUUID(),
+                    e
+            );
+            return null;
+        }
+    }
+
     private static void rememberMemory2Dialogue(
-            LivingWorldContextSnapshot snapshot,
+            DialogueMemoryCoordinates coordinates,
             String playerMessage,
             Optional<String> answer
     ) {
-        if (answer == null || answer.isEmpty()) return;
-        String npcReply = answer.get();
-        if (npcReply.isBlank()) return;
-
+        if (coordinates == null) return;
         LivingWorldConfig config = LivingWorldConfig.getInstance();
         try {
-            Memory2DialogueIngestor.recordIfEnabled(
+            Memory2DialogueLifecycle.recordSuccessful(
                     config.memory2Enabled,
-                    snapshot.worldRoot(),
-                    snapshot.villagerId(),
-                    snapshot.playerId(),
-                    snapshot.gameTime(),
+                    coordinates.worldRoot(),
+                    coordinates.villagerId(),
+                    coordinates.playerId(),
+                    coordinates.gameTime(),
                     playerMessage,
-                    npcReply,
+                    answer,
                     config.memory2MaxEventsPerNpc,
                     System.currentTimeMillis()
             );
         } catch (RuntimeException e) {
             MCA.LOGGER.warn(
                     "Unable to persist Memory 2.0 dialogue event for villager {} and player {}",
-                    snapshot.villagerId(),
-                    snapshot.playerId(),
+                    coordinates.villagerId(),
+                    coordinates.playerId(),
                     e
             );
         }
@@ -244,6 +282,9 @@ public class ChatAI {
      */
     private static String normalizeString(String string) {
         return Normalizer.normalize(string, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT);
+    }
+
+    private record DialogueMemoryCoordinates(Path worldRoot, UUID villagerId, UUID playerId, long gameTime) {
     }
 
     /**
