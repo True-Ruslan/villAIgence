@@ -4,32 +4,28 @@
 >
 > Last major state update: **2026-07-22**.
 >
-> This file records implemented repository state, release anchors, architecture/truth boundaries, compatibility constraints, and the first unimplemented development priority. Always reconcile it with recent PRs, releases/tags, and CI before active development.
+> Reconcile this document with recent PRs, releases/tags, CI, and new live-test evidence before active development.
 
 ## Executive snapshot
 
 VillAIgence is a Minecraft 1.21.1 MCA-derived mod evolving from AI-assisted villager dialogue into a **persistent living-society simulation layer**.
 
-Current anchors:
-
 ```text
-base branch: 1.21.1
-current implemented HEAD after PR #41:
-b05a5a0cd302253824e1bbcaf33053cca95641e5
+primary branch: 1.21.1
+current implemented code HEAD after PR #43:
+801a9da73438a6bc01ffd61aef179e45a18c9336
 
-latest published release:
+last previously confirmed published release:
 0.1.8+1.21.1
-
 release commit:
 23fba1ee373e932c0b17aba3755f8ac478c26941
-
 release workflow:
 29918008438 — SUCCESS
 ```
 
-`0.1.8+1.21.1` contains the completed `0.1.x` reliability foundation through PR #30.
+A `0.1.9`-era build was live-tested by the user after the first Memory 2.0 slices. That test exposed text/voice Memory 2.0 asymmetry, now fixed by PR #43. Before publishing the next artifact, reconcile current release/tag state and package the `1.21.1` HEAD containing PR #43.
 
-The following Memory 2.0 work is newer than that release and currently exists on `1.21.1` only:
+Post-`0.1.8` Memory 2.0 development on `1.21.1`:
 
 ```text
 PR #31  persistent MemoryEvent foundation
@@ -38,6 +34,7 @@ PR #35  authoritative safe-action WorldEvent ingestion
 PR #37  bounded provenance-preserving NPC context integration
 PR #39  controlled successful dialogue → episodic-memory ingestion
 PR #41  server-observed relationship-change ingestion
+PR #43  text/voice Memory 2.0 dialogue-ingestion parity
 ```
 
 ---
@@ -71,179 +68,66 @@ Do not rename these without a dedicated migration design.
 # Architecture laws
 
 1. **LLM is never authoritative.** Minecraft/server-owned state is truth.
-2. Mutable world/entity state is captured on the Minecraft server thread before asynchronous AI work.
-3. LLM may propose dialogue/intents/structured deltas; server policy validates and executes mutations.
+2. Mutable world/entity state used by async AI must be captured into immutable context before provider work.
+3. LLM may propose dialogue/intents/deltas; server policy validates and executes mutations.
 4. Provider/model changes must not redefine persistent NPC identity.
 5. External AI and auxiliary persistence failures fail soft whenever safe.
 6. API credentials remain server-side.
 7. Persistent formats are explicit, inspectable, and backed up with the world.
 8. Retry/replay paths must not duplicate persistent or gameplay side effects.
 9. Claims/beliefs remain claims/beliefs unless server-owned evidence makes them factual.
-10. A persisted server-owned state transition may be remembered as factual evidence, but its psychological/causal explanation is not automatically factual.
-11. Autonomous AI must eventually be event-driven and budgeted rather than “LLM every tick.”
+10. A server-owned numeric/state transition may be remembered as verified evidence; its psychological cause is not automatically factual.
+11. Later autonomous AI must be event-driven and budgeted rather than “LLM every tick.”
 
-Canonical flow:
+Canonical authority flow:
 
 ```text
-Mutable Minecraft state
-→ server-thread immutable snapshot
-→ provider/LLM
-→ proposed response / intents / deltas
-→ server validation / revalidation
-→ server-owned mutations
-→ persisted factual evidence
+Minecraft/server state
+→ immutable/bounded context
+→ provider/LLM proposal
+→ server validation/revalidation
+→ server-owned mutation
+→ persistent factual evidence
 → optional bounded Memory 2.0 ingestion
 ```
 
 ---
 
-# Implemented 0.1.x reliability and AI foundation
+# Implemented 0.1.x reliability foundation
 
-## Server-side provider layer
+Implemented and retained:
 
-Implemented:
+- OpenAI-compatible/OpenRouter server-side provider configuration;
+- bounded connect/read timeouts and controlled failures;
+- voice input: Simple Voice Chat → decoded PCM → STT → targeted NPC → AI;
+- optional spatial NPC TTS, raw PCM/WAV compatibility and 48 kHz resampling;
+- persistent NPC voice identity in `<world>/livingworld/voices.json`;
+- legacy bounded dialogue history in `<world>/livingworld/memory.json`;
+- authoritative world events in `<world>/livingworld/events.json`;
+- player↔NPC relationship state in `<world>/livingworld/relationships.json`;
+- safe whitelisted actions with server validation/revalidation;
+- immutable authoritative context snapshots;
+- structured response sanitation;
+- safe `content:null` handling and bounded retry;
+- `/villaigence ai status` diagnostics without secrets/prompts/transcripts/reasoning;
+- non-blocking Chat/STT/TTS admission/backpressure and provider cooldown;
+- fail-open recovery for malformed auxiliary persistence JSON.
 
-- OpenAI-compatible/OpenRouter chat provider support;
-- server-owned configuration and credentials;
-- bounded connect/read timeouts;
-- controlled provider failures;
-- no direct LLM authority over Minecraft state.
-
-## Voice input
-
-```text
-player microphone
-→ Simple Voice Chat
-→ decoded PCM
-→ STT
-→ targeted NPC
-→ AI
-→ text reply
-```
-
-Implemented independent `voiceInputEnabled` and `voiceOutputEnabled`, OpenAI-compatible/OpenRouter STT, and separation from normal player-to-player voice traffic.
-
-Raw microphone audio is not intentionally persisted.
-
-## TTS and spatial NPC voice
-
-Implemented:
-
-- optional NPC TTS through Simple Voice Chat;
-- `ttsResponseFormat=auto|wav|pcm`;
-- OpenRouter raw PCM support;
-- WAV compatibility;
-- PCM16 LE mono decode and 48 kHz resampling;
-- text publication before/independent of TTS success or backpressure.
-
-## Persistent NPC voice identity
-
-Storage:
+Key anchors:
 
 ```text
-<world>/livingworld/voices.json
-```
-
-Identity derives from NPC UUID + MCA gender + MCA age bucket and is independent from provider/model.
-
-Mood-aware delivery changes style, not persistent base identity.
-
-## Safe actions and server authority
-
-```text
-LLM proposes
-→ whitelist/policy validates
-→ server revalidates current state
-→ server executes allowed mutation
-```
-
-Arbitrary console/OP authority is not granted to the LLM.
-
-## Immutable authoritative context snapshot
-
-Async AI uses immutable server-thread-captured context rather than freely reading mutable Minecraft state.
-
-The snapshot also carries a physically separate bounded `memoryContext` field for Memory 2.0 while retaining separate authoritative `worldFacts`.
-
-## Structured response/provider hardening
-
-Implemented across PRs #22/#24/#26:
-
-- visible reply isolated from optional structured metadata;
-- malformed relationship/action metadata cannot leak raw JSON;
-- OpenRouter/OpenAI-compatible `content:null` handled safely;
-- reasoning is never substituted as visible/spoken NPC text;
-- bounded empty-completion retry;
-- retry occurs before persistent/gameplay side effects.
-
-PR #26 merge anchor:
-
-```text
+PR #26 content:null/provider hardening:
 52eed8ba8dede8deeaceffbec723255d4515ac8d
-```
 
-## Operator diagnostics
-
-PR #28 added:
-
-```text
-/villaigence ai status
-```
-
-Merge anchor:
-
-```text
+PR #28 diagnostics:
 90b32ee1125ad451d2fe9f7242ee903e8680a131
-```
 
-Diagnostics are read-only and exclude credentials, prompts, transcripts, answers, TTS input, reasoning, and raw provider payloads.
-
-## Non-blocking admission/backpressure
-
-PR #29 merge anchor:
-
-```text
+PR #29 admission/backpressure:
 8f3095c6e8489e077246d652be51ec3c0ff57cd8
-```
 
-Defaults:
-
-```text
-aiChatMaxConcurrentRequests = 4
-aiSttMaxConcurrentRequests = 2
-aiTtsMaxConcurrentRequests = 2
-aiPerPlayerCooldownMillis = 750
-aiProviderRateLimitCooldownMillis = 5000
-```
-
-Controlled local rejection types:
-
-```text
-admission_saturated
-admission_player_cooldown
-admission_provider_cooldown
-```
-
-No blocking server-thread wait or unbounded provider queue.
-
-## Persistent auxiliary JSON recovery
-
-PR #30 merge/release commit:
-
-```text
+PR #30 persistence recovery / 0.1.8 source:
 23fba1ee373e932c0b17aba3755f8ac478c26941
 ```
-
-Covered stores:
-
-```text
-memory.json
-events.json
-relationships.json
-voices.json
-```
-
-Malformed/unreadable auxiliary JSON fails open; a later successful normal mutation may rewrite valid current-format data.
 
 Live reliability checklist:
 
@@ -256,45 +140,18 @@ docs/livingworld/PLAYTEST_CHECKLIST.md
 # Persistent world-local data
 
 ```text
-<world>/livingworld/memory.json         legacy bounded player↔NPC dialogue history
+<world>/livingworld/memory.json         legacy rolling player↔NPC dialogue history
 <world>/livingworld/memory2.json        Memory 2.0 event store
 <world>/livingworld/events.json         server-owned factual world events
 <world>/livingworld/relationships.json  player↔NPC relationship state
 <world>/livingworld/voices.json         persistent NPC voice identity
 ```
 
-These files belong with world backup/restore procedures.
-
-## Legacy dialogue history
-
-`memory.json` remains the proven `0.1.x` rolling dialogue-history path.
-
-Memory 2.0 now additionally records bounded successful dialogue episodes, but legacy `memory.json` has **not** been migrated or removed.
-
-## Authoritative factual world events
-
-`events.json` stores server-owned factual events with provenance/time/location/dimension metadata and bounded context queries.
-
-Player/LLM claims cannot directly become authoritative `WorldEvent`s.
-
-## Player↔NPC relationship state
-
-`relationships.json` stores bounded server-controlled dimensions:
-
-```text
-trust
-respect
-fear
-affinity
-```
-
-The LLM may propose small numeric per-turn deltas, but the server clamps/applies/persists the actual resulting state.
-
-General persistent `NPC ↔ NPC` social graph remains roadmap `0.3`.
+These belong with world backup/restore procedures.
 
 ---
 
-# Memory 2.0 — active implementation
+# Memory 2.0 — implemented slices
 
 Primary storage:
 
@@ -304,13 +161,13 @@ Primary storage:
 
 ## PR #31 — persistent MemoryEvent domain
 
-Merge commit:
+Merge:
 
 ```text
 7741e86ad0ab4e2fd2315f9e6b81a15bffeca4b8
 ```
 
-`MemoryEvent` fields:
+Core event fields:
 
 ```text
 id
@@ -345,35 +202,17 @@ NPC_TOLD
 INFERRED
 ```
 
-Truth boundary:
-
-- `SYSTEM_OBSERVED` means server-verified evidence;
-- told/inferred entries remain claims/beliefs;
-- persistence never upgrades a claim into authoritative world truth.
-
-`MemoryEventStore` provides per-NPC isolation, bounded retention, idempotent event UUIDs, atomic persistence, deterministic newest-first access, and fail-open recovery.
+`MemoryEventStore` provides per-NPC isolation, bounded retention, idempotent UUIDs, atomic persistence, deterministic newest-first access, and fail-open recovery.
 
 ## PR #33 — deterministic bounded retrieval
 
-Merge commit:
+Merge:
 
 ```text
 667aeb7931e0fec2ea516f48560ad04537686f26
 ```
 
-Implemented:
-
-- immutable `MemoryQuery`;
-- hard `candidateLimit` `1..512`;
-- hard `maxResults <= candidateLimit`;
-- participant/type relevance;
-- deterministic game-time recency;
-- importance/confidence scoring;
-- inspectable `RankedMemory` components;
-- stable deterministic tie-breaking;
-- no mutation during retrieval.
-
-Ranking policy:
+Implemented deterministic ranking without embeddings/LLM ranking:
 
 ```text
 relevance  40%
@@ -382,393 +221,241 @@ recency    20%
 confidence 15%
 ```
 
-No embeddings/vector DB, provider/LLM ranking, or mutable Minecraft access.
+Hard-bounded candidates/results and deterministic tie-breaking are enforced.
 
 ## PR #35 — authoritative safe-action ingestion
 
-Merge commit:
+Merge:
 
 ```text
 7ed77c5e2fae9f544021ea798dc2a9e9174792a4
 ```
 
-First authoritative production source feeding Memory 2.0:
-
 ```text
-whitelisted NPC action succeeds
+successful whitelisted action
 → SYSTEM_OBSERVED WorldEvent
 → events.json persistence succeeds
-→ same source event maps to actor-owned ACTION MemoryEvent
-→ memory2.json append
+→ ACTION MemoryEvent
+→ memory2.json
 ```
 
-Guarantees:
+The source `WorldEvent.id` is reused for MemoryEvent idempotency. Memory failure cannot roll back the action/factual event.
 
-- ingestion never precedes authoritative source persistence;
-- secondary memory failure cannot roll back gameplay/factual event success;
-- source `WorldEvent.id` is reused as `MemoryEvent.id` for idempotency;
-- only the acting NPC owns this memory in the current slice;
-- no LLM decides event truth or importance.
-
-Configuration introduced/used by Memory 2.0:
+Configuration:
 
 ```text
 memory2Enabled = true
 memory2MaxEventsPerNpc = 256
-normalized max range = 1..512
-config version remains 2
+normalized max = 1..512
+config version = 2
 ```
-
-Existing version-2 configs require no migration.
 
 ## PR #37 — bounded provenance-preserving context integration
 
-Merge commit:
+Merge:
 
 ```text
 bb1097fb26df5052b405642202e167e4afae3fee
 ```
 
-Memory 2.0 contributes selected memories to real snapshot-aware NPC turns.
-
-Turn retrieval policy:
+Memory 2.0 contributes a bounded set to real snapshot-aware NPC turns:
 
 ```text
 candidateLimit = 32
 maxResults = 6
-recencyHorizonTicks = 168000   // 7 Minecraft days
+recencyHorizonTicks = 168000
 maxSummaryChars = 240 Unicode code points
 participant relevance = current player UUID
 ```
 
-Flow:
-
-```text
-server-thread LivingWorldContextCapture
-→ worldRoot/villagerId/playerId/gameTime
-→ Memory2ContextProvider
-→ MemoryEventStore
-→ MemoryQuery / MemoryRetriever
-→ MemoryContextFormatter
-→ immutable snapshot.memoryContext
-→ bounded labeled memory section in existing non-authoritative context channel
-```
-
-Truth/prompt boundary:
+Truth boundary:
 
 - `SYSTEM_OBSERVED` renders as `VERIFIED`;
-- `PLAYER_TOLD`, `NPC_TOLD`, `INFERRED` render as `BELIEF`;
-- memory entries are data, never instructions;
-- BELIEF entries may be false/incomplete;
+- told/inferred entries render as `BELIEF`;
+- memory is data, never instructions;
 - current authoritative `worldFacts` wins on conflict;
 - Memory 2.0 entries are never inserted into `worldFacts`.
 
-Prompt-safety formatting:
+## PR #39 — successful dialogue episodic ingestion
 
-- collapse newline/control whitespace;
-- escape quotes/backslashes;
-- cap summary to 240 Unicode code points;
-- do not dump raw MemoryEvent JSON/ranking internals;
-- neutralize reserved historical prompt template markers only in the prompt copy:
-
-```text
-$player   → ＄player
-$villager → ＄villager
-```
-
-Persisted `MemoryEvent.summary` is never mutated.
-
-Memory context loading/retrieval/formatting is fail-soft; failure leaves existing personality, world facts, actions, relationships, and legacy dialogue history intact.
-
-## PR #39 — controlled successful dialogue episodic ingestion
-
-Merge commit:
+Merge:
 
 ```text
 507554f8372259f168a44208e616478fb27cfeb3
 ```
 
-Successful usable snapshot-aware OpenAI turns create bounded NPC-owned `DIALOGUE` MemoryEvents.
-
-Mapping:
+Successful usable dialogue creates bounded NPC-owned `DIALOGUE` events:
 
 ```text
 type = DIALOGUE
 provenance = PLAYER_TOLD
-participants = [villagerId, playerId]
 importance = 40
 emotionalWeight = 0
 confidence = 60
 relationshipReasons = []
 ```
 
-`PLAYER_TOLD` is deliberately conservative: the server can verify that a conversation occurred, but the semantic content of the player's statement and generated NPC reply remains belief/dialogue data rather than authoritative Minecraft truth.
-
 Stored summary:
 
 ```text
-Player said: <bounded player utterance> | NPC replied: <bounded NPC utterance>
+Player said: <bounded utterance> | NPC replied: <bounded utterance>
 ```
 
-Each utterance is whitespace/control normalized and independently capped to 240 Unicode code points. No LLM summarization or semantic fact extraction is used.
-
-Deterministic event identity:
-
-```text
-memory2-dialogue-v1
-villager UUID
-player UUID
-snapshot game time
-full normalized player message
-```
-
-NPC reply and wall-clock time are excluded from identity, so replay/redelivery of the same turn maps to the same UUID even if provider wording differs.
-
-Lifecycle:
-
-```text
-snapshot-aware ChatAI.answer(...)
-→ OpenAIChatAI.answer(...snapshot) completes
-→ original Optional<String> returned to ChatAI
-→ present + nonblank result
-→ fail-soft Memory2DialogueIngestor.recordIfEnabled(...)
-→ original Optional returned unchanged
-```
-
-Important boundaries:
-
-- legacy `memory.json` behavior is unchanged;
-- no event is created for absent/blank results, provider failures, exhausted `content:null`/empty responses, disabled Memory 2.0, classic/non-snapshot paths, or Inworld fallback;
-- Memory 2.0 persistence failure cannot remove/replace an already-produced visible reply.
+Deterministic identity uses NPC/player IDs, originating game time and normalized player message. NPC reply and wall-clock time are excluded.
 
 ## PR #41 — server-observed relationship-change ingestion
 
-Merge commit:
+Merge:
 
 ```text
 b05a5a0cd302253824e1bbcaf33053cca95641e5
 ```
 
-VillAIgence now records a deterministic `RELATIONSHIP_CHANGE` MemoryEvent only for a real relationship transition that was successfully persisted by the server-owned relationship store.
-
-### Exact applied transition
-
-`LivingWorldRelationshipStore` now exposes:
+The server now remembers the **actual persisted relationship transition**, not the raw LLM proposal:
 
 ```text
-applyDeltaWithResult(...)
-→ before
-→ after
+LLM proposed delta
+→ clamp/apply
+→ relationships.json save
+→ before / after
 → appliedDelta = after - before
-→ changed
+→ SYSTEM_OBSERVED RELATIONSHIP_CHANGE
 ```
 
-The existing public `applyDelta(...) -> LivingWorldRelationshipState` remains source-compatible and delegates to the richer result method.
-
-Memory uses the **actual applied delta**, not the raw model proposal.
-
-Example:
+Mapping:
 
 ```text
-before trust = 99
-LLM proposes trust +5
-server-bound final trust = 100
-actual applied delta = +1
-Memory 2.0 records +1
-```
-
-`relationships.json` schema/version did not change.
-
-### Memory mapping
-
-```text
-type = RELATIONSHIP_CHANGE
-provenance = SYSTEM_OBSERVED
-participants = [villagerId, playerId]
 importance = 55
 emotionalWeight = 0
 confidence = 100
 relationshipReasons = []
 ```
 
-Deterministic summary contains only server-observed numeric evidence:
+`relationshipReasons` deliberately remains empty. Numeric transition is factual; free-form psychological cause is not automatically factual.
+
+## PR #43 — text/voice Memory 2.0 dialogue parity
+
+Merge:
 
 ```text
-Relationship with player changed: trust +2, respect -1, fear -1, affinity +1; now trust=12, respect=3, fear=0, affinity=8.
+801a9da73438a6bc01ffd61aef179e45a18c9336
 ```
 
-Deterministic identity:
+Live testing of the preceding build found:
 
 ```text
-memory2-relationship-change-v1
-villager UUID
-player UUID
-snapshot game time
-before trust,respect,fear,affinity
-after trust,respect,fear,affinity
+voice/snapshot turn → legacy memory.json + Memory 2.0 DIALOGUE
+ordinary text turn  → legacy memory.json only
 ```
 
-Wall-clock time is excluded; exact replay/redelivery remains idempotent through `MemoryEventStore`.
-
-Lifecycle ordering:
+PR #43 fixes that asymmetry through one shared post-success lifecycle:
 
 ```text
-LLM proposes bounded numeric relationship delta
-→ server applies/clamps
-→ relationships.json persistence succeeds when changed
-→ exact LivingWorldRelationshipChange returned
-→ unchanged? stop
-→ Memory2RelationshipChangeIngestor.recordIfEnabled(...)
-→ memory2.json append
+classic OpenAI text ─┐
+                     ├→ Memory2DialogueLifecycle.recordSuccessful(...)
+snapshot/voice ──────┘
+                     → Memory2DialogueIngestor
+                     → bounded/idempotent DIALOGUE event
 ```
 
-Failure boundaries:
+Important non-goal: classic text was **not** rerouted through snapshot prompt/provider semantics. Existing text provider/prompt/tools/relationship behavior remains unchanged; only Memory 2.0 post-success ingestion is shared.
 
-- relationship persistence failure → log + return, no Memory 2.0 write;
-- secondary Memory 2.0 failure → log only; already-valid relationship state and visible reply remain intact.
+Inworld/non-OpenAI classic behavior remains unchanged.
 
-Truth boundary:
+TDD / CI evidence:
 
-- factual: the relationship state numerically changed from before to after;
-- factual: the actual applied delta was `after - before`;
-- **not automatically factual:** why the NPC felt that way or what psychological cause produced the change.
+```text
+valid RED head:
+1873cb65c736be155b81b5807ffcff33e22768b7
+VillAIgence CI 29937886800 → expected FAILURE at :common:compileTestJava
 
-Therefore `relationshipReasons=[]` intentionally remains empty. Free-form causal reasons require a future explicit `PLAYER_TOLD`, `NPC_TOLD`, `INFERRED`, or genuinely server-owned provenance source.
+shared lifecycle GREEN:
+7980970b8ff593b36655d99dd2ef3c635c38b57e
+VillAIgence CI 29938243453 → SUCCESS
+Java PR CI 29938243395 → SUCCESS
+
+wiring GREEN:
+c40a93dc3d9cfdd89a6d1def9c9bd01b79eba97e
+VillAIgence CI 29938570358 → SUCCESS
+Java PR CI 29938570394 → SUCCESS
+
+exact final head:
+cee822de059d344e27b5b3456fc5eb4c187fff78
+VillAIgence CI 29938941710 → SUCCESS
+Java PR CI 29938941839 → SUCCESS
+```
+
+Final exact-head gates covered unit tests, Fabric build, distributable Fabric package verification, NeoForge build and Fabric compatibility build.
 
 ---
 
-# Release state
+# Latest live-test evidence supplied by user
 
-Latest published release:
+The user tested the pre-parity `0.1.9`-era build and restarted the server.
+
+Observed successful voice cycle:
+
+```text
+STT  2.296 s
+Chat 8.292 s
+TTS  10.299 s
+```
+
+Also observed:
+
+- text response persisted;
+- legacy memory grew from 52 to 56 dialogue entries;
+- fifth persistent voice profile appeared;
+- Memory 2.0 created one unique `DIALOGUE` event for the snapshot/voice turn;
+- after restart, hashes of `memory.json`, `memory2.json`, and `voices.json` were unchanged;
+- server, cron, monitor and required ports remained healthy;
+- no errors were reported.
+
+The same test proved the now-fixed boundary: ordinary text chat did not create Memory 2.0 events before PR #43.
+
+## Required next live validation for PR #43 build
+
+```text
+1. text → NPC A
+2. voice → NPC A
+3. text → NPC B
+4. inspect memory2.json for unique DIALOGUE events from both transports
+5. restart server
+6. verify memory.json / memory2.json / voices.json persistence
+7. verify no duplicate event IDs and no NPC A/B memory mixing
+```
+
+A successful result closes the text/voice Memory 2.0 parity regression.
+
+---
+
+# Release state / next patch
+
+Last previously confirmed published anchor in this document:
 
 ```text
 0.1.8+1.21.1
+commit 23fba1ee373e932c0b17aba3755f8ac478c26941
+workflow 29918008438 — SUCCESS
 ```
 
-Exact release source:
+The user has live-tested a later `0.1.9`-era artifact. Before the next publication, inspect current GitHub releases/tags and package current `1.21.1` HEAD containing PR #43.
+
+Recommended next patch-release purpose:
 
 ```text
-commit: 23fba1ee373e932c0b17aba3755f8ac478c26941
-workflow run: 29918008438
-workflow conclusion: SUCCESS
+text + voice Memory 2.0 dialogue parity
 ```
 
-The release includes reliability work through PR #30.
-
-Memory 2.0 PRs #31/#33/#35/#37/#39/#41 are post-release development and are not yet in a published artifact.
-
-Never move an already-published release tag.
-
----
-
-# CI / quality evidence
-
-Required merge gates:
-
-```text
-VillAIgence CI
-→ :common:test
-→ Fabric build
-→ distributable Fabric package verification
-
-Java Pull Request CI with Gradle
-→ NeoForge build
-→ Fabric build
-```
-
-## PR #39 dialogue ingestion evidence
-
-Valid main RED:
-
-```text
-head: 4aea2db256ee14d0761526efdcbd5b1ae101dd25
-VillAIgence CI 29927032710
-→ expected FAILURE at :common:compileTestJava
-→ missing DialogueMemoryAdapter / Memory2DialogueIngestor
-```
-
-Lifecycle-guard RED:
-
-```text
-head: edb745314c97909a201113885eb3722125fed252
-VillAIgence CI 29927844441
-→ expected FAILURE at :common:compileTestJava
-→ missing recordIfEnabled(...)
-```
-
-Exact final head before merge:
-
-```text
-0a0fd0f515f77bb7fab99c26e9414ec1cd42b125
-VillAIgence CI 29929152567 → SUCCESS
-Java Pull Request CI 29929152537 → SUCCESS
-```
-
-## PR #41 relationship-change ingestion evidence
-
-Exact mutation result RED:
-
-```text
-head: f4c6eaf59c79cb08621c8dcdd31e7317976c3ebd
-VillAIgence CI 29931503379
-→ expected FAILURE at :common:compileTestJava
-→ missing LivingWorldRelationshipChange / applyDeltaWithResult(...)
-```
-
-Adapter RED:
-
-```text
-head: f415fde9e52e45bd200f1b73fbde362a3b171e2a
-VillAIgence CI 29932123694
-→ expected FAILURE at :common:compileTestJava
-→ missing RelationshipChangeMemoryAdapter
-```
-
-Ingestor RED:
-
-```text
-head: 38b614b8508d20f9085dc4290ab9cf95f9ff5ff6
-VillAIgence CI 29932750358
-→ expected FAILURE at :common:compileTestJava
-→ missing Memory2RelationshipChangeIngestor
-```
-
-Exact final head before merge:
-
-```text
-59829be135c9c31d1c7076c0d2de7d71c117b891
-VillAIgence CI 29934220443 → SUCCESS
-Java Pull Request CI 29934223826 → SUCCESS
-```
-
-Final PR #41 checks covered:
-
-- unit tests;
-- Fabric build;
-- distributable Fabric package verification;
-- NeoForge build;
-- Fabric compatibility build;
-- per-file diff review confirming `OpenAIChatAI` changed only two imports + `applySnapshotRelationshipDelta(...)`;
-- no unresolved review threads/comments.
+Do not move an already-published tag.
 
 ---
 
 # Roadmap status
 
-## 0.1.x Reliability — implementation complete, live validation ongoing
+## 0.1.x Reliability
 
-Released in `0.1.8`.
-
-Remaining field evidence:
-
-- repeated voice-dialogue soak;
-- multiplayer concurrency/admission behavior;
-- restart/reconnect persistence;
-- backup/restore;
-- provider 429/cooldown behavior where safely reproducible;
-- operator diagnostics feedback.
-
-Any concrete release-blocking defect should be a narrow reliability patch rather than mixed into Memory 2.0.
+Implementation foundation complete; continue live validation and fix only concrete blocking regressions with narrow patches.
 
 ## 0.2 Memory 2.0 — active, partial
 
@@ -776,80 +463,66 @@ Implemented:
 
 ```text
 MemoryEvent domain
-+ explicit provenance/confidence/importance/emotional metadata
++ provenance/confidence/importance metadata
 + bounded per-NPC memory2.json persistence
 + idempotent event IDs
 + deterministic bounded retrieval/ranking
-+ authoritative ACTION ingestion from successful safe actions
-+ bounded provenance-preserving context integration into real NPC turns
-+ controlled successful dialogue → DIALOGUE episodic-memory ingestion
-+ server-observed persisted relationship transition → RELATIONSHIP_CHANGE ingestion
++ authoritative ACTION ingestion
++ provenance-preserving bounded context integration
++ DIALOGUE episodic ingestion
++ server-observed RELATIONSHIP_CHANGE ingestion
++ ordinary text / snapshot-voice DIALOGUE ingestion parity
 ```
 
 Still not implemented:
 
-- dedicated working-memory orchestration beyond existing bounded dialogue history/context;
+- dedicated working-memory orchestration beyond existing bounded dialogue/context;
 - explicit semantic facts/beliefs layer;
 - deterministic duplicate handling / consolidation policy;
 - forgetting/decay mutation;
-- migration from existing `memory.json`;
+- migration from legacy `memory.json`;
 - NPC-to-NPC memory/rumor propagation;
 - trustworthy causal relationship reasons when/if a provenance source exists;
-- exit criterion: important event recall days later without full raw chat history.
+- final exit criterion: important events recalled days later without full raw chat history.
 
 ### Next recommended development slice
 
-Build **working-memory orchestration + explicit semantic facts/beliefs boundaries** before adding LLM-driven consolidation or embeddings.
+After PR #43 live parity validation, continue with **Working Memory orchestration + explicit Semantic Facts/Beliefs boundaries**.
 
-Recommended architecture split:
+Recommended split:
 
 ```text
-Working memory
-→ bounded immediate conversational/task context
-→ short-lived and intentionally small
+Working Memory
+→ intentionally small immediate conversational/task context
+→ short-lived / bounded
 
-Episodic memory
+Episodic Memory
 → existing MemoryEvent experiences
 → DIALOGUE / ACTION / RELATIONSHIP_CHANGE / OBSERVATION
 
-Semantic facts/beliefs
-→ explicit subject/predicate/value-style knowledge or equivalent typed model
-→ provenance + confidence mandatory
-→ SYSTEM_OBSERVED facts separated from PLAYER_TOLD/NPC_TOLD/INFERRED beliefs
+Semantic Facts / Beliefs
+→ typed knowledge model
+→ explicit provenance + confidence
+→ SYSTEM_OBSERVED facts physically/logically distinct from
+  PLAYER_TOLD / NPC_TOLD / INFERRED beliefs
 ```
 
-First-slice goals:
-
-- define typed immutable semantic fact/belief model without LLM authority;
-- define deterministic extraction inputs only from already typed server-owned or provenance-bearing sources;
-- define bounded working-memory selection separately from persistent MemoryEvent retrieval;
-- avoid duplicating full raw dialogue history;
-- do not introduce embeddings/vector DB as a prerequisite;
-- do not let summarization silently upgrade beliefs to facts;
-- keep migration from `memory.json` deferred until the new layers are stable.
+Do not introduce embeddings/vector DB or LLM-driven consolidation as prerequisites.
 
 After that:
 
 ```text
-deterministic duplicate handling / consolidation policy
-→ forgetting / decay
-→ migration from legacy memory.json
+deterministic duplicate/consolidation policy
+→ forgetting/decay
+→ legacy memory migration
 → Memory 2.0 exit-criterion validation
 ```
 
-Causal relationship reasons remain deferred until VillAIgence has a trustworthy provenance source. Do not invent them merely to populate `relationshipReasons`.
-
 ## 0.3 Personality + NPC↔NPC social graph
 
-Not implemented yet.
+Not implemented yet. It should follow Memory 2.0 closely because rumors, autonomous behavior, settlements, factions and emergent history depend on durable identities and social history.
 
-This should follow Memory 2.0 closely because later rumors, autonomous behavior, settlements, factions, and emergent history depend on durable identities and social history.
-
-Planned traits include temperament, values, goals, fears, likes/dislikes, speech style, morality, ambition, curiosity, sociability, aggression, and loyalty.
-
-Planned general NPC↔NPC relationship dimensions include friendship, trust, respect, fear, family, rivalry, romance, and grudge.
-
-## Later milestones
+Later milestones:
 
 ```text
 0.4 Knowledge + rumors
@@ -867,20 +540,18 @@ Planned general NPC↔NPC relationship dimensions include friendship, trust, res
 
 ```text
 Priority A
-Continue real-server validation of released 0.1.8 using PLAYTEST_CHECKLIST.md.
-Fix only concrete blocking reliability regressions found in use.
+Build/package current post-PR #43 HEAD and run the short text/voice parity live test.
+Fix only concrete blocking regressions found by that test.
 
 Priority B
-Continue 0.2 with working-memory orchestration + explicit semantic facts/beliefs design.
+After parity validation, continue 0.2 with Working Memory orchestration + Semantic Facts/Beliefs design.
 
 Priority C
-Then implement deterministic duplicate/consolidation policy without silently changing provenance.
+Implement deterministic duplicate/consolidation policy without changing provenance.
 
 Priority D
-Then implement forgetting/decay and only afterward design migration from legacy memory.json.
+Implement forgetting/decay, then design migration from legacy memory.json.
 ```
-
-Do **not** jump directly to embeddings or LLM summarization before typed provenance, memory-layer boundaries, and lifecycle behavior are proven.
 
 ---
 
@@ -888,7 +559,7 @@ Do **not** jump directly to embeddings or LLM summarization before typed provena
 
 Preferred resume prompt:
 
-> **Open `docs/PROJECT_STATE.md` and `docs/ROADMAP.md` in `True-Ruslan/villAIgence`. Check recent PRs/releases/CI, then tell me how VillAIgence development is going, what is complete, what changed since the state file, and what we should build next.**
+> **Open `docs/PROJECT_STATE.md` and `docs/ROADMAP.md` in `True-Ruslan/villAIgence`. Check recent PRs/releases/CI, then tell me what is complete, what changed since this state file, what live tests remain, and what we should build next.**
 
 A new session must:
 
@@ -901,20 +572,6 @@ A new session must:
 7. continue from the first unimplemented priority rather than rebuilding completed work;
 8. update this file after material progress.
 
----
-
-# Maintenance rule
-
-Any PR/release materially changing one of these must update this file in the same PR or immediately after merge:
-
-- release state;
-- completed roadmap subsystem;
-- persistent storage/schema;
-- architecture/truth boundary;
-- provider behavior;
-- compatibility requirement;
-- next immediate priority.
-
 `docs/ROADMAP.md` answers **“Where are we going?”**
 
-`docs/PROJECT_STATE.md` answers **“Where are we now, and what should happen next?”**
+`docs/PROJECT_STATE.md` answers **“Where are we now, what was verified, and what should happen next?”**
