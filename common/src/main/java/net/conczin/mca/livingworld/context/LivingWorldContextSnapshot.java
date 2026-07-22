@@ -12,6 +12,7 @@ public record LivingWorldContextSnapshot(
         String villagerName,
         List<String> contextLines,
         List<String> worldFacts,
+        List<String> memoryContext,
         List<ActionDescriptor> availableActions,
         long worldSeed,
         long gameTime,
@@ -23,6 +24,7 @@ public record LivingWorldContextSnapshot(
     public LivingWorldContextSnapshot {
         contextLines = List.copyOf(contextLines);
         worldFacts = List.copyOf(worldFacts);
+        memoryContext = List.copyOf(memoryContext);
         availableActions = List.copyOf(availableActions);
         worldRoot = worldRoot.toAbsolutePath().normalize();
         language = language == null ? "" : language;
