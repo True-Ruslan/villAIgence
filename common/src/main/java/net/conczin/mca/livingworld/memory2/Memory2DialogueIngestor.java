@@ -8,6 +8,30 @@ public final class Memory2DialogueIngestor {
     private Memory2DialogueIngestor() {
     }
 
+    public static void recordIfEnabled(
+            boolean enabled,
+            Path worldRoot,
+            UUID npcId,
+            UUID playerId,
+            long gameTime,
+            String playerMessage,
+            String npcReply,
+            int maxEventsPerNpc,
+            long createdAtEpochMillis
+    ) {
+        if (!enabled) return;
+        record(
+                worldRoot,
+                npcId,
+                playerId,
+                gameTime,
+                playerMessage,
+                npcReply,
+                maxEventsPerNpc,
+                createdAtEpochMillis
+        );
+    }
+
     public static void record(
             Path worldRoot,
             UUID npcId,
