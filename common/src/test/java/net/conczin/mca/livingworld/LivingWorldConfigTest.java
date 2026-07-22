@@ -132,19 +132,25 @@ class LivingWorldConfigTest {
     }
 
     @Test
-    void ttsCredentialIsResolvedIndependentlyFromChatProvider() {
+    void ttsCredentialIsResolvedByTtsEndpointWithoutCrossProviderKeyLeakage() {
         assertEquals("sk-openai-env", LivingWorldConfig.resolveTtsApiKey(
-                "https://api.openai.com/v1/audio/speech", "sk-openai-env", "sk-tts-file", "openrouter", "sk-openrouter-main"));
+                "https://api.openai.com/v1/audio/speech", "sk-or-env", "sk-openai-env", "sk-tts-file", "openrouter", "sk-openrouter-main"));
+        assertEquals("sk-or-env", LivingWorldConfig.resolveTtsApiKey(
+                "https://openrouter.ai/api/v1/audio/speech", "sk-or-env", "sk-openai-env", "sk-tts-file", "openai", "sk-openai-main"));
         assertEquals("sk-tts-file", LivingWorldConfig.resolveTtsApiKey(
-                "https://example-tts.invalid/v1/speech", "sk-openai-env", "sk-tts-file", "openrouter", "sk-main"));
+                "https://example-tts.invalid/v1/speech", "sk-or-env", "sk-openai-env", "sk-tts-file", "openrouter", "sk-main"));
         assertEquals("sk-main", LivingWorldConfig.resolveTtsApiKey(
-                "https://example-tts.invalid/v1/speech", "", "", "openrouter", "sk-main"));
+                "https://example-tts.invalid/v1/speech", "", "", "", "openrouter", "sk-main"));
         assertEquals("", LivingWorldConfig.resolveTtsApiKey(
-                "https://api.openai.com/v1/audio/speech", "", "", "openrouter", "sk-openrouter-main"));
+                "https://api.openai.com/v1/audio/speech", "", "", "", "openrouter", "sk-openrouter-main"));
         assertEquals("sk-openai-main", LivingWorldConfig.resolveTtsApiKey(
-                "https://api.openai.com/v1/audio/speech", "", "", "openai", "sk-openai-main"));
+                "https://api.openai.com/v1/audio/speech", "", "", "", "openai", "sk-openai-main"));
+        assertEquals("", LivingWorldConfig.resolveTtsApiKey(
+                "https://openrouter.ai/api/v1/audio/speech", "", "", "", "openai", "sk-openai-main"));
+        assertEquals("sk-openrouter-main", LivingWorldConfig.resolveTtsApiKey(
+                "https://openrouter.ai/api/v1/audio/speech", "", "", "", "openrouter", "sk-openrouter-main"));
         assertEquals("sk-tts-file", LivingWorldConfig.resolveTtsApiKey(
-                "https://evil.example/proxy/api.openai.com/v1/audio/speech", "sk-openai-env", "sk-tts-file", "openrouter", "sk-main"));
+                "https://evil.example/proxy/api.openai.com/v1/audio/speech", "sk-or-env", "sk-openai-env", "sk-tts-file", "openrouter", "sk-main"));
     }
 
     @Test
