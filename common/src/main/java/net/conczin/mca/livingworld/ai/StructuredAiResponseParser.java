@@ -23,6 +23,9 @@ public final class StructuredAiResponseParser {
         if (content == null) return new ParsedResponse(null, "", null);
 
         String normalized = stripMarkdownFences(content).trim();
+        if (normalized.isEmpty()) return new ParsedResponse(null, "", null);
+
+        int firstObjectStart = normalized.indexOf('{');
         JsonSpan json = findFirstJsonObject(normalized);
         if (json != null) {
             JsonObject object = parseObject(json.json());
@@ -34,6 +37,9 @@ public final class StructuredAiResponseParser {
                 if (message != null) {
                     return new ParsedResponse(message.trim(), optionalCommand == null ? "" : optionalCommand.trim(), relationshipDelta);
                 }
+            } else {
+                String recovered = recoverTopLevelMessage(json.json());
+                if (recovered != null) return new ParsedResponse(recovered.trim(), "", null);
             }
 
             String prefix = normalized.substring(0, json.start()).trim();
@@ -41,7 +47,17 @@ public final class StructuredAiResponseParser {
             return new ParsedResponse(null, "", null);
         }
 
-        return new ParsedResponse(normalized.isEmpty() ? null : normalized, "", null);
+        if (firstObjectStart >= 0) {
+            String malformedObject = normalized.substring(firstObjectStart);
+            String recovered = recoverTopLevelMessage(malformedObject);
+            if (recovered != null) return new ParsedResponse(recovered.trim(), "", null);
+
+            String prefix = normalized.substring(0, firstObjectStart).trim();
+            if (!prefix.isEmpty()) return new ParsedResponse(prefix, "", null);
+            return new ParsedResponse(null, "", null);
+        }
+
+        return new ParsedResponse(normalized, "", null);
     }
 
     private static String stripMarkdownFences(String content) {
@@ -91,6 +107,78 @@ public final class StructuredAiResponseParser {
         try {
             return new BigDecimal(value.getAsString()).intValueExact();
         } catch (ArithmeticException | NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * Recovers only a top-level JSON string value assigned to the key {@code message}.
+     * The rest of the object may be syntactically invalid; no other field is trusted.
+     */
+    @Nullable
+    private static String recoverTopLevelMessage(String text) {
+        int depth = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '{') {
+                depth++;
+                continue;
+            }
+            if (c == '}') {
+                if (depth > 0) depth--;
+                continue;
+            }
+            if (c != '"') continue;
+
+            int keyEnd = findJsonStringEnd(text, i);
+            if (keyEnd < 0) return null;
+            if (depth == 1) {
+                String key = decodeJsonString(text.substring(i, keyEnd + 1));
+                if ("message".equals(key)) {
+                    int cursor = skipWhitespace(text, keyEnd + 1);
+                    if (cursor >= text.length() || text.charAt(cursor) != ':') return null;
+                    cursor = skipWhitespace(text, cursor + 1);
+                    if (cursor >= text.length() || text.charAt(cursor) != '"') return null;
+                    int valueEnd = findJsonStringEnd(text, cursor);
+                    if (valueEnd < 0) return null;
+                    return decodeJsonString(text.substring(cursor, valueEnd + 1));
+                }
+            }
+            i = keyEnd;
+        }
+        return null;
+    }
+
+    private static int skipWhitespace(String text, int start) {
+        int cursor = start;
+        while (cursor < text.length() && Character.isWhitespace(text.charAt(cursor))) cursor++;
+        return cursor;
+    }
+
+    private static int findJsonStringEnd(String text, int quoteStart) {
+        boolean escaped = false;
+        for (int i = quoteStart + 1; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (escaped) {
+                escaped = false;
+            } else if (c == '\\') {
+                escaped = true;
+            } else if (c == '"') {
+                return i;
+            } else if (c < 0x20) {
+                return -1;
+            }
+        }
+        return -1;
+    }
+
+    @Nullable
+    private static String decodeJsonString(String token) {
+        try {
+            JsonElement element = JsonParser.parseString(token);
+            if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) return null;
+            return element.getAsString();
+        } catch (RuntimeException ignored) {
             return null;
         }
     }
