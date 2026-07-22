@@ -1,4 +1,6 @@
-# LivingWorld microphone and NPC voice modes
+# VillAIgence microphone and NPC voice modes
+
+VillAIgence uses Simple Voice Chat for microphone capture and spatial NPC playback. `LivingWorld` remains the internal engine namespace used by compatibility-sensitive classes and paths.
 
 ## Required mods
 
@@ -6,8 +8,8 @@ Server and clients:
 
 - Minecraft 1.21.1
 - Fabric Loader / Fabric API
-- the same LivingWorld release JAR
-- Simple Voice Chat 2.6.20 or newer
+- the same VillAIgence release JAR
+- Simple Voice Chat 2.6.20+
 
 Only the server needs AI/STT/TTS credentials.
 
@@ -19,7 +21,7 @@ Recommended text-output mode:
 player microphone
 → Simple Voice Chat
 → STT
-→ NPC AI
+→ VillAIgence NPC AI
 → clean MCA text reply
 ```
 
@@ -38,6 +40,7 @@ player microphone
 → STT
 → NPC AI
 → clean MCA text reply
+→ persistent NPC voice + mood
 → TTS
 → spatial NPC audio
 ```
@@ -62,7 +65,7 @@ NPC UUID + MCA gender + MCA age state
 → <world>/livingworld/voices.json
 ```
 
-The profile survives restarts and LLM changes. Mood changes delivery style, not the persistent voice ID.
+The profile survives restarts and LLM changes. Mood changes delivery style, not persistent voice ID.
 
 MCA age mapping:
 
@@ -72,22 +75,20 @@ MCA age mapping:
 
 Current MCA 1.21.1 has no separate elder state.
 
-Voice IDs are provider/model-specific. When changing TTS provider, update all relevant voice pools. Stored profiles using IDs that are no longer eligible are automatically replaced with a compatible configured voice.
+Voice IDs are provider/model-specific. When changing TTS provider, update all relevant voice pools. Stored profiles using no-longer-eligible IDs are replaced with compatible configured voices.
 
 ## How to talk to an NPC
 
 1. Interact with an MCA villager to select it as the current target.
-2. Close or leave the interaction UI as usual.
-3. Look toward that villager.
+2. Close or leave the interaction UI.
+3. Look toward the selected villager.
 4. Hold the normal Simple Voice Chat push-to-talk key and speak.
-5. Stop speaking; after the configured silence segmentation, LivingWorld finalizes the utterance.
+5. Stop speaking; after configured silence segmentation, VillAIgence finalizes the utterance.
 6. The server revalidates the selected target and sends audio to STT.
 7. The AI answer is sanitized and shown through the MCA text conversation path.
 8. If TTS is enabled, the same clean text is synthesized and played spatially from the NPC.
 
 ## OpenRouter STT
-
-Example:
 
 ```json
 {
@@ -104,12 +105,10 @@ The Base64 field contains raw WAV bytes, not a `data:audio/...` URI.
 
 ## OpenRouter raw PCM TTS
 
-LivingWorld supports two TTS response transports:
+VillAIgence supports two TTS response transports:
 
 - `wav`
 - raw `pcm`
-
-Configuration:
 
 ```json
 {
@@ -126,7 +125,7 @@ auto + other endpoint → wav
 explicit pcm/wav     → explicit value wins
 ```
 
-For raw PCM, LivingWorld expects `Content-Type: audio/pcm`.
+For raw PCM, VillAIgence expects base `Content-Type: audio/pcm`.
 
 Optional MIME parameters are handled when present:
 
@@ -137,21 +136,17 @@ Content-Type: audio/pcm;rate=24000;channels=1
 Rules:
 
 - `rate` present → use it after validation;
-- `rate` absent → use `ttsPcmSampleRate` (default 24000 Hz);
+- `rate` absent → use `ttsPcmSampleRate`;
 - `channels` absent → assume mono;
 - explicit `channels` must equal `1`;
-- body must contain an even number of bytes;
-- samples are decoded as signed PCM16 little-endian;
+- body byte count must be even;
+- samples are signed PCM16 little-endian;
 - no fake RIFF/WAV header is added;
-- decoded audio is resampled through the existing path to 48 kHz before Simple Voice Chat playback.
+- decoded audio is resampled to 48 kHz before Simple Voice Chat playback.
 
 WAV responses continue through the existing WAV decoder.
 
-OpenRouter currently documents PCM as the default/real-time-friendly TTS response format and returns raw audio bytes rather than JSON on success. `X-Generation-Id`, when present, is retained for concise diagnostics.
-
-## Example: OpenRouter Grok voice TTS
-
-Example server configuration:
+## Example: OpenRouter voice TTS
 
 ```json
 {
@@ -183,15 +178,13 @@ Example server configuration:
 }
 ```
 
-The model and voice IDs are examples from the selected provider/model, not hardcoded LivingWorld behavior.
+Model and voice IDs are provider-specific examples, not hardcoded VillAIgence behavior.
 
-The repeated voice lists intentionally avoid claiming that the provider defines male/female/child/teen categories. Classify voice IDs into narrower LivingWorld pools only after validating them for your server.
-
-Using only `ttsVoice="rex"` while leaving old incompatible pools unchanged is not sufficient: persistent profile selection uses configured pools before the legacy fallback. Update the pools when switching providers.
+Using only `ttsVoice` while leaving incompatible old pools unchanged is not sufficient because persistent profile selection evaluates configured pools first.
 
 ## Mood-aware delivery
 
-LivingWorld derives delivery mood from server-owned state:
+VillAIgence derives delivery mood from server-owned state:
 
 - panic/high fear → afraid;
 - critical health → sad;
@@ -202,13 +195,13 @@ LivingWorld derives delivery mood from server-owned state:
 
 The base voice does not change because of mood.
 
-A bounded `speed` value is included in the provider-neutral speech request. Providers/models that do not support speed may ignore it. Additional style controls are best-effort and must not replace the persistent voice identity.
+A bounded `speed` value is included in the provider-neutral speech request. Additional style controls are best-effort and never replace persistent voice identity.
 
 ## Structured response sanitation
 
-Before text or speech is published, LivingWorld sanitizes structured AI output.
+Before text or speech is published, VillAIgence sanitizes structured AI output.
 
-Valid shape:
+A valid response may contain:
 
 ```json
 {
@@ -230,19 +223,17 @@ If optional metadata is malformed:
 - invalid relationship delta is ignored;
 - integer relationship deltas are clamped later by server-authoritative relationship logic.
 
-Even if the object itself contains malformed syntax such as:
+Even when the object contains malformed syntax such as:
 
 ```text
 "fear": INVALID_VALUE
 ```
 
-LivingWorld recovers only a syntactically valid top-level JSON string value for `message`. It never speaks or displays the remaining JSON tail.
+VillAIgence recovers only a syntactically valid top-level JSON string `message`. It never speaks/displays the remaining JSON tail.
 
-If no safe message can be recovered from a JSON-looking response, no answer from that response is published.
+If no safe message can be recovered from a JSON-looking response, no unsafe answer is published.
 
 ## Text-first failure semantics
-
-The order is intentional:
 
 ```text
 AI response
@@ -255,21 +246,34 @@ AI response
 → spatial playback
 ```
 
-Therefore a TTS HTTP error, unsupported format, invalid PCM metadata, decode error or playback failure cannot remove the already-published text answer.
+A TTS HTTP/format/decode/playback failure cannot remove the already-published text answer.
 
-LivingWorld does not automatically retry TTS for the same utterance. Busy player/NPC locks are released normally.
+VillAIgence does not automatically retry TTS for the same utterance. Busy player/NPC locks are released normally.
 
 ## Important behavior
 
 - Ambient player voice is not sent to STT unless a villager was intentionally selected and addressed.
 - Normal player-to-player Simple Voice Chat traffic is not cancelled or modified.
-- Additional microphone packets are ignored by LivingWorld while that player's AI request is already in flight; they remain normal voice-chat traffic.
+- Additional microphone packets are ignored by VillAIgence while that player's AI request is already in flight; they remain normal voice-chat traffic.
 - Voice input is capped by `voiceMaxSeconds`.
 - Short audio below `voiceMinMillis` is ignored.
 - NPC audio is entity-bound spatial audio with `voiceDistance` range.
 - Mutable MCA gender/age/panic/health state is captured on the Minecraft server thread before async TTS work.
 - Raw microphone and synthesized audio are processed in memory and are not intentionally persisted.
 - API keys remain server-side.
+
+## Internal compatibility names
+
+The public mod is **VillAIgence**, but these remain unchanged:
+
+```text
+config/livingworld.json
+<world>/livingworld/
+net.conczin.mca.livingworld.*
+mod id: mca
+```
+
+`LivingWorld` therefore remains visible in some internal class/log/config names by design.
 
 ## Data flow
 
@@ -279,7 +283,7 @@ microphone
 → PCM
 → WAV encoding for STT
 → STT
-→ NPC AI
+→ VillAIgence NPC AI
 → resilient structured-response parser
 → clean MCA text reply
 → persistent NPC voice + server-derived mood
@@ -297,7 +301,7 @@ microphone
 Check:
 
 - `voiceInputEnabled=true`;
-- the player interacted with the NPC first;
+- the player selected the NPC first;
 - the player is looking toward the NPC;
 - Simple Voice Chat is connected;
 - STT endpoint/model/key are valid.
@@ -312,17 +316,17 @@ Check:
 
 - `voiceOutputEnabled=true`;
 - TTS endpoint/model/key are valid;
-- configured persistent voice pools contain IDs supported by the selected TTS model;
-- `ttsResponseFormat` matches the endpoint behavior (`auto` is recommended for OpenRouter);
-- for PCM, the server log does not report invalid `Content-Type`, `rate`, `channels` or odd PCM16 byte count.
+- persistent voice pools contain IDs supported by the selected TTS model;
+- `ttsResponseFormat` matches endpoint behavior (`auto` is recommended for OpenRouter);
+- server logs do not report invalid PCM `Content-Type`, `rate`, `channels` or byte count.
 
-Text working while speech fails is expected fail-open behavior: text is deliberately independent from TTS success.
+Text working while speech fails is expected fail-open behavior.
 
-### NPC got a different voice after switching TTS provider
+### NPC voice changed after switching provider
 
-Expected when the old stored voice ID is no longer eligible under the new provider-compatible pools. LivingWorld resolves a new compatible persistent voice.
+Expected when the stored voice ID is no longer eligible under new provider-compatible pools. VillAIgence resolves a compatible replacement and persists it.
 
-### NPC got a different voice after growing up
+### NPC voice changed after growing up
 
 Expected when crossing a real MCA age bucket such as child → teen or teen → adult.
 
@@ -332,4 +336,4 @@ Set `sttLanguage` to an ISO-639-1 code such as `ru`, or leave blank for automati
 
 ### API/TTS decode errors
 
-Inspect the dedicated server log. Diagnostics may include operation/status, model, response format, content type and generation ID. LivingWorld does not intentionally log API keys, Authorization headers, raw audio or full prompts.
+Inspect the dedicated server log. Diagnostics may include operation/status, model, response format, content type and generation ID. VillAIgence does not intentionally log API keys, Authorization headers, raw audio or full prompts.
