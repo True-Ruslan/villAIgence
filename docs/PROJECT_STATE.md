@@ -4,7 +4,7 @@
 >
 > Last major state update: **2026-07-22**.
 >
-> Reconcile this document with recent PRs, releases/tags, CI, and new live-test evidence before active development.
+> Reconcile this document with recent PRs, releases/tags, CI, and newer live-test evidence before active development.
 
 ## Executive snapshot
 
@@ -12,20 +12,38 @@ VillAIgence is a Minecraft 1.21.1 MCA-derived mod evolving from AI-assisted vill
 
 ```text
 primary branch: 1.21.1
-current implemented code HEAD after PR #43:
+
+current implemented code anchor after PR #43:
 801a9da73438a6bc01ffd61aef179e45a18c9336
 
-last previously confirmed published release:
+canonical state-sync anchor after PR #44:
+b7a53c1c24eb6dbedebec63f7dea06a6fb54ff69
+
+latest live-validated release checkpoint:
+0.1.10+1.21.1
+status: PASS for the intended text/voice Memory 2.0 parity + restart scenario
+
+last previously confirmed published release anchor in historical docs:
 0.1.8+1.21.1
-release commit:
-23fba1ee373e932c0b17aba3755f8ac478c26941
-release workflow:
-29918008438 — SUCCESS
+commit: 23fba1ee373e932c0b17aba3755f8ac478c26941
+workflow: 29918008438 — SUCCESS
 ```
 
-A `0.1.9`-era build was live-tested by the user after the first Memory 2.0 slices. That test exposed text/voice Memory 2.0 asymmetry, now fixed by PR #43. Before publishing the next artifact, reconcile current release/tag state and package the `1.21.1` HEAD containing PR #43.
+The user reports that `0.1.10+1.21.1` was released/tested successfully. This document treats it as the current **live-validated checkpoint**. Exact GitHub Release/tag publication metadata should still be reconciled directly from GitHub before making claims about release-page/tag chronology.
 
-Post-`0.1.8` Memory 2.0 development on `1.21.1`:
+Detailed live evidence:
+
+```text
+docs/livingworld/VALIDATION_0.1.10.md
+```
+
+Human-readable history:
+
+```text
+docs/CHANGELOG.md
+```
+
+Post-`0.1.8` Memory 2.0 implementation now on `1.21.1`:
 
 ```text
 PR #31  persistent MemoryEvent foundation
@@ -68,16 +86,16 @@ Do not rename these without a dedicated migration design.
 # Architecture laws
 
 1. **LLM is never authoritative.** Minecraft/server-owned state is truth.
-2. Mutable world/entity state used by async AI must be captured into immutable context before provider work.
-3. LLM may propose dialogue/intents/deltas; server policy validates and executes mutations.
+2. Mutable world/entity state used by async AI must be captured into immutable/bounded context before provider work.
+3. LLM may propose dialogue, intents and deltas; server policy validates/revalidates and executes mutations.
 4. Provider/model changes must not redefine persistent NPC identity.
 5. External AI and auxiliary persistence failures fail soft whenever safe.
 6. API credentials remain server-side.
-7. Persistent formats are explicit, inspectable, and backed up with the world.
+7. Persistent formats are explicit, inspectable and backed up with the world.
 8. Retry/replay paths must not duplicate persistent or gameplay side effects.
 9. Claims/beliefs remain claims/beliefs unless server-owned evidence makes them factual.
 10. A server-owned numeric/state transition may be remembered as verified evidence; its psychological cause is not automatically factual.
-11. Later autonomous AI must be event-driven and budgeted rather than “LLM every tick.”
+11. Autonomous AI must eventually be event-driven and budgeted rather than “LLM every tick.”
 
 Canonical authority flow:
 
@@ -87,7 +105,7 @@ Minecraft/server state
 → provider/LLM proposal
 → server validation/revalidation
 → server-owned mutation
-→ persistent factual evidence
+→ persisted factual evidence
 → optional bounded Memory 2.0 ingestion
 ```
 
@@ -108,7 +126,7 @@ Implemented and retained:
 - safe whitelisted actions with server validation/revalidation;
 - immutable authoritative context snapshots;
 - structured response sanitation;
-- safe `content:null` handling and bounded retry;
+- safe OpenAI-compatible/OpenRouter `content:null` handling and bounded retry;
 - `/villaigence ai status` diagnostics without secrets/prompts/transcripts/reasoning;
 - non-blocking Chat/STT/TTS admission/backpressure and provider cooldown;
 - fail-open recovery for malformed auxiliary persistence JSON.
@@ -129,11 +147,9 @@ PR #30 persistence recovery / 0.1.8 source:
 23fba1ee373e932c0b17aba3755f8ac478c26941
 ```
 
-Live reliability checklist:
+Reliability rule going forward:
 
-```text
-docs/livingworld/PLAYTEST_CHECKLIST.md
-```
+> Do not mix speculative reliability refactors into Memory 2.0. Fix only concrete regressions reproduced by CI or live use with narrow patches.
 
 ---
 
@@ -147,11 +163,13 @@ docs/livingworld/PLAYTEST_CHECKLIST.md
 <world>/livingworld/voices.json         persistent NPC voice identity
 ```
 
-These belong with world backup/restore procedures.
+These files belong with world backup/restore procedures.
+
+`memory.json` remains active and has **not** been migrated or removed. Memory 2.0 is additive while its layered architecture is still under development.
 
 ---
 
-# Memory 2.0 — implemented slices
+# Memory 2.0 — implemented foundation
 
 Primary storage:
 
@@ -167,7 +185,7 @@ Merge:
 7741e86ad0ab4e2fd2315f9e6b81a15bffeca4b8
 ```
 
-Core event fields:
+Core fields:
 
 ```text
 id
@@ -202,7 +220,7 @@ NPC_TOLD
 INFERRED
 ```
 
-`MemoryEventStore` provides per-NPC isolation, bounded retention, idempotent UUIDs, atomic persistence, deterministic newest-first access, and fail-open recovery.
+`MemoryEventStore` provides per-NPC isolation, bounded retention, idempotent event UUIDs, atomic persistence, deterministic access and fail-open recovery.
 
 ## PR #33 — deterministic bounded retrieval
 
@@ -212,7 +230,7 @@ Merge:
 667aeb7931e0fec2ea516f48560ad04537686f26
 ```
 
-Implemented deterministic ranking without embeddings/LLM ranking:
+Current deterministic ranking:
 
 ```text
 relevance  40%
@@ -221,7 +239,7 @@ recency    20%
 confidence 15%
 ```
 
-Hard-bounded candidates/results and deterministic tie-breaking are enforced.
+Hard candidate/result bounds and deterministic tie-breaking are enforced. No embeddings, vector DB or provider/LLM ranking is required.
 
 ## PR #35 — authoritative safe-action ingestion
 
@@ -239,7 +257,7 @@ successful whitelisted action
 → memory2.json
 ```
 
-The source `WorldEvent.id` is reused for MemoryEvent idempotency. Memory failure cannot roll back the action/factual event.
+Source `WorldEvent.id` is reused for MemoryEvent idempotency. Memory 2.0 failure cannot roll back the already-valid action/factual event.
 
 Configuration:
 
@@ -258,7 +276,7 @@ Merge:
 bb1097fb26df5052b405642202e167e4afae3fee
 ```
 
-Memory 2.0 contributes a bounded set to real snapshot-aware NPC turns:
+Memory 2.0 contributes a bounded set to snapshot-aware NPC turns:
 
 ```text
 candidateLimit = 32
@@ -268,7 +286,7 @@ maxSummaryChars = 240 Unicode code points
 participant relevance = current player UUID
 ```
 
-Truth boundary:
+Truth/prompt boundary:
 
 - `SYSTEM_OBSERVED` renders as `VERIFIED`;
 - told/inferred entries render as `BELIEF`;
@@ -284,7 +302,7 @@ Merge:
 507554f8372259f168a44208e616478fb27cfeb3
 ```
 
-Successful usable dialogue creates bounded NPC-owned `DIALOGUE` events:
+Successful usable dialogue produces bounded NPC-owned `DIALOGUE` events:
 
 ```text
 type = DIALOGUE
@@ -311,7 +329,7 @@ Merge:
 b05a5a0cd302253824e1bbcaf33053cca95641e5
 ```
 
-The server now remembers the **actual persisted relationship transition**, not the raw LLM proposal:
+The server remembers the **actual persisted relationship transition**, not the raw LLM proposal:
 
 ```text
 LLM proposed delta
@@ -341,28 +359,26 @@ Merge:
 801a9da73438a6bc01ffd61aef179e45a18c9336
 ```
 
-Live testing of the preceding build found:
+A live `0.1.9`-era test exposed this asymmetry:
 
 ```text
 voice/snapshot turn → legacy memory.json + Memory 2.0 DIALOGUE
 ordinary text turn  → legacy memory.json only
 ```
 
-PR #43 fixes that asymmetry through one shared post-success lifecycle:
+PR #43 unified only the post-success ingestion boundary:
 
 ```text
 classic OpenAI text ─┐
-                     ├→ Memory2DialogueLifecycle.recordSuccessful(...)
+                      ├→ Memory2DialogueLifecycle.recordSuccessful(...)
 snapshot/voice ──────┘
-                     → Memory2DialogueIngestor
-                     → bounded/idempotent DIALOGUE event
+                      → Memory2DialogueIngestor
+                      → bounded/idempotent DIALOGUE event
 ```
 
-Important non-goal: classic text was **not** rerouted through snapshot prompt/provider semantics. Existing text provider/prompt/tools/relationship behavior remains unchanged; only Memory 2.0 post-success ingestion is shared.
+Classic text was **not** rerouted through snapshot prompt/provider semantics. Existing text provider/prompt/tools/relationship behavior remains unchanged; only Memory 2.0 dialogue ingestion is shared.
 
-Inworld/non-OpenAI classic behavior remains unchanged.
-
-TDD / CI evidence:
+Exact PR #43 verification:
 
 ```text
 valid RED head:
@@ -385,53 +401,74 @@ VillAIgence CI 29938941710 → SUCCESS
 Java PR CI 29938941839 → SUCCESS
 ```
 
-Final exact-head gates covered unit tests, Fabric build, distributable Fabric package verification, NeoForge build and Fabric compatibility build.
+Final automated gates covered unit tests, Fabric build, distributable Fabric package verification, NeoForge build and Fabric compatibility build.
 
 ---
 
-# Latest live-test evidence supplied by user
+# 0.1.10+1.21.1 live-validation checkpoint — PASS
 
-The user tested the pre-parity `0.1.9`-era build and restarted the server.
+The intended parity/restart scenario has now been executed successfully on a real server.
 
-Observed successful voice cycle:
-
-```text
-STT  2.296 s
-Chat 8.292 s
-TTS  10.299 s
-```
-
-Also observed:
-
-- text response persisted;
-- legacy memory grew from 52 to 56 dialogue entries;
-- fifth persistent voice profile appeared;
-- Memory 2.0 created one unique `DIALOGUE` event for the snapshot/voice turn;
-- after restart, hashes of `memory.json`, `memory2.json`, and `voices.json` were unchanged;
-- server, cron, monitor and required ports remained healthy;
-- no errors were reported.
-
-The same test proved the now-fixed boundary: ordinary text chat did not create Memory 2.0 events before PR #43.
-
-## Required next live validation for PR #43 build
+Test sequence:
 
 ```text
-1. text → NPC A
-2. voice → NPC A
-3. text → NPC B
-4. inspect memory2.json for unique DIALOGUE events from both transports
-5. restart server
-6. verify memory.json / memory2.json / voices.json persistence
-7. verify no duplicate event IDs and no NPC A/B memory mixing
+Text → NPC A
+Voice → NPC A
+Text → NPC B
+inspect persistent memory
+restart server
+return to NPC A
+verify identity / persistence / duplicate safety / service health
 ```
 
-A successful result closes the text/voice Memory 2.0 parity regression.
+Observed:
+
+```text
+Text → NPC A: DIALOGUE                              PASS
+Voice → NPC A: DIALOGUE                             PASS
+Text → NPC B: separate memory                       PASS
+NPC A correctly identified after restart            PASS
+No duplicate MemoryEvent IDs                        PASS
+memory.json persisted: 64 dialogue entries          PASS
+memory2.json persisted: 5 events                    PASS
+NPC A: 3 Memory 2.0 events                          PASS
+NPC B: 1 Memory 2.0 event                           PASS
+Voice/STT/TTS pipeline unchanged                    PASS
+Server / monitor / required ports healthy           PASS
+```
+
+Interpretation:
+
+- the text/voice Memory 2.0 ingestion parity regression is closed for the tested scenario;
+- Memory 2.0 NPC ownership remained isolated across NPC A/NPC B in the test;
+- no duplicate event IDs were observed;
+- legacy `memory.json` and `memory2.json` survived restart;
+- returning to NPC A after restart resolved the expected NPC correctly;
+- voice/STT/TTS behavior showed no regression.
+
+Canonical detailed evidence:
+
+```text
+docs/livingworld/VALIDATION_0.1.10.md
+```
+
+Do **not** infer from this single checkpoint that every long-duration multiplayer, provider-failure, backup/restore or long-horizon recall scenario has been proven. Those remain separate validation concerns.
 
 ---
 
-# Release state / next patch
+# Release/checkpoint state
 
-Last previously confirmed published anchor in this document:
+Current development checkpoint:
+
+```text
+0.1.10+1.21.1
+live validation: PASS
+purpose: text + voice Memory 2.0 parity checkpoint
+```
+
+The user reports this release successfully passed the stated scenario.
+
+Historical confirmed release anchor retained from earlier state:
 
 ```text
 0.1.8+1.21.1
@@ -439,15 +476,7 @@ commit 23fba1ee373e932c0b17aba3755f8ac478c26941
 workflow 29918008438 — SUCCESS
 ```
 
-The user has live-tested a later `0.1.9`-era artifact. Before the next publication, inspect current GitHub releases/tags and package current `1.21.1` HEAD containing PR #43.
-
-Recommended next patch-release purpose:
-
-```text
-text + voice Memory 2.0 dialogue parity
-```
-
-Do not move an already-published tag.
+Before stating exact GitHub Release/tag chronology in external release notes, reconcile the actual GitHub Releases/tags page directly. Do not move an already-published tag.
 
 ---
 
@@ -455,7 +484,9 @@ Do not move an already-published tag.
 
 ## 0.1.x Reliability
 
-Implementation foundation complete; continue live validation and fix only concrete blocking regressions with narrow patches.
+Foundation is implemented and the `0.1.10` parity checkpoint passed its intended live test.
+
+Continue reliability work only for concrete reproduced defects or explicit broader soak/backup/provider validation goals.
 
 ## 0.2 Memory 2.0 — active, partial
 
@@ -472,13 +503,14 @@ MemoryEvent domain
 + DIALOGUE episodic ingestion
 + server-observed RELATIONSHIP_CHANGE ingestion
 + ordinary text / snapshot-voice DIALOGUE ingestion parity
++ live text/voice/restart parity validation checkpoint
 ```
 
 Still not implemented:
 
-- dedicated working-memory orchestration beyond existing bounded dialogue/context;
-- explicit semantic facts/beliefs layer;
-- deterministic duplicate handling / consolidation policy;
+- dedicated Working Memory orchestration beyond existing bounded dialogue/context;
+- explicit Semantic Facts/Beliefs layer;
+- deterministic duplicate handling / consolidation policy beyond exact UUID idempotency;
 - forgetting/decay mutation;
 - migration from legacy `memory.json`;
 - NPC-to-NPC memory/rumor propagation;
@@ -487,14 +519,14 @@ Still not implemented:
 
 ### Next recommended development slice
 
-After PR #43 live parity validation, continue with **Working Memory orchestration + explicit Semantic Facts/Beliefs boundaries**.
+Proceed with **Working Memory orchestration + explicit Semantic Facts/Beliefs boundaries**.
 
-Recommended split:
+Target architecture split:
 
 ```text
 Working Memory
 → intentionally small immediate conversational/task context
-→ short-lived / bounded
+→ short-lived and bounded
 
 Episodic Memory
 → existing MemoryEvent experiences
@@ -507,7 +539,13 @@ Semantic Facts / Beliefs
   PLAYER_TOLD / NPC_TOLD / INFERRED beliefs
 ```
 
-Do not introduce embeddings/vector DB or LLM-driven consolidation as prerequisites.
+First-slice constraints:
+
+- do not introduce embeddings/vector DB as a prerequisite;
+- do not use LLM summarization to silently upgrade beliefs into facts;
+- keep persistent truth/provenance explicit and inspectable;
+- keep Working Memory bounded and separate from durable episodic/semantic stores;
+- keep migration from legacy `memory.json` deferred until the new layers are stable.
 
 After that:
 
@@ -540,14 +578,14 @@ Later milestones:
 
 ```text
 Priority A
-Build/package current post-PR #43 HEAD and run the short text/voice parity live test.
-Fix only concrete blocking regressions found by that test.
+Treat 0.1.10+1.21.1 as the validated Memory 2.0 ingestion checkpoint.
+Fix only concrete blocking regressions if new evidence appears.
 
 Priority B
-After parity validation, continue 0.2 with Working Memory orchestration + Semantic Facts/Beliefs design.
+Continue 0.2 with Working Memory orchestration + explicit Semantic Facts/Beliefs design.
 
 Priority C
-Implement deterministic duplicate/consolidation policy without changing provenance.
+Implement deterministic duplicate/consolidation policy without silently changing provenance.
 
 Priority D
 Implement forgetting/decay, then design migration from legacy memory.json.
@@ -559,19 +597,22 @@ Implement forgetting/decay, then design migration from legacy memory.json.
 
 Preferred resume prompt:
 
-> **Open `docs/PROJECT_STATE.md` and `docs/ROADMAP.md` in `True-Ruslan/villAIgence`. Check recent PRs/releases/CI, then tell me what is complete, what changed since this state file, what live tests remain, and what we should build next.**
+> **Open `docs/PROJECT_STATE.md`, `docs/CHANGELOG.md`, `docs/ROADMAP.md` and the latest validation evidence in `True-Ruslan/villAIgence`. Check recent PRs/releases/CI, then tell me what is complete, what was live-validated, what changed since this state file, and what we should build next.**
 
 A new session must:
 
 1. read this file;
-2. read `docs/ROADMAP.md`;
-3. inspect current `1.21.1` HEAD;
-4. inspect recent merged/open PRs;
-5. inspect latest releases/tags and CI;
-6. reconcile discrepancies;
-7. continue from the first unimplemented priority rather than rebuilding completed work;
-8. update this file after material progress.
+2. read `docs/CHANGELOG.md`;
+3. read `docs/ROADMAP.md`;
+4. inspect current `1.21.1` HEAD;
+5. inspect recent merged/open PRs;
+6. inspect latest release/tag and CI state;
+7. reconcile newer live-test evidence;
+8. continue from the first unimplemented priority rather than rebuilding completed work;
+9. update this file after material progress.
 
 `docs/ROADMAP.md` answers **“Where are we going?”**
 
-`docs/PROJECT_STATE.md` answers **“Where are we now, what was verified, and what should happen next?”**
+`docs/PROJECT_STATE.md` answers **“Where are we now, what is proven, and what should happen next?”**
+
+`docs/CHANGELOG.md` answers **“What materially changed and when?”**
