@@ -15,12 +15,12 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Locale;
 import java.util.UUID;
 
 /** OpenAI-compatible Audio API implementation used by LivingWorld voice input/output. */
 public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSpeechProvider {
     private final LivingWorldConfig config;
-    private final Gson gson = new Gson();
 
     public OpenAIAudioProvider(LivingWorldConfig config) {
         this.config = config;
@@ -74,14 +74,16 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
 
     @Override
     public PcmAudio synthesize(String text) throws IOException {
-        JsonObject request = new JsonObject();
-        request.addProperty("model", config.ttsModel);
-        request.addProperty("voice", config.ttsVoice);
-        request.addProperty("input", text);
-        request.addProperty("response_format", "wav");
+        return synthesize(new TtsRequest(text, config.ttsVoice, TtsVoiceStyle.NEUTRAL));
+    }
+
+    @Override
+    public PcmAudio synthesize(TtsRequest request) throws IOException {
+        String voice = request.voiceId().isBlank() ? config.ttsVoice : request.voiceId();
+        TtsRequest resolved = new TtsRequest(request.text(), voice, request.style());
         byte[] response = execute(
-                open(config.ttsEndpoint, "application/json", config.resolvedApiKey()),
-                gson.toJson(request).getBytes(StandardCharsets.UTF_8),
+                open(config.ttsEndpoint, "application/json", config.resolvedTtsApiKey()),
+                createSpeechBody(resolved, config.ttsModel).getBytes(StandardCharsets.UTF_8),
                 "text-to-speech"
         );
         try {
@@ -89,6 +91,25 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
         } catch (IllegalArgumentException e) {
             throw new IOException("TTS provider returned an unsupported WAV payload", e);
         }
+    }
+
+    static String createSpeechBody(TtsRequest request, String model) {
+        JsonObject body = new JsonObject();
+        body.addProperty("model", model);
+        body.addProperty("voice", request.voiceId());
+        body.addProperty("input", request.text());
+        body.addProperty("response_format", "wav");
+        body.addProperty("speed", request.style().speed());
+        if (supportsInstructions(model) && !request.style().instructions().isBlank()) {
+            body.addProperty("instructions", request.style().instructions());
+        }
+        return new Gson().toJson(body);
+    }
+
+    static boolean supportsInstructions(String model) {
+        if (model == null) return false;
+        String normalized = model.trim().toLowerCase(Locale.ROOT);
+        return normalized.contains("gpt-4o-mini-tts") || normalized.contains("gpt-4o-tts");
     }
 
     private HttpURLConnection open(String endpoint, String contentType, String apiKey) throws IOException {

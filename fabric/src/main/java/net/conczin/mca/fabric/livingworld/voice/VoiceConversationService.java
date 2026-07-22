@@ -12,7 +12,19 @@ import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.audio.PcmAudio;
 import net.conczin.mca.livingworld.context.LivingWorldContextCapture;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
+import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipState;
+import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipStore;
+import net.conczin.mca.livingworld.voice.NpcVoiceAgeGroup;
+import net.conczin.mca.livingworld.voice.NpcVoiceCatalog;
+import net.conczin.mca.livingworld.voice.NpcVoiceGender;
+import net.conczin.mca.livingworld.voice.NpcVoiceMood;
+import net.conczin.mca.livingworld.voice.NpcVoiceMoodResolver;
+import net.conczin.mca.livingworld.voice.NpcVoiceProfile;
+import net.conczin.mca.livingworld.voice.NpcVoiceSnapshot;
 import net.conczin.mca.livingworld.voice.OpenAIAudioProvider;
+import net.conczin.mca.livingworld.voice.PersistentNpcVoiceStore;
+import net.conczin.mca.livingworld.voice.TtsRequest;
+import net.conczin.mca.livingworld.voice.TtsVoiceStyle;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -102,14 +114,16 @@ final class VoiceConversationService implements AutoCloseable {
                 }
 
                 LivingWorldContextSnapshot snapshot;
+                NpcVoiceSnapshot voiceSnapshot;
                 try {
                     snapshot = LivingWorldContextCapture.capture(player, target.get());
+                    voiceSnapshot = captureVoiceSnapshot(target.get());
                 } catch (RuntimeException e) {
                     MCA.LOGGER.warn("LivingWorld context snapshot failed for player {} and villager {}", playerId, targetId, e);
                     release(playerId, targetId);
                     return;
                 }
-                executor.execute(() -> answerAndRespond(server, player, target.get(), snapshot, transcript));
+                executor.execute(() -> answerAndRespond(server, player, target.get(), snapshot, voiceSnapshot, transcript));
             });
         } catch (Exception e) {
             release(playerId, targetId);
@@ -124,11 +138,24 @@ final class VoiceConversationService implements AutoCloseable {
         return player.getLookAngle().normalize().dot(toVillager.normalize()) >= MIN_LOOK_DOT;
     }
 
+    private static NpcVoiceSnapshot captureVoiceSnapshot(VillagerEntityMCA villager) {
+        double maxHealth = villager.getMaxHealth();
+        double healthRatio = maxHealth > 0.0D ? villager.getHealth() / maxHealth : 1.0D;
+        return new NpcVoiceSnapshot(
+                villager.getUUID(),
+                NpcVoiceGender.fromName(villager.getGenetics().getGender().getDataName()),
+                NpcVoiceAgeGroup.fromName(villager.getAgeState().name()),
+                villager.getVillagerBrain().isPanicking(),
+                healthRatio
+        );
+    }
+
     private void answerAndRespond(
             MinecraftServer server,
             ServerPlayer player,
             VillagerEntityMCA villager,
             LivingWorldContextSnapshot snapshot,
+            NpcVoiceSnapshot voiceSnapshot,
             String transcript
     ) {
         UUID playerId = snapshot.playerId();
@@ -147,7 +174,25 @@ final class VoiceConversationService implements AutoCloseable {
             LivingWorldConfig config = LivingWorldConfig.getInstance();
             if (!config.isVoiceOutputConfigured()) return;
 
-            PcmAudio speech = audioProvider.synthesize(text).resampleTo(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE);
+            NpcVoiceCatalog catalog = new NpcVoiceCatalog(config.voicePools());
+            NpcVoiceProfile profile = PersistentNpcVoiceStore.forWorld(snapshot.worldRoot()).resolve(
+                    voiceSnapshot.npcId(),
+                    voiceSnapshot.gender(),
+                    voiceSnapshot.ageGroup(),
+                    catalog
+            );
+            LivingWorldRelationshipState relationship = LivingWorldRelationshipStore.forWorld(snapshot.worldRoot())
+                    .get(villagerId, playerId);
+            NpcVoiceMood mood = NpcVoiceMoodResolver.resolve(
+                    voiceSnapshot.panicking(),
+                    voiceSnapshot.healthRatio(),
+                    relationship.trust(),
+                    relationship.fear(),
+                    relationship.affinity()
+            );
+            TtsVoiceStyle style = NpcVoiceMoodResolver.style(mood, voiceSnapshot.ageGroup());
+            PcmAudio speech = audioProvider.synthesize(new TtsRequest(text, profile.voiceId(), style))
+                    .resampleTo(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE);
             server.execute(() -> playSpatial(villager, speech.samples()));
         } catch (Exception e) {
             MCA.LOGGER.warn("LivingWorld voice conversation failed for player {} and villager {}", playerId, villagerId, e);

@@ -86,6 +86,99 @@ Full voice dialogue:
 
 No TTS request is made while `voiceOutputEnabled=false`.
 
+## Persistent NPC voice profiles
+
+When voice output is enabled, LivingWorld assigns each NPC a stable voice identity and stores it in:
+
+```text
+<world>/livingworld/voices.json
+```
+
+The profile is keyed by NPC UUID and records the normalized gender, age bucket and selected voice id. It is independent from the chat/LLM model: changing OpenRouter/OpenAI chat models does not change an existing NPC voice.
+
+Age mapping follows actual MCA 1.21.1 states:
+
+- `BABY`, `TODDLER`, `CHILD` → child voice bucket;
+- `TEEN` → teen voice bucket;
+- `ADULT`, `UNASSIGNED` → adult voice bucket.
+
+MCA currently has no separate elder age state, so LivingWorld does not invent one.
+
+Voice pools are configurable:
+
+```json
+{
+  "maleChildVoices": ["ash", "echo"],
+  "femaleChildVoices": ["shimmer", "coral"],
+  "neutralChildVoices": ["alloy", "verse"],
+
+  "maleTeenVoices": ["ash", "echo", "cedar"],
+  "femaleTeenVoices": ["coral", "nova", "shimmer"],
+  "neutralTeenVoices": ["alloy", "verse"],
+
+  "maleAdultVoices": ["cedar", "onyx", "echo", "ash"],
+  "femaleAdultVoices": ["marin", "coral", "nova", "shimmer", "sage"],
+  "neutralAdultVoices": ["alloy", "verse", "fable", "ballad"],
+
+  "globalVoiceFallbacks": ["marin", "cedar", "alloy"],
+  "ttsVoice": "marin"
+}
+```
+
+These gender/age groupings are **LivingWorld defaults**, not provider-supplied gender labels. Server owners may replace the pools with any voice IDs supported by their chosen TTS provider.
+
+Selection is deterministic from the NPC UUID inside the first compatible non-empty pool. The resolved voice is persisted. On a real age-stage transition, or when the stored voice is no longer eligible under the configured pools, a compatible profile is resolved again.
+
+Fallback order is:
+
+1. exact gender + age pool;
+2. same-gender adult pool for child/teen NPCs;
+3. neutral pool for the same age;
+4. global fallback pool;
+5. legacy `ttsVoice`.
+
+## Mood-aware delivery
+
+Mood never replaces the persistent base voice. LivingWorld derives delivery state from authoritative server-owned data:
+
+- active panic or high fear → afraid;
+- critical health → sad;
+- strongly negative trust → angry;
+- high trust + affinity → happy;
+- reduced health → tired;
+- otherwise neutral.
+
+The resulting provider-neutral style contains bounded speaking speed and optional natural-language delivery instructions. The TTS adapter uses only capabilities supported by the configured TTS model. Unsupported style features fail gracefully without changing the assigned voice.
+
+For OpenAI-compatible speech, `tts-1` and `tts-1-hd` keep the stable voice and speed but omit unsupported `instructions`; instruction-capable TTS models receive the richer delivery hint.
+
+## TTS credentials are independent from chat
+
+Chat, STT and TTS may use different providers/accounts.
+
+For the default OpenAI speech endpoint, TTS credential priority is:
+
+1. `OPENAI_API_KEY`;
+2. `ttsApiKey`;
+3. the resolved main provider key **only when the main provider is also `openai`**.
+
+If chat uses OpenRouter and neither `OPENAI_API_KEY` nor `ttsApiKey` is configured, OpenAI TTS is treated as not configured. The OpenRouter key is never sent to the OpenAI speech endpoint.
+
+For a custom/non-OpenAI TTS endpoint:
+
+1. `ttsApiKey`;
+2. the resolved main provider key.
+
+This allows, for example:
+
+```text
+OpenRouter → NPC LLM
+Groq/OpenRouter → STT
+OpenAI → TTS
+```
+
+without sending the OpenRouter chat key to the OpenAI speech endpoint.
+
 ## STT request formats
 
 `sttRequestFormat` accepts:
@@ -109,7 +202,7 @@ STT key:
 2. `sttApiKey`;
 3. the resolved main provider key.
 
-This allows OpenAI chat with OpenRouter STT, OpenRouter chat with OpenAI STT, or a single key for both.
+TTS key resolution is documented separately above because it intentionally follows the TTS endpoint rather than the chat provider.
 
 ## Existing config migration
 
@@ -119,6 +212,8 @@ Config version 1 is migrated automatically to version 2:
 - `voiceEnabled=false` becomes both new switches `false`.
 
 The migrated file is rewritten on server startup. Existing full-voice installations therefore preserve their previous behavior, while new installations default to microphone input with text-only answers.
+
+Persistent voice profiles require no manual migration. `voices.json` is created lazily when TTS is first used for an NPC.
 
 ## Other defaults
 
@@ -145,6 +240,7 @@ LivingWorld stores server-owned data under `<world>/livingworld/`:
 - `memory.json`
 - `events.json`
 - `relationships.json`
+- `voices.json`
 
 Back these files up with the Minecraft world.
 

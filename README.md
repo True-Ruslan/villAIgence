@@ -128,6 +128,12 @@ Full voice dialogue:
 }
 ```
 
+### Persistent NPC voices
+
+When TTS is enabled, LivingWorld assigns each NPC a stable voice profile based on its UUID, MCA gender and age group. Children, teens and adults use separate configurable voice pools where possible. The selected voice is persisted in `<world>/livingworld/voices.json`, so changing the chat/LLM model does **not** change an NPC's voice.
+
+Mood changes delivery style, not voice identity. LivingWorld derives mood from server-owned state such as panic, health and relationship state. TTS providers/models that support richer style instructions use them; older models safely fall back to supported controls such as speaking speed.
+
 ## What is stored on the server
 
 LivingWorld keeps its persistent world data under the Minecraft world directory:
@@ -136,7 +142,8 @@ LivingWorld keeps its persistent world data under the Minecraft world directory:
 <world>/livingworld/
 ├── memory.json
 ├── events.json
-└── relationships.json
+├── relationships.json
+└── voices.json
 ```
 
 Back these files up together with the world.
@@ -174,7 +181,7 @@ Check that:
 
 ### Text appears, but the NPC is silent
 
-This is expected when `voiceOutputEnabled=false`. Enable it only when TTS and its cost are desired.
+This is expected when `voiceOutputEnabled=false`. Enable it only when TTS and its cost are desired. For an OpenAI TTS endpoint, configure `OPENAI_API_KEY` or a dedicated `ttsApiKey` even when chat uses OpenRouter.
 
 ### Server and client report mod mismatch
 

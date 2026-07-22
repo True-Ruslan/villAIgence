@@ -1,6 +1,9 @@
 package net.conczin.mca.livingworld;
 
+import net.conczin.mca.livingworld.voice.NpcVoiceCatalog;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -36,12 +39,41 @@ class LivingWorldConfigTest {
         assertEquals("https://api.openai.com/v1/audio/speech", config.ttsEndpoint);
         assertEquals("tts-1", config.ttsModel);
         assertEquals("marin", config.ttsVoice);
+        assertEquals("", config.ttsApiKey);
         assertEquals(800, config.voiceSilenceMillis);
         assertEquals(20, config.voiceMaxSeconds);
         assertEquals(10, config.connectTimeoutSeconds);
         assertEquals(60, config.readTimeoutSeconds);
         assertFalse(config.isConfiguredWithKey(""));
         assertTrue(config.isConfiguredWithKey("sk-test"));
+
+        NpcVoiceCatalog.VoicePools pools = config.voicePools();
+        assertFalse(pools.maleChild().isEmpty());
+        assertFalse(pools.femaleChild().isEmpty());
+        assertFalse(pools.maleTeen().isEmpty());
+        assertFalse(pools.femaleTeen().isEmpty());
+        assertFalse(pools.maleAdult().isEmpty());
+        assertFalse(pools.femaleAdult().isEmpty());
+        assertEquals("marin", pools.legacyFallback());
+    }
+
+    @Test
+    void voicePoolsNormalizeBlanksDuplicatesAndKeepLegacyTtsVoiceFallback() {
+        LivingWorldConfig config = LivingWorldConfig.parseJson("""
+                {
+                  "version": 2,
+                  "ttsVoice": "legacy-voice",
+                  "maleChildVoices": [" ash ", "", "ash", null],
+                  "femaleChildVoices": [],
+                  "globalVoiceFallbacks": [" alloy ", "alloy", "verse"]
+                }
+                """);
+
+        NpcVoiceCatalog.VoicePools pools = config.voicePools();
+        assertEquals(List.of("ash"), pools.maleChild());
+        assertEquals(List.of(), pools.femaleChild());
+        assertEquals(List.of("alloy", "verse"), pools.globalFallback());
+        assertEquals("legacy-voice", pools.legacyFallback());
     }
 
     @Test
@@ -60,6 +92,22 @@ class LivingWorldConfigTest {
                 "https://openrouter.ai/api/v1/audio/transcriptions", "", "sk-stt-file", "sk-main"));
         assertEquals("sk-main", LivingWorldConfig.resolveSttApiKey(
                 "https://api.openai.com/v1/audio/transcriptions", "sk-or-env", "", "sk-main"));
+    }
+
+    @Test
+    void ttsCredentialIsResolvedIndependentlyFromChatProvider() {
+        assertEquals("sk-openai-env", LivingWorldConfig.resolveTtsApiKey(
+                "https://api.openai.com/v1/audio/speech", "sk-openai-env", "sk-tts-file", "openrouter", "sk-openrouter-main"));
+        assertEquals("sk-tts-file", LivingWorldConfig.resolveTtsApiKey(
+                "https://example-tts.invalid/v1/speech", "sk-openai-env", "sk-tts-file", "openrouter", "sk-main"));
+        assertEquals("sk-main", LivingWorldConfig.resolveTtsApiKey(
+                "https://example-tts.invalid/v1/speech", "", "", "openrouter", "sk-main"));
+        assertEquals("", LivingWorldConfig.resolveTtsApiKey(
+                "https://api.openai.com/v1/audio/speech", "", "", "openrouter", "sk-openrouter-main"));
+        assertEquals("sk-openai-main", LivingWorldConfig.resolveTtsApiKey(
+                "https://api.openai.com/v1/audio/speech", "", "", "openai", "sk-openai-main"));
+        assertEquals("sk-tts-file", LivingWorldConfig.resolveTtsApiKey(
+                "https://evil.example/proxy/api.openai.com/v1/audio/speech", "sk-openai-env", "sk-tts-file", "openrouter", "sk-main"));
     }
 
     @Test
