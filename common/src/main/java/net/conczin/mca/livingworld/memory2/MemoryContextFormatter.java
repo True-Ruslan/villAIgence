@@ -45,7 +45,14 @@ public final class MemoryContextFormatter {
     private static String escapeQuotedSummary(String summary) {
         String normalized = normalizeWhitespace(summary);
         String bounded = limitCodePoints(normalized, MAX_SUMMARY_CHARS);
-        return bounded.replace("\\", "\\\\").replace("\"", "\\\"");
+        String templateSafe = neutralizeReservedTemplateMarkers(bounded);
+        return templateSafe.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static String neutralizeReservedTemplateMarkers(String value) {
+        return value
+                .replace("$player", "＄player")
+                .replace("$villager", "＄villager");
     }
 
     private static String normalizeWhitespace(String value) {
