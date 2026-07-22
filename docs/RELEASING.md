@@ -1,76 +1,92 @@
-# LivingWorld release runbook
+# VillAIgence release runbook
 
-## Current release target
+VillAIgence uses GitHub Releases for verified Fabric builds. The internal workflow/script paths still contain `livingworld` for compatibility and to avoid unnecessary churn, but all new public releases and artifacts use the **VillAIgence** brand.
 
-The first public test build is:
+## Current release line
 
-`0.1.0-alpha.1+1.21.1`
+Current Minecraft target:
 
-This is a Fabric-only alpha for Minecraft 1.21.1.
+```text
+Minecraft 1.21.1
+Java 21
+Fabric
+```
+
+The next release after the rebrand is expected to use the next free sequential tag (currently `0.1.5+1.21.1` unless a newer tag is created first).
+
+Existing tags and release assets are immutable. Do not rename or move already published versions just to apply the new brand.
 
 ## What CI does automatically
 
 When a valid release tag is pushed, `.github/workflows/livingworld-release.yml`:
 
-1. validates the tag format;
-2. verifies the tag points exactly to the current `1.21.1` branch head;
+1. validates `<mod_version>+<minecraft_version>` tag format;
+2. verifies the tag points exactly to current `1.21.1` HEAD;
 3. runs `:common:test`;
 4. builds the Fabric JAR with Java 21;
-5. smoke-checks required LivingWorld/Fabric classes inside the JAR;
-6. renames the public artifact to `mca-livingworld-fabric-<tag>.jar`;
-7. creates a SHA-256 checksum;
+5. smoke-checks required VillAIgence/LivingWorld classes inside the JAR;
+6. creates the public artifact `villaigence-fabric-<tag>.jar`;
+7. creates its SHA-256 checksum;
 8. stores both files as a GitHub Actions artifact;
-9. creates a GitHub Release and attaches the JAR/checksum.
+9. creates or updates the matching GitHub Release.
 
-Alpha/beta/RC versions are created as GitHub prereleases.
+Alpha/beta/RC tags are marked prerelease automatically.
 
-The workflow does not publish to Maven, Modrinth or CurseForge and does not use the original MCA project IDs.
+The workflow does not publish to Maven, Modrinth or CurseForge.
 
-## Dry-run the release packaging without creating a release
+## Dry-run release packaging
 
-After the release workflow is present on `1.21.1`, you can verify packaging without creating a tag:
+Before creating a release tag:
 
 1. Open GitHub → Actions.
-2. Select `LivingWorld GitHub Release`.
-3. Click `Run workflow`.
+2. Select **VillAIgence GitHub Release**.
+3. Click **Run workflow**.
 4. Select branch `1.21.1`.
-5. Run the workflow.
+5. Run it manually.
 
-A manual run performs tests, the Fabric build, JAR smoke checks, checksum generation and Actions artifact upload, but **never creates a GitHub Release**.
+A manual run performs tests, Fabric build, package smoke-check, checksum creation and Actions artifact upload, but does **not** create a GitHub Release.
 
-The artifact name is `livingworld-fabric-dry-run-<run number>` and is retained for 30 days.
+Expected Actions artifact:
 
-## Preconditions before creating a release tag
+```text
+villaigence-fabric-package
+```
+
+## Preconditions before tagging
 
 - All intended changes are merged into `1.21.1`.
 - Required PR checks are green.
-- A manual `LivingWorld GitHub Release` dry-run on `1.21.1` has succeeded.
-- `1.21.1` contains exactly the code you want to ship.
-- Do not create the tag from a feature branch.
+- A manual **VillAIgence GitHub Release** dry-run on `1.21.1` succeeds.
+- `1.21.1` contains exactly the code intended for release.
+- The chosen version tag does not already exist.
+- The tag is created from current `1.21.1`, never from a feature branch.
 
-The release workflow deliberately fails if the tag is not on the current `1.21.1` head.
+The workflow intentionally rejects stale tags that do not point to current `1.21.1` HEAD.
 
-## Create the first release from Git CLI
+## Create a release tag
+
+Example for `0.1.5+1.21.1`:
 
 ```bash
 git checkout 1.21.1
 git pull --ff-only origin 1.21.1
-git tag -a "0.1.0-alpha.1+1.21.1" -m "LivingWorld 0.1.0-alpha.1 for Minecraft 1.21.1"
-git push origin "0.1.0-alpha.1+1.21.1"
+
+git tag -a "0.1.5+1.21.1" \
+  -m "VillAIgence 0.1.5 for Minecraft 1.21.1"
+
+git push origin "0.1.5+1.21.1"
 ```
 
-After the tag push, open GitHub → Actions → `LivingWorld GitHub Release` and wait for all jobs to succeed.
+After the tag push, open GitHub → Actions → **VillAIgence GitHub Release** and verify both jobs succeed.
 
-Then open GitHub → Releases. The release should contain:
+Expected release assets:
 
-- `mca-livingworld-fabric-0.1.0-alpha.1+1.21.1.jar`
-- `mca-livingworld-fabric-0.1.0-alpha.1+1.21.1.jar.sha256`
+```text
+villaigence-fabric-0.1.5+1.21.1.jar
+villaigence-fabric-0.1.5+1.21.1.jar.sha256
+```
 
-## Create the release tag from GitHub UI
-
-Prefer the Git CLI path above because it makes the exact tagged commit obvious.
-
-When using GitHub UI, create the tag `0.1.0-alpha.1+1.21.1` from the latest commit on branch `1.21.1`. Do not manually create a GitHub Release first: pushing/creating the tag is the trigger and CI creates the Release automatically.
+The JAR filename changed with the public rebrand. Old `mca-livingworld-*` release assets remain historical artifacts and must not be rewritten.
 
 ## Test installation
 
@@ -79,66 +95,72 @@ Required stack:
 - Minecraft 1.21.1
 - Fabric Loader
 - Fabric API compatible with Minecraft 1.21.1
-- Simple Voice Chat 2.6.20 or newer
+- Simple Voice Chat 2.6.20+
 - Java 21 on the server
-- LivingWorld release JAR
+- the same VillAIgence release JAR on server and clients
 
-The fork keeps MCA's internal mod id `mca`. **Remove the original MCA Reborn JAR before installing LivingWorld. Do not install both simultaneously.**
+VillAIgence intentionally keeps MCA's internal mod id `mca`.
 
-For multiplayer, use the same LivingWorld/MCA fork version on server and clients where MCA is required.
+**Remove original MCA Reborn before installing VillAIgence. Do not install both simultaneously.**
+
+## Compatibility-sensitive names
+
+The rebrand does not rename these internals:
+
+```text
+mod id:          mca
+Java namespace:  net.conczin.mca
+config:          config/livingworld.json
+world data:      <world>/livingworld/
+engine classes:  LivingWorld*
+```
+
+This is intentional. Renaming them would require a separate migration design and could break worlds/configs/mod compatibility.
 
 ## AI configuration
 
-Normal MVP setup requires only one server-side OpenAI key.
+Credentials are server-only.
 
-Recommended production setup:
+OpenAI:
 
 ```bash
 export OPENAI_API_KEY="..."
 ```
 
-Alternative:
+OpenRouter:
 
-1. start the dedicated server once;
-2. stop it;
-3. edit `config/livingworld.json`;
-4. set `apiKey`;
-5. restart the server.
+```bash
+export OPENROUTER_API_KEY="sk-or-v1-..."
+```
 
-Never put a real API key in Git, a release asset or a client modpack.
+Alternative server configuration remains `config/livingworld.json`.
 
-## First alpha smoke test
+Never place real API keys in Git, release assets or client modpacks.
 
-Before using an important world, make a backup and test on a disposable/private world:
+## Release smoke test
 
-1. server starts with no loader/mod dependency errors;
-2. MCA villagers spawn and normal MCA interaction works;
-3. text AI conversation works with the configured provider;
+Before using an important world, back it up and test on a disposable/private world:
+
+1. server starts without loader/mod dependency errors;
+2. MCA villagers spawn and normal MCA interactions work;
+3. AI text conversation works;
 4. Simple Voice Chat connects and normal player voice works;
-5. select an MCA NPC and verify voice → STT → AI response → spatial TTS;
-6. restart the server and verify persistent conversation memory remains;
-7. verify `world/livingworld/memory.json`, `events.json` and `relationships.json` are created/updated as expected;
-8. exercise safe actions such as follow/stay and verify no unrestricted commands are possible.
-
-## Version progression
-
-Use sequential prerelease tags for fixes discovered during testing:
-
-- `0.1.0-alpha.1+1.21.1`
-- `0.1.0-alpha.2+1.21.1`
-- `0.1.0-alpha.3+1.21.1`
-
-Move to beta only after repeated clean server tests and migration/update testing.
+5. microphone → STT → selected NPC → clean text works;
+6. when TTS is enabled, the same clean answer plays spatially from the NPC;
+7. persisted NPC voices remain stable across restart;
+8. `memory.json`, `events.json`, `relationships.json` and `voices.json` remain readable after restart;
+9. safe NPC actions remain whitelist/server-authority constrained;
+10. forced TTS failure leaves the text reply intact.
 
 ## Failed release or bad tag
 
-If the workflow fails, do not create assets manually. Fix the cause and create a new prerelease tag when possible.
+Do not create assets manually to bypass a failed workflow. Fix the cause and use a new version tag when the previous tag may already have been consumed.
 
-If a tag was created by mistake and no release should exist:
+Only delete a mistaken tag when no valid release should exist and it has not become a published version:
 
 ```bash
-git push origin --delete "0.1.0-alpha.1+1.21.1"
-git tag -d "0.1.0-alpha.1+1.21.1"
+git push origin --delete "<tag>"
+git tag -d "<tag>"
 ```
 
-Do not reuse a published release tag for different code. Once users may have downloaded a build, increment the prerelease number instead.
+Never reuse a published release tag for different code.

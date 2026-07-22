@@ -32,7 +32,9 @@ else
   source_jar="${candidates[0]}"
 fi
 
-output_jar="${dist_dir}/mca-livingworld-fabric-${artifact_label}.jar"
+# Public release branding changes here only. The built mod intentionally remains id `mca`
+# and internal LivingWorld classes/paths remain compatibility-stable.
+output_jar="${dist_dir}/villaigence-fabric-${artifact_label}.jar"
 cp "${source_jar}" "${output_jar}"
 
 contents_file="${dist_dir}/jar-contents.txt"
@@ -41,8 +43,8 @@ jar tf "${output_jar}" > "${contents_file}"
 require_entry() {
   local entry="$1"
   if ! grep -Fqx "${entry}" "${contents_file}"; then
-    echo "::error title=Release JAR smoke-check failed::Missing required JAR entry: ${entry}"
-    echo "Relevant LivingWorld entries present in JAR:"
+    echo "::error title=VillAIgence release JAR smoke-check failed::Missing required JAR entry: ${entry}"
+    echo "Relevant internal engine entries present in JAR:"
     grep -E '(^fabric\.mod\.json$|livingworld|VoiceConversation)' "${contents_file}" | head -n 200 || true
     exit 1
   fi
@@ -60,6 +62,6 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   echo "checksum=${output_jar}.sha256" >> "${GITHUB_OUTPUT}"
 fi
 
-printf 'Verified release package: %s\n' "${output_jar}"
+printf 'Verified VillAIgence release package: %s\n' "${output_jar}"
 printf 'Checksum: '
 cat "${output_jar}.sha256"
