@@ -67,7 +67,7 @@ public final class LivingWorldRelationshipStore {
             loaded.relationships.replaceAll((key, state) -> state == null ? LivingWorldRelationshipState.NEUTRAL : state);
             return loaded;
         } catch (IOException | RuntimeException e) {
-            throw new IllegalStateException("Unable to load LivingWorld relationships from " + file, e);
+            return new RelationshipFile();
         }
     }
 
