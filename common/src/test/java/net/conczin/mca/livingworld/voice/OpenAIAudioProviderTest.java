@@ -115,15 +115,16 @@ class OpenAIAudioProviderTest {
     }
 
     @Test
-    void pcmRejectsStereoMalformedRateOddBodyAndWrongContentType() throws Exception {
+    void pcmRejectsStereoMalformedMetadataOddBodyAndWrongContentType() throws Exception {
         assertPcmFailure("audio/pcm;rate=24000;channels=2", new byte[]{0, 0}, "channels");
         assertPcmFailure("audio/pcm;rate=oops;channels=1", new byte[]{0, 0}, "rate");
+        assertPcmFailure("audio/pcm;rate=24000;channels=oops", new byte[]{0, 0}, "channels");
         assertPcmFailure("audio/pcm;rate=24000;channels=1", new byte[]{0}, "PCM16");
         assertPcmFailure("audio/mpeg", new byte[]{0, 0}, "Content-Type");
     }
 
     @Test
-    void ttsDecodeFailureIncludesGenerationIdWithoutRawPayload() throws Exception {
+    void ttsDecodeFailureIncludesSafeOperationalContextWithoutRawPayload() throws Exception {
         try (TestServer server = TestServer.start("audio/mpeg", new byte[]{1, 2, 3, 4}, "gen-safe-42", null)) {
             LivingWorldConfig config = pcmConfig(server.url());
 
@@ -132,7 +133,10 @@ class OpenAIAudioProviderTest {
             ));
 
             assertTrue(error.getMessage().contains("gen-safe-42"));
+            assertTrue(error.getMessage().contains("test-tts-model"));
+            assertTrue(error.getMessage().contains("pcm"));
             assertFalse(error.getMessage().contains("AQIDBA"));
+            assertFalse(error.getMessage().contains("test-key"));
         }
     }
 
