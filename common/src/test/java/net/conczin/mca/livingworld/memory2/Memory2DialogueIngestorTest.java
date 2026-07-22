@@ -10,6 +10,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+// RED contract intentionally references production types that do not exist yet.
 class Memory2DialogueIngestorTest {
     @TempDir
     Path tempDir;
