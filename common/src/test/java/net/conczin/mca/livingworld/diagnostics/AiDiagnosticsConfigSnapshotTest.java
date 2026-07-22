@@ -61,13 +61,14 @@ class AiDiagnosticsConfigSnapshotTest {
     }
 
     @Test
-    void malformedEndpointFailsSoftWithoutEchoingInput() {
+    void malformedEndpointIsMisconfiguredAndFailsSoftWithoutEchoingInput() {
         LivingWorldConfig config = new LivingWorldConfig();
         config.endpoint = "not a url SECRET_ENDPOINT";
         config.apiKey = "SECRET_SENTINEL";
 
         AiDiagnosticsConfigSnapshot snapshot = AiDiagnosticsConfigSnapshot.from(config);
 
+        assertEquals(AiConfigState.MISCONFIGURED, snapshot.chat().state());
         assertEquals("<invalid>", snapshot.chat().endpointHost());
         assertFalse(snapshot.toString().contains("SECRET_ENDPOINT"));
         assertFalse(snapshot.toString().contains("SECRET_SENTINEL"));
