@@ -14,6 +14,8 @@ import net.conczin.mca.entity.ai.chatAI.modules.*;
 import net.conczin.mca.entity.ai.relationship.AgeState;
 import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.ai.AiProviderSettings;
+import net.conczin.mca.livingworld.ai.ChatCompletionResponseParser;
+import net.conczin.mca.livingworld.ai.ChatCompletionRetryPolicy;
 import net.conczin.mca.livingworld.ai.LivingWorldAI;
 import net.conczin.mca.livingworld.ai.StructuredAiResponseParser;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
@@ -65,12 +67,16 @@ public class OpenAIChatAI implements ChatAIStrategy {
         return con;
     }
 
-    private static Answer parseAnswer(String body) {
-        JsonObject map = JsonParser.parseString(body).getAsJsonObject();
-        String content = map.has("choices")
-                ? map.getAsJsonArray("choices").get(0).getAsJsonObject().getAsJsonObject("message").getAsJsonPrimitive("content").getAsString()
-                : null;
-        String error = parseError(map.get("error"));
+    private static ParsedProviderAnswer parseAnswer(String body) {
+        ChatCompletionResponseParser.ParsedCompletion completion = ChatCompletionResponseParser.parse(body);
+        if (completion.error() != null) {
+            return new ParsedProviderAnswer(new Answer(null, completion.error()), completion);
+        }
+
+        String content = completion.content();
+        if (content == null) {
+            return new ParsedProviderAnswer(new Answer(null, null), completion);
+        }
 
         StructuredAiResponseParser.ParsedResponse parsed = StructuredAiResponseParser.parse(content);
         StructuredResponse reply = new StructuredResponse(
@@ -78,10 +84,10 @@ public class OpenAIChatAI implements ChatAIStrategy {
                 parsed.optionalCommand(),
                 parsed.relationshipDelta()
         );
-        if (content != null && parsed.message() == null) {
+        if (parsed.message() == null) {
             MCA.LOGGER.warn("AI answer contained no usable user-visible message after structured response sanitization");
         }
-        return new Answer(reply, error);
+        return new ParsedProviderAnswer(new Answer(reply, null), completion);
     }
 
     private static String parseError(@Nullable JsonElement element) {
@@ -100,14 +106,58 @@ public class OpenAIChatAI implements ChatAIStrategy {
     }
 
     public static Answer post(String url, String requestBody, String token) {
-        return post(url, requestBody, token, DEFAULT_CONNECT_TIMEOUT_MILLIS, DEFAULT_READ_TIMEOUT_MILLIS);
+        return post(url, requestBody, token, DEFAULT_CONNECT_TIMEOUT_MILLIS, DEFAULT_READ_TIMEOUT_MILLIS, "<unspecified>");
     }
 
     private static Answer post(AiProviderSettings settings, String requestBody, String token) {
-        return post(settings.endpoint(), requestBody, token, settings.connectTimeoutMillis(), settings.readTimeoutMillis());
+        return post(
+                settings.endpoint(),
+                requestBody,
+                token,
+                settings.connectTimeoutMillis(),
+                settings.readTimeoutMillis(),
+                settings.model()
+        );
     }
 
-    private static Answer post(String url, String requestBody, String token, int connectTimeoutMillis, int readTimeoutMillis) {
+    private static Answer post(
+            String url,
+            String requestBody,
+            String token,
+            int connectTimeoutMillis,
+            int readTimeoutMillis,
+            String model
+    ) {
+        for (int attempt = 1; attempt <= ChatCompletionRetryPolicy.MAX_ATTEMPTS; attempt++) {
+            ParsedProviderAnswer result = postOnce(url, requestBody, token, connectTimeoutMillis, readTimeoutMillis);
+            Answer answer = result.answer();
+            ChatCompletionResponseParser.ParsedCompletion completion = result.completion();
+
+            if (answer.error != null) {
+                logProviderFailure(model, attempt, completion);
+                return answer;
+            }
+            if (answer.answer != null) {
+                return answer;
+            }
+            if (ChatCompletionRetryPolicy.shouldRetry(completion, attempt)) {
+                logEmptyCompletion(model, attempt, completion, true);
+                continue;
+            }
+
+            logEmptyCompletion(model, attempt, completion, false);
+            return new Answer(null, "empty_response");
+        }
+        return new Answer(null, "empty_response");
+    }
+
+    private static ParsedProviderAnswer postOnce(
+            String url,
+            String requestBody,
+            String token,
+            int connectTimeoutMillis,
+            int readTimeoutMillis
+    ) {
         try {
             HttpURLConnection con = getHttpURLConnection(url, token, connectTimeoutMillis, readTimeoutMillis);
             try (DataOutputStream out = new DataOutputStream(con.getOutputStream())) {
@@ -115,20 +165,69 @@ public class OpenAIChatAI implements ChatAIStrategy {
             }
             int status = con.getResponseCode();
             InputStream response = status >= 200 && status < 300 ? con.getInputStream() : con.getErrorStream();
-            if (response == null) return new Answer(null, "AI provider returned HTTP " + status);
+            if (response == null) {
+                return new ParsedProviderAnswer(new Answer(null, "AI provider returned HTTP " + status), null);
+            }
             String body;
             try (response) {
                 body = IOUtils.toString(response, StandardCharsets.UTF_8);
             }
-            Answer answer = parseAnswer(body);
+            ParsedProviderAnswer parsed = parseAnswer(body);
             if (status < 200 || status >= 300) {
-                return new Answer(answer.answer, answer.error != null ? answer.error : "AI provider returned HTTP " + status);
+                String error = parsed.answer().error != null
+                        ? parsed.answer().error
+                        : "AI provider returned HTTP " + status;
+                return new ParsedProviderAnswer(new Answer(null, error), parsed.completion());
             }
-            return answer;
+            return parsed;
         } catch (Exception e) {
             MCA.LOGGER.error("AI provider request failed", e);
-            return new Answer(null, "AI provider request failed; check server log");
+            return new ParsedProviderAnswer(new Answer(null, "AI provider request failed; check server log"), null);
         }
+    }
+
+    private static void logProviderFailure(
+            String model,
+            int attempt,
+            @Nullable ChatCompletionResponseParser.ParsedCompletion completion
+    ) {
+        if (completion == null) return;
+        MCA.LOGGER.warn(
+                "AI provider completion failed: model={}, attempt={}/{}, finishReason={}, errorType={}, generationId={}, reasoningPresent={}, error={}",
+                safeDiagnostic(model, 120),
+                attempt,
+                ChatCompletionRetryPolicy.MAX_ATTEMPTS,
+                safeDiagnostic(completion.finishReason(), 80),
+                safeDiagnostic(completion.errorType(), 80),
+                safeDiagnostic(completion.generationId(), 120),
+                completion.reasoningPresent(),
+                safeDiagnostic(completion.error(), 200)
+        );
+    }
+
+    private static void logEmptyCompletion(
+            String model,
+            int attempt,
+            @Nullable ChatCompletionResponseParser.ParsedCompletion completion,
+            boolean retrying
+    ) {
+        MCA.LOGGER.warn(
+                "AI provider returned no usable assistant content: model={}, attempt={}/{}, finishReason={}, errorType={}, generationId={}, reasoningPresent={}, retrying={}",
+                safeDiagnostic(model, 120),
+                attempt,
+                ChatCompletionRetryPolicy.MAX_ATTEMPTS,
+                completion == null ? "<none>" : safeDiagnostic(completion.finishReason(), 80),
+                completion == null ? "<none>" : safeDiagnostic(completion.errorType(), 80),
+                completion == null ? "<none>" : safeDiagnostic(completion.generationId(), 120),
+                completion != null && completion.reasoningPresent(),
+                retrying
+        );
+    }
+
+    private static String safeDiagnostic(@Nullable String value, int maxLength) {
+        if (value == null || value.isBlank()) return "<none>";
+        String cleaned = value.trim().replace('\n', ' ').replace('\r', ' ');
+        return cleaned.length() <= maxLength ? cleaned : cleaned.substring(0, maxLength);
     }
 
     public static String verify(String encodedURL) {
@@ -432,6 +531,8 @@ public class OpenAIChatAI implements ChatAIStrategy {
             player.displayClientMessage(styled, false);
         } else if (error.equals("limit_premium")) {
             player.displayClientMessage(Component.translatable("mca.limit.premium").withStyle(ChatFormatting.RED), false);
+        } else if (error.equals("empty_response")) {
+            player.displayClientMessage(Component.translatable("mca.ai_broken").withStyle(ChatFormatting.RED), false);
         } else {
             player.displayClientMessage(Component.literal(error).withStyle(ChatFormatting.RED), false);
         }
@@ -511,6 +612,12 @@ public class OpenAIChatAI implements ChatAIStrategy {
             dialogue.add(new Tuple<>("user", userMessage));
             dialogue.add(new Tuple<>("assistant", assistantMessage));
         }
+    }
+
+    private record ParsedProviderAnswer(
+            Answer answer,
+            @Nullable ChatCompletionResponseParser.ParsedCompletion completion
+    ) {
     }
 
     public record StructuredResponse(
