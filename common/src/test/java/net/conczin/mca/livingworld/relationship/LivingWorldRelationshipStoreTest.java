@@ -3,6 +3,8 @@ package net.conczin.mca.livingworld.relationship;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 
@@ -43,5 +45,21 @@ class LivingWorldRelationshipStoreTest {
         }
 
         assertEquals(new LivingWorldRelationshipState(100, -100, 100, -100), store.get(villager, player));
+    }
+
+    @Test
+    void corruptFileFailsOpenAndIsReplacedOnNextDelta() throws Exception {
+        UUID villager = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        Path file = tempDir.resolve("relationships.json");
+        Files.writeString(file, "{broken", StandardCharsets.UTF_8);
+
+        LivingWorldRelationshipStore store = new LivingWorldRelationshipStore(file);
+        assertEquals(LivingWorldRelationshipState.NEUTRAL, store.get(villager, player));
+
+        store.applyDelta(villager, player, new LivingWorldRelationshipDelta(2, 1, -1, 2), 2);
+
+        LivingWorldRelationshipStore reloaded = new LivingWorldRelationshipStore(file);
+        assertEquals(new LivingWorldRelationshipState(2, 1, -1, 2), reloaded.get(villager, player));
     }
 }
