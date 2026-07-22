@@ -202,24 +202,32 @@ Mood changes delivery, not persistent voice identity.
 
 Current server-owned signals include panic, health, trust, fear and affinity. They resolve to neutral/happy/sad/angry/afraid/tired delivery styles.
 
-Supported TTS controls are applied best-effort. `speed` is sent as a bounded standard speech parameter. Model-specific unsupported controls do not change or randomize the assigned voice.
+Supported TTS controls are applied best-effort. `speed` is sent as a bounded standard speech parameter. For OpenAI speech models routed through OpenRouter, OpenAI-specific `instructions` are placed under `provider.options.openai` instead of being sent as an unsupported top-level standard field. Model-specific unsupported controls do not change or randomize the assigned voice.
 
 ## TTS credentials
+
+Credential selection follows the **TTS endpoint**, not only the chat provider.
+
+For an OpenRouter speech endpoint:
+
+1. `OPENROUTER_API_KEY`;
+2. `ttsApiKey`;
+3. resolved main provider key only when the main provider is also `openrouter`.
 
 For an OpenAI speech endpoint:
 
 1. `OPENAI_API_KEY`;
 2. `ttsApiKey`;
-3. main provider key only when the main provider is also `openai`.
+3. resolved main provider key only when the main provider is also `openai`.
 
-An OpenRouter chat key is never sent to an OpenAI speech endpoint.
-
-For a custom/non-OpenAI endpoint:
+For another custom TTS endpoint:
 
 1. `ttsApiKey`;
 2. resolved main provider key.
 
-With `provider=openrouter`, the resolved main provider key is normally `OPENROUTER_API_KEY`, so the same server-side key can be used for OpenRouter chat/STT/TTS.
+This prevents cross-provider credential leakage: an OpenRouter key is not sent to the OpenAI speech endpoint, and an OpenAI main key is not sent to the OpenRouter speech endpoint unless explicitly supplied as a dedicated `ttsApiKey` by the server owner.
+
+With `provider=openrouter` and an OpenRouter TTS endpoint, the same server-side `OPENROUTER_API_KEY` can be used for chat/STT/TTS.
 
 ## Structured AI response safety
 
