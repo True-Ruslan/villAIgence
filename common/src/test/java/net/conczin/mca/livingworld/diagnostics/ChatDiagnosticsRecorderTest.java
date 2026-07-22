@@ -12,6 +12,7 @@ class ChatDiagnosticsRecorderTest {
     @BeforeEach
     void reset() {
         AiDiagnostics.resetForTests();
+        ChatDiagnosticsRecorder.beginRequest();
     }
 
     @Test
@@ -88,5 +89,62 @@ class ChatDiagnosticsRecorderTest {
         AiOperationStatus status = AiDiagnostics.snapshot().chat();
         assertEquals("llm.example.test", status.provider());
         assertFalse(status.toString().contains("SECRET_PATH"));
+    }
+
+    @Test
+    void requestLifecycleKeepsOnlySafeMetadataFromLatestRetryAttempt() {
+        ChatDiagnosticsRecorder.beginRequest();
+        ChatDiagnosticsRecorder.captureCompletion(new ChatCompletionResponseParser.ParsedCompletion(
+                null,
+                null,
+                null,
+                "stop",
+                "gen-first",
+                true
+        ));
+        ChatDiagnosticsRecorder.captureCompletion(new ChatCompletionResponseParser.ParsedCompletion(
+                "SECOND_ATTEMPT_CONTENT_MUST_NOT_BE_STORED",
+                null,
+                null,
+                "stop",
+                "gen-second",
+                false
+        ));
+
+        ChatDiagnosticsRecorder.finishRequest(
+                "https://openrouter.ai/api/v1/chat/completions",
+                "model",
+                42L,
+                true
+        );
+
+        AiOperationStatus status = AiDiagnostics.snapshot().chat();
+        assertEquals(AiOperationState.SUCCESS, status.state());
+        assertEquals("gen-second", status.generationId());
+        assertTrue(status.detail().contains("attempts=2"));
+        assertTrue(status.detail().contains("reasoningPresent=false"));
+        assertFalse(status.toString().contains("SECOND_ATTEMPT_CONTENT_MUST_NOT_BE_STORED"));
+    }
+
+    @Test
+    void requestLifecycleClearsCapturedMetadataAfterFinish() {
+        ChatDiagnosticsRecorder.beginRequest();
+        ChatDiagnosticsRecorder.captureCompletion(new ChatCompletionResponseParser.ParsedCompletion(
+                "content",
+                null,
+                null,
+                "stop",
+                "old-generation",
+                false
+        ));
+        ChatDiagnosticsRecorder.finishRequest("https://api.openai.com/v1/chat/completions", "model", 10L, true);
+
+        ChatDiagnosticsRecorder.beginRequest();
+        ChatDiagnosticsRecorder.finishRequest("https://api.openai.com/v1/chat/completions", "model", 11L, false);
+
+        AiOperationStatus status = AiDiagnostics.snapshot().chat();
+        assertEquals(AiOperationState.FAILURE, status.state());
+        assertEquals("", status.generationId());
+        assertTrue(status.detail().contains("request_failed"));
     }
 }
