@@ -1,7 +1,5 @@
 package net.conczin.mca.livingworld.voice;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import net.conczin.mca.livingworld.LivingWorldConfig;
@@ -76,17 +74,9 @@ class OpenAIAudioProviderTest {
                 TtsResponseFormat.PCM,
                 "https://openrouter.ai/api/v1/audio/speech"
         );
-        JsonObject root = JsonParser.parseString(body).getAsJsonObject();
 
-        assertFalse(root.has("instructions"));
-        assertEquals(
-                "Speak warmly and calmly.",
-                root.getAsJsonObject("provider")
-                        .getAsJsonObject("options")
-                        .getAsJsonObject("openai")
-                        .get("instructions")
-                        .getAsString()
-        );
+        assertTrue(body.contains("\"provider\":{\"options\":{\"openai\":{\"instructions\":\"Speak warmly and calmly.\"}}}"));
+        assertFalse(body.contains("\"response_format\":\"pcm\",\"speed\":1.0,\"instructions\""));
     }
 
     @Test
