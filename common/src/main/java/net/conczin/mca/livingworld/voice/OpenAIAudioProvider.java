@@ -21,7 +21,6 @@ import java.util.UUID;
 /** OpenAI-compatible Audio API implementation used by LivingWorld voice input/output. */
 public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSpeechProvider {
     private final LivingWorldConfig config;
-    private final Gson gson = new Gson();
 
     public OpenAIAudioProvider(LivingWorldConfig config) {
         this.config = config;
