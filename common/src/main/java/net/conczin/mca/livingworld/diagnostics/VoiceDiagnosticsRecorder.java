@@ -1,5 +1,8 @@
 package net.conczin.mca.livingworld.diagnostics;
 
+import net.conczin.mca.livingworld.LivingWorldConfig;
+import net.conczin.mca.livingworld.admission.AiAdmissionController;
+
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.Locale;
@@ -38,13 +41,20 @@ public final class VoiceDiagnosticsRecorder {
             Throwable error
     ) {
         validateVoiceOperation(operation);
+        String errorType = classify(error);
+        if ("http_429".equals(errorType)) {
+            AiAdmissionController.onRateLimited(
+                    operation,
+                    LivingWorldConfig.getInstance().aiProviderRateLimitCooldownMillis
+            );
+        }
         AiDiagnostics.recordFailure(
                 operation,
                 durationMillis,
                 ChatDiagnosticsRecorder.providerLabel(endpoint),
                 model,
                 null,
-                classify(error),
+                errorType,
                 null,
                 detail(format)
         );
