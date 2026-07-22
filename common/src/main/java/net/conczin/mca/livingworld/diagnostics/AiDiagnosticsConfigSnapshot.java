@@ -24,42 +24,39 @@ public record AiDiagnosticsConfigSnapshot(
         Objects.requireNonNull(config, "config");
 
         String provider = normalizeProvider(config.provider);
+        String chatHost = endpointHost(config.endpoint);
         boolean chatCredential = hasValue(config.resolvedApiKey());
         AiStageConfig chat = new AiStageConfig(
-                !config.enabled
-                        ? AiConfigState.DISABLED
-                        : config.isConfigured() ? AiConfigState.CONFIGURED : AiConfigState.MISCONFIGURED,
+                configState(config.enabled, config.isConfigured(), chatHost),
                 config.enabled,
                 chatCredential,
                 provider,
                 config.model,
-                endpointHost(config.endpoint),
+                chatHost,
                 ""
         );
 
+        String sttHost = endpointHost(config.sttEndpoint);
         boolean sttCredential = hasValue(config.resolvedSttApiKey());
         AiStageConfig stt = new AiStageConfig(
-                !config.voiceInputEnabled
-                        ? AiConfigState.DISABLED
-                        : config.isVoiceInputConfigured() ? AiConfigState.CONFIGURED : AiConfigState.MISCONFIGURED,
+                configState(config.voiceInputEnabled, config.isVoiceInputConfigured(), sttHost),
                 config.voiceInputEnabled,
                 sttCredential,
                 providerForEndpoint(config.sttEndpoint, provider),
                 config.sttModel,
-                endpointHost(config.sttEndpoint),
+                sttHost,
                 SttRequestFormat.parse(config.sttRequestFormat).resolve(config.sttEndpoint).configValue()
         );
 
+        String ttsHost = endpointHost(config.ttsEndpoint);
         boolean ttsCredential = hasValue(config.resolvedTtsApiKey());
         AiStageConfig tts = new AiStageConfig(
-                !config.voiceOutputEnabled
-                        ? AiConfigState.DISABLED
-                        : config.isVoiceOutputConfigured() ? AiConfigState.CONFIGURED : AiConfigState.MISCONFIGURED,
+                configState(config.voiceOutputEnabled, config.isVoiceOutputConfigured(), ttsHost),
                 config.voiceOutputEnabled,
                 ttsCredential,
                 providerForEndpoint(config.ttsEndpoint, provider),
                 config.ttsModel,
-                endpointHost(config.ttsEndpoint),
+                ttsHost,
                 TtsResponseFormat.parse(config.ttsResponseFormat).resolve(config.ttsEndpoint).configValue()
         );
 
@@ -74,6 +71,13 @@ public record AiDiagnosticsConfigSnapshot(
         } catch (IllegalArgumentException ignored) {
             return "<invalid>";
         }
+    }
+
+    private static AiConfigState configState(boolean enabled, boolean configured, String endpointHost) {
+        if (!enabled) return AiConfigState.DISABLED;
+        return configured && !"<invalid>".equals(endpointHost)
+                ? AiConfigState.CONFIGURED
+                : AiConfigState.MISCONFIGURED;
     }
 
     private static String providerForEndpoint(String endpoint, String fallback) {
