@@ -17,7 +17,7 @@ import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.knowledge.WorldEvent;
 import net.conczin.mca.livingworld.knowledge.WorldEventStore;
 import net.conczin.mca.livingworld.memory2.Memory2ContextProvider;
-import net.conczin.mca.livingworld.memory2.MemoryContextFormatter;
+import net.conczin.mca.livingworld.memory2.SemanticMemoryContextProvider;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipActionPolicy;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipState;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipStore;
@@ -89,8 +89,13 @@ public final class LivingWorldContextCapture {
                 player.getUUID(),
                 gameTime
         );
-        String memoryPromptSection = MemoryContextFormatter.promptSection(memoryContext);
-        if (!memoryPromptSection.isEmpty()) context.add(memoryPromptSection);
+        List<String> semanticMemoryContext = loadSemanticMemoryContext(
+                livingWorld,
+                worldRoot,
+                villager.getUUID(),
+                player.getUUID(),
+                gameTime
+        );
 
         LivingWorldRelationshipState relationshipState = loadRelationshipState(livingWorld, worldFacts, worldRoot, villager, player);
 
@@ -114,6 +119,7 @@ public final class LivingWorldContextCapture {
                 context,
                 worldFacts,
                 memoryContext,
+                semanticMemoryContext,
                 actions,
                 player.serverLevel().getSeed(),
                 gameTime,
@@ -136,6 +142,22 @@ public final class LivingWorldContextCapture {
             return Memory2ContextProvider.load(worldRoot, villagerId, playerId, gameTime);
         } catch (RuntimeException e) {
             MCA.LOGGER.warn("Unable to load bounded Memory 2.0 context for villager {} and player {}", villagerId, playerId, e);
+            return List.of();
+        }
+    }
+
+    private static List<String> loadSemanticMemoryContext(
+            LivingWorldConfig config,
+            Path worldRoot,
+            java.util.UUID villagerId,
+            java.util.UUID playerId,
+            long gameTime
+    ) {
+        if (!config.memory2Enabled) return List.of();
+        try {
+            return SemanticMemoryContextProvider.load(worldRoot, villagerId, playerId, gameTime);
+        } catch (RuntimeException e) {
+            MCA.LOGGER.warn("Unable to load bounded semantic memory context for villager {} and player {}", villagerId, playerId, e);
             return List.of();
         }
     }
