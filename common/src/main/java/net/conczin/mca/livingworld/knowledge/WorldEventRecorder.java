@@ -3,6 +3,7 @@ package net.conczin.mca.livingworld.knowledge;
 import net.conczin.mca.MCA;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.livingworld.LivingWorldConfig;
+import net.conczin.mca.livingworld.memory2.Memory2WorldEventIngestor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.storage.LevelResource;
@@ -28,22 +29,23 @@ public final class WorldEventRecorder {
         );
         if (description.isEmpty()) return;
 
+        BlockPos position = villager.blockPosition();
+        Path worldRoot = player.serverLevel().getServer().getWorldPath(LevelResource.ROOT);
+        WorldEvent event = new WorldEvent(
+                UUID.randomUUID(),
+                WorldEvent.Type.NPC_ACTION,
+                description.get(),
+                WorldEvent.Provenance.SYSTEM_OBSERVED,
+                villager.level().dimension().location().toString(),
+                position.getX(),
+                position.getY(),
+                position.getZ(),
+                villager.level().getGameTime(),
+                villager.getUUID(),
+                player.getUUID()
+        );
+
         try {
-            BlockPos position = villager.blockPosition();
-            Path worldRoot = player.serverLevel().getServer().getWorldPath(LevelResource.ROOT);
-            WorldEvent event = new WorldEvent(
-                    UUID.randomUUID(),
-                    WorldEvent.Type.NPC_ACTION,
-                    description.get(),
-                    WorldEvent.Provenance.SYSTEM_OBSERVED,
-                    villager.level().dimension().location().toString(),
-                    position.getX(),
-                    position.getY(),
-                    position.getZ(),
-                    villager.level().getGameTime(),
-                    villager.getUUID(),
-                    player.getUUID()
-            );
             WorldEventStore.forWorld(worldRoot).append(event, config.eventMemoryMaxEvents);
         } catch (RuntimeException e) {
             MCA.LOGGER.warn(
@@ -51,6 +53,24 @@ public final class WorldEventRecorder {
                     commandName,
                     villager.getUUID(),
                     player.getUUID(),
+                    e
+            );
+            return;
+        }
+
+        if (!config.memory2Enabled) return;
+        try {
+            Memory2WorldEventIngestor.record(
+                    worldRoot,
+                    event,
+                    config.memory2MaxEventsPerNpc,
+                    System.currentTimeMillis()
+            );
+        } catch (RuntimeException e) {
+            MCA.LOGGER.warn(
+                    "Unable to ingest LivingWorld action event '{}' into Memory 2.0 for villager {}",
+                    commandName,
+                    villager.getUUID(),
                     e
             );
         }
