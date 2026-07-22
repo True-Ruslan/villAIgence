@@ -203,8 +203,8 @@ public class ChatAI {
      * @param player   ServerPlayerEntity of the player to be checked
      * @param villager VillagerEntityMCA entity of the villager to be checked
      * @return {@code true} if all the following conditions are met: <p>
-     * 1. Villager is within {@value #CONVERSATION_DISTANCE} blocks of the player<p>
-     * 2. Last conversation interaction with this villager wasn't longer than {@value #CONVERSATION_TIME} ago
+     * 1. Villager is within {@value CONVERSATION_DISTANCE} blocks of the player<p>
+     * 2. Last conversation interaction with this villager wasn't longer than {@value CONVERSATION_TIME} ago
      */
     private static boolean isInConversationWith(ServerPlayer player, VillagerEntityMCA villager) {
         OpenConversation conversation = currentConversations.getOrDefault(player.getUUID(), new OpenConversation(villager.getUUID(), 0L));
@@ -226,6 +226,7 @@ public class ChatAI {
         // Get specific villager
         String normalizedSearchName = normalizeString(searchName);
 
+        // Go through list, look for first match for name
         for (VillagerEntityMCA villager : entities) {
             String villagerName = getName(villager);
             if (normalizedSearchName.equals(villagerName)) {
