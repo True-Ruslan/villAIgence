@@ -18,6 +18,7 @@ import net.conczin.mca.resources.LayeredHairList;
 import net.conczin.mca.server.ServerInteractionManager;
 import net.conczin.mca.server.command.AdminCommand;
 import net.conczin.mca.server.command.Command;
+import net.conczin.mca.server.command.VillAIgenceCommand;
 import net.conczin.mca.server.world.data.VillageManager;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.ModInitializer;
@@ -146,6 +147,7 @@ public final class MCAFabric implements ModInitializer {
         );
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+            VillAIgenceCommand.register(dispatcher);
             AdminCommand.register(dispatcher);
             Command.register(dispatcher);
         });

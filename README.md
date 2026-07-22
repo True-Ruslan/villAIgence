@@ -183,6 +183,20 @@ internal engine:   LivingWorld
 
 This prevents a branding change from becoming a breaking world/config migration.
 
+## AI diagnostics
+
+Server operators can inspect current AI configuration readiness and the latest runtime result for Chat, STT and TTS with:
+
+```text
+/villaigence ai status
+```
+
+The command is read-only. It does **not** call a provider, spend tokens/credits, retry a request or mutate NPC/world state. It reports only safe operational metadata such as configured provider/model/endpoint host, stage state, duration, controlled error type, chat `finish_reason`, generation ID and attempt count where available.
+
+API keys, Authorization headers, prompts, transcripts, NPC answers, TTS input, reasoning content and raw provider payloads are never intentionally included in the status surface. `last: NEVER` means no completed operation for that stage has been observed since the current server process started.
+
+See [AI diagnostics](docs/livingworld/DIAGNOSTICS.md) for the full interpretation guide.
+
 ## Common problems
 
 ### Server does not start
@@ -197,7 +211,7 @@ Check that:
 
 ### NPC AI does not answer
 
-Check `config/livingworld.json`, `OPENAI_API_KEY` / `OPENROUTER_API_KEY`, then inspect the dedicated server log.
+Run `/villaigence ai status`, then check `config/livingworld.json`, `OPENAI_API_KEY` / `OPENROUTER_API_KEY` and the dedicated server log.
 
 ### OpenRouter returns HTTP 402
 
@@ -226,6 +240,7 @@ Text replies are intentionally published before TTS, so a TTS failure does not r
 ## Documentation
 
 - [Configuration](docs/livingworld/CONFIGURATION.md)
+- [AI diagnostics](docs/livingworld/DIAGNOSTICS.md)
 - [Voice and STT/TTS](docs/livingworld/VOICE.md)
 - [Persistent memory](docs/livingworld/MEMORY.md)
 - [Factual events](docs/livingworld/EVENTS.md)

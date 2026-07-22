@@ -115,7 +115,7 @@ public class ChatAI {
     private static ChatAIStrategy computeStrategyIfAbsent(UUID villagerID) {
         return strategies.computeIfAbsent(villagerID, v -> {
             String inworldResourceName = Config.getInstance().inworldAIResourceNames.getOrDefault(v, "");
-            return inworldResourceName.isEmpty() ? new OpenAIChatAI() : new InworldAI(inworldResourceName);
+            return inworldResourceName.isEmpty() ? new DiagnosticsOpenAIChatAI() : new InworldAI(inworldResourceName);
         });
     }
 

@@ -1,5 +1,8 @@
 package net.conczin.mca.livingworld.ai;
 
+import net.conczin.mca.livingworld.diagnostics.AiDiagnostics;
+import net.conczin.mca.livingworld.diagnostics.AiOperationState;
+import net.conczin.mca.livingworld.diagnostics.ChatDiagnosticsRecorder;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -94,5 +97,40 @@ class ChatCompletionResponseParserTest {
         assertNull(parsed.error());
         assertEquals("stop", parsed.finishReason());
         assertFalse(parsed.retryableEmptyContent());
+    }
+
+    @Test
+    void parsingCapturesOnlySafeAttemptMetadataForFinalDiagnostics() {
+        ChatDiagnosticsRecorder.beginRequest();
+        String body = """
+                {
+                  "id": "gen-diagnostic",
+                  "choices": [{
+                    "message": {
+                      "role": "assistant",
+                      "content": "SECRET_VISIBLE_CONTENT",
+                      "reasoning": "SECRET_REASONING"
+                    },
+                    "finish_reason": "stop"
+                  }]
+                }
+                """;
+
+        ChatCompletionResponseParser.parse(body);
+        ChatDiagnosticsRecorder.finishRequest(
+                "https://openrouter.ai/api/v1/chat/completions",
+                "model",
+                15L,
+                true
+        );
+
+        var status = AiDiagnostics.snapshot().chat();
+        assertEquals(AiOperationState.SUCCESS, status.state());
+        assertEquals("gen-diagnostic", status.generationId());
+        assertEquals("stop", status.finishReason());
+        assertTrue(status.detail().contains("attempts=1"));
+        assertTrue(status.detail().contains("reasoningPresent=true"));
+        assertFalse(status.toString().contains("SECRET_VISIBLE_CONTENT"));
+        assertFalse(status.toString().contains("SECRET_REASONING"));
     }
 }

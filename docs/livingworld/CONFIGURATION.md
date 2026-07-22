@@ -253,6 +253,28 @@ AI answer
 
 A TTS HTTP/format/decode failure does not remove the text reply, disconnect the player or automatically retry the same utterance.
 
+## AI diagnostics status
+
+Server operators can inspect non-secret configuration readiness and the latest runtime outcome of Chat, STT and TTS with:
+
+```text
+/villaigence ai status
+```
+
+The command is read-only and performs no provider request. It therefore does not consume tokens/credits, retry failed requests or mutate NPC/world state.
+
+Configuration readiness is reported as:
+
+- `CONFIGURED` — enabled and required configuration/credential resolution is available;
+- `MISCONFIGURED` — enabled but required configuration is missing or unusable;
+- `DISABLED` — intentionally disabled by configuration.
+
+Runtime status is process-local. `last: NEVER` means no completed operation for that stage has been observed since the server process started.
+
+Credential values, Authorization headers, prompts, transcripts, NPC answers, TTS input, reasoning content and raw provider payloads are not included. Credential presence is represented only as a boolean and endpoints are reduced to host names.
+
+See [DIAGNOSTICS.md](DIAGNOSTICS.md) for field meanings, privacy guarantees and troubleshooting examples.
+
 ## Existing config migration
 
 Config version remains `2`. Existing version-2 files do not require migration: missing newer fields receive safe defaults.
