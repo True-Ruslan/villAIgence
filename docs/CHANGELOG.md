@@ -2,6 +2,96 @@
 
 > Human-readable development and validation history. For the exact current implementation state and next priority, read `docs/PROJECT_STATE.md`. For long-term direction, read `docs/ROADMAP.md`.
 
+## Post-0.1.10 — Working Memory + Semantic Memory foundation
+
+**Status:** merged and automated-CI validated in PR #46; dedicated real-server validation is still pending.
+
+### What changed
+
+PR #46 introduced the next layered Memory 2.0 architecture slice:
+
+```text
+Recent dialogue
+→ bounded Working Memory
+
+MemoryEvent experiences
+→ Episodic Memory
+
+Typed knowledge
+→ Semantic Memory
+   ├── FACT
+   └── BELIEF
+```
+
+Working Memory now provides hard turn-local bounds for persistent dialogue and long-term context:
+
+```text
+recent persistent dialogue messages = 12
+max dialogue message = 1200 Unicode code points
+episodic entries = 6
+semantic entries = 6
+```
+
+A new world-local semantic foundation was added:
+
+```text
+<world>/livingworld/semantic-memory.json
+```
+
+Hard truth invariant:
+
+```text
+FACT   → SYSTEM_OBSERVED only
+BELIEF → PLAYER_TOLD / NPC_TOLD / INFERRED only
+```
+
+Confidence never converts a BELIEF into a FACT.
+
+Semantic storage/retrieval now supports:
+
+- per-NPC isolation;
+- bounded retention;
+- UUID idempotency;
+- deterministic ordering;
+- atomic persistence;
+- fail-open malformed-file recovery;
+- deterministic relevance/importance/confidence/recency ranking;
+- explicit prompt boundaries between authoritative facts and remembered beliefs.
+
+### Important scope boundary
+
+PR #46 intentionally does **not** add automatic semantic producers.
+
+Therefore:
+
+- arbitrary dialogue is not automatically converted into semantic knowledge;
+- LLM prose cannot silently become a `FACT`;
+- `semantic-memory.json` may legitimately remain absent/empty until controlled producers are implemented;
+- embeddings/vector DB, decay, consolidation, legacy migration and rumor propagation remain future work.
+
+Existing provider parsing/retry, action execution, relationship persistence and post-success Memory 2.0 dialogue ingestion semantics were not changed by this slice.
+
+### Git/CI anchors
+
+```text
+PR #46 merge:
+f82248ac79734200add0652fca663b93a71f2f18
+
+PR #46 exact verified head:
+f8338bcf5371f062a31b6a50c8dbc4d992251bda
+
+VillAIgence CI #687 / 29950014730 → SUCCESS
+Java Pull Request CI #276 / 29950015077 → SUCCESS
+```
+
+The TDD RED contract was previously confirmed by `VillAIgence CI #651 / 29949058071`, which failed because the new production semantic/working-memory types did not yet exist.
+
+### Development consequence
+
+The immediate next checkpoint is **real-server validation of PR #46**. After that, the next implementation slice should add controlled provenance-preserving Semantic Memory ingestion, beginning with server-owned evidence for `FACT`, before duplicate/consolidation and forgetting/decay.
+
+---
+
 ## 0.1.10+1.21.1 — Memory 2.0 text/voice parity checkpoint
 
 **Status:** live-tested successfully on a real server after restart.
@@ -80,16 +170,7 @@ Validated CI scope included unit tests, Fabric build, distributable Fabric packa
 
 ### Development consequence
 
-`0.1.10+1.21.1` is the validated checkpoint before the next Memory 2.0 architecture slice.
-
-Next development priority:
-
-```text
-Working Memory orchestration
-+ explicit Semantic Facts / Beliefs boundaries
-```
-
-Do not add embeddings/vector search or LLM-driven consolidation as prerequisites for that slice.
+`0.1.10+1.21.1` remains the latest **live-validated** checkpoint. PR #46 is newer code, but is currently only merged + automated-CI validated until a dedicated real-server test is completed.
 
 ---
 
