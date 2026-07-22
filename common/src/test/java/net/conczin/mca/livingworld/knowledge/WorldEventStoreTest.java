@@ -3,6 +3,8 @@ package net.conczin.mca.livingworld.knowledge;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
@@ -48,6 +50,26 @@ class WorldEventStoreTest {
         );
 
         assertEquals(List.of("near-newer", "near-older"), events.stream().map(WorldEvent::description).toList());
+    }
+
+    @Test
+    void corruptFileFailsOpenAndIsReplacedOnNextAppend() throws Exception {
+        Path file = tempDir.resolve("events.json");
+        Files.writeString(file, "{broken", StandardCharsets.UTF_8);
+
+        WorldEventStore store = new WorldEventStore(file);
+        assertEquals(List.of(), store.queryRecent(
+                "minecraft:overworld", 0, 64, 0,
+                50, 1000, 128.0D, 10
+        ));
+
+        store.append(event("recovered", "minecraft:overworld", 0, 64, 0, 40), 10);
+
+        WorldEventStore reloaded = new WorldEventStore(file);
+        assertEquals(List.of("recovered"), reloaded.queryRecent(
+                "minecraft:overworld", 0, 64, 0,
+                50, 1000, 128.0D, 10
+        ).stream().map(WorldEvent::description).toList());
     }
 
     private static WorldEvent event(String description, String dimension, int x, int y, int z, long gameTime) {

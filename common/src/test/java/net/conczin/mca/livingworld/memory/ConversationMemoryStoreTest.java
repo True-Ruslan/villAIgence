@@ -3,6 +3,8 @@ package net.conczin.mca.livingworld.memory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
@@ -47,5 +49,24 @@ class ConversationMemoryStoreTest {
                 new MemoryMessage("assistant", "reply")
         ), store.getMessages(villager, player).subList(2, 4));
         assertEquals(4, store.getMessages(villager, player).size());
+    }
+
+    @Test
+    void corruptFileFailsOpenAndIsReplacedOnNextAppend() throws Exception {
+        UUID villager = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        Path file = tempDir.resolve("memory.json");
+        Files.writeString(file, "{broken", StandardCharsets.UTF_8);
+
+        ConversationMemoryStore store = new ConversationMemoryStore(file);
+        assertEquals(List.of(), store.getMessages(villager, player));
+
+        store.appendExchange(villager, player, "hello", "remembered", 16, 1200);
+
+        ConversationMemoryStore reloaded = new ConversationMemoryStore(file);
+        assertEquals(List.of(
+                new MemoryMessage("user", "hello"),
+                new MemoryMessage("assistant", "remembered")
+        ), reloaded.getMessages(villager, player));
     }
 }
