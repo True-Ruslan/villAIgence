@@ -4,7 +4,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.admission.AiAdmissionController;
 import net.conczin.mca.livingworld.diagnostics.AiOperation;
 import net.conczin.mca.livingworld.diagnostics.ChatDiagnosticsRecorder;
@@ -69,12 +68,7 @@ public final class ChatCompletionResponseParser {
     }
 
     private static ParsedCompletion captured(ParsedCompletion completion) {
-        if (isRateLimited(completion)) {
-            AiAdmissionController.onRateLimited(
-                    AiOperation.CHAT,
-                    LivingWorldConfig.getInstance().aiProviderRateLimitCooldownMillis
-            );
-        }
+        if (isRateLimited(completion)) AiAdmissionController.onRateLimited(AiOperation.CHAT);
         ChatDiagnosticsRecorder.captureCompletion(completion);
         return completion;
     }
