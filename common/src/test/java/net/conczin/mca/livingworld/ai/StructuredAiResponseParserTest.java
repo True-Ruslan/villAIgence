@@ -20,6 +20,55 @@ class StructuredAiResponseParserTest {
     }
 
     @Test
+    void recoversOnlyMessageWhenWholeJsonIsMalformedByBareMetadataToken() {
+        String content = """
+                {
+                  "message": "Да, я житель!",
+                  "optionalCommand": "",
+                  "relationshipDelta": {
+                    "trust": 0,
+                    "respect": 0,
+                    "fear": INVALID_VALUE,
+                    "affinity": 0
+                  }
+                }
+                """;
+
+        StructuredAiResponseParser.ParsedResponse response = StructuredAiResponseParser.parse(content);
+
+        assertEquals("Да, я житель!", response.message());
+        assertEquals("", response.optionalCommand());
+        assertNull(response.relationshipDelta());
+        assertFalse(response.message().contains("relationshipDelta"));
+        assertFalse(response.message().contains("INVALID_VALUE"));
+    }
+
+    @Test
+    void recoversEscapedQuotesAndUnicodeFromMalformedObject() {
+        String content = """
+                {"message":"Он сказал: \\\"Привет!\\\" — всё хорошо ☺","optionalCommand":"","relationshipDelta":{"fear":INVALID}}
+                """;
+
+        StructuredAiResponseParser.ParsedResponse response = StructuredAiResponseParser.parse(content);
+
+        assertEquals("Он сказал: \"Привет!\" — всё хорошо ☺", response.message());
+        assertNull(response.relationshipDelta());
+    }
+
+    @Test
+    void invalidOptionalCommandTypeDoesNotInvalidateMessage() {
+        String content = """
+                {"message":"Останусь здесь.","optionalCommand":{"unexpected":true},"relationshipDelta":{"trust":0,"respect":0,"fear":0,"affinity":0}}
+                """;
+
+        StructuredAiResponseParser.ParsedResponse response = StructuredAiResponseParser.parse(content);
+
+        assertEquals("Останусь здесь.", response.message());
+        assertEquals("", response.optionalCommand());
+        assertEquals(LivingWorldRelationshipDelta.NONE, response.relationshipDelta());
+    }
+
+    @Test
     void parsesValidRelationshipDelta() {
         String content = """
                 {"message":"Ладно.","optionalCommand":"stay-here","relationshipDelta":{"trust":-1,"respect":0,"fear":2,"affinity":1}}
@@ -53,6 +102,19 @@ class StructuredAiResponseParserTest {
         StructuredAiResponseParser.ParsedResponse response = StructuredAiResponseParser.parse(content);
 
         assertEquals("Привет, человек.", response.message());
+        assertNull(response.relationshipDelta());
+    }
+
+    @Test
+    void unrecoverableJsonReturnsNoVisibleMessage() {
+        String content = """
+                {"optionalCommand":"","relationshipDelta":{"fear":INVALID_VALUE}}
+                """;
+
+        StructuredAiResponseParser.ParsedResponse response = StructuredAiResponseParser.parse(content);
+
+        assertNull(response.message());
+        assertEquals("", response.optionalCommand());
         assertNull(response.relationshipDelta());
     }
 }

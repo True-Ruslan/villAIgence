@@ -10,6 +10,7 @@ import net.conczin.mca.MCA;
 import net.conczin.mca.livingworld.actions.LivingWorldActionPolicy;
 import net.conczin.mca.livingworld.voice.NpcVoiceCatalog;
 import net.conczin.mca.livingworld.voice.SttRequestFormat;
+import net.conczin.mca.livingworld.voice.TtsResponseFormat;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -63,12 +64,16 @@ public final class LivingWorldConfig {
     public String sttEndpoint = "https://api.openai.com/v1/audio/transcriptions";
     public String sttModel = "gpt-4o-mini-transcribe";
     public String sttLanguage = "";
-    /** Optional dedicated TTS key. OPENAI_API_KEY is preferred for the OpenAI speech endpoint. */
+    /** Optional dedicated TTS key. Endpoint-specific environment keys take priority. */
     public String ttsApiKey = "";
     public String ttsEndpoint = "https://api.openai.com/v1/audio/speech";
     public String ttsModel = "tts-1";
     /** Legacy/final fallback voice. Persistent NPC profiles use the pools below first. */
     public String ttsVoice = "marin";
+    /** auto, wav, or pcm. */
+    public String ttsResponseFormat = "auto";
+    /** Fallback sample rate for raw PCM responses when the Content-Type omits a rate parameter. */
+    public int ttsPcmSampleRate = 24_000;
 
     /** LivingWorld defaults only; providers do not formally classify built-in voices by gender/age. */
     public List<String> maleChildVoices = List.of("ash", "echo");
@@ -119,6 +124,7 @@ public final class LivingWorldConfig {
     public String resolvedTtsApiKey() {
         return resolveTtsApiKey(
                 ttsEndpoint,
+                System.getenv(OPENROUTER_API_KEY_ENV),
                 System.getenv(OPENAI_API_KEY_ENV),
                 ttsApiKey,
                 provider,
@@ -201,21 +207,33 @@ public final class LivingWorldConfig {
 
     static String resolveTtsApiKey(
             String endpoint,
+            String openRouterEnvironmentKey,
             String openAiEnvironmentKey,
             String configuredTtsKey,
             String mainProvider,
             String mainProviderKey
     ) {
+        String normalizedProvider = mainProvider == null ? "" : mainProvider.trim().toLowerCase(Locale.ROOT);
+
+        if (TtsResponseFormat.isOpenRouterEndpoint(endpoint)) {
+            if (openRouterEnvironmentKey != null && !openRouterEnvironmentKey.isBlank()) {
+                return openRouterEnvironmentKey.trim();
+            }
+            if (configuredTtsKey != null && !configuredTtsKey.isBlank()) return configuredTtsKey.trim();
+            if (!"openrouter".equals(normalizedProvider)) return "";
+            return mainProviderKey == null ? "" : mainProviderKey.trim();
+        }
+
         if (isOpenAiEndpoint(endpoint)) {
             if (openAiEnvironmentKey != null && !openAiEnvironmentKey.isBlank()) {
                 return openAiEnvironmentKey.trim();
             }
             if (configuredTtsKey != null && !configuredTtsKey.isBlank()) return configuredTtsKey.trim();
-            String normalizedProvider = mainProvider == null ? "" : mainProvider.trim().toLowerCase(Locale.ROOT);
             if (!"openai".equals(normalizedProvider)) return "";
-        } else if (configuredTtsKey != null && !configuredTtsKey.isBlank()) {
-            return configuredTtsKey.trim();
+            return mainProviderKey == null ? "" : mainProviderKey.trim();
         }
+
+        if (configuredTtsKey != null && !configuredTtsKey.isBlank()) return configuredTtsKey.trim();
         return mainProviderKey == null ? "" : mainProviderKey.trim();
     }
 
@@ -327,6 +345,8 @@ public final class LivingWorldConfig {
         if (ttsEndpoint == null || ttsEndpoint.isBlank()) ttsEndpoint = "https://api.openai.com/v1/audio/speech";
         if (ttsModel == null || ttsModel.isBlank()) ttsModel = "tts-1";
         if (ttsVoice == null || ttsVoice.isBlank()) ttsVoice = "marin";
+        ttsResponseFormat = TtsResponseFormat.parse(ttsResponseFormat).configValue();
+        if (ttsPcmSampleRate <= 0) ttsPcmSampleRate = 24_000;
         maleChildVoices = normalizeVoiceList(maleChildVoices);
         femaleChildVoices = normalizeVoiceList(femaleChildVoices);
         neutralChildVoices = normalizeVoiceList(neutralChildVoices);

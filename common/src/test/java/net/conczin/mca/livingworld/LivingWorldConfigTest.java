@@ -40,6 +40,8 @@ class LivingWorldConfigTest {
         assertEquals("tts-1", config.ttsModel);
         assertEquals("marin", config.ttsVoice);
         assertEquals("", config.ttsApiKey);
+        assertEquals("auto", config.ttsResponseFormat);
+        assertEquals(24_000, config.ttsPcmSampleRate);
         assertEquals(800, config.voiceSilenceMillis);
         assertEquals(20, config.voiceMaxSeconds);
         assertEquals(10, config.connectTimeoutSeconds);
@@ -77,6 +79,41 @@ class LivingWorldConfigTest {
     }
 
     @Test
+    void ttsResponseFormatAndPcmRateNormalizeWithoutBreakingVersionTwoConfigs() {
+        LivingWorldConfig omitted = LivingWorldConfig.parseJson("""
+                {
+                  "version": 2,
+                  "voiceInputEnabled": true,
+                  "voiceOutputEnabled": false
+                }
+                """);
+        assertEquals("auto", omitted.ttsResponseFormat);
+        assertEquals(24_000, omitted.ttsPcmSampleRate);
+
+        LivingWorldConfig explicit = LivingWorldConfig.parseJson("""
+                {
+                  "version": 2,
+                  "ttsResponseFormat": " PCM ",
+                  "ttsPcmSampleRate": 48000
+                }
+                """);
+        assertEquals("pcm", explicit.ttsResponseFormat);
+        assertEquals(48_000, explicit.ttsPcmSampleRate);
+
+        LivingWorldConfig wav = LivingWorldConfig.parseJson("""
+                {"version":2,"ttsResponseFormat":"wav","ttsPcmSampleRate":16000}
+                """);
+        assertEquals("wav", wav.ttsResponseFormat);
+        assertEquals(16_000, wav.ttsPcmSampleRate);
+
+        LivingWorldConfig invalid = LivingWorldConfig.parseJson("""
+                {"version":2,"ttsResponseFormat":"bogus","ttsPcmSampleRate":0}
+                """);
+        assertEquals("auto", invalid.ttsResponseFormat);
+        assertEquals(24_000, invalid.ttsPcmSampleRate);
+    }
+
+    @Test
     void providerSpecificEnvironmentKeyWinsOverConfiguredKey() {
         assertEquals("sk-or-env", LivingWorldConfig.resolveProviderApiKey("openrouter", "sk-or-env", "sk-oa-env", "sk-file"));
         assertEquals("sk-oa-env", LivingWorldConfig.resolveProviderApiKey("openai", "sk-or-env", "sk-oa-env", "sk-file"));
@@ -95,19 +132,25 @@ class LivingWorldConfigTest {
     }
 
     @Test
-    void ttsCredentialIsResolvedIndependentlyFromChatProvider() {
+    void ttsCredentialIsResolvedByTtsEndpointWithoutCrossProviderKeyLeakage() {
         assertEquals("sk-openai-env", LivingWorldConfig.resolveTtsApiKey(
-                "https://api.openai.com/v1/audio/speech", "sk-openai-env", "sk-tts-file", "openrouter", "sk-openrouter-main"));
+                "https://api.openai.com/v1/audio/speech", "sk-or-env", "sk-openai-env", "sk-tts-file", "openrouter", "sk-openrouter-main"));
+        assertEquals("sk-or-env", LivingWorldConfig.resolveTtsApiKey(
+                "https://openrouter.ai/api/v1/audio/speech", "sk-or-env", "sk-openai-env", "sk-tts-file", "openai", "sk-openai-main"));
         assertEquals("sk-tts-file", LivingWorldConfig.resolveTtsApiKey(
-                "https://example-tts.invalid/v1/speech", "sk-openai-env", "sk-tts-file", "openrouter", "sk-main"));
+                "https://example-tts.invalid/v1/speech", "sk-or-env", "sk-openai-env", "sk-tts-file", "openrouter", "sk-main"));
         assertEquals("sk-main", LivingWorldConfig.resolveTtsApiKey(
-                "https://example-tts.invalid/v1/speech", "", "", "openrouter", "sk-main"));
+                "https://example-tts.invalid/v1/speech", "", "", "", "openrouter", "sk-main"));
         assertEquals("", LivingWorldConfig.resolveTtsApiKey(
-                "https://api.openai.com/v1/audio/speech", "", "", "openrouter", "sk-openrouter-main"));
+                "https://api.openai.com/v1/audio/speech", "", "", "", "openrouter", "sk-openrouter-main"));
         assertEquals("sk-openai-main", LivingWorldConfig.resolveTtsApiKey(
-                "https://api.openai.com/v1/audio/speech", "", "", "openai", "sk-openai-main"));
+                "https://api.openai.com/v1/audio/speech", "", "", "", "openai", "sk-openai-main"));
+        assertEquals("", LivingWorldConfig.resolveTtsApiKey(
+                "https://openrouter.ai/api/v1/audio/speech", "", "", "", "openai", "sk-openai-main"));
+        assertEquals("sk-openrouter-main", LivingWorldConfig.resolveTtsApiKey(
+                "https://openrouter.ai/api/v1/audio/speech", "", "", "", "openrouter", "sk-openrouter-main"));
         assertEquals("sk-tts-file", LivingWorldConfig.resolveTtsApiKey(
-                "https://evil.example/proxy/api.openai.com/v1/audio/speech", "sk-openai-env", "sk-tts-file", "openrouter", "sk-main"));
+                "https://evil.example/proxy/api.openai.com/v1/audio/speech", "sk-or-env", "sk-openai-env", "sk-tts-file", "openrouter", "sk-main"));
     }
 
     @Test
@@ -159,6 +202,8 @@ class LivingWorldConfigTest {
         assertTrue(config.voiceInputEnabled);
         assertFalse(config.voiceOutputEnabled);
         assertEquals("json_base64", config.sttRequestFormat);
+        assertEquals("auto", config.ttsResponseFormat);
+        assertEquals(24_000, config.ttsPcmSampleRate);
     }
 
     @Test
