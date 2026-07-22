@@ -83,7 +83,7 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
         String voice = request.voiceId().isBlank() ? config.ttsVoice : request.voiceId();
         TtsRequest resolved = new TtsRequest(request.text(), voice, request.style());
         byte[] response = execute(
-                open(config.ttsEndpoint, "application/json", config.resolvedApiKey()),
+                open(config.ttsEndpoint, "application/json", config.resolvedTtsApiKey()),
                 createSpeechBody(resolved, config.ttsModel).getBytes(StandardCharsets.UTF_8),
                 "text-to-speech"
         );
