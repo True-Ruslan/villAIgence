@@ -18,6 +18,7 @@ import net.conczin.mca.resources.LayeredHairList;
 import net.conczin.mca.server.ServerInteractionManager;
 import net.conczin.mca.server.command.AdminCommand;
 import net.conczin.mca.server.command.Command;
+import net.conczin.mca.server.command.VillAIgenceCommand;
 import net.conczin.mca.server.world.data.VillageManager;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.ModInitializer;
@@ -66,7 +67,7 @@ public final class MCAFabric implements ModInitializer {
             } else {
                 PayloadTypeRegistry.playS2C().register(type, codec);
                 if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
-                    ClientProxy.register(type);
+                    ClientProxy.register(type, codec);
                 }
             }
         }
@@ -116,7 +117,7 @@ public final class MCAFabric implements ModInitializer {
         registerReloadListener(managerHelper, BodySkinList.ID, new BodySkinList());
         managerHelper.registerReloadListener(new FabricClothingList());
         registerReloadListener(managerHelper, HairStyleList.ID, new HairStyleList());
-        registerReloadListener(managerHelper, LayeredHairList.ID, new LayeredHairList());
+        managerHelper.registerReloadListener(new LayeredHairList());
         managerHelper.registerReloadListener(new FabricGiftLoader());
         managerHelper.registerReloadListener(new FabricDialogues());
         managerHelper.registerReloadListener(new FabricTasks());
@@ -146,13 +147,14 @@ public final class MCAFabric implements ModInitializer {
         );
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+            VillAIgenceCommand.register(dispatcher);
             AdminCommand.register(dispatcher);
             Command.register(dispatcher);
         });
     }
 
     private static final class ClientProxy {
-        public static <T extends HandleablePayload> void register(HandleablePayload.Type<T> type) {
+        public static <T extends HandleablePayload> void register(HandleablePayload.Type<T> type, StreamCodec<? super RegistryFriendlyByteBuf, T> codec) {
             ClientPlayNetworking.registerGlobalReceiver(type, (payload, ctx) -> ctx.client().execute(() -> payload.handle(ctx.player())));
         }
     }
