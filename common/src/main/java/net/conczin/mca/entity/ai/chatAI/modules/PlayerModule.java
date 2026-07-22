@@ -41,5 +41,7 @@ public class PlayerModule {
                 input.add(advancement + " ");
             }
         }
+
+        MemoryModule.apply(input, villager, player);
     }
 }
