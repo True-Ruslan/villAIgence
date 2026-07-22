@@ -62,6 +62,8 @@ public final class LivingWorldConfig {
     public String sttEndpoint = "https://api.openai.com/v1/audio/transcriptions";
     public String sttModel = "gpt-4o-mini-transcribe";
     public String sttLanguage = "";
+    /** Optional dedicated TTS key. OPENAI_API_KEY is preferred for the OpenAI speech endpoint. */
+    public String ttsApiKey = "";
     public String ttsEndpoint = "https://api.openai.com/v1/audio/speech";
     public String ttsModel = "tts-1";
     /** Legacy/final fallback voice. Persistent NPC profiles use the pools below first. */
@@ -113,6 +115,15 @@ public final class LivingWorldConfig {
         );
     }
 
+    public String resolvedTtsApiKey() {
+        return resolveTtsApiKey(
+                ttsEndpoint,
+                System.getenv(OPENAI_API_KEY_ENV),
+                ttsApiKey,
+                resolvedApiKey()
+        );
+    }
+
     public boolean isConfigured() {
         return isConfiguredWithKey(resolvedApiKey());
     }
@@ -122,7 +133,7 @@ public final class LivingWorldConfig {
     }
 
     public boolean isVoiceOutputConfigured() {
-        return voiceOutputEnabled && isConfigured();
+        return voiceOutputEnabled && isConfigured() && !resolvedTtsApiKey().isBlank();
     }
 
     /** Compatibility helper for callers that only need to know whether either voice direction is enabled. */
@@ -184,6 +195,27 @@ public final class LivingWorldConfig {
         }
         if (configuredSttKey != null && !configuredSttKey.isBlank()) return configuredSttKey.trim();
         return mainProviderKey == null ? "" : mainProviderKey.trim();
+    }
+
+    static String resolveTtsApiKey(
+            String endpoint,
+            String openAiEnvironmentKey,
+            String configuredTtsKey,
+            String mainProviderKey
+    ) {
+        if (isOpenAiEndpoint(endpoint)
+                && openAiEnvironmentKey != null
+                && !openAiEnvironmentKey.isBlank()) {
+            return openAiEnvironmentKey.trim();
+        }
+        if (configuredTtsKey != null && !configuredTtsKey.isBlank()) return configuredTtsKey.trim();
+        return mainProviderKey == null ? "" : mainProviderKey.trim();
+    }
+
+    private static boolean isOpenAiEndpoint(String endpoint) {
+        if (endpoint == null || endpoint.isBlank()) return false;
+        String normalized = endpoint.trim().toLowerCase(Locale.ROOT);
+        return normalized.contains("api.openai.com/") || normalized.equals("https://api.openai.com");
     }
 
     static LivingWorldConfig parseJson(String json) {
@@ -278,6 +310,7 @@ public final class LivingWorldConfig {
                     : "gpt-4o-mini-transcribe";
         }
         if (sttLanguage == null) sttLanguage = "";
+        if (ttsApiKey == null) ttsApiKey = "";
         if (ttsEndpoint == null || ttsEndpoint.isBlank()) ttsEndpoint = "https://api.openai.com/v1/audio/speech";
         if (ttsModel == null || ttsModel.isBlank()) ttsModel = "tts-1";
         if (ttsVoice == null || ttsVoice.isBlank()) ttsVoice = "marin";
