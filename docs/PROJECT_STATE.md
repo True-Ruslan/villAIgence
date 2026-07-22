@@ -436,27 +436,65 @@ Detailed configuration/diagnostics:
 
 ---
 
+## 15. Persistent auxiliary JSON corruption recovery — implemented
+
+PR #30 hardens the remaining world-local persistent stores before Memory 2.0.
+
+Stores covered:
+
+```text
+<world>/livingworld/memory.json
+<world>/livingworld/events.json
+<world>/livingworld/relationships.json
+<world>/livingworld/voices.json
+```
+
+`voices.json` already used fail-open loading. PR #30 aligns conversation memory, factual events and relationship state with the same availability rule:
+
+- malformed/unreadable auxiliary JSON does not make store construction fail;
+- the affected store starts from an empty/neutral state;
+- the next successful normal mutation writes valid current-format JSON using the existing atomic temp + replace path;
+- no schema/config version or migration changes are introduced;
+- corruption-recovery behavior is covered by regression tests.
+
+This is **availability recovery, not data reconstruction**. World backup/restore remains the way to recover previous persistent content when preservation matters.
+
+Operational validation checklist: `docs/livingworld/PLAYTEST_CHECKLIST.md`.
+
+---
+
 # Release state
 
 ## Known release sequence relevant to current development
 
-Historical published tags include releases through `0.1.5+1.21.1`.
+Historical published tags include releases through:
+
+```text
+0.1.7+1.21.1
+```
 
 `0.1.5+1.21.1` predates PR #26 and contains the reported `content: null` crash.
 
-The next intended patch/reliability release is:
+`0.1.6+1.21.1` was not used as the intended new reliability release because that version/tag slot was already occupied. The reliability release therefore advanced to:
 
 ```text
-0.1.6+1.21.1
+0.1.7+1.21.1
 ```
 
-Before publishing it, verify:
+Published release facts:
 
-1. `1.21.1` HEAD is the exact intended release commit including PR #26, #28 and #29 reliability work;
-2. release workflow/tag validation still matches;
-3. release/dry-run CI is green;
-4. `0.1.6+1.21.1` is still unused;
-5. the tag points exactly to the intended `1.21.1` HEAD.
+```text
+release tag: 0.1.7+1.21.1
+release commit: 8f3095c6e8489e077246d652be51ec3c0ff57cd8
+release workflow run: 29913854688
+workflow conclusion: success
+```
+
+The release commit is the `1.21.1` merge commit for PR #29 and includes the merged reliability work from PR #26 (`content: null` hardening), PR #28 (operator diagnostics) and PR #29 (admission/backpressure).
+
+Release workflow verification succeeded for build/package, Fabric distributable smoke-check, artifact upload and GitHub Release publication.
+
+PR #30 persistence corruption recovery is post-`0.1.7` reliability hardening and is not part of the already-published `0.1.7` artifact.
 
 Never move an already-published version tag.
 
@@ -545,21 +583,26 @@ The following roadmap features remain planned, not complete.
 
 # Immediate next development priorities
 
-## Priority A — finish the `0.1.x` reliability/release phase
+## Priority A — close the live-validation gate for `0.1.x`
 
-Recommended next tasks:
+Core `0.1.x` reliability architecture is now implemented: provider-envelope hardening, structured-response sanitation, bounded retry, diagnostics, admission/backpressure/cooldowns and persistent-store corruption recovery.
 
-1. prepare, verify, publish and playtest `0.1.6+1.21.1` from the exact intended `1.21.1` HEAD;
-2. run multiplayer concurrency and repeated voice-dialogue soak tests under the new admission limits;
-3. validate restart/reconnect/world-backup behavior for all persistent JSON stores;
-4. collect real server feedback on STT/LLM/TTS/admission failure modes using `/villaigence ai status` plus bounded logs;
-5. decide whether the default/recommended free LLM should change from unstable free-provider choices.
+Remaining exit work is field validation, not another large reliability subsystem.
 
-Rate-limit/backpressure/cooldown implementation is no longer a pending roadmap item; it is part of the implemented reliability foundation.
+Use `docs/livingworld/PLAYTEST_CHECKLIST.md` to:
+
+1. playtest released `0.1.7+1.21.1` and the latest post-release reliability fixes;
+2. run multiplayer concurrency and repeated voice-dialogue soak tests under admission limits;
+3. validate provider `429` cooldown recovery where safely reproducible;
+4. validate restart/reconnect/world-backup behavior for all persistent JSON stores;
+5. collect real server feedback on STT/LLM/TTS/admission failure modes using `/villaigence ai status` plus bounded logs;
+6. decide whether the default/recommended free LLM should change from unstable free-provider choices.
+
+Any release-blocking defect found here should be fixed as a narrow `0.1.x` reliability patch, not mixed into Memory 2.0 architecture.
 
 ## Priority B — begin `0.2 Memory 2.0`
 
-Once `0.1.x` is stable enough for normal playtesting, the next major feature branch should design and implement Memory 2.0.
+Once the live-validation gate is stable enough for normal playtesting, the next major feature branch should design and implement Memory 2.0.
 
 Suggested first architecture slice:
 
