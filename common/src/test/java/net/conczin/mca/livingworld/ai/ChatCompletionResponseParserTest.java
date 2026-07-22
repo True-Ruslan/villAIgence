@@ -80,6 +80,24 @@ class ChatCompletionResponseParserTest {
     }
 
     @Test
+    void providerRateLimitCodeIsNormalizedForAdmissionCooldownSignal() {
+        String body = """
+                {
+                  "error": {
+                    "code": 429,
+                    "message": "Rate limit exceeded"
+                  }
+                }
+                """;
+
+        ChatCompletionResponseParser.ParsedCompletion parsed = ChatCompletionResponseParser.parse(body);
+
+        assertEquals("Rate limit exceeded", parsed.error());
+        assertEquals("http_429", parsed.errorType());
+        assertFalse(parsed.retryableEmptyContent());
+    }
+
+    @Test
     void validContentRemainsAvailableForStructuredParsing() {
         String body = """
                 {
