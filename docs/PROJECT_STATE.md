@@ -4,7 +4,7 @@
 >
 > Last major state update: **2026-07-22**.
 >
-> This file must describe what is actually implemented/merged, not aspirational roadmap items. Before relying on it for active development, verify recent GitHub PRs, tags/releases and CI because repository activity may have advanced since the last edit.
+> This file describes implemented repository state, not aspirational roadmap items. Before active development, verify recent PRs, tags/releases and CI because repository activity may have advanced since the last edit.
 
 ## Project identity
 
@@ -16,7 +16,7 @@
 - **Primary development/base branch:** `1.21.1`
 - **Target game:** Minecraft 1.21.1
 - **Primary loader:** Fabric
-- **Compatibility build:** NeoForge is kept compiling in CI where applicable
+- **Compatibility build:** NeoForge remains compiling in CI where applicable
 - **Java:** 21
 - **Technical mod id:** `mca` — intentionally preserved for MCA compatibility
 - **Internal Java namespace:** `net.conczin.mca` — intentionally preserved
@@ -31,17 +31,15 @@ mod id: mca
 Java package root: net.conczin.mca
 ```
 
-Public branding is VillAIgence; internal compatibility identifiers remain MCA/LivingWorld where changing them would break worlds, configs, loaders or upstream-derived code.
+Public branding is VillAIgence; compatibility-sensitive MCA/LivingWorld identifiers remain unchanged unless a dedicated migration design exists.
 
 ---
 
 # Product direction
 
-VillAIgence is no longer treated as merely “MCA Reborn with an AI chat feature.”
+VillAIgence is not treated as merely “MCA Reborn with an AI chat feature.”
 
 The intended product is a **persistent living-society simulation layer for Minecraft** built on the MCA-derived NPC/social body.
-
-Core idea:
 
 ```text
 NPC identity
@@ -58,7 +56,7 @@ NPC identity
 = VillAIgence
 ```
 
-The full versioned vision is in `docs/ROADMAP.md`.
+The full versioned vision and exit criteria are in `docs/ROADMAP.md`.
 
 ---
 
@@ -72,16 +70,12 @@ Key guarantees:
 
 - API keys remain server-side;
 - provider settings are server configuration;
-- external provider failure should degrade safely rather than mutate the world blindly;
+- provider failure degrades through controlled paths rather than blindly mutating the world;
 - LLM output is not authoritative Minecraft state.
-
-Relevant historical work includes the original LivingWorld AI foundation and later provider hardening.
 
 ---
 
 ## 2. Voice input pipeline — implemented
-
-Current conceptual pipeline:
 
 ```text
 Player microphone
@@ -97,13 +91,12 @@ Implemented behavior includes:
 
 - optional microphone-driven interaction;
 - Simple Voice Chat integration;
-- STT support through OpenAI-compatible/OpenRouter paths;
-- text-only voice-input mode;
-- `voiceInputEnabled` and `voiceOutputEnabled` split;
-- new installations default to `voiceOutputEnabled=false`;
+- STT through OpenAI-compatible/OpenRouter paths;
+- separate `voiceInputEnabled` and `voiceOutputEnabled` switches;
+- new installs default to `voiceOutputEnabled=false`;
 - normal player-to-player Simple Voice Chat traffic remains separate.
 
-No raw microphone audio is intended to be persisted.
+Raw microphone audio is processed in memory and is not intentionally persisted.
 
 ---
 
@@ -111,36 +104,34 @@ No raw microphone audio is intended to be persisted.
 
 VillAIgence supports optional NPC TTS output with spatial playback through Simple Voice Chat.
 
-### OpenRouter raw PCM support
-
-Merged in PR #24 (`feat(livingworld): add OpenRouter PCM TTS and resilient structured response parsing`).
+PR #24 added OpenRouter raw PCM and resilient structured response handling.
 
 Implemented:
 
 - `ttsResponseFormat`: `auto`, `wav`, `pcm`;
-- `auto` resolves OpenRouter TTS to raw PCM and other OpenAI-compatible endpoints to WAV;
-- raw signed PCM16 little-endian mono decoding;
+- OpenRouter `auto` → raw PCM, other OpenAI-compatible endpoints → WAV;
+- signed PCM16 little-endian mono decoding;
 - MIME `rate`/`channels` parsing;
 - configured fallback sample rate;
 - 48 kHz resampling before Simple Voice Chat playback;
 - WAV path retained;
-- text reply is published before/independently from TTS failure.
+- text reply is published before/independently from TTS failure or local TTS backpressure.
 
-TTS failure must not remove a valid text response.
+A TTS problem must not remove a valid text response.
 
 ---
 
 ## 4. Persistent per-NPC voice identity — implemented
 
-Merged in PR #23 (`feat: add persistent gender and age aware NPC voices`).
+PR #23 added persistent gender/age-aware NPC voices.
 
-Persistent storage:
+Storage:
 
 ```text
 <world>/livingworld/voices.json
 ```
 
-Implemented model:
+Model:
 
 ```text
 NPC UUID
@@ -150,7 +141,7 @@ NPC UUID
 → persisted voice profile
 ```
 
-Age mapping follows actual MCA states:
+Age mapping:
 
 ```text
 BABY / TODDLER / CHILD → child
@@ -158,19 +149,18 @@ TEEN                   → teen
 ADULT / UNASSIGNED     → adult
 ```
 
-MCA 1.21.1 currently has no distinct elder state, so VillAIgence does not fabricate one.
+MCA 1.21.1 has no distinct elder state, so VillAIgence does not fabricate one.
 
 Properties:
 
-- voice remains stable across restarts;
-- voice identity is independent from the chat/LLM model;
-- configurable male/female/neutral child/teen/adult voice pools;
-- persisted profile can be re-resolved on a real age/gender transition or incompatible pool change;
-- different NPCs can receive different voices.
+- stable across restarts;
+- independent from the selected chat/LLM model;
+- configurable male/female/neutral child/teen/adult pools;
+- re-resolution on real age/gender transitions or incompatible pool changes.
 
 ### Mood-aware delivery — implemented foundation
 
-Current moods include:
+Current moods:
 
 ```text
 NEUTRAL
@@ -181,67 +171,59 @@ AFRAID
 TIRED
 ```
 
-Mood changes delivery/style, not the NPC’s persistent base voice.
-
-Mood is derived from server-owned state such as panic, health and persistent relationship dimensions rather than freely invented by the LLM.
+Mood affects delivery, not persistent voice identity. It is derived from server-owned state such as panic, health and persistent relationship dimensions.
 
 ---
 
 ## 5. Persistent player↔NPC dialogue memory — implemented foundation
 
-Persistent memory exists and is world-local.
-
-Current storage includes:
+Storage:
 
 ```text
 <world>/livingworld/memory.json
 ```
 
-The current system is primarily bounded persistent dialogue/context memory.
+Current memory is bounded persistent dialogue/context memory. It is a foundation, **not** the planned `Memory 2.0` architecture.
 
-**Important:** This is the foundation, not the planned `Memory 2.0` architecture.
-
-The next major memory milestone will separate:
+Roadmap `0.2` will separate:
 
 - working memory;
 - episodic memory;
 - semantic knowledge;
 - relationship reasons/history;
-- importance/decay/provenance.
-
-See roadmap milestone `0.2`.
+- importance/decay/provenance/confidence.
 
 ---
 
 ## 6. World events / factual knowledge foundation — implemented
 
-Current storage includes:
+Storage:
 
 ```text
 <world>/livingworld/events.json
 ```
 
-Implemented foundation:
+Implemented:
 
 - server-owned factual events;
 - provenance/time/location/dimension context;
 - bounded event queries;
-- factual context can be injected into the NPC context snapshot;
-- LLM is not allowed to inject arbitrary facts into authoritative event state.
+- factual context injection into authoritative NPC context snapshots;
+- LLM cannot inject arbitrary facts into authoritative event state.
 
-This is the base for future knowledge propagation and rumors, not yet a complete social knowledge network.
+This is the foundation for future knowledge propagation and rumors, not a complete social knowledge network.
 
 ---
 
 ## 7. Player↔NPC relationship state — implemented foundation
 
-Current storage includes:
+Storage:
 
 ```text
 <world>/livingworld/relationships.json
 ```
 
-Current dimensions:
+Dimensions:
 
 ```text
 trust
@@ -256,17 +238,15 @@ Properties:
 - structured relationship deltas;
 - server-side clamping/policy;
 - relationship state influences behavior/context;
-- malformed deltas must not break or leak into visible dialogue.
+- malformed deltas cannot break or leak structured JSON into visible dialogue.
 
-**Not yet implemented:** general persistent `NPC ↔ NPC` social graph. This is a major target for roadmap `0.3`.
+**Not yet implemented:** general persistent `NPC ↔ NPC` social graph. This is roadmap `0.3`.
 
 ---
 
 ## 8. Safe actions — implemented foundation
 
-LLM-triggered actions use a constrained/whitelisted path rather than arbitrary command execution.
-
-Design principle:
+LLM-triggered actions use a constrained/whitelisted path:
 
 ```text
 LLM proposes
@@ -275,76 +255,64 @@ LLM proposes
 → server executes allowed mutation
 ```
 
-Mutable Minecraft state is intended to be accessed on the server thread, with immutable snapshots passed into asynchronous AI work.
+Mutable Minecraft state is accessed on the server thread; immutable snapshots are passed into asynchronous AI work.
 
 ---
 
 ## 9. Immutable authoritative context snapshot — implemented
 
-Before asynchronous AI processing, VillAIgence captures an authoritative server-side context snapshot.
-
-This prevents asynchronous AI/provider code from freely reading mutable Minecraft entities after leaving the server thread.
-
-The snapshot is the boundary for:
+Before asynchronous AI processing, VillAIgence captures authoritative server-side context for:
 
 - player/NPC identity;
 - world facts;
 - available actions;
 - relationship context;
 - language/context metadata;
-- relevant voice-state capture where applicable.
+- relevant voice state where applicable.
+
+This is the boundary preventing asynchronous provider code from freely reading mutable Minecraft entities.
 
 ---
 
 ## 10. Structured response sanitization — implemented and hardened
 
-VillAIgence has a dedicated structured-response parser that isolates the visible NPC message from optional command/relationship metadata.
+VillAIgence isolates the visible NPC message from optional command/relationship metadata.
 
 Important behavior:
 
 - malformed `relationshipDelta` cannot expose raw JSON;
-- malformed optional metadata should not invalidate a recoverable message;
+- malformed optional metadata does not invalidate a recoverable message;
 - Markdown/code fences are stripped safely;
-- malformed JSON attempts safe `message` recovery only;
-- unrecoverable structured JSON is not spoken/displayed as raw metadata;
-- language prompt explicitly requests the language of the player’s latest message.
+- malformed JSON may recover only a safe top-level `message`;
+- unrecoverable structured JSON is not displayed/spoken as raw metadata;
+- language prompting requests the natural language of the player’s latest message.
 
-This addresses the historical JSON-tail bug where malformed numeric relationship fields could leak structured metadata into visible dialogue.
+This closes the historical JSON-tail bug caused by malformed structured relationship fields.
 
 ---
 
 ## 11. OpenRouter `content: null` hardening — merged
 
-Merged in PR #26 (`fix: handle empty OpenRouter chat completions safely`).
-
-Root cause in VillAIgence 0.1.5:
-
-```java
-getAsJsonPrimitive("content").getAsString()
-```
-
-assumed `choices[0].message.content` was always a string. A valid OpenAI-compatible envelope with `content: null` caused:
+PR #26 fixed the VillAIgence 0.1.5 crash:
 
 ```text
 JsonNull cannot be cast to JsonPrimitive
 ```
 
-Implemented fix:
+Implemented:
 
-- dedicated `ChatCompletionResponseParser` for the external provider envelope;
+- dedicated `ChatCompletionResponseParser`;
 - null/missing/blank `content` handled safely;
-- captures `finish_reason`;
-- captures root/choice provider errors and `error_type` where available;
-- captures generation ID;
-- records only whether reasoning metadata is present — reasoning content is **never** substituted as NPC-visible text;
-- initial request + at most one retry for retryable empty completions;
+- `finish_reason`, provider errors/error type and generation ID captured safely;
+- reasoning is represented only as a presence boolean and is never substituted as NPC text;
+- initial request + at most one retry for retryable empty completion;
 - no blind retry for terminal `length`, `content_filter` or explicit provider errors;
-- controlled `empty_response` fallback after exhaustion;
-- diagnostics avoid logging API keys, Authorization headers, prompts or reasoning text.
+- controlled `empty_response` fallback;
+- no API keys, Authorization headers, prompts or reasoning text in diagnostics.
 
-Retry occurs inside the provider HTTP layer, before memory/actions/relationship application/TTS, so an empty first attempt cannot duplicate those game-side effects.
+Retry remains inside the provider layer before memory/actions/relationships/TTS, preventing duplicate game-side effects.
 
-Final merge commit for PR #26:
+PR #26 merge commit:
 
 ```text
 52eed8ba8dede8deeaceffbec723255d4515ac8d
@@ -354,63 +322,117 @@ Final merge commit for PR #26:
 
 ## 12. Branding — implemented
 
-Merged in PR #25.
+PR #25 established **VillAIgence** as the public product identity.
 
-Public-facing project is now **VillAIgence**.
+Updated surfaces include README, loader metadata, repository links, CI/release naming and public documentation.
 
-Updated surfaces include:
-
-- README;
-- loader display metadata;
-- GitHub/repository links;
-- CI/release naming;
-- release artifact naming;
-- public documentation.
-
-New release artifact convention:
+Release artifact convention:
 
 ```text
 villaigence-fabric-<version>.jar
 villaigence-fabric-<version>.jar.sha256
 ```
 
-Compatibility identifiers (`mca`, Java namespace, livingworld config/data paths) intentionally remain unchanged.
+Compatibility identifiers (`mca`, Java namespace, `livingworld` config/data paths) remain unchanged.
 
 ---
 
 ## 13. Operator AI diagnostics — implemented
 
-Implemented in PR #28 (`feat: add safe VillAIgence AI diagnostics status`).
-
-Operator command:
+PR #28 added:
 
 ```text
 /villaigence ai status
 ```
 
+PR #28 merge commit:
+
+```text
+90b32ee1125ad451d2fe9f7242ee903e8680a131
+```
+
 Implemented behavior:
 
-- separate public `/villaigence` command root without renaming the compatibility-sensitive `/mca`/`mca` internals;
+- separate public `/villaigence` command root without renaming compatibility-sensitive `/mca` internals;
 - permission level 2+ or integrated single-player server owner;
-- read-only status surface with **no provider/network probe** and therefore no token/credit spend;
-- safe configuration readiness for Chat/STT/TTS: `CONFIGURED`, `MISCONFIGURED`, `DISABLED`;
-- process-local latest runtime state for each stage: `NEVER`, `SUCCESS`, `FAILURE`;
-- Chat diagnostics include safe provider/model/duration metadata plus `finish_reason`, provider `error_type`, generation ID, bounded attempt count and reasoning-presence boolean where available;
-- bounded retry diagnostics reflect the final logical request rather than duplicating game-side effects;
-- STT/TTS diagnostics include safe provider/model/resolved format/duration and controlled failure classifications such as `http_402`, `http_429`, `timeout`, `io_error` and `runtime_error`;
-- STT is recorded at the actual transcription boundary, so later target/context failures do not incorrectly become STT failures;
-- TTS is recorded at the actual synthesis boundary;
-- diagnostics reset on process restart and are intentionally not persisted into world data.
+- read-only status with no provider probe/token spend;
+- Chat/STT/TTS configuration readiness: `CONFIGURED`, `MISCONFIGURED`, `DISABLED`;
+- process-local runtime state: `NEVER`, `SUCCESS`, `FAILURE`;
+- safe Chat metadata: provider/model/duration, `finish_reason`, error type, generation ID, bounded attempts, reasoning-presence boolean;
+- safe STT/TTS metadata and controlled error types such as `http_402`, `http_429`, `timeout`, `io_error`, `runtime_error`;
+- diagnostics reset on process restart and are not persisted.
 
-Security/privacy boundary:
+Security boundary:
 
-- API key values and environment credentials are never stored in the diagnostics snapshot;
-- credential readiness is boolean-only;
-- endpoints are reduced to host names;
-- prompts, transcripts, NPC answers, TTS input text, reasoning content, Authorization headers and raw provider payloads are excluded;
-- raw provider error bodies are not copied into the operator status surface.
+- credentials are never stored/displayed as values;
+- endpoints are reduced to hosts;
+- prompts, transcripts, NPC answers, TTS input, reasoning content, Authorization headers and raw provider payloads are excluded.
 
 Detailed operator documentation: `docs/livingworld/DIAGNOSTICS.md`.
+
+---
+
+## 14. Non-blocking AI admission / backpressure — implemented
+
+Implemented by PR #29 (`feat: add AI admission backpressure and cooldown controls`).
+
+Purpose: prevent provider storms and uncontrolled concurrent Chat/STT/TTS traffic without blocking the Minecraft server thread or creating an unbounded AI queue.
+
+Default limits:
+
+```text
+aiChatMaxConcurrentRequests = 4
+aiSttMaxConcurrentRequests = 2
+aiTtsMaxConcurrentRequests = 2
+aiPerPlayerCooldownMillis = 750
+aiProviderRateLimitCooldownMillis = 5000
+```
+
+Admission order:
+
+```text
+provider cooldown
+→ stage concurrency capacity
+→ per-player/per-stage cooldown
+→ ALLOW with idempotent permit
+   or
+→ REJECT immediately
+```
+
+Implemented guarantees:
+
+- independent bounded concurrency for Chat, STT and TTS;
+- per-player cooldown is stage-local, so normal `STT → Chat → TTS` flow does not self-block across stages;
+- detected provider `429`/rate-limit signals activate temporary stage cooldown;
+- rejected requests do not call the external provider;
+- no blocking semaphore/waiting path on the Minecraft server thread;
+- permits close via owned try-with-resources paths and cannot decrement active counts below zero;
+- STT rejection releases player/villager busy state;
+- TTS admission happens after text publication, so local TTS backpressure cannot remove a valid text answer;
+- local rejection diagnostics use controlled types:
+
+```text
+admission_saturated
+admission_player_cooldown
+admission_provider_cooldown
+```
+
+`/villaigence ai status` also reports process-local admission metrics per stage:
+
+```text
+active/max
+rejected
+providerCooldownMs
+```
+
+No player UUIDs, prompts, transcripts, answers, keys or provider payload bodies are exposed in admission diagnostics.
+
+Existing `version=2` configs require no migration; missing admission fields receive safe defaults and values are normalized to bounded ranges.
+
+Detailed configuration/diagnostics:
+
+- `docs/livingworld/CONFIGURATION.md`
+- `docs/livingworld/DIAGNOSTICS.md`
 
 ---
 
@@ -418,31 +440,31 @@ Detailed operator documentation: `docs/livingworld/DIAGNOSTICS.md`.
 
 ## Known release sequence relevant to current development
 
-Existing historical tags include releases through `0.1.5+1.21.1`.
+Historical published tags include releases through `0.1.5+1.21.1`.
 
-`0.1.5+1.21.1` points to the pre-PR-26 state and contains the reported `content: null` crash.
+`0.1.5+1.21.1` predates PR #26 and contains the reported `content: null` crash.
 
-The next patch version intended for the merged provider-hardening and reliability work is:
+The next intended patch/reliability release is:
 
 ```text
 0.1.6+1.21.1
 ```
 
-At the time of this state file update, `0.1.6+1.21.1` had **not** been confirmed as an existing published tag. Before publishing it, verify that:
+Before publishing it, verify:
 
-1. `1.21.1` HEAD is the exact intended release commit;
-2. the release workflow/tag validation rules still match;
-3. CI/dry-run is green;
-4. the tag is still unused;
-5. the tag points exactly to the intended current `1.21.1` HEAD.
+1. `1.21.1` HEAD is the exact intended release commit including PR #26, #28 and #29 reliability work;
+2. release workflow/tag validation still matches;
+3. release/dry-run CI is green;
+4. `0.1.6+1.21.1` is still unused;
+5. the tag points exactly to the intended `1.21.1` HEAD.
 
-Do not move already-published version tags.
+Never move an already-published version tag.
 
 ---
 
 # CI / quality gates
 
-The project uses at least these important checks:
+Important checks:
 
 ```text
 VillAIgence CI
@@ -455,7 +477,7 @@ Official Gradle PR CI
 → Fabric build
 ```
 
-Before claiming a feature/bugfix is complete:
+Before claiming a feature/bugfix complete:
 
 - verify the exact final PR head;
 - require fresh green CI on that head;
@@ -468,52 +490,52 @@ Bugfixes should use TDD where practical: reproduce with RED, implement, verify G
 
 # What is NOT implemented yet
 
-The following roadmap features are **planned, not complete**:
+The following roadmap features remain planned, not complete.
 
-### Memory 2.0
+## Memory 2.0
 
-- episodic/semantic/relationship-specific layered memory;
-- memory importance and forgetting;
-- confidence/provenance-aware knowledge consolidation;
+- layered working/episodic/semantic/relationship memory;
+- importance and forgetting;
+- confidence/provenance-aware consolidation;
 - durable summaries beyond raw chat history.
 
-### Full persistent personality system
+## Full persistent personality system
 
 - stable values/goals/fears/likes/dislikes;
 - personality-driven autonomous decisions;
 - controlled long-term personality evolution.
 
-### NPC↔NPC social graph
+## NPC↔NPC social graph
 
 - friendship/trust/respect/fear between arbitrary NPC pairs;
 - rivalry/grudges/social history;
 - family/romance integration as a unified social graph.
 
-### Rumor/knowledge propagation
+## Rumor/knowledge propagation
 
 - NPCs telling other NPCs facts;
 - source chains;
 - trust-dependent belief;
 - distortion over repeated transmission.
 
-### Autonomous agent loop
+## Autonomous agent loop
 
 - perceive → evaluate → choose intent → validate → act → observe → remember;
 - meaningful autonomous behavior while the player is not actively conversing.
 
-### Settlement simulation
+## Settlement simulation
 
 - settlement resources/economy/security/leadership/social conditions as persistent causal systems.
 
-### Factions/politics
+## Factions/politics
 
 - diplomacy, alliances, wars, leadership, reputation and cross-settlement consequences.
 
-### Emergent story system
+## Emergent story system
 
 - persistent causal story threads arising from interacting systems rather than fixed scripted quests.
 
-### Large-scale/local AI architecture
+## Large-scale/local AI architecture
 
 - Ollama/LM Studio/vLLM/local model support as first-class targets;
 - event-driven/budgeted autonomous AI at large NPC counts;
@@ -523,16 +545,17 @@ The following roadmap features are **planned, not complete**:
 
 # Immediate next development priorities
 
-## Priority A — finish the `0.1.x` reliability phase
+## Priority A — finish the `0.1.x` reliability/release phase
 
 Recommended next tasks:
 
-1. publish/test the `0.1.6+1.21.1` hotfix/reliability release from the exact intended `1.21.1` HEAD;
-2. improve rate-limit/backpressure/cooldown handling;
-3. run multiplayer concurrency and repeated voice-dialogue soak tests;
-4. validate restart/reconnect/world-backup behavior for all persistent JSON stores;
-5. collect real server feedback on STT/LLM/TTS provider failure modes using `/villaigence ai status` plus bounded logs;
-6. decide whether the default/recommended free LLM should change from unstable free-provider choices.
+1. prepare, verify, publish and playtest `0.1.6+1.21.1` from the exact intended `1.21.1` HEAD;
+2. run multiplayer concurrency and repeated voice-dialogue soak tests under the new admission limits;
+3. validate restart/reconnect/world-backup behavior for all persistent JSON stores;
+4. collect real server feedback on STT/LLM/TTS/admission failure modes using `/villaigence ai status` plus bounded logs;
+5. decide whether the default/recommended free LLM should change from unstable free-provider choices.
+
+Rate-limit/backpressure/cooldown implementation is no longer a pending roadmap item; it is part of the implemented reliability foundation.
 
 ## Priority B — begin `0.2 Memory 2.0`
 
@@ -554,7 +577,7 @@ MemoryEvent
 └── related relationship reasons
 ```
 
-Then add bounded retrieval/consolidation before introducing autonomous social propagation.
+Then add bounded retrieval/consolidation before autonomous social propagation.
 
 ## Priority C — `0.3 Personality + NPC↔NPC social graph`
 
@@ -592,11 +615,11 @@ See `docs/ROADMAP.md` for rationale, details and milestone exit criteria.
 
 # Session handoff protocol
 
-When starting a new ChatGPT/Codex session, the preferred user prompt is:
+Preferred prompt for a new ChatGPT/Codex session:
 
 > **Open `docs/PROJECT_STATE.md` and `docs/ROADMAP.md` in `True-Ruslan/villAIgence`. Check recent PRs/releases/CI, then tell me how VillAIgence development is going, what is complete, what changed since the state file, and what we should build next.**
 
-The new session should not rely only on memory. It should:
+The new session should:
 
 1. read this file;
 2. read `docs/ROADMAP.md`;
@@ -606,13 +629,13 @@ The new session should not rely only on memory. It should:
 6. reconcile discrepancies;
 7. update this file after material progress.
 
-This protocol is intentionally designed so project continuity survives a completely new chat/thread.
+This protocol is designed so project continuity survives a completely new chat/thread.
 
 ---
 
 # Maintenance rule for future development
 
-Any PR/release that materially changes one of the following should update this file in the same PR or immediately after merge:
+Any PR/release materially changing one of these must update this file in the same PR or immediately after merge:
 
 - current release version/state;
 - completed roadmap milestone/subsystem;
