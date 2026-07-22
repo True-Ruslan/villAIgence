@@ -1,5 +1,8 @@
 package net.conczin.mca.livingworld.diagnostics;
 
+import net.conczin.mca.livingworld.admission.AiAdmissionSnapshot;
+import net.conczin.mca.livingworld.admission.AiAdmissionStageSnapshot;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -10,6 +13,14 @@ public final class AiStatusReport {
     }
 
     public static List<String> format(AiDiagnosticsConfigSnapshot config, AiDiagnosticsSnapshot runtime) {
+        return format(config, runtime, null);
+    }
+
+    public static List<String> format(
+            AiDiagnosticsConfigSnapshot config,
+            AiDiagnosticsSnapshot runtime,
+            AiAdmissionSnapshot admission
+    ) {
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(runtime, "runtime");
 
@@ -18,6 +29,11 @@ public final class AiStatusReport {
         appendStage(lines, "Chat", config.chat(), runtime.chat());
         appendStage(lines, "STT", config.stt(), runtime.stt());
         appendStage(lines, "TTS", config.tts(), runtime.tts());
+        if (admission != null) {
+            appendAdmission(lines, "CHAT", admission.chat());
+            appendAdmission(lines, "STT", admission.stt());
+            appendAdmission(lines, "TTS", admission.tts());
+        }
         return List.copyOf(lines);
     }
 
@@ -57,6 +73,14 @@ public final class AiStatusReport {
         append(last, "generation", runtime.generationId());
         append(last, "detail", runtime.detail());
         lines.add(last.toString());
+    }
+
+    private static void appendAdmission(List<String> lines, String label, AiAdmissionStageSnapshot stage) {
+        if (stage == null) return;
+        lines.add("Admission " + label
+                + ": active=" + stage.active() + "/" + stage.maxConcurrent()
+                + " | rejected=" + stage.rejected()
+                + " | providerCooldownMs=" + stage.providerCooldownRemainingMillis());
     }
 
     private static void append(StringBuilder builder, String key, String value) {
