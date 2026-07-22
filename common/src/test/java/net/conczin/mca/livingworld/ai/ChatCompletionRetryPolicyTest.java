@@ -26,6 +26,15 @@ class ChatCompletionRetryPolicyTest {
     }
 
     @Test
+    void doesNotRetryContentFilteredCompletion() {
+        ChatCompletionResponseParser.ParsedCompletion filtered = new ChatCompletionResponseParser.ParsedCompletion(
+                null, null, null, "content_filter", "gen-filter", false
+        );
+
+        assertFalse(ChatCompletionRetryPolicy.shouldRetry(filtered, 1));
+    }
+
+    @Test
     void doesNotRetryExplicitProviderError() {
         ChatCompletionResponseParser.ParsedCompletion error = new ChatCompletionResponseParser.ParsedCompletion(
                 null, "Provider unavailable", "provider_unavailable", "error", "gen-error", false
