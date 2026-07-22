@@ -2,6 +2,9 @@ package net.conczin.mca.livingworld.memory;
 
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.livingworld.LivingWorldConfig;
+import net.conczin.mca.livingworld.memory2.WorkingMemoryContext;
+import net.conczin.mca.livingworld.memory2.WorkingMemoryMessage;
+import net.conczin.mca.livingworld.memory2.WorkingMemoryOrchestrator;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Tuple;
 import net.minecraft.world.level.storage.LevelResource;
@@ -20,7 +23,18 @@ public final class PersistentChatMemory {
     }
 
     public static List<Tuple<String, String>> load(Path worldRoot, UUID villagerId, UUID playerId) {
-        return ConversationMemoryStore.forWorld(worldRoot).getMessages(villagerId, playerId).stream()
+        List<WorkingMemoryMessage> dialogue = ConversationMemoryStore.forWorld(worldRoot)
+                .getMessages(villagerId, playerId)
+                .stream()
+                .filter(message -> message != null
+                        && message.role() != null
+                        && (message.role().equals("user") || message.role().equals("assistant"))
+                        && message.content() != null
+                        && !message.content().isBlank())
+                .map(message -> new WorkingMemoryMessage(message.role(), message.content()))
+                .toList();
+        WorkingMemoryContext workingMemory = WorkingMemoryOrchestrator.compose(dialogue, List.of(), List.of());
+        return workingMemory.recentDialogue().stream()
                 .map(message -> new Tuple<>(message.role(), message.content()))
                 .toList();
     }
