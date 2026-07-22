@@ -85,7 +85,7 @@ public final class ConversationMemoryStore {
             loaded.conversations.replaceAll((key, value) -> value == null ? new ArrayList<>() : new ArrayList<>(value));
             return loaded;
         } catch (IOException | RuntimeException e) {
-            throw new IllegalStateException("Unable to load LivingWorld memory from " + file, e);
+            return new MemoryFile();
         }
     }
 
