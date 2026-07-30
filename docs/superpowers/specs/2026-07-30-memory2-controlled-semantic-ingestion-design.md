@@ -4,6 +4,8 @@
 
 Approved autonomous implementation direction after the live-validated `0.1.11+1.21.1` Working Memory checkpoint.
 
+Implementation refinement: semantic ingestion remains part of the existing `memory2Enabled` feature and uses `memory2MaxEventsPerNpc` as its bounded per-NPC retention limit. No additional configuration keys are introduced in this slice.
+
 ## Goal
 
 Activate the existing typed Semantic Memory layer through explicit, provenance-preserving producers without allowing arbitrary dialogue or LLM output to become authoritative knowledge.
@@ -156,22 +158,21 @@ RelationshipChangeMemoryAdapter
 
 The episodic append occurs first. A semantic persistence failure must not remove or roll back the already persisted episodic event or authoritative Minecraft state.
 
-### 6. Configuration
+### 6. Configuration boundary
 
-Add additive version-2 fields:
-
-```text
-semanticMemoryEnabled = true
-semanticMemoryMaxEntriesPerNpc = 128
-```
-
-Normalization:
+Controlled semantic ingestion is enabled only when the existing Memory 2.0 path is enabled:
 
 ```text
-1 <= semanticMemoryMaxEntriesPerNpc <= 512
+memory2Enabled = true
 ```
 
-No config version bump is required because the fields are additive and receive defaults when absent.
+The semantic store uses the existing bounded per-NPC limit:
+
+```text
+memory2MaxEventsPerNpc
+```
+
+No new configuration fields or config version bump are introduced. This keeps Memory 2.0 activation atomic and avoids a second partially overlapping retention policy before semantic consolidation/decay is designed.
 
 ### 7. Failure and authority behavior
 
@@ -190,7 +191,8 @@ No config version bump is required because the fields are additive and receive d
 - NeoForge compile compatibility remains required.
 - `memory.json`, `memory2.json`, `events.json`, `relationships.json`, and `voices.json` formats remain unchanged.
 - `semantic-memory.json` format remains version 1.
-- Existing ingestion method signatures remain available through overloads; production call sites opt into semantic parameters.
+- Existing ingestion method signatures remain available through overloads.
+- No new configuration keys are required.
 
 ## Test strategy
 
@@ -204,8 +206,8 @@ TDD coverage must prove:
 6. `SYSTEM_OBSERVED` and unsourced BELIEF inputs are rejected;
 7. controlled ingestion persists entries and remains idempotent;
 8. action and relationship episodic producers also write semantic FACT entries when enabled;
-9. disabling semantic ingestion leaves episodic Memory 2.0 behavior unchanged;
-10. configuration defaults and bounds are correct;
+9. explicitly disabled semantic overloads leave episodic Memory 2.0 behavior unchanged;
+10. existing Memory 2.0 configuration remains compatible;
 11. semantic write failure cannot roll back the episodic write;
 12. full unit, Fabric, package, and NeoForge CI remains green.
 
@@ -218,6 +220,6 @@ The slice is complete when:
 - ordinary dialogue creates no automatic semantic entry;
 - an explicit provenance-safe BELIEF API exists without an automatic dialogue caller;
 - duplicate source replay is idempotent;
-- semantic retention is separately configurable and bounded;
+- semantic retention is bounded by the existing Memory 2.0 per-NPC limit;
 - episodic persistence remains successful even if semantic persistence fails;
 - both repository CI workflows pass on the exact PR head.
