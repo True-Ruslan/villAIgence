@@ -8,6 +8,9 @@ import com.google.gson.JsonSyntaxException;
 import net.conczin.mca.Config;
 import net.conczin.mca.MCA;
 import net.conczin.mca.livingworld.actions.LivingWorldActionPolicy;
+import net.conczin.mca.livingworld.ai.ProviderCredentialBinding;
+import net.conczin.mca.livingworld.ai.ProviderEndpoint;
+import net.conczin.mca.livingworld.ai.ProviderEndpointPolicy;
 import net.conczin.mca.livingworld.voice.NpcVoiceCatalog;
 import net.conczin.mca.livingworld.voice.SttRequestFormat;
 import net.conczin.mca.livingworld.voice.TtsResponseFormat;
@@ -15,7 +18,6 @@ import net.conczin.mca.livingworld.voice.TtsResponseFormat;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.LinkedHashSet;
@@ -34,6 +36,8 @@ public final class LivingWorldConfig {
     public boolean enabled = true;
     public String apiKey = "";
     public String provider = "openai";
+    /** Allows plain HTTP only for lexical loopback endpoints used during explicit local development. */
+    public boolean allowInsecureLoopbackAiEndpoints = false;
 
     public String endpoint = "https://api.openai.com/v1/chat/completions";
     public String model = "gpt-4.1-mini";
@@ -70,12 +74,12 @@ public final class LivingWorldConfig {
     public boolean voiceOutputEnabled = false;
     /** auto, multipart, or json_base64. */
     public String sttRequestFormat = "auto";
-    /** Optional dedicated STT key. Prefer OPENROUTER_API_KEY for OpenRouter. */
+    /** Optional dedicated STT key. Custom STT endpoints require this key. */
     public String sttApiKey = "";
     public String sttEndpoint = "https://api.openai.com/v1/audio/transcriptions";
     public String sttModel = "gpt-4o-mini-transcribe";
     public String sttLanguage = "";
-    /** Optional dedicated TTS key. Endpoint-specific environment keys take priority. */
+    /** Optional dedicated TTS key. Custom TTS endpoints require this key. */
     public String ttsApiKey = "";
     public String ttsEndpoint = "https://api.openai.com/v1/audio/speech";
     public String ttsModel = "tts-1";
@@ -114,45 +118,93 @@ public final class LivingWorldConfig {
         return new File("./config/livingworld.json");
     }
 
-    public String resolvedApiKey() {
-        return resolveProviderApiKey(
-                provider,
-                System.getenv(OPENROUTER_API_KEY_ENV),
+    public ProviderCredentialBinding.BoundEndpoint resolvedChatEndpoint() {
+        ProviderEndpoint resolvedEndpoint = ProviderEndpointPolicy.parse(endpoint, allowInsecureLoopbackAiEndpoints);
+        String key = ProviderCredentialBinding.resolveChatKey(
+                resolvedEndpoint,
+                apiKey,
                 System.getenv(OPENAI_API_KEY_ENV),
-                apiKey
+                System.getenv(OPENROUTER_API_KEY_ENV)
         );
+        return new ProviderCredentialBinding.BoundEndpoint(resolvedEndpoint, key);
+    }
+
+    public ProviderCredentialBinding.BoundEndpoint resolvedSttEndpoint() {
+        ProviderCredentialBinding.BoundEndpoint chat = resolvedChatEndpoint();
+        ProviderEndpoint resolvedEndpoint = ProviderEndpointPolicy.parse(sttEndpoint, allowInsecureLoopbackAiEndpoints);
+        String key = ProviderCredentialBinding.resolveAudioKey(
+                resolvedEndpoint,
+                sttApiKey,
+                chat.endpoint(),
+                chat.apiKey(),
+                System.getenv(OPENAI_API_KEY_ENV),
+                System.getenv(OPENROUTER_API_KEY_ENV)
+        );
+        return new ProviderCredentialBinding.BoundEndpoint(resolvedEndpoint, key);
+    }
+
+    public ProviderCredentialBinding.BoundEndpoint resolvedTtsEndpoint() {
+        ProviderCredentialBinding.BoundEndpoint chat = resolvedChatEndpoint();
+        ProviderEndpoint resolvedEndpoint = ProviderEndpointPolicy.parse(ttsEndpoint, allowInsecureLoopbackAiEndpoints);
+        String key = ProviderCredentialBinding.resolveAudioKey(
+                resolvedEndpoint,
+                ttsApiKey,
+                chat.endpoint(),
+                chat.apiKey(),
+                System.getenv(OPENAI_API_KEY_ENV),
+                System.getenv(OPENROUTER_API_KEY_ENV)
+        );
+        return new ProviderCredentialBinding.BoundEndpoint(resolvedEndpoint, key);
+    }
+
+    public String resolvedApiKey() {
+        try {
+            return resolvedChatEndpoint().apiKey();
+        } catch (IllegalArgumentException ignored) {
+            return "";
+        }
     }
 
     public String resolvedSttApiKey() {
-        return resolveSttApiKey(
-                sttEndpoint,
-                System.getenv(OPENROUTER_API_KEY_ENV),
-                sttApiKey,
-                resolvedApiKey()
-        );
+        try {
+            return resolvedSttEndpoint().apiKey();
+        } catch (IllegalArgumentException ignored) {
+            return "";
+        }
     }
 
     public String resolvedTtsApiKey() {
-        return resolveTtsApiKey(
-                ttsEndpoint,
-                System.getenv(OPENROUTER_API_KEY_ENV),
-                System.getenv(OPENAI_API_KEY_ENV),
-                ttsApiKey,
-                provider,
-                resolvedApiKey()
-        );
+        try {
+            return resolvedTtsEndpoint().apiKey();
+        } catch (IllegalArgumentException ignored) {
+            return "";
+        }
     }
 
     public boolean isConfigured() {
-        return isConfiguredWithKey(resolvedApiKey());
+        try {
+            return isConfiguredWithKey(resolvedChatEndpoint().apiKey());
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 
     public boolean isVoiceInputConfigured() {
-        return voiceInputEnabled && isConfigured() && !resolvedSttApiKey().isBlank();
+        if (!voiceInputEnabled || !isConfigured()) return false;
+        try {
+            return !resolvedSttEndpoint().apiKey().isBlank();
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 
     public boolean isVoiceOutputConfigured() {
-        return voiceOutputEnabled && isConfigured() && !resolvedTtsApiKey().isBlank();
+        if (!voiceOutputEnabled || !isConfigured()) return false;
+        try {
+            return !resolvedTtsEndpoint().apiKey().isBlank();
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 
     /** Compatibility helper for callers that only need to know whether either voice direction is enabled. */
@@ -184,6 +236,7 @@ public final class LivingWorldConfig {
                 && !resolvedKey.isBlank();
     }
 
+    /** Legacy package-level helper retained for source compatibility; runtime resolution uses validated endpoints. */
     static String resolveProviderApiKey(
             String provider,
             String openRouterEnvironmentKey,
@@ -201,21 +254,32 @@ public final class LivingWorldConfig {
         return configuredKey == null ? "" : configuredKey.trim();
     }
 
+    /** Legacy package-level helper retained for tests; custom endpoints no longer inherit the main key. */
     static String resolveSttApiKey(
             String endpoint,
             String openRouterEnvironmentKey,
             String configuredSttKey,
             String mainProviderKey
     ) {
-        if (SttRequestFormat.isOpenRouterEndpoint(endpoint)
-                && openRouterEnvironmentKey != null
-                && !openRouterEnvironmentKey.isBlank()) {
-            return openRouterEnvironmentKey.trim();
+        try {
+            ProviderEndpoint resolved = ProviderEndpointPolicy.parse(endpoint, false);
+            if (resolved.family() == ProviderEndpoint.Family.OPENROUTER
+                    && openRouterEnvironmentKey != null
+                    && !openRouterEnvironmentKey.isBlank()) {
+                return openRouterEnvironmentKey.trim();
+            }
+            if (configuredSttKey != null && !configuredSttKey.isBlank()) return configuredSttKey.trim();
+            if (resolved.family() == ProviderEndpoint.Family.OPENAI
+                    || resolved.family() == ProviderEndpoint.Family.OPENROUTER) {
+                return mainProviderKey == null ? "" : mainProviderKey.trim();
+            }
+            return "";
+        } catch (IllegalArgumentException ignored) {
+            return "";
         }
-        if (configuredSttKey != null && !configuredSttKey.isBlank()) return configuredSttKey.trim();
-        return mainProviderKey == null ? "" : mainProviderKey.trim();
     }
 
+    /** Legacy package-level helper retained for tests; custom endpoints no longer inherit the main key. */
     static String resolveTtsApiKey(
             String endpoint,
             String openRouterEnvironmentKey,
@@ -224,39 +288,30 @@ public final class LivingWorldConfig {
             String mainProvider,
             String mainProviderKey
     ) {
-        String normalizedProvider = mainProvider == null ? "" : mainProvider.trim().toLowerCase(Locale.ROOT);
-
-        if (TtsResponseFormat.isOpenRouterEndpoint(endpoint)) {
-            if (openRouterEnvironmentKey != null && !openRouterEnvironmentKey.isBlank()) {
-                return openRouterEnvironmentKey.trim();
-            }
-            if (configuredTtsKey != null && !configuredTtsKey.isBlank()) return configuredTtsKey.trim();
-            if (!"openrouter".equals(normalizedProvider)) return "";
-            return mainProviderKey == null ? "" : mainProviderKey.trim();
-        }
-
-        if (isOpenAiEndpoint(endpoint)) {
-            if (openAiEnvironmentKey != null && !openAiEnvironmentKey.isBlank()) {
-                return openAiEnvironmentKey.trim();
-            }
-            if (configuredTtsKey != null && !configuredTtsKey.isBlank()) return configuredTtsKey.trim();
-            if (!"openai".equals(normalizedProvider)) return "";
-            return mainProviderKey == null ? "" : mainProviderKey.trim();
-        }
-
-        if (configuredTtsKey != null && !configuredTtsKey.isBlank()) return configuredTtsKey.trim();
-        return mainProviderKey == null ? "" : mainProviderKey.trim();
-    }
-
-    private static boolean isOpenAiEndpoint(String endpoint) {
-        if (endpoint == null || endpoint.isBlank()) return false;
         try {
-            String host = URI.create(endpoint.trim()).getHost();
-            if (host == null) return false;
-            String normalizedHost = host.toLowerCase(Locale.ROOT);
-            return normalizedHost.equals("api.openai.com") || normalizedHost.endsWith(".api.openai.com");
+            ProviderEndpoint resolved = ProviderEndpointPolicy.parse(endpoint, false);
+            String normalizedProvider = mainProvider == null ? "" : mainProvider.trim().toLowerCase(Locale.ROOT);
+            if (resolved.family() == ProviderEndpoint.Family.OPENROUTER) {
+                if (openRouterEnvironmentKey != null && !openRouterEnvironmentKey.isBlank()) {
+                    return openRouterEnvironmentKey.trim();
+                }
+                if (configuredTtsKey != null && !configuredTtsKey.isBlank()) return configuredTtsKey.trim();
+                return "openrouter".equals(normalizedProvider) && mainProviderKey != null
+                        ? mainProviderKey.trim()
+                        : "";
+            }
+            if (resolved.family() == ProviderEndpoint.Family.OPENAI) {
+                if (openAiEnvironmentKey != null && !openAiEnvironmentKey.isBlank()) {
+                    return openAiEnvironmentKey.trim();
+                }
+                if (configuredTtsKey != null && !configuredTtsKey.isBlank()) return configuredTtsKey.trim();
+                return "openai".equals(normalizedProvider) && mainProviderKey != null
+                        ? mainProviderKey.trim()
+                        : "";
+            }
+            return configuredTtsKey == null ? "" : configuredTtsKey.trim();
         } catch (IllegalArgumentException ignored) {
-            return false;
+            return "";
         }
     }
 
