@@ -2,7 +2,7 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md` when resuming work.
 >
-> Last major state update: **2026-07-30**, after live validation of `0.1.12+1.21.1`.
+> Last major state update: **2026-07-30**, after merged PR #53.
 >
 > Reconcile this state with newer PRs, tags/releases, CI and live-server evidence before starting development.
 
@@ -16,55 +16,41 @@ Java: 21
 primary package: Fabric
 NeoForge: compile compatibility required
 
-latest implementation merge:
-PR #49 — controlled Semantic Memory ingestion
-merge: c6a7a17aa5bd7806667ff3b8b502b852640e606c
-exact verified feature head: 7f9916e510a2ca70245d93c5b308ee31758fed0f
+latest implementation:
+PR #53 — deterministic Semantic Memory consolidation
+merge: f85879d254f37d7f860380362b296e047bbbb781
+exact verified feature head: 19c3d3e840431cc2b1b34e1841e2075f56e99f71
 
-feature CI:
-VillAIgence CI #721 / 30548196801 — SUCCESS
-Java Pull Request CI #289 / 30548198746 — SUCCESS
-
-0.1.12 validation documentation:
-PR #51 merge: 7b5d2befafcb137fa4751f4da110acc29590558b
-exact PR head: aba9fd688984dd1a39930fc0201c9131a11062c2
-VillAIgence CI #725 / 30553131928 — SUCCESS
-Java Pull Request CI #291 / 30553132198 — SUCCESS
+exact-head CI:
+VillAIgence CI #746 / 30561015885 — SUCCESS
+Java Pull Request CI #300 / 30561015985 — SUCCESS
 
 latest live-validated release checkpoint:
 0.1.12+1.21.1 — PASS
 validation date: 2026-07-30
-release/tag and tested implementation commit:
-746fa75ab4b5f4bee385efa0c8ae51009c1aec58
+tested release commit: 746fa75ab4b5f4bee385efa0c8ae51009c1aec58
 ```
 
-Canonical live evidence:
+**Status boundary:** semantic consolidation is merged and automated-CI validated, but not yet validated on a real server. `0.1.12+1.21.1` remains the latest live-server checkpoint.
+
+Canonical evidence:
 
 ```text
 docs/livingworld/VALIDATION_0.1.12.md
+docs/livingworld/SEMANTIC_CONSOLIDATION.md
+docs/superpowers/specs/2026-07-30-memory2-semantic-consolidation-design.md
 ```
-
-Previous live checkpoint:
-
-```text
-0.1.11+1.21.1
-docs/livingworld/VALIDATION_0.1.11.md
-```
-
-`0.1.12+1.21.1` supersedes `0.1.11+1.21.1` as the latest confirmed live-server checkpoint.
 
 ## Release metadata status
 
-The earlier `0.1.12+1.21.1` workflow attempt `30540119567` failed before Gradle because `0.1.11` and `0.1.12` temporarily pointed at the same commit.
-
-That ambiguity is now resolved:
+The old ambiguous-tag condition is resolved:
 
 ```text
 0.1.11+1.21.1 → 60236524e37b60c639b93405f809ade883be253f
 0.1.12+1.21.1 → 746fa75ab4b5f4bee385efa0c8ae51009c1aec58
 ```
 
-The `0.1.12` tag is distinct from `0.1.11` and points at the exact implementation commit tested on the server. The `1.21.1` branch subsequently advanced only through documentation continuity changes; those later documentation commits do not alter the tested release payload.
+`0.1.12` points at the exact implementation commit tested on the server. The branch advanced afterward through documentation and PR #53 development; that does not change the tested release payload.
 
 ---
 
@@ -79,7 +65,7 @@ Minecraft: 1.21.1
 Java: 21
 ```
 
-Compatibility-sensitive identifiers intentionally remain:
+Compatibility-sensitive identifiers remain:
 
 ```text
 mod id: mca
@@ -105,7 +91,8 @@ Do not rename these without a dedicated migration design.
 8. Retry/replay paths must not duplicate persistent or gameplay side effects.
 9. Claims and beliefs remain non-authoritative unless server-owned evidence makes them factual.
 10. Confidence never upgrades BELIEF into FACT.
-11. Autonomous AI must eventually be event-driven and budgeted rather than “LLM every tick.”
+11. Consolidation must preserve provenance and all independent source evidence.
+12. Autonomous AI must eventually be event-driven and budgeted rather than “LLM every tick.”
 
 Canonical authority flow:
 
@@ -117,6 +104,7 @@ Minecraft/server state
 → server-owned mutation
 → persisted authoritative evidence
 → bounded Memory 2.0 ingestion
+→ deterministic consolidation
 ```
 
 Semantic truth boundary:
@@ -143,31 +131,31 @@ Current server-observed `worldFacts` win when recalled memory conflicts with cur
 
 All files belong with world backup/restore procedures.
 
-`memory.json` remains active and has not been migrated or removed. Memory 2.0 remains additive while the layered architecture is stabilized.
+`memory.json` remains active. Memory 2.0 is still additive; legacy migration has not started.
 
 ---
 
-# Implemented reliability foundation
+# Reliability foundation
 
 Implemented and retained:
 
-- OpenAI-compatible/OpenRouter server-side provider configuration;
-- bounded connect/read timeouts and controlled failures;
-- `content:null`, empty response and bounded retry handling;
-- non-blocking Chat/STT/TTS admission and provider cooldown;
+- OpenAI-compatible/OpenRouter server-side configuration;
+- bounded timeouts and controlled provider failures;
+- safe `content:null`, empty response and retry handling;
+- Chat/STT/TTS admission limits and provider cooldown;
 - Simple Voice Chat → PCM → STT → targeted NPC → AI;
-- optional spatial TTS, PCM/WAV support and resampling;
+- optional spatial TTS, PCM/WAV compatibility and resampling;
 - persistent per-NPC voice identity;
 - safe whitelisted actions with server validation/revalidation;
 - authoritative world events and relationship persistence;
 - immutable context snapshots;
 - structured-response sanitation;
-- fail-open recovery for malformed auxiliary JSON;
+- fail-open malformed auxiliary JSON recovery;
 - diagnostics without secrets, prompts, transcripts or hidden reasoning.
 
 Reliability policy:
 
-> Fix concrete regressions reproduced by CI or live use. Do not mix speculative reliability refactors into Memory 2.0 work.
+> Fix concrete regressions reproduced by CI or live use. Do not mix speculative provider or voice refactors into Memory 2.0 work.
 
 ---
 
@@ -178,19 +166,17 @@ Reliability policy:
 Implemented through PRs #31, #33, #35, #37, #39, #41 and #43:
 
 - immutable NPC-owned `MemoryEvent`;
-- types `DIALOGUE`, `OBSERVATION`, `ACTION`, `RELATIONSHIP_CHANGE`;
-- provenance `SYSTEM_OBSERVED`, `PLAYER_TOLD`, `NPC_TOLD`, `INFERRED`;
-- importance, emotional weight and confidence metadata;
-- bounded per-NPC `memory2.json` persistence;
+- `DIALOGUE`, `OBSERVATION`, `ACTION`, `RELATIONSHIP_CHANGE`;
+- explicit provenance;
+- bounded per-NPC persistence;
 - UUID idempotency and deterministic ordering;
 - atomic writes and fail-open recovery;
-- deterministic episodic ranking;
+- deterministic retrieval;
 - authoritative ACTION ingestion;
 - server-observed RELATIONSHIP_CHANGE ingestion;
-- ordinary text and snapshot/voice DIALOGUE parity;
-- shared post-success dialogue lifecycle.
+- text and voice DIALOGUE parity.
 
-Episodic ranking:
+Ranking:
 
 ```text
 relevance  40%
@@ -217,26 +203,25 @@ recent dialogue
 Hard prompt bounds:
 
 ```text
-recent persistent dialogue messages = 12
+recent dialogue messages = 12
 max dialogue message = 1200 Unicode code points
-episodic context entries = 6
-semantic context entries = 6
+episodic entries = 6
+semantic entries = 6
 ```
 
-Working Memory itself is not persisted.
+Working Memory is not persisted.
 
-The `0.1.11` live test confirmed the intended durable/prompt distinction:
+`0.1.11` live evidence confirmed:
 
 ```text
-memory.json total messages: 86
-NPC A durable rolling history: 16
-NPC A messages selected for prompt: 12
-conversation continuity after bound: PASS
+NPC A durable rolling history = 16
+NPC A prompt history = 12
+continuity after prompt bound = PASS
 ```
 
-## Semantic Memory foundation
+## Semantic Memory foundation — PR #46
 
-PR #46 introduced:
+Implemented:
 
 ```text
 SemanticMemoryEntry
@@ -249,24 +234,20 @@ SemanticMemoryContextProvider
 
 Store guarantees:
 
-- per-NPC isolation;
+- NPC isolation;
 - bounded retention;
 - UUID idempotency;
 - deterministic ordering;
 - atomic persistence;
 - fail-open malformed-file recovery.
 
-Semantic ranking:
+Ranking:
 
 ```text
 related-entity relevance 40%
 importance               30%
 confidence               20%
 recency                   10%
-
-candidateLimit = 32
-maxResults = 6
-recencyHorizonTicks = 168000
 ```
 
 Prompt layers remain physically separate:
@@ -277,88 +258,113 @@ memoryContext            episodic memory
 semanticMemoryContext    semantic FACT/BELIEF memory
 ```
 
-## PR #49 — controlled Semantic Memory ingestion
-
-Merge and exact verified head:
+## Controlled semantic ingestion — PR #49
 
 ```text
 merge: c6a7a17aa5bd7806667ff3b8b502b852640e606c
-head:  7f9916e510a2ca70245d93c5b308ee31758fed0f
+verified head: 7f9916e510a2ca70245d93c5b308ee31758fed0f
 ```
 
-TDD and CI evidence:
+Implemented production flows:
 
 ```text
-RED:
-VillAIgence CI #701 / 30547268997 — expected FAILURE
-Reason: controlled-ingestion production API did not yet exist
-
-GREEN exact final head:
-VillAIgence CI #721 / 30548196801 — SUCCESS
-Java Pull Request CI #289 / 30548198746 — SUCCESS
-```
-
-Implemented components:
-
-```text
-SemanticBeliefSource
-SemanticMemoryIngestionAdapter
-ControlledSemanticMemoryIngestor
-```
-
-Automatic FACT eligibility:
-
-```text
-source.provenance == SYSTEM_OBSERVED
-AND source.type in {ACTION, OBSERVATION, RELATIONSHIP_CHANGE}
-```
-
-Production flows:
-
-```text
-successful safe NPC action
-→ SYSTEM_OBSERVED WorldEvent
-→ ACTION MemoryEvent
-→ memory2.json
-→ FACT SemanticMemoryEntry
-→ semantic-memory.json
+successful safe action
+→ ACTION / SYSTEM_OBSERVED
+→ semantic FACT
 ```
 
 ```text
 persisted relationship transition
-→ SYSTEM_OBSERVED RELATIONSHIP_CHANGE MemoryEvent
-→ memory2.json
-→ FACT SemanticMemoryEntry
-→ semantic-memory.json
+→ RELATIONSHIP_CHANGE / SYSTEM_OBSERVED
+→ semantic FACT
 ```
 
-FACT properties:
+Automatic FACT requires:
 
-- deterministic UUID derived from owner NPC and source event UUID;
-- `SYSTEM_OBSERVED` provenance;
-- non-empty `sourceEventIds`;
-- normalized statement, maximum 240 Unicode code points;
-- replay-safe store idempotency.
-
-Explicit BELIEF API:
-
-- accepts only `PLAYER_TOLD`, `NPC_TOLD` or `INFERRED`;
-- requires non-empty source event IDs;
-- preserves provenance;
-- uses deterministic IDs;
-- is not automatically called by ordinary dialogue.
+```text
+provenance = SYSTEM_OBSERVED
+type in {ACTION, OBSERVATION, RELATIONSHIP_CHANGE}
+```
 
 Critical exclusion:
 
 ```text
-DIALOGUE MemoryEvent
-→ episodic memory only
-→ no automatic SemanticMemoryEntry
+DIALOGUE
+→ episodic only
+→ no automatic semantic entry
 ```
 
-No provider call, LLM truth classification, embeddings or vector database was introduced.
+An explicit sourced BELIEF API exists, but ordinary dialogue is not automatically converted to BELIEF.
 
-Semantic ingestion remains part of existing `memory2Enabled` and reuses `memory2MaxEventsPerNpc`; no new config fields or format version were added.
+PR #49 was live-validated by `0.1.12+1.21.1`.
+
+## Deterministic semantic consolidation — PR #53
+
+```text
+merge: f85879d254f37d7f860380362b296e047bbbb781
+verified head: 19c3d3e840431cc2b1b34e1841e2075f56e99f71
+
+VillAIgence CI #746 / 30561015885 — SUCCESS
+Java Pull Request CI #300 / 30561015985 — SUCCESS
+```
+
+Implemented:
+
+```text
+SemanticMemoryConsolidator
+SemanticMemoryStore append integration
+SemanticMemoryStore load-time in-memory consolidation
+```
+
+Consolidation key:
+
+```text
+ownerNpcId
+kind
+provenance
+canonical statement
+canonical relatedEntities set
+```
+
+Canonical statement:
+
+```text
+Unicode NFKC
++ control/whitespace collapse
++ trim
++ Locale.ROOT lowercase
+```
+
+Two entries consolidate only when both have source event IDs and the full key matches.
+
+Consolidated result:
+
+```text
+sourceEventIds       = sorted union
+relatedEntities      = sorted union
+gameTime             = max
+createdAtEpochMillis = max
+importance           = max
+confidence           = max
+statement            = deterministic representative
+id                   = deterministic consolidation UUID
+```
+
+Safety properties:
+
+- exact UUID replay remains a no-op and does not rewrite the file;
+- a single sourced entry keeps its original UUID;
+- distinct corroborating evidence receives a stable consolidation UUID;
+- consolidation runs before retention trimming;
+- FACT never merges with BELIEF;
+- different BELIEF provenance never merges;
+- different related-entity sets never merge;
+- unsourced entries never merge;
+- confidence is not artificially increased;
+- no fuzzy matching, LLM, embeddings or vector database;
+- JSON format remains version 1 with no new fields.
+
+Existing compatible entries are consolidated in memory during load. Loading alone does not rewrite the file; the compacted representation is saved on the next normal append.
 
 ---
 
@@ -366,57 +372,41 @@ Semantic ingestion remains part of existing `memory2Enabled` and reuses `memory2
 
 ## 0.1.12+1.21.1 — PASS
 
-Controlled Semantic Memory ingestion was validated on a real server.
-
-### Authoritative events and semantic production
+Validated on a real server:
 
 ```text
-successful NPC actions: 2                                PASS
-ACTION MemoryEvents: 2                                   PASS
-relationship transition: trust +1, affinity +1           PASS
-RELATIONSHIP_CHANGE MemoryEvents: 1                       PASS
-semantic FACT entries: 3                                 PASS
+successful NPC actions = 2
+ACTION events = 2
+relationship transition = trust +1, affinity +1
+RELATIONSHIP_CHANGE events = 1
+semantic FACT entries = 3
+semantic UUID duplicates = 0
+DIALOGUE interactions = 9
+DIALOGUE-derived semantics = 0
 ```
 
-Every FACT had:
+Every FACT had correct kind, provenance, NPC owner, deterministic UUID and source-event linkage.
 
-- `kind = FACT`;
-- `provenance = SYSTEM_OBSERVED`;
-- correct `ownerNpcId`;
-- the matching episodic UUID in `sourceEventIds`;
-- the expected deterministic semantic UUID.
-
-### Idempotency and dialogue boundary
+Byte-identical after restart:
 
 ```text
-semantic UUID duplicates: 0                              PASS
-retry-created semantic duplicates: 0                     PASS
-ordinary DIALOGUE interactions: 9                        OBSERVED
-DIALOGUE-derived semantic entries: 0                     PASS
+memory.json
+memory2.json
+semantic-memory.json
+relationships.json
+voices.json
 ```
 
-### Restart persistence
-
-All five tested files were byte-identical before and after restart:
+Operations:
 
 ```text
-memory.json                                               PASS
-memory2.json                                              PASS
-semantic-memory.json                                      PASS
-relationships.json                                        PASS
-voices.json                                               PASS
-```
-
-### Chat, voice and operations
-
-```text
-Chat                                                      SUCCESS
-STT                                                       SUCCESS / 1059 ms
-TTS                                                       SUCCESS / 1663 ms
-Simple Voice Chat / Opus                                  PASS
-monitor                                                   PASS
-UDP 24454 / 25565                                         PASS
-VillAIgence, memory and persistence errors                none
+Chat SUCCESS
+STT SUCCESS / 1059 ms
+TTS SUCCESS / 1663 ms
+Voice Chat / Opus PASS
+monitor PASS
+UDP 24454 / 25565 PASS
+startup persistence errors none
 ```
 
 Canonical evidence:
@@ -425,15 +415,18 @@ Canonical evidence:
 docs/livingworld/VALIDATION_0.1.12.md
 ```
 
-## 0.1.11+1.21.1 — previous PASS checkpoint
+## PR #53 validation boundary
 
-Validated Working Memory bounds, NPC isolation, text/voice parity, retry recovery and byte-stable persistence before automatic semantic producers existed.
+Not yet live-proven:
 
-Canonical evidence:
+- two distinct real source events consolidating into one semantic entry;
+- both source UUIDs persisted exactly once;
+- stable consolidation UUID after restart;
+- separation for different related entities on a real server;
+- load-time consolidation of a pre-existing file;
+- byte-stable persistence after consolidation.
 
-```text
-docs/livingworld/VALIDATION_0.1.11.md
-```
+Do not call consolidation live-validated until the scenario below passes.
 
 ---
 
@@ -441,33 +434,31 @@ docs/livingworld/VALIDATION_0.1.11.md
 
 ## 0.1.x Reliability
 
-Foundation is stable and live-validated through `0.1.12+1.21.1`. Continue only for concrete defects or explicit soak, backup/restore or provider-failure goals.
+Stable and live-validated through `0.1.12+1.21.1`. Continue only for concrete defects or explicit soak, backup/restore or provider-failure goals.
 
 ## 0.2 Memory 2.0 — active and substantially advanced
 
-Implemented and live-proven:
+Implemented:
 
 ```text
 Episodic MemoryEvent model and persistence
 + deterministic episodic retrieval
 + ACTION / DIALOGUE / RELATIONSHIP_CHANGE ingestion
-+ text / voice dialogue parity
++ text / voice parity
 + Working Memory bounds
 + Semantic FACT/BELIEF model and persistence
 + deterministic semantic retrieval
 + shared layered prompt integration
-+ controlled ACTION / RELATIONSHIP_CHANGE → FACT ingestion
-+ deterministic semantic UUID and retry idempotency
-+ DIALOGUE exclusion from automatic semantics
-+ explicit sourced BELIEF API foundation
++ controlled semantic FACT ingestion
++ deterministic semantic consolidation
 ```
 
 Still not implemented or not proven:
 
-- automatic controlled BELIEF producers;
-- deterministic logical duplicate/consolidation policy across distinct source events;
+- real-server validation of PR #53 consolidation;
 - forgetting/decay;
-- migration from legacy `memory.json`;
+- automatic controlled BELIEF producers;
+- legacy `memory.json` migration;
 - NPC-to-NPC knowledge and rumor propagation;
 - trustworthy causal relationship reasons;
 - long-horizon recall after days without full raw dialogue;
@@ -476,20 +467,36 @@ Still not implemented or not proven:
 ## Next sequence
 
 ```text
-1. Add deterministic semantic duplicate/consolidation policy
-2. Add forgetting/decay with explicit retention rules
+1. Live-validate PR #53 consolidation
+2. Add explicit forgetting/decay and retention rules
 3. Design legacy memory.json migration after semantic layers stabilize
 4. Run long-horizon Memory 2.0 exit-criterion validation
 5. Begin 0.3 Personality + NPC↔NPC social graph
 ```
 
-Consolidation constraints:
+No embeddings, vector DB or LLM truth classification should be prerequisites.
 
-- preserve provenance and all source event IDs;
-- never merge FACT and BELIEF into one authoritative entry;
-- distinguish replay duplicates from separate corroborating evidence;
-- remain deterministic and provider-independent;
-- do not require embeddings, vector DB or LLM truth classification.
+---
+
+# Immediate live-test scenario
+
+```text
+1. Install a build containing PR #53.
+2. Record semantic-memory.json hash, entry count and sourceEventIds.
+3. Produce two distinct authoritative events with the same normalized statement and related-entity set.
+4. Confirm memory2.json contains two distinct source event UUIDs.
+5. Confirm semantic-memory.json contains one consolidated entry.
+6. Confirm sourceEventIds contains both UUIDs exactly once.
+7. Confirm the consolidated UUID is deterministic.
+8. Replay one source and confirm no duplicate or file rewrite.
+9. Produce identical text for a different related entity and confirm a separate semantic entry.
+10. Confirm FACT and BELIEF / different BELIEF provenance remain separate where testable.
+11. Restart the server.
+12. Confirm semantic-memory.json remains byte-stable and retrieval still works.
+13. Confirm Chat, STT, TTS, Voice Chat, Opus, monitor and ports remain healthy.
+```
+
+After success, create a new validation document and promote the tested build to the latest live-server checkpoint.
 
 ---
 
@@ -497,7 +504,7 @@ Consolidation constraints:
 
 Preferred resume prompt:
 
-> **Open `docs/PROJECT_STATE.md`, `docs/CHANGELOG.md`, `docs/ROADMAP.md` and the latest validation evidence in `True-Ruslan/villAIgence`. Check recent PRs, releases/tags and CI, then tell me what is complete, what is live-validated, what changed since the state file, and what should be built next.**
+> **Open `docs/PROJECT_STATE.md`, `docs/CHANGELOG.md`, `docs/ROADMAP.md` and the latest validation evidence in `True-Ruslan/villAIgence`. Check recent PRs, tags/releases and CI, then tell me what is implemented, what is live-validated, what changed since the state file, and what should be built next.**
 
 A new session must:
 
@@ -506,7 +513,7 @@ A new session must:
 3. read `docs/ROADMAP.md`;
 4. inspect current `1.21.1` HEAD;
 5. inspect recent merged/open PRs;
-6. inspect latest release/tag and CI state;
+6. inspect latest tag/release and CI state;
 7. reconcile newer live-test evidence;
 8. continue from the first unimplemented priority;
 9. update canonical state after material progress.
