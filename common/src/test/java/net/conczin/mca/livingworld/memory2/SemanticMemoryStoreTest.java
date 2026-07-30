@@ -1,14 +1,20 @@
 package net.conczin.mca.livingworld.memory2;
 
+import com.google.gson.GsonBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class SemanticMemoryStoreTest {
@@ -46,6 +52,74 @@ class SemanticMemoryStoreTest {
     }
 
     @Test
+    void consolidatesIndependentEvidenceBeforeRetention() {
+        SemanticMemoryStore store = new SemanticMemoryStore(tempDir.resolve("semantic-memory.json"));
+        UUID npc = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        UUID sourceA = UUID.randomUUID();
+        UUID sourceB = UUID.randomUUID();
+        UUID sourceC = UUID.randomUUID();
+
+        store.append(sourcedEntry(UUID.randomUUID(), npc, 100L, "Village gate open", List.of(npc, player), sourceA), 2);
+        store.append(sourcedEntry(UUID.randomUUID(), npc, 200L, "village   gate\topen", List.of(player, npc), sourceB), 2);
+        store.append(sourcedEntry(UUID.randomUUID(), npc, 300L, "Bell repaired", List.of(npc), sourceC), 2);
+
+        List<SemanticMemoryEntry> entries = store.getRecent(npc, 10);
+        assertEquals(2, entries.size());
+        SemanticMemoryEntry gate = entries.stream()
+                .filter(value -> value.statement().toLowerCase().contains("village gate open"))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(sortedIds(sourceA, sourceB), gate.sourceEventIds());
+    }
+
+    @Test
+    void replayDuplicateDoesNotRewriteFile() throws Exception {
+        Path file = tempDir.resolve("semantic-memory.json");
+        SemanticMemoryStore store = new SemanticMemoryStore(file);
+        UUID npc = UUID.randomUUID();
+        SemanticMemoryEntry value = sourcedEntry(
+                UUID.randomUUID(), npc, 100L, "Stable fact", List.of(npc), UUID.randomUUID()
+        );
+
+        store.append(value, 8);
+        byte[] before = Files.readAllBytes(file);
+        store.append(value, 8);
+        byte[] after = Files.readAllBytes(file);
+
+        assertArrayEquals(before, after);
+    }
+
+    @Test
+    void reloadConsolidatesCompatiblePersistedEntriesInMemory() throws Exception {
+        Path file = tempDir.resolve("semantic-memory.json");
+        UUID npc = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        UUID sourceA = UUID.randomUUID();
+        UUID sourceB = UUID.randomUUID();
+        SemanticMemoryEntry first = sourcedEntry(
+                UUID.randomUUID(), npc, 100L, "Market is open", List.of(npc, player), sourceA
+        );
+        SemanticMemoryEntry second = sourcedEntry(
+                UUID.randomUUID(), npc, 200L, "market is open", List.of(player, npc), sourceB
+        );
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("version", 1);
+        root.put("entriesByNpc", Map.of(npc.toString(), List.of(first, second)));
+        Files.writeString(
+                file,
+                new GsonBuilder().setPrettyPrinting().create().toJson(root),
+                StandardCharsets.UTF_8
+        );
+
+        SemanticMemoryStore reloaded = new SemanticMemoryStore(file);
+        List<SemanticMemoryEntry> entries = reloaded.getRecent(npc, 8);
+
+        assertEquals(1, entries.size());
+        assertEquals(sortedIds(sourceA, sourceB), entries.getFirst().sourceEventIds());
+    }
+
+    @Test
     void malformedFileFailsOpenAndIsReplacedOnNextAppend() throws Exception {
         Path file = tempDir.resolve("semantic-memory.json");
         Files.writeString(file, "{broken", StandardCharsets.UTF_8);
@@ -74,5 +148,34 @@ class SemanticMemoryStoreTest {
                 100,
                 List.of()
         );
+    }
+
+    private static SemanticMemoryEntry sourcedEntry(
+            UUID id,
+            UUID owner,
+            long gameTime,
+            String statement,
+            List<UUID> relatedEntities,
+            UUID sourceId
+    ) {
+        return new SemanticMemoryEntry(
+                id,
+                owner,
+                SemanticMemoryEntry.Kind.FACT,
+                statement,
+                relatedEntities,
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                gameTime,
+                1_700_000_000_000L + gameTime,
+                70,
+                100,
+                List.of(sourceId)
+        );
+    }
+
+    private static List<UUID> sortedIds(UUID... ids) {
+        List<UUID> values = new ArrayList<>(List.of(ids));
+        values.sort(Comparator.comparing(UUID::toString));
+        return List.copyOf(values);
     }
 }
