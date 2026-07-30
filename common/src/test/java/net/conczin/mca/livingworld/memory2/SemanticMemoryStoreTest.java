@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -50,8 +51,9 @@ class SemanticMemoryStoreTest {
     }
 
     @Test
-    void consolidatesIndependentEvidenceBeforeRetention() {
-        SemanticMemoryStore store = new SemanticMemoryStore(tempDir.resolve("semantic-memory.json"));
+    void consolidatesIndependentEvidenceBeforeRetentionAndPersistsIt() {
+        Path file = tempDir.resolve("semantic-memory.json");
+        SemanticMemoryStore store = new SemanticMemoryStore(file);
         UUID npc = UUID.randomUUID();
         UUID player = UUID.randomUUID();
         UUID sourceA = UUID.randomUUID();
@@ -62,10 +64,11 @@ class SemanticMemoryStoreTest {
         store.append(sourcedEntry(UUID.randomUUID(), npc, 200L, "village   gate\topen", List.of(player, npc), sourceB), 2);
         store.append(sourcedEntry(UUID.randomUUID(), npc, 300L, "Bell repaired", List.of(npc), sourceC), 2);
 
-        List<SemanticMemoryEntry> entries = store.getRecent(npc, 10);
+        SemanticMemoryStore reloaded = new SemanticMemoryStore(file);
+        List<SemanticMemoryEntry> entries = reloaded.getRecent(npc, 10);
         assertEquals(2, entries.size());
         SemanticMemoryEntry gate = entries.stream()
-                .filter(value -> value.statement().toLowerCase().contains("village gate open"))
+                .filter(value -> value.statement().toLowerCase(Locale.ROOT).contains("village gate open"))
                 .findFirst()
                 .orElseThrow();
         assertEquals(sortedIds(sourceA, sourceB), gate.sourceEventIds());
