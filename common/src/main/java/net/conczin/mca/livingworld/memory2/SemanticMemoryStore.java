@@ -54,6 +54,9 @@ public final class SemanticMemoryStore {
         if (duplicate) return;
 
         entries.add(entry);
+        List<SemanticMemoryEntry> consolidated = SemanticMemoryConsolidator.consolidateAll(entries);
+        entries.clear();
+        entries.addAll(consolidated);
         entries.sort(OLDEST_FIRST);
         while (entries.size() > safeMax) entries.removeFirst();
         save();
@@ -84,6 +87,8 @@ public final class SemanticMemoryStore {
                         .filter(value -> isValidForOwner(value, owner))
                         .sorted(OLDEST_FIRST)
                         .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+                entries = new ArrayList<>(SemanticMemoryConsolidator.consolidateAll(entries));
+                entries.sort(OLDEST_FIRST);
                 if (!entries.isEmpty()) sanitized.put(owner.toString(), entries);
             }
             loaded.entriesByNpc = sanitized;
