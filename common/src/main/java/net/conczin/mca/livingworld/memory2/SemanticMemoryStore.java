@@ -53,13 +53,22 @@ public final class SemanticMemoryStore {
         boolean duplicate = entries.stream().anyMatch(existing -> existing.id().equals(entry.id()));
         if (duplicate) return;
 
+        List<SemanticMemoryEntry> before = List.copyOf(entries);
         entries.add(entry);
         List<SemanticMemoryEntry> consolidated = SemanticMemoryConsolidator.consolidateAll(entries);
+        long nowGameTime = consolidated.stream()
+                .mapToLong(SemanticMemoryEntry::gameTime)
+                .max()
+                .orElse(entry.gameTime());
+        List<SemanticMemoryEntry> retained = SemanticMemoryRetentionPolicy.selectRetained(
+                consolidated,
+                safeMax,
+                nowGameTime
+        );
+
         entries.clear();
-        entries.addAll(consolidated);
-        entries.sort(OLDEST_FIRST);
-        while (entries.size() > safeMax) entries.removeFirst();
-        save();
+        entries.addAll(retained);
+        if (!before.equals(retained)) save();
     }
 
     public synchronized List<SemanticMemoryEntry> getRecent(UUID npcId, int maxResults) {
