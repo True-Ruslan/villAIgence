@@ -1,6 +1,8 @@
 package net.conczin.mca.livingworld.voice;
 
-import java.net.URI;
+import net.conczin.mca.livingworld.ai.ProviderEndpoint;
+import net.conczin.mca.livingworld.ai.ProviderEndpointPolicy;
+
 import java.util.Locale;
 
 /** Provider-neutral transport format used for text-to-speech responses. */
@@ -33,13 +35,15 @@ public enum TtsResponseFormat {
         return isOpenRouterEndpoint(endpoint) ? PCM : WAV;
     }
 
+    public TtsResponseFormat resolve(ProviderEndpoint endpoint) {
+        if (this != AUTO) return this;
+        return endpoint.family() == ProviderEndpoint.Family.OPENROUTER ? PCM : WAV;
+    }
+
     public static boolean isOpenRouterEndpoint(String endpoint) {
         if (endpoint == null || endpoint.isBlank()) return false;
         try {
-            String host = URI.create(endpoint.trim()).getHost();
-            if (host == null) return false;
-            String normalizedHost = host.toLowerCase(Locale.ROOT);
-            return normalizedHost.equals("openrouter.ai") || normalizedHost.endsWith(".openrouter.ai");
+            return ProviderEndpointPolicy.parse(endpoint, true).family() == ProviderEndpoint.Family.OPENROUTER;
         } catch (IllegalArgumentException ignored) {
             return false;
         }
