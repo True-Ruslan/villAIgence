@@ -65,11 +65,13 @@ public final class WorldEventRecorder {
                     worldRoot,
                     event,
                     config.memory2MaxEventsPerNpc,
+                    true,
+                    config.memory2MaxEventsPerNpc,
                     System.currentTimeMillis()
             );
         } catch (RuntimeException e) {
             MCA.LOGGER.warn(
-                    "Unable to ingest LivingWorld action event '{}' into Memory 2.0 for villager {}",
+                    "Unable to finish LivingWorld action Memory 2.0 ingestion '{}' for villager {}",
                     commandName,
                     villager.getUUID(),
                     e
