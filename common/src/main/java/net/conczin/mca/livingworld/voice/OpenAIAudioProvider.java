@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.conczin.mca.livingworld.LivingWorldConfig;
+import net.conczin.mca.livingworld.ai.ProviderCredentialBinding;
+import net.conczin.mca.livingworld.ai.ProviderEndpoint;
 import net.conczin.mca.livingworld.audio.PcmAudio;
 import net.conczin.mca.livingworld.audio.RawPcmCodec;
 import net.conczin.mca.livingworld.audio.WavCodec;
@@ -13,7 +15,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Locale;
@@ -30,8 +31,9 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
 
     @Override
     public String transcribe(PcmAudio audio) throws IOException {
+        ProviderCredentialBinding.BoundEndpoint binding = config.resolvedSttEndpoint();
         byte[] wav = WavCodec.encodePcm16Mono(audio.samples(), audio.sampleRate());
-        SttRequestFormat format = SttRequestFormat.parse(config.sttRequestFormat).resolve(config.sttEndpoint);
+        SttRequestFormat format = SttRequestFormat.parse(config.sttRequestFormat).resolve(binding.endpoint());
         byte[] requestBody;
         String contentType;
 
@@ -53,7 +55,7 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
         }
 
         AudioHttpResponse response = execute(
-                open(config.sttEndpoint, contentType, config.resolvedSttApiKey()),
+                open(binding, contentType),
                 requestBody,
                 "speech-to-text"
         );
@@ -81,13 +83,19 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
 
     @Override
     public PcmAudio synthesize(TtsRequest request) throws IOException {
+        ProviderCredentialBinding.BoundEndpoint binding = config.resolvedTtsEndpoint();
         String voice = request.voiceId().isBlank() ? config.ttsVoice : request.voiceId();
         TtsRequest resolved = new TtsRequest(request.text(), voice, request.style());
-        TtsResponseFormat format = TtsResponseFormat.parse(config.ttsResponseFormat).resolve(config.ttsEndpoint);
+        TtsResponseFormat format = TtsResponseFormat.parse(config.ttsResponseFormat).resolve(binding.endpoint());
         try {
             AudioHttpResponse response = execute(
-                    open(config.ttsEndpoint, "application/json", config.resolvedTtsApiKey()),
-                    createSpeechBody(resolved, config.ttsModel, format, config.ttsEndpoint).getBytes(StandardCharsets.UTF_8),
+                    open(binding, "application/json"),
+                    createSpeechBody(
+                            resolved,
+                            config.ttsModel,
+                            format,
+                            binding.endpoint().externalForm()
+                    ).getBytes(StandardCharsets.UTF_8),
                     "text-to-speech"
             );
 
@@ -207,15 +215,19 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
         return cause == null ? new IOException(diagnostic) : new IOException(diagnostic, cause);
     }
 
-    private HttpURLConnection open(String endpoint, String contentType, String apiKey) throws IOException {
-        if (endpoint == null || endpoint.isBlank()) throw new IOException("AI audio endpoint is not configured");
-        if (apiKey == null || apiKey.isBlank()) throw new IOException("AI audio API key is not configured");
-        HttpURLConnection connection = (HttpURLConnection) URI.create(endpoint).toURL().openConnection();
+    private HttpURLConnection open(
+            ProviderCredentialBinding.BoundEndpoint binding,
+            String contentType
+    ) throws IOException {
+        ProviderEndpoint endpoint = binding.endpoint();
+        if (binding.apiKey().isBlank()) throw new IOException("AI audio API key is not configured");
+        HttpURLConnection connection = (HttpURLConnection) endpoint.uri().toURL().openConnection();
+        connection.setInstanceFollowRedirects(false);
         connection.setRequestMethod("POST");
-        connection.setRequestProperty("Authorization", "Bearer " + apiKey);
+        connection.setRequestProperty("Authorization", "Bearer " + binding.apiKey());
         connection.setRequestProperty("Accept", "application/json, audio/wav, audio/pcm");
         connection.setRequestProperty("Content-Type", contentType);
-        if (SttRequestFormat.isOpenRouterEndpoint(endpoint)) {
+        if (endpoint.family() == ProviderEndpoint.Family.OPENROUTER) {
             connection.setRequestProperty("X-OpenRouter-Title", "LivingWorld");
         }
         connection.setConnectTimeout(secondsToMillis(config.connectTimeoutSeconds));
