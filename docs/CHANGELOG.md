@@ -9,14 +9,14 @@
 ### Release identity
 
 ```text
-release/tag commit:
+release/tag and tested implementation commit:
 746fa75ab4b5f4bee385efa0c8ae51009c1aec58
 
-0.1.12+1.21.1 and current 1.21.1:
-identical
+post-validation documentation merge:
+7b5d2befafcb137fa4751f4da110acc29590558b
 ```
 
-The earlier ambiguous tag attempt is resolved. `0.1.11+1.21.1` remains on commit `60236524e37b60c639b93405f809ade883be253f`; `0.1.12+1.21.1` points at the tested current branch head.
+The earlier ambiguous tag attempt is resolved. `0.1.11+1.21.1` remains on commit `60236524e37b60c639b93405f809ade883be253f`; `0.1.12+1.21.1` points at the exact implementation commit tested on the server. The `1.21.1` branch later advanced only through documentation PR #51.
 
 ### Live evidence
 
