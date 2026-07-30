@@ -28,7 +28,7 @@ Minecraft: 1.21.1
 release/tag commit: 746fa75ab4b5f4bee385efa0c8ae51009c1aec58
 ```
 
-The `0.1.12+1.21.1` tag points at the current `1.21.1` head. It is distinct from `0.1.11+1.21.1`, resolving the earlier ambiguous-tag attempt.
+The `0.1.12+1.21.1` tag points at the exact implementation commit tested on the server. It is distinct from `0.1.11+1.21.1`, resolving the earlier ambiguous-tag attempt. At validation time this commit was the `1.21.1` head; the branch later advanced only through documentation PR #51.
 
 ## Executed scenario
 
