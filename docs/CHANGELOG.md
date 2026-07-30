@@ -2,13 +2,94 @@
 
 > Human-readable implementation and validation history. For exact current state and next priority, read `docs/PROJECT_STATE.md`. For long-term direction, read `docs/ROADMAP.md`.
 
+## 0.1.12+1.21.1 — Controlled Semantic Memory live-server checkpoint
+
+**Status:** live-tested successfully on a real Minecraft 1.21.1 server after restart on 2026-07-30.
+
+### Release identity
+
+```text
+release/tag commit:
+746fa75ab4b5f4bee385efa0c8ae51009c1aec58
+
+0.1.12+1.21.1 and current 1.21.1:
+identical
+```
+
+The earlier ambiguous tag attempt is resolved. `0.1.11+1.21.1` remains on commit `60236524e37b60c639b93405f809ade883be253f`; `0.1.12+1.21.1` points at the tested current branch head.
+
+### Live evidence
+
+```text
+Successful NPC actions: 2                                PASS
+ACTION MemoryEvents: 2                                   PASS
+Relationship transition: trust +1, affinity +1           PASS
+RELATIONSHIP_CHANGE MemoryEvents: 1                       PASS
+Semantic FACT entries: 3                                 PASS
+```
+
+Every FACT satisfied:
+
+```text
+kind = FACT                                               PASS
+provenance = SYSTEM_OBSERVED                              PASS
+ownerNpcId correct                                       PASS
+matching episodic UUID in sourceEventIds                 PASS
+deterministic semantic UUID correct                      PASS
+```
+
+Duplicate and authority-boundary evidence:
+
+```text
+Semantic UUID duplicates: 0                              PASS
+Retry-created semantic duplicates: 0                     PASS
+Ordinary DIALOGUE interactions: 9                        OBSERVED
+DIALOGUE-derived semantic entries: 0                     PASS
+```
+
+The following files were byte-identical before and after restart:
+
+```text
+memory.json                                               PASS
+memory2.json                                              PASS
+semantic-memory.json                                      PASS
+relationships.json                                        PASS
+voices.json                                               PASS
+```
+
+Chat, voice and operations:
+
+```text
+Chat                                                      SUCCESS
+STT                                                       SUCCESS / 1059 ms
+TTS                                                       SUCCESS / 1663 ms
+Simple Voice Chat / Opus                                  PASS
+Monitor                                                   PASS
+UDP 24454 / 25565                                         PASS
+VillAIgence, memory or persistence errors                 none
+```
+
+Canonical evidence:
+
+```text
+docs/livingworld/VALIDATION_0.1.12.md
+```
+
+### Development consequence
+
+`0.1.12+1.21.1` supersedes `0.1.11+1.21.1` as the latest live-server checkpoint.
+
+The next Memory 2.0 slice is deterministic semantic duplicate/consolidation policy, followed by explicit forgetting/decay.
+
+---
+
 ## Post-0.1.11 — Controlled Semantic Memory ingestion
 
-**Status:** merged and automated-CI validated in PR #49; real-server validation pending.
+**Status:** merged and automated-CI validated in PR #49; subsequently live-validated by `0.1.12+1.21.1`.
 
 ### What changed
 
-The existing Semantic Memory foundation now has controlled producers.
+The existing Semantic Memory foundation gained controlled producers.
 
 ```text
 successful safe NPC action
@@ -100,19 +181,6 @@ merge:
 c6a7a17aa5bd7806667ff3b8b502b852640e606c
 ```
 
-### Validation boundary
-
-This implementation has not yet been tested on a real server. The next checkpoint must verify:
-
-- ACTION and RELATIONSHIP_CHANGE produce linked semantic FACT entries;
-- FACT provenance and NPC ownership are correct;
-- replay/retry creates no duplicate semantic UUIDs;
-- text/voice DIALOGUE alone creates no semantic entry;
-- semantic and episodic files survive restart;
-- voice/STT/TTS and server operations remain unchanged.
-
-`0.1.11+1.21.1` therefore remains the latest live-validated release.
-
 ---
 
 ## 0.1.11+1.21.1 — Working Memory live-server checkpoint
@@ -158,15 +226,11 @@ docs/livingworld/VALIDATION_0.1.11.md
 
 This checkpoint live-validates the Working Memory and Semantic Memory foundation from PR #46, but predates the semantic producers introduced in PR #49.
 
-### Release metadata note
-
-A later attempted `0.1.12+1.21.1` release run `30540119567` failed before Gradle because `0.1.11+1.21.1` and `0.1.12+1.21.1` pointed at the same commit. `0.1.12` is not a successful release checkpoint.
-
 ---
 
 ## Post-0.1.10 — Working Memory + Semantic Memory foundation
 
-**Status:** merged in PR #46, automated-CI validated, and later live-validated by `0.1.11+1.21.1`.
+**Status:** merged in PR #46, automated-CI validated, and later live-validated by `0.1.11+1.21.1` and `0.1.12+1.21.1`.
 
 PR #46 introduced:
 
