@@ -2,64 +2,168 @@
 
 > Human-readable implementation and validation history. For exact current state and next priority, read `docs/PROJECT_STATE.md`. For long-term direction, read `docs/ROADMAP.md`.
 
+## Post-0.1.13 — Deterministic Semantic Memory forgetting and decay
+
+**Status:** merged and automated-CI validated in PR #56; real-server validation pending.
+
+### What changed
+
+Added `SemanticMemoryRetentionPolicy` and integrated it into `SemanticMemoryStore` after consolidation.
+
+The previous policy removed the oldest entry whenever the per-NPC limit was exceeded. The new policy keeps all valid knowledge while under capacity and forgets only under retention pressure.
+
+```text
+exact UUID replay check
+→ append candidate
+→ deterministic consolidation
+→ deterministic retention selection
+→ atomic save only when retained state changed
+```
+
+### Durability and decay
+
+```text
+importance contribution = importance × 4                 // 0..400
+confidence contribution = confidence × 5 / 2             // 0..250
+
+provenance contribution:
+SYSTEM_OBSERVED = 200
+PLAYER_TOLD     = 100
+NPC_TOLD        = 75
+INFERRED        = 25
+
+source contribution = min(sourceEventIds count, 6) × 25   // 0..150
+```
+
+```text
+DECAY_STEP_TICKS = 36000
+ageTicks = max(0, nowGameTime - entry.gameTime)
+effectiveRetentionScore = durability × 36000 - ageTicks
+```
+
+At 20 TPS, one decay step is approximately 30 minutes of active server runtime.
+
+### Deterministic selection
+
+Entries are retained by:
+
+```text
+effective score descending
+importance descending
+confidence descending
+source count descending
+gameTime descending
+createdAtEpochMillis descending
+UUID ascending
+```
+
+The selected list is persisted in the existing oldest-first stable order.
+
+### Behavior
+
+- entries are never removed by this feature while under capacity;
+- older strong knowledge can survive newer weak knowledge;
+- confidence is not mutated;
+- consolidation occurs before forgetting;
+- corroboration adds bounded source durability and keeps all source UUIDs;
+- a rejected weak append does not rewrite `semantic-memory.json`;
+- exact UUID replay remains a no-op;
+- NPC retention pressure remains isolated;
+- no timer, background task, wall-clock TTL or world-tick hook was added;
+- JSON format remains version 1;
+- no config fields were added.
+
+### TDD anchors
+
+```text
+policy RED head:
+1ea407ab2cd16eb74ea86dacb1aa04e476341e34
+VillAIgence CI #756 / 30572701052 → expected FAILURE
+reason: SemanticMemoryRetentionPolicy did not exist
+
+policy GREEN head:
+0410b8c4b9bcbe604effca2154d092ef6a2af1a5
+VillAIgence CI #758 / 30572959755 → SUCCESS
+Java Pull Request CI #304 / 30572959844 → SUCCESS
+
+store RED head:
+4c42a3f13f73657fade630fa6fd212e0a7677657
+VillAIgence CI #760 / 30573293522 → expected FAILURE
+reason: four targeted tests exposed oldest-first trimming and rewrite behavior
+
+final exact head:
+c08b47431b6a121deae4be8410be1e4fe4c5126a
+VillAIgence CI #764 / 30573965448 → SUCCESS
+Java Pull Request CI #307 / 30573965439 → SUCCESS
+
+merge:
+73145dd0925d403af7ef343521eb3ae27f68804d
+```
+
+### Documentation
+
+```text
+docs/livingworld/SEMANTIC_FORGETTING_DECAY.md
+docs/superpowers/specs/2026-07-30-memory2-semantic-forgetting-decay-design.md
+docs/superpowers/plans/2026-07-30-memory2-semantic-forgetting-decay.md
+```
+
+### Validation boundary
+
+A live checkpoint must still prove:
+
+- real retention pressure;
+- predicted retention of older strong knowledge;
+- predicted rejection or eviction of weak knowledge;
+- source corroboration affecting a real capacity decision;
+- byte-stable file behavior after rejected append and restart;
+- NPC isolation under pressure;
+- unchanged Chat, STT, TTS, Voice Chat, Opus, monitor and port health.
+
+`0.1.13+1.21.1` remains the latest live-validated release.
+
+---
+
 ## 0.1.13+1.21.1 — Deterministic Semantic Memory consolidation live-server checkpoint
 
 **Status:** live-tested successfully on a real Minecraft 1.21.1 server after restart on 2026-07-30.
-
-### Release identity
 
 ```text
 release/tag and tested commit:
 b553bf7e83674145bdf42927b9ace7287afa560c
 ```
 
-Before this documentation update, `0.1.13+1.21.1` and `1.21.1` were verified identical at the tested commit.
-
-### Consolidation evidence
+Validated:
 
 ```text
-Same-knowledge authoritative ACTION events: 2              PASS
+same-knowledge authoritative ACTION events: 2              PASS
 ACTION UUIDs distinct                                      PASS
-Consolidated semantic entries: 1                           PASS
-Both sourceEventIds present exactly once                   PASS
+consolidated semantic entries: 1                           PASS
+both sourceEventIds present exactly once                   PASS
+deterministic UUID independently reproduced                PASS
+retry created another ACTION                               no
+retry changed semantic-memory.json                         no
+NPC A / NPC B owner isolation                              PASS
+NPC A / NPC B relatedEntities isolation                    PASS
 ```
 
-Deterministic UUID evidence:
+Deterministic UUID:
 
 ```text
-observed:
 093aabb0-e61b-3e62-a5fe-fbb9d15b8494
-
-independently calculated:
-093aabb0-e61b-3e62-a5fe-fbb9d15b8494
-
-result:                                                     PASS
 ```
-
-### Retry and isolation
-
-```text
-Retry created another ACTION: no                           PASS
-Retry changed semantic-memory.json: no                     PASS
-NPC B received separate ACTION and FACT                    PASS
-ownerNpcId isolation                                       PASS
-relatedEntities isolation                                  PASS
-NPC A/B semantic mixing: none                              PASS
-```
-
-### Restart persistence
 
 Byte-identical after restart:
 
 ```text
-memory.json                                                PASS
-memory2.json                                               PASS
-semantic-memory.json                                       PASS
-relationships.json                                         PASS
-voices.json                                                PASS
+memory.json
+memory2.json
+semantic-memory.json
+relationships.json
+voices.json
 ```
 
-### Chat, voice and operations
+Operations:
 
 ```text
 0.1.13 loaded after restart                                PASS
@@ -78,30 +182,16 @@ Canonical evidence:
 docs/livingworld/VALIDATION_0.1.13.md
 ```
 
-### Validation boundary
-
-The primary append-time consolidation path and restart loading of the consolidated file are live-proven.
-
-A manually seeded old `semantic-memory.json` containing compatible logical duplicates was not separately tested on the server. That load-time compaction scenario remains unit-tested.
-
-### Development consequence
-
-`0.1.13+1.21.1` supersedes `0.1.12+1.21.1` as the latest live-server checkpoint.
-
-The next implementation slice is deterministic Semantic Memory forgetting/decay with explicit retention rules.
+The primary append-time consolidation path is live-proven. A manually seeded old file containing compatible logical duplicates was not separately tested live; that path remains unit-tested.
 
 ---
 
 ## Post-0.1.12 — Deterministic Semantic Memory consolidation
 
-**Status:** merged and automated-CI validated in PR #53; subsequently live-validated by `0.1.13+1.21.1`.
-
-### What changed
-
-Added `SemanticMemoryConsolidator` and integrated it into `SemanticMemoryStore`.
+**Status:** merged in PR #53, automated-CI validated, and live-validated by `0.1.13+1.21.1`.
 
 ```text
-same NPC
+same ownerNpcId
 + same FACT/BELIEF kind
 + same provenance
 + same canonical statement
@@ -132,49 +222,18 @@ statement            deterministic representative
 id                   deterministic consolidation UUID
 ```
 
-### Replay and corroboration
+Authority boundaries:
 
-Exact semantic UUID replay remains a no-op and does not rewrite `semantic-memory.json`.
-
-Different entries with independent source events and the same consolidation key become one entry containing every source UUID exactly once.
-
-A single sourced entry keeps its existing UUID until corroborating evidence appears.
-
-### Authority boundary
-
-Consolidation never merges:
-
-- different NPC owners;
-- FACT with BELIEF;
-- BELIEF entries with different provenance;
-- identical text about different related entities;
-- unsourced entries;
-- text that is only approximately or semantically similar.
-
-Confidence is not automatically increased. BELIEF is never promoted to FACT.
-
-No provider call, LLM comparison, embedding, vector database, stemming or synonym matching was introduced.
-
-### Persistence and retention
-
-Consolidation runs before per-NPC retention trimming, so repeated evidence consumes one retention slot.
-
-Existing compatible entries are consolidated in memory during load. Loading alone does not rewrite the world file; the compacted representation is persisted on the next normal semantic append.
-
-The JSON schema and format version remain unchanged.
-
-### TDD and CI anchors
+- different NPC owners remain separate;
+- FACT never merges with BELIEF;
+- different BELIEF provenance remains separate;
+- different related entities remain separate;
+- unsourced entries remain separate;
+- confidence is not automatically increased;
+- no LLM, embeddings or semantic similarity matching.
 
 ```text
-PR #53:
-https://github.com/True-Ruslan/villAIgence/pull/53
-
-RED head:
-ad393c71d1f414eff0a0c65cb5f326700617ca0d
-VillAIgence CI #732 / 30559795912 → expected FAILURE
-reason: SemanticMemoryConsolidator did not yet exist
-
-final exact feature head:
+PR #53 final head:
 19c3d3e840431cc2b1b34e1841e2075f56e99f71
 
 VillAIgence CI #746 / 30561015885 → SUCCESS
@@ -195,7 +254,7 @@ docs/superpowers/specs/2026-07-30-memory2-semantic-consolidation-design.md
 
 ## 0.1.12+1.21.1 — Controlled Semantic Memory live-server checkpoint
 
-**Status:** live-tested successfully on a real Minecraft 1.21.1 server after restart on 2026-07-30.
+**Status:** live-tested successfully on 2026-07-30.
 
 ```text
 release/tag and tested commit:
@@ -205,14 +264,14 @@ release/tag and tested commit:
 Validated:
 
 ```text
-Successful NPC actions: 2                                 PASS
+successful NPC actions: 2                                 PASS
 ACTION MemoryEvents: 2                                    PASS
-Relationship transition: trust +1, affinity +1            PASS
-RELATIONSHIP_CHANGE MemoryEvents: 1                        PASS
-Semantic FACT entries: 3                                  PASS
-Semantic UUID duplicates: 0                               PASS
-Retry-created semantic duplicates: 0                      PASS
-Ordinary DIALOGUE interactions: 9                         OBSERVED
+relationship transition: trust +1, affinity +1            PASS
+RELATIONSHIP_CHANGE events: 1                             PASS
+semantic FACT entries: 3                                  PASS
+semantic UUID duplicates: 0                               PASS
+retry-created semantic duplicates: 0                      PASS
+ordinary DIALOGUE interactions: 9                         OBSERVED
 DIALOGUE-derived semantic entries: 0                      PASS
 ```
 
@@ -252,8 +311,6 @@ docs/livingworld/VALIDATION_0.1.12.md
 
 **Status:** merged in PR #49, automated-CI validated, and live-validated by `0.1.12+1.21.1`.
 
-Implemented:
-
 ```text
 successful safe action
 → ACTION / SYSTEM_OBSERVED
@@ -264,24 +321,13 @@ persisted relationship transition
 → semantic FACT
 ```
 
-Added:
-
-- `SemanticMemoryIngestionAdapter`;
-- `SemanticBeliefSource`;
-- `ControlledSemanticMemoryIngestor`;
-- deterministic semantic IDs from source evidence;
-- source-event linkage;
-- explicit sourced BELIEF API foundation.
-
 Automatic conversion rejects `DIALOGUE`, told provenance and inferred provenance. No arbitrary dialogue or LLM prose becomes FACT.
 
 ```text
 PR #49 merge:
 c6a7a17aa5bd7806667ff3b8b502b852640e606c
-
 verified head:
 7f9916e510a2ca70245d93c5b308ee31758fed0f
-
 VillAIgence CI #721 / 30548196801 → SUCCESS
 Java Pull Request CI #289 / 30548198746 → SUCCESS
 ```
@@ -290,17 +336,13 @@ Java Pull Request CI #289 / 30548198746 → SUCCESS
 
 ## 0.1.11+1.21.1 — Working Memory live-server checkpoint
 
-**Status:** live-tested successfully on 2026-07-30.
-
 Validated:
 
 ```text
 NPC A / NPC B isolation                                  PASS
-memory.json total messages: 86                           OBSERVED
 NPC A durable history: 16                                PASS
 NPC A prompt history: 12                                 PASS
-memory2.json events: 21                                  OBSERVED
-UUID duplicates: 0                                       PASS
+memory2 UUID duplicates: 0                               PASS
 logical fingerprint duplicates: 0                        PASS
 three independent voice turns                            PASS
 OpenRouter retry recovery                                PASS
@@ -308,7 +350,7 @@ restart persistence                                      PASS
 server / monitor / ports                                 PASS
 ```
 
-At this checkpoint `semantic-memory.json` was absent, which was expected before PR #49.
+At this checkpoint `semantic-memory.json` was absent, which was expected before controlled semantic ingestion.
 
 Canonical evidence:
 
@@ -320,9 +362,7 @@ docs/livingworld/VALIDATION_0.1.11.md
 
 ## Post-0.1.10 — Working Memory and Semantic Memory foundation
 
-**Status:** PR #46 merged, CI validated, later live-validated by `0.1.11`, `0.1.12` and `0.1.13`.
-
-Working Memory introduced bounded turn-local composition:
+PR #46 introduced:
 
 ```text
 recent dialogue = 12
@@ -330,7 +370,7 @@ episodic context = 6
 semantic context = 6
 ```
 
-Semantic foundation introduced:
+And:
 
 - FACT/BELIEF truth invariant;
 - per-NPC semantic persistence;
@@ -342,7 +382,6 @@ Semantic foundation introduced:
 ```text
 PR #46 merge:
 f82248ac79734200add0652fca663b93a71f2f18
-
 verified head:
 f8338bcf5371f062a31b6a50c8dbc4d992251bda
 ```
@@ -353,8 +392,8 @@ f8338bcf5371f062a31b6a50c8dbc4d992251bda
 
 Validated:
 
-- text and snapshot/voice dialogue share one post-success ingestion lifecycle;
-- both create bounded/idempotent DIALOGUE events;
+- text and voice dialogue share one post-success ingestion lifecycle;
+- both create bounded and idempotent DIALOGUE events;
 - NPC memory remains isolated;
 - legacy and Memory 2.0 persistence survive restart;
 - Voice/STT/TTS behavior remains unchanged.
@@ -387,7 +426,6 @@ Established:
 ```text
 release commit:
 23fba1ee373e932c0b17aba3755f8ac478c26941
-
 workflow:
 29918008438 → SUCCESS
 ```
