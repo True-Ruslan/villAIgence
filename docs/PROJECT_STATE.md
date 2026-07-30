@@ -25,13 +25,17 @@ feature CI:
 VillAIgence CI #721 / 30548196801 — SUCCESS
 Java Pull Request CI #289 / 30548198746 — SUCCESS
 
-latest canonical state merge before this validation update:
-PR #50 — 746fa75ab4b5f4bee385efa0c8ae51009c1aec58
+0.1.12 validation documentation:
+PR #51 merge: 7b5d2befafcb137fa4751f4da110acc29590558b
+exact PR head: aba9fd688984dd1a39930fc0201c9131a11062c2
+VillAIgence CI #725 / 30553131928 — SUCCESS
+Java Pull Request CI #291 / 30553132198 — SUCCESS
 
 latest live-validated release checkpoint:
 0.1.12+1.21.1 — PASS
 validation date: 2026-07-30
-release/tag commit: 746fa75ab4b5f4bee385efa0c8ae51009c1aec58
+release/tag and tested implementation commit:
+746fa75ab4b5f4bee385efa0c8ae51009c1aec58
 ```
 
 Canonical live evidence:
@@ -58,10 +62,9 @@ That ambiguity is now resolved:
 ```text
 0.1.11+1.21.1 → 60236524e37b60c639b93405f809ade883be253f
 0.1.12+1.21.1 → 746fa75ab4b5f4bee385efa0c8ae51009c1aec58
-1.21.1          → 746fa75ab4b5f4bee385efa0c8ae51009c1aec58
 ```
 
-The `0.1.12` tag is distinct from `0.1.11`, points at the tested current branch head and is now a valid live-server checkpoint.
+The `0.1.12` tag is distinct from `0.1.11` and points at the exact implementation commit tested on the server. The `1.21.1` branch subsequently advanced only through documentation continuity changes; those later documentation commits do not alter the tested release payload.
 
 ---
 
