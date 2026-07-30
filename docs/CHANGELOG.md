@@ -2,9 +2,99 @@
 
 > Human-readable implementation and validation history. For exact current state and next priority, read `docs/PROJECT_STATE.md`. For long-term direction, read `docs/ROADMAP.md`.
 
+## 0.1.13+1.21.1 — Deterministic Semantic Memory consolidation live-server checkpoint
+
+**Status:** live-tested successfully on a real Minecraft 1.21.1 server after restart on 2026-07-30.
+
+### Release identity
+
+```text
+release/tag and tested commit:
+b553bf7e83674145bdf42927b9ace7287afa560c
+```
+
+Before this documentation update, `0.1.13+1.21.1` and `1.21.1` were verified identical at the tested commit.
+
+### Consolidation evidence
+
+```text
+Same-knowledge authoritative ACTION events: 2              PASS
+ACTION UUIDs distinct                                      PASS
+Consolidated semantic entries: 1                           PASS
+Both sourceEventIds present exactly once                   PASS
+```
+
+Deterministic UUID evidence:
+
+```text
+observed:
+093aabb0-e61b-3e62-a5fe-fbb9d15b8494
+
+independently calculated:
+093aabb0-e61b-3e62-a5fe-fbb9d15b8494
+
+result:                                                     PASS
+```
+
+### Retry and isolation
+
+```text
+Retry created another ACTION: no                           PASS
+Retry changed semantic-memory.json: no                     PASS
+NPC B received separate ACTION and FACT                    PASS
+ownerNpcId isolation                                       PASS
+relatedEntities isolation                                  PASS
+NPC A/B semantic mixing: none                              PASS
+```
+
+### Restart persistence
+
+Byte-identical after restart:
+
+```text
+memory.json                                                PASS
+memory2.json                                               PASS
+semantic-memory.json                                       PASS
+relationships.json                                         PASS
+voices.json                                                PASS
+```
+
+### Chat, voice and operations
+
+```text
+0.1.13 loaded after restart                                PASS
+Chat and DIALOGUE                                          PASS
+Simple Voice Chat / Opus                                   PASS
+STT / TTS voice dialogue                                   PASS
+UDP 24454 / 25565                                          PASS
+LinuxGSM monitor                                           PASS
+server STARTED                                             PASS
+VillAIgence / persistence / OutOfMemory errors             none
+```
+
+Canonical evidence:
+
+```text
+docs/livingworld/VALIDATION_0.1.13.md
+```
+
+### Validation boundary
+
+The primary append-time consolidation path and restart loading of the consolidated file are live-proven.
+
+A manually seeded old `semantic-memory.json` containing compatible logical duplicates was not separately tested on the server. That load-time compaction scenario remains unit-tested.
+
+### Development consequence
+
+`0.1.13+1.21.1` supersedes `0.1.12+1.21.1` as the latest live-server checkpoint.
+
+The next implementation slice is deterministic Semantic Memory forgetting/decay with explicit retention rules.
+
+---
+
 ## Post-0.1.12 — Deterministic Semantic Memory consolidation
 
-**Status:** merged and automated-CI validated in PR #53; real-server validation pending.
+**Status:** merged and automated-CI validated in PR #53; subsequently live-validated by `0.1.13+1.21.1`.
 
 ### What changed
 
@@ -94,25 +184,12 @@ merge:
 f85879d254f37d7f860380362b296e047bbbb781
 ```
 
-### Documentation
+Documentation:
 
 ```text
 docs/livingworld/SEMANTIC_CONSOLIDATION.md
 docs/superpowers/specs/2026-07-30-memory2-semantic-consolidation-design.md
 ```
-
-### Validation boundary
-
-A live checkpoint must still prove:
-
-- two distinct real events consolidate into one semantic entry;
-- both source UUIDs survive exactly once;
-- the consolidation UUID is stable across restart;
-- different related entities remain separate;
-- replay creates no rewrite or duplicate;
-- Chat and voice behavior remain unchanged.
-
-`0.1.12+1.21.1` remains the latest live-validated release.
 
 ---
 
@@ -125,55 +202,42 @@ release/tag and tested commit:
 746fa75ab4b5f4bee385efa0c8ae51009c1aec58
 ```
 
-### Live evidence
+Validated:
 
 ```text
-Successful NPC actions: 2                                PASS
-ACTION MemoryEvents: 2                                   PASS
-Relationship transition: trust +1, affinity +1           PASS
-RELATIONSHIP_CHANGE MemoryEvents: 1                       PASS
-Semantic FACT entries: 3                                 PASS
+Successful NPC actions: 2                                 PASS
+ACTION MemoryEvents: 2                                    PASS
+Relationship transition: trust +1, affinity +1            PASS
+RELATIONSHIP_CHANGE MemoryEvents: 1                        PASS
+Semantic FACT entries: 3                                  PASS
+Semantic UUID duplicates: 0                               PASS
+Retry-created semantic duplicates: 0                      PASS
+Ordinary DIALOGUE interactions: 9                         OBSERVED
+DIALOGUE-derived semantic entries: 0                      PASS
 ```
 
-Every FACT had:
-
-```text
-kind = FACT                                               PASS
-provenance = SYSTEM_OBSERVED                              PASS
-ownerNpcId correct                                       PASS
-matching episodic UUID in sourceEventIds                 PASS
-deterministic semantic UUID correct                      PASS
-```
-
-Authority and retry evidence:
-
-```text
-Semantic UUID duplicates: 0                              PASS
-Retry-created semantic duplicates: 0                     PASS
-Ordinary DIALOGUE interactions: 9                        OBSERVED
-DIALOGUE-derived semantic entries: 0                     PASS
-```
+Every FACT had correct kind, `SYSTEM_OBSERVED` provenance, NPC owner, source-event linkage and deterministic UUID.
 
 Byte-identical after restart:
 
 ```text
-memory.json                                               PASS
-memory2.json                                              PASS
-semantic-memory.json                                      PASS
-relationships.json                                        PASS
-voices.json                                               PASS
+memory.json
+memory2.json
+semantic-memory.json
+relationships.json
+voices.json
 ```
 
 Operations:
 
 ```text
-Chat                                                      SUCCESS
-STT                                                       SUCCESS / 1059 ms
-TTS                                                       SUCCESS / 1663 ms
-Simple Voice Chat / Opus                                  PASS
-Monitor                                                   PASS
-UDP 24454 / 25565                                         PASS
-VillAIgence or persistence errors                         none
+Chat SUCCESS
+STT SUCCESS / 1059 ms
+TTS SUCCESS / 1663 ms
+Voice Chat / Opus PASS
+monitor PASS
+UDP 24454 / 25565 PASS
+startup persistence errors none
 ```
 
 Canonical evidence:
@@ -181,8 +245,6 @@ Canonical evidence:
 ```text
 docs/livingworld/VALIDATION_0.1.12.md
 ```
-
-`0.1.12+1.21.1` superseded `0.1.11+1.21.1` as the latest live-server checkpoint.
 
 ---
 
@@ -258,7 +320,7 @@ docs/livingworld/VALIDATION_0.1.11.md
 
 ## Post-0.1.10 — Working Memory and Semantic Memory foundation
 
-**Status:** PR #46 merged, CI validated, later live-validated by `0.1.11` and `0.1.12`.
+**Status:** PR #46 merged, CI validated, later live-validated by `0.1.11`, `0.1.12` and `0.1.13`.
 
 Working Memory introduced bounded turn-local composition:
 
