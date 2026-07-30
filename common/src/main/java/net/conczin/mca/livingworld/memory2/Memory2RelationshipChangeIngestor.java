@@ -21,7 +21,17 @@ public final class Memory2RelationshipChangeIngestor {
             long createdAtEpochMillis
     ) {
         if (!enabled) return;
-        record(worldRoot, npcId, playerId, gameTime, change, maxEventsPerNpc, createdAtEpochMillis);
+        record(
+                worldRoot,
+                npcId,
+                playerId,
+                gameTime,
+                change,
+                maxEventsPerNpc,
+                true,
+                maxEventsPerNpc,
+                createdAtEpochMillis
+        );
     }
 
     public static void recordIfEnabled(
@@ -59,7 +69,17 @@ public final class Memory2RelationshipChangeIngestor {
             int maxEventsPerNpc,
             long createdAtEpochMillis
     ) {
-        record(worldRoot, npcId, playerId, gameTime, change, maxEventsPerNpc, false, 1, createdAtEpochMillis);
+        record(
+                worldRoot,
+                npcId,
+                playerId,
+                gameTime,
+                change,
+                maxEventsPerNpc,
+                true,
+                maxEventsPerNpc,
+                createdAtEpochMillis
+        );
     }
 
     public static void record(
