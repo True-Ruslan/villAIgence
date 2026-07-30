@@ -17,6 +17,8 @@ import net.conczin.mca.livingworld.ai.AiProviderSettings;
 import net.conczin.mca.livingworld.ai.ChatCompletionResponseParser;
 import net.conczin.mca.livingworld.ai.ChatCompletionRetryPolicy;
 import net.conczin.mca.livingworld.ai.LivingWorldAI;
+import net.conczin.mca.livingworld.ai.ProviderEndpoint;
+import net.conczin.mca.livingworld.ai.ProviderEndpointPolicy;
 import net.conczin.mca.livingworld.ai.StructuredAiResponseParser;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
 import net.conczin.mca.livingworld.memory.PersistentChatMemory;
@@ -56,16 +58,31 @@ public class OpenAIChatAI implements ChatAIStrategy {
         return phrase.replace("_", " ").toLowerCase(Locale.ROOT).replace("mca.", "");
     }
 
-    private static HttpURLConnection getHttpURLConnection(String url, String token, int connectTimeoutMillis, int readTimeoutMillis) throws IOException {
-        HttpURLConnection con = (HttpURLConnection) URI.create(url).toURL().openConnection();
+    static HttpURLConnection getHttpURLConnection(
+            ProviderEndpoint endpoint,
+            int connectTimeoutMillis,
+            int readTimeoutMillis
+    ) throws IOException {
+        HttpURLConnection con = (HttpURLConnection) endpoint.uri().toURL().openConnection();
+        con.setInstanceFollowRedirects(false);
         con.setRequestMethod("POST");
         con.setRequestProperty("Accept-Charset", StandardCharsets.UTF_8.toString());
         con.setRequestProperty("Content-Type", "application/json");
         con.setRequestProperty("Accept", "application/json");
-        con.setRequestProperty("Authorization", "Bearer " + token);
         con.setConnectTimeout(connectTimeoutMillis);
         con.setReadTimeout(readTimeoutMillis);
         con.setDoOutput(true);
+        return con;
+    }
+
+    private static HttpURLConnection getHttpURLConnection(
+            ProviderEndpoint endpoint,
+            String token,
+            int connectTimeoutMillis,
+            int readTimeoutMillis
+    ) throws IOException {
+        HttpURLConnection con = getHttpURLConnection(endpoint, connectTimeoutMillis, readTimeoutMillis);
+        con.setRequestProperty("Authorization", "Bearer " + token);
         return con;
     }
 
@@ -108,7 +125,14 @@ public class OpenAIChatAI implements ChatAIStrategy {
     }
 
     public static Answer post(String url, String requestBody, String token) {
-        return post(url, requestBody, token, DEFAULT_CONNECT_TIMEOUT_MILLIS, DEFAULT_READ_TIMEOUT_MILLIS, "<unspecified>");
+        return post(
+                ProviderEndpointPolicy.parse(url, false),
+                requestBody,
+                token,
+                DEFAULT_CONNECT_TIMEOUT_MILLIS,
+                DEFAULT_READ_TIMEOUT_MILLIS,
+                "<unspecified>"
+        );
     }
 
     private static Answer post(AiProviderSettings settings, String requestBody, String token) {
@@ -123,7 +147,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
     }
 
     private static Answer post(
-            String url,
+            ProviderEndpoint endpoint,
             String requestBody,
             String token,
             int connectTimeoutMillis,
@@ -131,7 +155,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
             String model
     ) {
         for (int attempt = 1; attempt <= ChatCompletionRetryPolicy.MAX_ATTEMPTS; attempt++) {
-            ParsedProviderAnswer result = postOnce(url, requestBody, token, connectTimeoutMillis, readTimeoutMillis);
+            ParsedProviderAnswer result = postOnce(endpoint, requestBody, token, connectTimeoutMillis, readTimeoutMillis);
             Answer answer = result.answer();
             ChatCompletionResponseParser.ParsedCompletion completion = result.completion();
 
@@ -154,14 +178,14 @@ public class OpenAIChatAI implements ChatAIStrategy {
     }
 
     private static ParsedProviderAnswer postOnce(
-            String url,
+            ProviderEndpoint endpoint,
             String requestBody,
             String token,
             int connectTimeoutMillis,
             int readTimeoutMillis
     ) {
         try {
-            HttpURLConnection con = getHttpURLConnection(url, token, connectTimeoutMillis, readTimeoutMillis);
+            HttpURLConnection con = getHttpURLConnection(endpoint, token, connectTimeoutMillis, readTimeoutMillis);
             try (DataOutputStream out = new DataOutputStream(con.getOutputStream())) {
                 out.write(requestBody.getBytes(StandardCharsets.UTF_8));
             }
@@ -276,7 +300,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
             Config config = Config.getInstance();
             LivingWorldConfig livingWorld = LivingWorldConfig.getInstance();
             AiProviderSettings provider = LivingWorldAI.resolveChatProviderSettings();
-            boolean isInHouse = provider.endpoint().contains("conczin.net");
+            boolean isInHouse = provider.endpoint().trustedConczin();
             boolean persistent = livingWorld.isConfigured() && livingWorld.persistentMemoryEnabled;
             String playerName = Messenger.getName(player);
             String villagerName = villager.getName().getString();
@@ -376,7 +400,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
             Config config = Config.getInstance();
             LivingWorldConfig livingWorld = LivingWorldConfig.getInstance();
             AiProviderSettings provider = LivingWorldAI.resolveChatProviderSettings();
-            boolean isInHouse = provider.endpoint().contains("conczin.net");
+            boolean isInHouse = provider.endpoint().trustedConczin();
             boolean persistent = livingWorld.isConfigured() && livingWorld.persistentMemoryEnabled;
             List<Tuple<String, String>> pastDialogue = loadDialogue(snapshot, persistent);
 
