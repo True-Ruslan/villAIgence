@@ -84,7 +84,7 @@ Update PROJECT_STATE / CHANGELOG / security audit status
 - record the correction concerning inherited Python scripts;
 - define findings, limitations and closure rules;
 - define this ordered implementation plan;
-- create a GitHub tracking issue for the implementation work.
+- add a versioned implementation tracker because GitHub Issues are disabled for this repository.
 
 ### Acceptance criteria
 
