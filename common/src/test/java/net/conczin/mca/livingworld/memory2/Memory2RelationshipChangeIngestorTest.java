@@ -57,4 +57,40 @@ class Memory2RelationshipChangeIngestorTest {
 
         assertEquals(List.of(), MemoryEventStore.forWorld(tempDir).getRecent(npc, 16));
     }
+
+    @Test
+    void enabledSemanticIngestionWritesLinkedFactIdempotently() {
+        UUID npc = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        LivingWorldRelationshipChange change = LivingWorldRelationshipChange.between(
+                LivingWorldRelationshipState.NEUTRAL,
+                new LivingWorldRelationshipState(2, 1, 0, -1)
+        );
+
+        Memory2RelationshipChangeIngestor.record(tempDir, npc, player, 100L, change, 16, true, 16, 1000L);
+        Memory2RelationshipChangeIngestor.record(tempDir, npc, player, 100L, change, 16, true, 16, 9000L);
+
+        List<MemoryEvent> episodes = MemoryEventStore.forWorld(tempDir).getRecent(npc, 16);
+        List<SemanticMemoryEntry> semantics = SemanticMemoryStore.forWorld(tempDir).getRecent(npc, 16);
+        assertEquals(1, episodes.size());
+        assertEquals(1, semantics.size());
+        assertEquals(SemanticMemoryEntry.Kind.FACT, semantics.getFirst().kind());
+        assertEquals(List.of(episodes.getFirst().id()), semantics.getFirst().sourceEventIds());
+        assertEquals(episodes.getFirst().summary(), semantics.getFirst().statement());
+    }
+
+    @Test
+    void semanticDisabledKeepsRelationshipEpisodeOnly() {
+        UUID npc = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        LivingWorldRelationshipChange change = LivingWorldRelationshipChange.between(
+                LivingWorldRelationshipState.NEUTRAL,
+                new LivingWorldRelationshipState(1, 0, 0, 0)
+        );
+
+        Memory2RelationshipChangeIngestor.record(tempDir, npc, player, 100L, change, 16, false, 16, 1000L);
+
+        assertEquals(1, MemoryEventStore.forWorld(tempDir).getRecent(npc, 16).size());
+        assertEquals(List.of(), SemanticMemoryStore.forWorld(tempDir).getRecent(npc, 16));
+    }
 }
