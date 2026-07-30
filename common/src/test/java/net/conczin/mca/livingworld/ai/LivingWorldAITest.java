@@ -11,7 +11,7 @@ class LivingWorldAITest {
     @Test
     void configuredLivingWorldSettingsWinOverLegacyMcaSettings() {
         AiProviderSettings livingWorld = new AiProviderSettings(
-                "https://api.openai.com/v1/chat/completions",
+                ProviderEndpointPolicy.parse("https://api.openai.com/v1/chat/completions", false),
                 "gpt-4.1-mini",
                 "sk-test",
                 10_000,
@@ -20,7 +20,7 @@ class LivingWorldAITest {
                 false
         );
         AiProviderSettings legacy = new AiProviderSettings(
-                "https://legacy.example/chat",
+                ProviderEndpointPolicy.parse("https://legacy.example/chat", false),
                 "legacy-model",
                 "legacy-token",
                 10_000,
@@ -33,6 +33,17 @@ class LivingWorldAITest {
         assertSame(legacy, LivingWorldAI.selectSettings(false, livingWorld, legacy));
         assertFalse(livingWorld.includeMessageNames());
         assertTrue(legacy.includeMessageNames());
+        assertEquals("api.openai.com", livingWorld.endpoint().host());
+    }
+
+    @Test
+    void trustedLegacyHostUsesNormalizedHostBoundary() {
+        ProviderEndpoint trusted = ProviderEndpointPolicy.parse("https://api.conczin.net/chat", false);
+        ProviderEndpoint lookalike = ProviderEndpointPolicy.parse("https://conczin.net.example.invalid/chat", false);
+
+        assertTrue(LivingWorldAI.shouldUsePlayerNameAsToken(trusted, ""));
+        assertFalse(LivingWorldAI.shouldUsePlayerNameAsToken(lookalike, "legacy-token"));
+        assertFalse(lookalike.trustedConczin());
     }
 
     @Test
