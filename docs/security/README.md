@@ -6,6 +6,7 @@ This directory contains the canonical security-review evidence and hardening pla
 
 - [`SECURITY_AUDIT_2026-07-31.md`](SECURITY_AUDIT_2026-07-31.md) — source, runtime-boundary and supply-chain audit recorded against branch `1.21.1` at commit `c45aea45dd915b24ba236344feef30559c7171bb`.
 - [`STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md`](STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md) — ordered implementation plan for the first security and supply-chain hardening workstream.
+- [`STEP_1_TRACKER.md`](STEP_1_TRACKER.md) — versioned execution checklist. GitHub Issues are disabled for this repository, so progress is tracked here.
 
 ## Status
 
@@ -29,8 +30,8 @@ Documentation alone does not close a finding.
 
 When continuing security work:
 
-1. read the latest audit and hardening plan;
+1. read the latest audit, hardening plan and tracker;
 2. reconcile them with current branch HEAD, open PRs, CI and releases;
 3. inspect any new scripts, workflows, dependencies and network-capable code;
-4. continue from the first incomplete work package;
-5. update the audit status and project state after material progress.
+4. continue from the first incomplete tracker item;
+5. update the tracker, audit status and project state after material progress.
