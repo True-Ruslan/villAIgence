@@ -12,6 +12,7 @@ GitHub Issues are disabled for this repository, so this versioned checklist is t
 - [x] Correct the earlier claim that the repository contained no Python scripts.
 - [x] Document audit coverage limitations.
 - [x] Define ordered work packages, tests, rollout and closure criteria.
+- [x] Validate the planning PR with both required CI workflows.
 - [ ] Merge the planning PR.
 
 ## H1 — Provider endpoint and credential policy
@@ -43,67 +44,61 @@ GitHub Issues are disabled for this repository, so this versioned checklist is t
 ## H3 — Supply-chain verification
 
 - [ ] Move Fabric Loom from snapshot to a stable compatible release.
-- [ ] Add the official Gradle wrapper distribution SHA-256.
-- [ ] Add Gradle wrapper validation.
-- [ ] Add dependency verification metadata.
-- [ ] Add dependency locking where compatible.
-- [ ] Restrict Maven repositories with content filters.
-- [ ] Pin third-party GitHub Actions to full commit SHAs.
-- [ ] Generate a release dependency inventory or SBOM.
-- [ ] Document controlled dependency updates.
+- [ ] Add the official Gradle wrapper distribution checksum.
+- [ ] Add Gradle wrapper validation to CI.
+- [ ] Commit dependency verification metadata.
+- [ ] Enable dependency locking where compatible.
+- [ ] Restrict third-party Maven repository content.
+- [ ] Pin GitHub Actions to full commit SHAs.
+- [ ] Produce an SBOM or equivalent dependency manifest for releases.
+- [ ] Document dependency-update and metadata-refresh procedure.
 - [ ] Record closing commits and evidence for SEC-005.
 
-## H4 — CI security coverage and supported build matrix
+## H4 — CI security coverage and build matrix
 
-- [ ] Add NeoForge build coverage to required CI.
-- [ ] Retain common tests and Fabric package verification.
+- [ ] Add NeoForge build to required CI.
+- [ ] Retain common tests and Fabric packaging checks.
 - [ ] Add secret scanning.
-- [ ] Add maintained Java/Gradle static analysis.
-- [ ] Add deterministic complete-tree script/workflow inventory checks.
+- [ ] Add Java/Gradle static security analysis.
+- [ ] Add deterministic recursive script inventory.
+- [ ] Block undocumented executable or network-capable utilities.
 - [ ] Keep CI permissions least-privilege.
-- [ ] Keep release write permission isolated to the release job.
-- [ ] Confirm documentation-only PR performance remains acceptable.
-- [ ] Record closing commits and evidence for SEC-006 and automated SEC-009 controls.
+- [ ] Keep release write access isolated to the release job.
+- [ ] Record closing commits and evidence for SEC-006 and part of SEC-009.
 
 ## H5 — Legacy tools cleanup and audit closure
 
-- [ ] Generate a recursive manifest for the exact repository commit.
-- [ ] Classify all executable and network-capable scripts.
-- [ ] Remove `scripts/pirate_translator.py` if it is not required.
-- [ ] Otherwise isolate and harden it with timeout, size limit, bounded concurrency and a disclosure warning.
-- [ ] Confirm no unexpected Python invocation in build, CI or release paths.
-- [ ] Rerun complete-tree secret and dependency scans.
-- [ ] Update the dated audit with exact closing commits and residual risks.
-- [ ] Record final states for SEC-008 and SEC-009.
+- [ ] Generate the recursive manifest for the closing commit.
+- [ ] Classify every executable and network-capable script.
+- [ ] Remove `scripts/pirate_translator.py`, unless a documented maintenance need is proven.
+- [ ] If retained, harden and isolate the translator with mocked-network tests.
+- [ ] Confirm no unexpected Python invocation from build, CI or release paths.
+- [ ] Add an approved script inventory document.
+- [ ] Rerun whole-tree secret and dependency scans.
+- [ ] Update the audit with exact closing commits and residual risk.
+- [ ] Record closing evidence for SEC-008 and SEC-009.
 
-## Cross-cutting validation
+## Final CI and live validation
 
-- [ ] Common tests pass.
-- [ ] Fabric build and release-package checks pass.
+- [ ] Common unit tests pass.
+- [ ] Fabric build/package passes.
 - [ ] NeoForge build passes.
-- [ ] Wrapper and dependency verification pass from a fresh cache.
-- [ ] Hostile-response integration tests pass.
-- [ ] No secrets or authorization data appear in logs.
-- [ ] Release JAR, checksum and dependency inventory are generated together.
-- [ ] Controlled Minecraft 1.21.1 server smoke test passes.
-- [ ] Runtime configuration migration notes are complete.
-- [ ] `docs/PROJECT_STATE.md` is updated.
-- [ ] `docs/CHANGELOG.md` is updated.
-- [ ] The security audit is updated with evidence and residual risk.
+- [ ] Wrapper and dependency verification pass.
+- [ ] Secret/static/script inventory checks pass.
+- [ ] Standard OpenRouter/OpenAI configuration works.
+- [ ] Invalid HTTP/lookalike endpoints fail safely.
+- [ ] Explicit loopback development mode works as documented.
+- [ ] Text Chat persists exactly once.
+- [ ] Voice STT/TTS pipeline remains operational.
+- [ ] TTS failure preserves text output.
+- [ ] Logs contain no credentials, authorization headers, prompts or transcripts.
+- [ ] Persistent world files remain stable across restart where no mutation is expected.
+- [ ] Release JAR, checksum and dependency manifest are retained as validation evidence.
 
-## Completion
+## Documentation closure
 
-- [ ] SEC-001 has a final evidence-backed state.
-- [ ] SEC-002 has a final evidence-backed state.
-- [ ] SEC-003 has a final evidence-backed state.
-- [ ] SEC-004 has a final evidence-backed state.
-- [ ] SEC-005 has a final evidence-backed state.
-- [ ] SEC-006 has a final evidence-backed state.
-- [ ] SEC-007 has a final evidence-backed state.
-- [ ] SEC-008 has a final evidence-backed state.
-- [ ] SEC-009 has a final evidence-backed state.
-- [ ] Step 1 is marked complete in the project state only after live validation.
-
-## Separate existing obligation
-
-The pending live validation of deterministic Semantic Memory forgetting/decay remains separate. This tracker must not mark that release checkpoint complete.
+- [ ] Update `docs/security/SECURITY_AUDIT_2026-07-31.md` finding statuses.
+- [ ] Update `docs/PROJECT_STATE.md`.
+- [ ] Update `docs/CHANGELOG.md`.
+- [ ] Add the hardening validation document.
+- [ ] Mark Step 1 complete only after code, CI and live evidence all exist.
