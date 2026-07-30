@@ -8,12 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class Memory2ConfigTest {
     @Test
-    void defaultsEnableBoundedMemory2AndSemanticIngestion() {
+    void defaultsEnableBoundedMemory2Ingestion() {
         LivingWorldConfig config = new LivingWorldConfig();
         assertTrue(config.memory2Enabled);
         assertEquals(256, config.memory2MaxEventsPerNpc);
-        assertTrue(config.semanticMemoryEnabled);
-        assertEquals(128, config.semanticMemoryMaxEntriesPerNpc);
     }
 
     @Test
@@ -22,24 +20,18 @@ class Memory2ConfigTest {
                 {
                   "version": 2,
                   "memory2Enabled": false,
-                  "memory2MaxEventsPerNpc": 9999,
-                  "semanticMemoryEnabled": false,
-                  "semanticMemoryMaxEntriesPerNpc": 9999
+                  "memory2MaxEventsPerNpc": 9999
                 }
                 """);
         assertFalse(disabled.memory2Enabled);
         assertEquals(512, disabled.memory2MaxEventsPerNpc);
-        assertFalse(disabled.semanticMemoryEnabled);
-        assertEquals(512, disabled.semanticMemoryMaxEntriesPerNpc);
 
         LivingWorldConfig minimum = LivingWorldConfig.parseJson("""
                 {
                   "version": 2,
-                  "memory2MaxEventsPerNpc": 0,
-                  "semanticMemoryMaxEntriesPerNpc": 0
+                  "memory2MaxEventsPerNpc": 0
                 }
                 """);
         assertEquals(1, minimum.memory2MaxEventsPerNpc);
-        assertEquals(1, minimum.semanticMemoryMaxEntriesPerNpc);
     }
 }
