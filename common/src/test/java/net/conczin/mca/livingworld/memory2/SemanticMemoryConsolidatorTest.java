@@ -41,6 +41,17 @@ class SemanticMemoryConsolidatorTest {
     }
 
     @Test
+    void keepsSingleSourcedEntryIdentityUntilCorroborated() {
+        UUID npc = UUID.randomUUID();
+        SemanticMemoryEntry entry = fact(
+                UUID.randomUUID(), npc, "Single observation", List.of(npc),
+                10L, 20L, 50, 100, List.of(UUID.randomUUID())
+        );
+
+        assertEquals(List.of(entry), SemanticMemoryConsolidator.consolidateAll(List.of(entry)));
+    }
+
+    @Test
     void keepsTruthProvenanceEntityAndSourceBoundariesSeparate() {
         UUID npc = UUID.randomUUID();
         UUID playerA = UUID.randomUUID();
