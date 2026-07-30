@@ -1,6 +1,8 @@
 package net.conczin.mca.livingworld.voice;
 
-import java.net.URI;
+import net.conczin.mca.livingworld.ai.ProviderEndpoint;
+import net.conczin.mca.livingworld.ai.ProviderEndpointPolicy;
+
 import java.util.Locale;
 
 /** Transport format used by speech-to-text providers. */
@@ -33,14 +35,17 @@ public enum SttRequestFormat {
         return isOpenRouterEndpoint(endpoint) ? JSON_BASE64 : MULTIPART;
     }
 
+    public SttRequestFormat resolve(ProviderEndpoint endpoint) {
+        if (this != AUTO) return this;
+        return endpoint.family() == ProviderEndpoint.Family.OPENROUTER ? JSON_BASE64 : MULTIPART;
+    }
+
     public static boolean isOpenRouterEndpoint(String endpoint) {
         if (endpoint == null || endpoint.isBlank()) return false;
         try {
-            String host = URI.create(endpoint.trim()).getHost();
-            return host != null && (host.equalsIgnoreCase("openrouter.ai")
-                    || host.toLowerCase(Locale.ROOT).endsWith(".openrouter.ai"));
+            return ProviderEndpointPolicy.parse(endpoint, true).family() == ProviderEndpoint.Family.OPENROUTER;
         } catch (IllegalArgumentException ignored) {
-            return endpoint.toLowerCase(Locale.ROOT).contains("openrouter.ai");
+            return false;
         }
     }
 }
