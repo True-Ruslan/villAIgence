@@ -39,15 +39,97 @@ class SemanticMemoryStoreTest {
     }
 
     @Test
-    void boundsRetentionPerNpcKeepingNewestEntries() {
-        SemanticMemoryStore store = new SemanticMemoryStore(tempDir.resolve("semantic-memory.json"));
+    void retentionPressureKeepsStrongOlderKnowledgeInsteadOfNewestOnly() {
+        Path file = tempDir.resolve("semantic-memory.json");
+        SemanticMemoryStore store = new SemanticMemoryStore(file);
         UUID npc = UUID.randomUUID();
 
-        store.append(entry(UUID.randomUUID(), npc, 100L, "one"), 2);
-        store.append(entry(UUID.randomUUID(), npc, 200L, "two"), 2);
-        store.append(entry(UUID.randomUUID(), npc, 300L, "three"), 2);
+        store.append(fact(UUID.randomUUID(), npc, 100L, "older-strong", 100, 100, List.of(UUID.randomUUID())), 2);
+        store.append(fact(UUID.randomUUID(), npc, 200L, "middle", 50, 50, List.of(UUID.randomUUID())), 2);
+        store.append(fact(UUID.randomUUID(), npc, 300L, "newest-weak", 0, 0, List.of(UUID.randomUUID())), 2);
 
-        assertEquals(List.of("three", "two"), store.getRecent(npc, 10).stream().map(SemanticMemoryEntry::statement).toList());
+        SemanticMemoryStore reloaded = new SemanticMemoryStore(file);
+        assertEquals(
+                List.of("middle", "older-strong"),
+                reloaded.getRecent(npc, 10).stream().map(SemanticMemoryEntry::statement).toList()
+        );
+    }
+
+    @Test
+    void rejectedWeakAppendDoesNotRewriteSemanticFile() throws Exception {
+        Path file = tempDir.resolve("semantic-memory.json");
+        SemanticMemoryStore store = new SemanticMemoryStore(file);
+        UUID npc = UUID.randomUUID();
+
+        store.append(fact(UUID.randomUUID(), npc, 100L, "strong-a", 100, 100, List.of(UUID.randomUUID())), 2);
+        store.append(fact(UUID.randomUUID(), npc, 200L, "strong-b", 90, 90, List.of(UUID.randomUUID())), 2);
+        byte[] before = Files.readAllBytes(file);
+
+        store.append(fact(UUID.randomUUID(), npc, 300L, "rejected-weak", 0, 0, List.of(UUID.randomUUID())), 2);
+        byte[] after = Files.readAllBytes(file);
+
+        assertArrayEquals(before, after);
+        assertEquals(
+                List.of("strong-b", "strong-a"),
+                store.getRecent(npc, 10).stream().map(SemanticMemoryEntry::statement).toList()
+        );
+    }
+
+    @Test
+    void consolidationRunsBeforeForgettingAndCorroborationImprovesRetention() {
+        Path file = tempDir.resolve("semantic-memory.json");
+        SemanticMemoryStore store = new SemanticMemoryStore(file);
+        UUID npc = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        UUID sourceA = UUID.randomUUID();
+        UUID sourceB = UUID.randomUUID();
+        UUID sourceC = UUID.randomUUID();
+        UUID sourceD = UUID.randomUUID();
+
+        store.append(fact(
+                UUID.randomUUID(), npc, 100L, "Village gate open", 60, 60,
+                List.of(sourceA), List.of(npc, player)
+        ), 2);
+        store.append(fact(
+                UUID.randomUUID(), npc, 200L, "village   gate\topen", 60, 60,
+                List.of(sourceB), List.of(player, npc)
+        ), 2);
+        store.append(fact(
+                UUID.randomUUID(), npc, 300L, "single-source-peer", 60, 60,
+                List.of(sourceC), List.of(npc)
+        ), 2);
+        store.append(fact(
+                UUID.randomUUID(), npc, 400L, "newest-weak", 0, 0,
+                List.of(sourceD), List.of(npc)
+        ), 2);
+
+        SemanticMemoryStore reloaded = new SemanticMemoryStore(file);
+        List<SemanticMemoryEntry> entries = reloaded.getRecent(npc, 10);
+        assertEquals(2, entries.size());
+        assertEquals(
+                List.of("single-source-peer", "Village gate open"),
+                entries.stream().map(SemanticMemoryEntry::statement).toList()
+        );
+        SemanticMemoryEntry gate = entries.stream()
+                .filter(value -> value.statement().toLowerCase(Locale.ROOT).contains("village gate open"))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(sortedIds(sourceA, sourceB), gate.sourceEventIds());
+    }
+
+    @Test
+    void retentionPressureRemainsIsolatedPerNpc() {
+        SemanticMemoryStore store = new SemanticMemoryStore(tempDir.resolve("semantic-memory.json"));
+        UUID npcA = UUID.randomUUID();
+        UUID npcB = UUID.randomUUID();
+
+        store.append(fact(UUID.randomUUID(), npcA, 100L, "A-strong", 100, 100, List.of(UUID.randomUUID())), 1);
+        store.append(fact(UUID.randomUUID(), npcA, 200L, "A-weak", 0, 0, List.of(UUID.randomUUID())), 1);
+        store.append(fact(UUID.randomUUID(), npcB, 100L, "B-weak", 0, 0, List.of(UUID.randomUUID())), 1);
+        store.append(fact(UUID.randomUUID(), npcB, 200L, "B-strong", 100, 100, List.of(UUID.randomUUID())), 1);
+
+        assertEquals(List.of("A-strong"), store.getRecent(npcA, 10).stream().map(SemanticMemoryEntry::statement).toList());
+        assertEquals(List.of("B-strong"), store.getRecent(npcB, 10).stream().map(SemanticMemoryEntry::statement).toList());
     }
 
     @Test
@@ -185,6 +267,31 @@ class SemanticMemoryStoreTest {
             List<UUID> relatedEntities,
             UUID sourceId
     ) {
+        return fact(id, owner, gameTime, statement, 70, 100, List.of(sourceId), relatedEntities);
+    }
+
+    private static SemanticMemoryEntry fact(
+            UUID id,
+            UUID owner,
+            long gameTime,
+            String statement,
+            int importance,
+            int confidence,
+            List<UUID> sourceIds
+    ) {
+        return fact(id, owner, gameTime, statement, importance, confidence, sourceIds, List.of(owner));
+    }
+
+    private static SemanticMemoryEntry fact(
+            UUID id,
+            UUID owner,
+            long gameTime,
+            String statement,
+            int importance,
+            int confidence,
+            List<UUID> sourceIds,
+            List<UUID> relatedEntities
+    ) {
         return new SemanticMemoryEntry(
                 id,
                 owner,
@@ -194,9 +301,9 @@ class SemanticMemoryStoreTest {
                 MemoryEvent.Provenance.SYSTEM_OBSERVED,
                 gameTime,
                 1_700_000_000_000L + gameTime,
-                70,
-                100,
-                List.of(sourceId)
+                importance,
+                confidence,
+                sourceIds
         );
     }
 
