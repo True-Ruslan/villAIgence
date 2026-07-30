@@ -1,6 +1,5 @@
 package net.conczin.mca.livingworld.memory2;
 
-import com.google.gson.GsonBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -9,10 +8,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -103,14 +101,7 @@ class SemanticMemoryStoreTest {
         SemanticMemoryEntry second = sourcedEntry(
                 UUID.randomUUID(), npc, 200L, "market is open", List.of(player, npc), sourceB
         );
-        Map<String, Object> root = new LinkedHashMap<>();
-        root.put("version", 1);
-        root.put("entriesByNpc", Map.of(npc.toString(), List.of(first, second)));
-        Files.writeString(
-                file,
-                new GsonBuilder().setPrettyPrinting().create().toJson(root),
-                StandardCharsets.UTF_8
-        );
+        Files.writeString(file, semanticFileJson(npc, List.of(first, second)), StandardCharsets.UTF_8);
 
         SemanticMemoryStore reloaded = new SemanticMemoryStore(file);
         List<SemanticMemoryEntry> entries = reloaded.getRecent(npc, 8);
@@ -132,6 +123,39 @@ class SemanticMemoryStoreTest {
 
         SemanticMemoryStore reloaded = new SemanticMemoryStore(file);
         assertEquals(List.of("recovered"), reloaded.getRecent(npc, 8).stream().map(SemanticMemoryEntry::statement).toList());
+    }
+
+    private static String semanticFileJson(UUID npc, List<SemanticMemoryEntry> entries) {
+        String values = entries.stream()
+                .map(SemanticMemoryStoreTest::entryJson)
+                .collect(Collectors.joining(","));
+        return "{\"version\":1,\"entriesByNpc\":{\"" + npc + "\":[" + values + "]}}";
+    }
+
+    private static String entryJson(SemanticMemoryEntry entry) {
+        return "{"
+                + "\"id\":\"" + entry.id() + "\","
+                + "\"ownerNpcId\":\"" + entry.ownerNpcId() + "\","
+                + "\"kind\":\"" + entry.kind() + "\","
+                + "\"statement\":\"" + escapeJson(entry.statement()) + "\","
+                + "\"relatedEntities\":" + idArrayJson(entry.relatedEntities()) + ","
+                + "\"provenance\":\"" + entry.provenance() + "\","
+                + "\"gameTime\":" + entry.gameTime() + ","
+                + "\"createdAtEpochMillis\":" + entry.createdAtEpochMillis() + ","
+                + "\"importance\":" + entry.importance() + ","
+                + "\"confidence\":" + entry.confidence() + ","
+                + "\"sourceEventIds\":" + idArrayJson(entry.sourceEventIds())
+                + "}";
+    }
+
+    private static String idArrayJson(List<UUID> values) {
+        return values.stream()
+                .map(value -> "\"" + value + "\"")
+                .collect(Collectors.joining(",", "[", "]"));
+    }
+
+    private static String escapeJson(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private static SemanticMemoryEntry entry(UUID id, UUID owner, long gameTime, String statement) {
