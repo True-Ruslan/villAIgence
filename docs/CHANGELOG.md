@@ -1,10 +1,126 @@
 # VillAIgence Changelog
 
-> Human-readable development and validation history. For the exact current implementation state and next priority, read `docs/PROJECT_STATE.md`. For long-term direction, read `docs/ROADMAP.md`.
+> Human-readable development and validation history. For exact current implementation state and next priority, read `docs/PROJECT_STATE.md`. For long-term direction, read `docs/ROADMAP.md`.
+
+## 0.1.11+1.21.1 — Working Memory live-server checkpoint
+
+**Status:** live-tested successfully on a real Minecraft 1.21.1 server after restart.
+
+**Validation date:** 2026-07-30
+
+### What this checkpoint validates
+
+`0.1.11+1.21.1` is the first live checkpoint covering the Working Memory and Semantic Memory foundation introduced after `0.1.10`.
+
+The test covered:
+
+- repeated text dialogue beyond Working Memory bounds;
+- NPC A / NPC B identity and memory isolation;
+- distinction between durable rolling dialogue and bounded prompt history;
+- complete episodic Memory 2.0 retention;
+- UUID and logical duplicate safety;
+- voice dialogue, Simple Voice Chat and Opus;
+- bounded OpenRouter retry recovery;
+- restart-safe byte-stable persistence;
+- expected absence of `semantic-memory.json` before semantic producers exist;
+- server, monitor and required ports.
+
+### Observed results
+
+```text
+NPC A / NPC B UUID isolation                            PASS
+NPC-owned memory isolation                              PASS
+Post-restart routing to NPC A                           PASS
+
+memory.json total messages: 86                          OBSERVED
+NPC A durable rolling history: latest 16                PASS
+NPC A prompt history: latest 12                         PASS
+Dialogue continuity after prompt bound                  PASS
+
+memory2.json events: 21                                 OBSERVED
+UUID duplicates: 0                                      PASS
+Logical fingerprint duplicates: 0                       PASS
+Full episodic history retained                          PASS
+
+semantic-memory.json absent                             EXPECTED / PASS
+
+Three independent voice turns                           PASS
+Simple Voice Chat / Opus                                PASS
+STT errors: none                                        PASS
+TTS errors: none                                        PASS
+Separate NPC A / NPC B voice profiles                   PASS
+Existing voice profiles preserved                       PASS
+
+One OpenRouter retry recovered                          PASS
+Fallback required: no                                   PASS
+
+Memory files byte-identical before/after restart        PASS
+Server running 0.1.11                                   PASS
+Monitor running                                         PASS
+25565/UDP healthy                                       PASS
+24454/UDP healthy                                       PASS
+```
+
+### Working Memory evidence
+
+The release demonstrated the intended separation:
+
+```text
+memory.json
+→ durable rolling conversation history
+→ latest 16 messages retained for tested NPC A conversation
+
+Working Memory prompt
+→ latest 12 messages selected for the current AI turn
+```
+
+The prompt bound did not break conversation continuity.
+
+Working Memory truncation also did not truncate `memory2.json`; all 21 episodic events remained present and unique.
+
+### Semantic Memory boundary
+
+`semantic-memory.json` was absent and this was accepted as correct behavior.
+
+The release contains the typed Semantic Memory model, storage and retrieval foundation, but does not yet contain automatic semantic producers or LLM semantic extraction. Therefore absence of the file is expected until controlled ingestion is implemented.
+
+### Provider and voice reliability
+
+One transient OpenRouter condition required a retry. The bounded retry recovered successfully without fallback, duplicate memory side effects or server failure.
+
+Three voice turns each produced an independent NPC response. Voice Chat, Opus, STT and TTS remained healthy before and after restart.
+
+### Canonical evidence
+
+```text
+docs/livingworld/VALIDATION_0.1.11.md
+```
+
+### Development consequence
+
+`0.1.11+1.21.1` supersedes `0.1.10+1.21.1` as the latest confirmed live-server checkpoint.
+
+The next implementation slice is controlled, provenance-preserving Semantic Memory ingestion:
+
+```text
+server-owned evidence
+→ FACT / SYSTEM_OBSERVED
+
+explicit told or inferred source
+→ BELIEF / preserved provenance
+```
+
+Arbitrary LLM prose must never be promoted into an authoritative FACT.
+
+### Release metadata note
+
+A later attempted `0.1.12+1.21.1` release workflow run failed before Gradle because `0.1.11+1.21.1` and `0.1.12+1.21.1` both pointed at the same commit. `0.1.12` is not a successful release checkpoint and its tag must be corrected before another release attempt.
+
+---
 
 ## Post-0.1.10 — Working Memory + Semantic Memory foundation
 
-**Status:** merged and automated-CI validated in PR #46; dedicated real-server validation is still pending.
+**Status:** merged and automated-CI validated in PR #46; subsequently live-validated by `0.1.11+1.21.1`.
 
 ### What changed
 
@@ -23,7 +139,7 @@ Typed knowledge
    └── BELIEF
 ```
 
-Working Memory now provides hard turn-local bounds for persistent dialogue and long-term context:
+Working Memory provides hard turn-local bounds:
 
 ```text
 recent persistent dialogue messages = 12
@@ -47,7 +163,7 @@ BELIEF → PLAYER_TOLD / NPC_TOLD / INFERRED only
 
 Confidence never converts a BELIEF into a FACT.
 
-Semantic storage/retrieval now supports:
+Semantic storage/retrieval supports:
 
 - per-NPC isolation;
 - bounded retention;
@@ -65,9 +181,9 @@ PR #46 intentionally does **not** add automatic semantic producers.
 Therefore:
 
 - arbitrary dialogue is not automatically converted into semantic knowledge;
-- LLM prose cannot silently become a `FACT`;
-- `semantic-memory.json` may legitimately remain absent/empty until controlled producers are implemented;
-- embeddings/vector DB, decay, consolidation, legacy migration and rumor propagation remain future work.
+- LLM prose cannot silently become a FACT;
+- `semantic-memory.json` may legitimately remain absent or empty;
+- embeddings, vector DB, decay, consolidation, legacy migration and rumor propagation remain future work.
 
 Existing provider parsing/retry, action execution, relationship persistence and post-success Memory 2.0 dialogue ingestion semantics were not changed by this slice.
 
@@ -84,11 +200,11 @@ VillAIgence CI #687 / 29950014730 → SUCCESS
 Java Pull Request CI #276 / 29950015077 → SUCCESS
 ```
 
-The TDD RED contract was previously confirmed by `VillAIgence CI #651 / 29949058071`, which failed because the new production semantic/working-memory types did not yet exist.
+The TDD RED contract was confirmed by `VillAIgence CI #651 / 29949058071`, which failed because the new production semantic and working-memory types did not yet exist.
 
 ### Development consequence
 
-The immediate next checkpoint is **real-server validation of PR #46**. After that, the next implementation slice should add controlled provenance-preserving Semantic Memory ingestion, beginning with server-owned evidence for `FACT`, before duplicate/consolidation and forgetting/decay.
+The architecture foundation is now both CI-validated and live-server validated. The next priority is controlled semantic ingestion, followed by deterministic consolidation and forgetting/decay.
 
 ---
 
@@ -98,7 +214,7 @@ The immediate next checkpoint is **real-server validation of PR #46**. After tha
 
 ### What changed
 
-- ordinary OpenAI text dialogue and snapshot/voice dialogue now share one post-success Memory 2.0 ingestion lifecycle;
+- ordinary OpenAI text dialogue and snapshot/voice dialogue share one post-success Memory 2.0 ingestion lifecycle;
 - both successful text and voice turns create bounded/idempotent `DIALOGUE` MemoryEvents;
 - NPC memory remains isolated by NPC UUID;
 - classic text provider/prompt/tools/relationship semantics were not rerouted through the snapshot-aware provider path;
@@ -106,18 +222,6 @@ The immediate next checkpoint is **real-server validation of PR #46**. After tha
 - legacy `memory.json` remains active alongside `memory2.json`.
 
 ### Live validation evidence
-
-The release was tested with the intended parity scenario:
-
-```text
-Text  → NPC A → DIALOGUE Memory 2.0 event
-Voice → NPC A → DIALOGUE Memory 2.0 event
-Text  → NPC B → separate NPC-owned Memory 2.0 event
-Restart server
-Return to NPC A
-```
-
-Observed result:
 
 ```text
 Text → NPC A: DIALOGUE                              PASS
@@ -133,25 +237,7 @@ Voice/STT/TTS pipeline unchanged                    PASS
 Server / monitor / required ports healthy           PASS
 ```
 
-This closes the text/voice Memory 2.0 ingestion parity regression discovered during the preceding `0.1.9`-era live test.
-
-### Architecture preserved
-
-```text
-classic OpenAI text ─┐
-                      ├→ Memory2DialogueLifecycle
-snapshot/voice ──────┘
-                      → Memory2DialogueIngestor
-                      → bounded/idempotent DIALOGUE MemoryEvent
-```
-
-The patch did not change:
-
-- `OpenAIChatAI` provider/parser/retry behavior;
-- STT/TTS pipeline;
-- persistent schemas or config version;
-- relationship/action semantics;
-- Inworld/non-OpenAI classic path.
+This closed the text/voice Memory 2.0 ingestion parity regression discovered during the preceding `0.1.9`-era live test.
 
 ### Git/CI anchors
 
@@ -166,11 +252,13 @@ VillAIgence CI 29938941710 → SUCCESS
 Java Pull Request CI 29938941839 → SUCCESS
 ```
 
-Validated CI scope included unit tests, Fabric build, distributable Fabric package verification, NeoForge build and Fabric compatibility build.
+Canonical evidence:
 
-### Development consequence
+```text
+docs/livingworld/VALIDATION_0.1.10.md
+```
 
-`0.1.10+1.21.1` remains the latest **live-validated** checkpoint. PR #46 is newer code, but is currently only merged + automated-CI validated until a dedicated real-server test is completed.
+`0.1.10+1.21.1` remains an important historical parity checkpoint but is superseded by the broader `0.1.11` live validation.
 
 ---
 
