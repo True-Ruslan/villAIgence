@@ -4,6 +4,7 @@ import net.conczin.mca.livingworld.knowledge.WorldEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
@@ -52,6 +53,51 @@ class Memory2WorldEventIngestorTest {
         Memory2WorldEventIngestor.record(tempDir, invalid, 10, 1L);
 
         assertEquals(List.of(), MemoryEventStore.forWorld(tempDir).getRecent(UUID.randomUUID(), 10));
+    }
+
+    @Test
+    void enabledSemanticIngestionWritesLinkedFactIdempotently() {
+        UUID actor = UUID.randomUUID();
+        WorldEvent event = event(UUID.randomUUID(), actor, 10L, "performed an action");
+
+        Memory2WorldEventIngestor.record(tempDir, event, 10, true, 10, 100L);
+        Memory2WorldEventIngestor.record(tempDir, event, 10, true, 10, 999L);
+
+        List<MemoryEvent> episodes = MemoryEventStore.forWorld(tempDir).getRecent(actor, 10);
+        List<SemanticMemoryEntry> semantics = SemanticMemoryStore.forWorld(tempDir).getRecent(actor, 10);
+        assertEquals(1, episodes.size());
+        assertEquals(1, semantics.size());
+        assertEquals(SemanticMemoryEntry.Kind.FACT, semantics.getFirst().kind());
+        assertEquals(MemoryEvent.Provenance.SYSTEM_OBSERVED, semantics.getFirst().provenance());
+        assertEquals(List.of(event.id()), semantics.getFirst().sourceEventIds());
+        assertEquals("performed an action", semantics.getFirst().statement());
+    }
+
+    @Test
+    void disabledSemanticIngestionLeavesEpisodicBehaviorUnchanged() {
+        UUID actor = UUID.randomUUID();
+        WorldEvent event = event(UUID.randomUUID(), actor, 10L, "episodic only");
+
+        Memory2WorldEventIngestor.record(tempDir, event, 10, false, 10, 100L);
+
+        assertEquals(1, MemoryEventStore.forWorld(tempDir).getRecent(actor, 10).size());
+        assertEquals(List.of(), SemanticMemoryStore.forWorld(tempDir).getRecent(actor, 10));
+    }
+
+    @Test
+    void semanticFailureCannotRollbackEpisodicWrite() throws Exception {
+        UUID actor = UUID.randomUUID();
+        WorldEvent event = event(UUID.randomUUID(), actor, 10L, "durable episode");
+        Files.createDirectories(tempDir.resolve("livingworld").resolve("semantic-memory.json"));
+
+        try {
+            Memory2WorldEventIngestor.record(tempDir, event, 10, true, 10, 100L);
+        } catch (RuntimeException ignored) {
+            // Semantic persistence is auxiliary; either propagation or local handling is acceptable.
+        }
+
+        assertEquals(List.of(event.id()), MemoryEventStore.forWorld(tempDir).getRecent(actor, 10)
+                .stream().map(MemoryEvent::id).toList());
     }
 
     private static WorldEvent event(UUID id, UUID actor, long gameTime, String description) {
