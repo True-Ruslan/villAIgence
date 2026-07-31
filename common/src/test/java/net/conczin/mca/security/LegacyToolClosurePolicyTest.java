@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,6 +20,18 @@ class LegacyToolClosurePolicyTest {
             "scripts/lang_pre_generation.py",
             "scripts/names",
             "scripts/pirate_translator.py",
+            "scripts/requirements.txt",
+            "scripts/skins"
+    );
+
+    private static final List<String> REMOVED_REFERENCE_TOKENS = List.of(
+            "scripts/TTS",
+            "scripts/all.sh",
+            "fetch_contributors.py",
+            "lang_pre_generation.py",
+            "scripts/names",
+            "pirate_translator.py",
+            "scripts/requirements.txt",
             "scripts/skins"
     );
 
@@ -47,16 +61,41 @@ class LegacyToolClosurePolicyTest {
                     "Required approved script is missing: " + required);
         }
 
-        for (String obsolete : List.of(
-                "pirate_translator.py",
-                "fetch_contributors.py",
-                "lang_pre_generation.py",
-                "scripts/TTS/",
-                "scripts/names/",
-                "scripts/skins/"
-        )) {
+        long approvedPathCount = inventory.lines()
+                .filter(line -> line.contains("\"path\":"))
+                .count();
+        assertTrue(approvedPathCount == 5,
+                "Approved script inventory must contain exactly five reviewed launchers");
+
+        for (String obsolete : REMOVED_REFERENCE_TOKENS) {
             assertFalse(inventory.contains(obsolete),
                     "Obsolete utility remains approved: " + obsolete);
+        }
+    }
+
+    @Test
+    void buildCiAndReleaseCannotReferenceRemovedUtilities() throws IOException {
+        Path root = repositoryRoot();
+        List<Path> surfaces = new ArrayList<>(List.of(
+                root.resolve("build.gradle"),
+                root.resolve("settings.gradle"),
+                root.resolve("gradle.properties"),
+                root.resolve("common/build.gradle"),
+                root.resolve("fabric/build.gradle"),
+                root.resolve("neoforge/build.gradle")
+        ));
+        collectFiles(root.resolve("buildSrc"), surfaces);
+        collectFiles(root.resolve(".github/workflows"), surfaces);
+        collectFiles(root.resolve("scripts/ci"), surfaces);
+
+        for (Path surface : surfaces) {
+            if (!Files.isRegularFile(surface)) continue;
+            String content = Files.readString(surface);
+            for (String obsolete : REMOVED_REFERENCE_TOKENS) {
+                assertFalse(content.contains(obsolete),
+                        "Removed utility is still referenced by "
+                                + root.relativize(surface) + ": " + obsolete);
+            }
         }
     }
 
@@ -65,8 +104,16 @@ class LegacyToolClosurePolicyTest {
         String workflow = Files.readString(
                 repositoryRoot().resolve(".github/workflows/security-policy.yml")
         );
+        assertTrue(workflow.contains("Checkout exact source head"));
         assertTrue(workflow.contains("build/security/tracked-tree-manifest.json"));
         assertTrue(workflow.contains("villaigence-tracked-tree-manifest"));
+    }
+
+    private static void collectFiles(Path directory, List<Path> output) throws IOException {
+        if (!Files.isDirectory(directory)) return;
+        try (Stream<Path> paths = Files.walk(directory)) {
+            output.addAll(paths.filter(Files::isRegularFile).sorted().toList());
+        }
     }
 
     private static Path repositoryRoot() {
