@@ -31,13 +31,6 @@ jobs:
           set -euo pipefail
           python3 .github/fix_security_acceptance_patch.py
           python3 .github/security_acceptance_state_patch.py
-
-      - name: Restore permanent read-only workflow
-        shell: bash
-        run: |
-          set -euo pipefail
-          git show 575c8ce65d051c416796ad6c577ffb6aed51c608:.github/workflows/security-policy.yml \
-            > .github/workflows/security-policy.yml
           rm .github/security_acceptance_state_patch.py
           rm .github/fix_security_acceptance_patch.py
 
@@ -48,7 +41,6 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
-            .github/workflows/security-policy.yml \
             .github/security_acceptance_state_patch.py \
             .github/fix_security_acceptance_patch.py \
             docs/PROJECT_STATE.md \
