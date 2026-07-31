@@ -30,6 +30,8 @@ This directory contains the canonical security-review evidence and hardening pla
 - H4 CI security coverage: merged as `05d105c1f558d5643b8190a88cc744b4d7cbe129`; SEC-006 is Closed.
 - H5 legacy-tool cleanup: merged as `6d82b4e4650294a4a42b9ea2113e64d990e08811`; SEC-008 and SEC-009 are Closed.
 
+Release `0.1.15+1.21.1` is the latest production/security live checkpoint, while `0.1.14+1.21.1` remains the canonical forgetting/decay retention-pressure checkpoint.
+
 The audit found no direct evidence of intentionally malicious runtime behavior in the inspected VillAIgence paths. All inherited non-CI utilities, external-maintenance scripts, raw generator inputs and tool-only masks have been removed from the merged default branch. The retained script surface is limited to Gradle and VillAIgence-owned CI/security launchers and is enforced by deterministic policy.
 
 ## Security change rule
