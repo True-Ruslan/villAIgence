@@ -45,6 +45,8 @@ class VoicePcmBudgetAcceptanceProbeTest {
         assertThrows(IllegalArgumentException.class, () ->
                 VoicePcmBudgetAcceptanceProbe.run(1L, 0, 1L));
         assertThrows(IllegalArgumentException.class, () ->
+                VoicePcmBudgetAcceptanceProbe.run(1L, 513, 1L));
+        assertThrows(IllegalArgumentException.class, () ->
                 VoicePcmBudgetAcceptanceProbe.run(1L, 1, 0L));
         assertThrows(IllegalArgumentException.class, () ->
                 VoicePcmBudgetAcceptanceProbe.run(4L, 1, 5L));
