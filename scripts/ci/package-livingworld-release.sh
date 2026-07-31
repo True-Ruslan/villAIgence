@@ -53,6 +53,9 @@ require_entry() {
 require_entry 'fabric.mod.json'
 require_entry 'net/conczin/mca/livingworld/LivingWorldConfig.class'
 require_entry 'net/conczin/mca/fabric/livingworld/voice/VoiceConversationService.class'
+require_entry 'net/conczin/mca/livingworld/ai/AccountVerificationTransport.class'
+require_entry 'net/conczin/mca/livingworld/ai/AccountVerificationAcceptanceProbe.class'
+require_entry 'net/conczin/mca/livingworld/voice/VoicePcmBudgetAcceptanceProbe.class'
 rm "${contents_file}"
 
 sha256sum "${output_jar}" > "${output_jar}.sha256"
