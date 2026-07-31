@@ -171,11 +171,14 @@ final class VoiceCaptureManager implements AutoCloseable {
         public synchronized void close() {
             if (closed) return;
             closed = true;
-            decoder.close();
-            if (reservedBytes > 0L) {
-                long releaseBytes = reservedBytes;
-                reservedBytes = 0L;
-                pcmBudget.release(releaseBytes);
+            try {
+                decoder.close();
+            } finally {
+                if (reservedBytes > 0L) {
+                    long releaseBytes = reservedBytes;
+                    reservedBytes = 0L;
+                    pcmBudget.release(releaseBytes);
+                }
             }
         }
     }
