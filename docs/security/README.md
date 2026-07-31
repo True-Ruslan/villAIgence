@@ -15,6 +15,8 @@ This directory contains the canonical security-review evidence and hardening pla
 - [`H5_LEGACY_TOOLS_AUDIT_CLOSURE_2026-07-31.md`](H5_LEGACY_TOOLS_AUDIT_CLOSURE_2026-07-31.md) — semantic retain/remove decisions, exact-head whole-tree manifests and SEC-008/SEC-009 implementation evidence.
 - [`SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H5.md`](SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H5.md) — closes SEC-008 and SEC-009 at H5 merge `6d82b4e4650294a4a42b9ea2113e64d990e08811`.
 - [`H1_H2_CONTROLLED_SERVER_VALIDATION.md`](H1_H2_CONTROLLED_SERVER_VALIDATION.md) — controlled real-server scenario for candidate `0.1.15+1.21.1` and the remaining runtime-sensitive findings.
+- [`SECURITY_AUDIT_FOLLOW_UP_2026-07-31_RUNTIME_0.1.15.md`](SECURITY_AUDIT_FOLLOW_UP_2026-07-31_RUNTIME_0.1.15.md) — closes SEC-001 and SEC-002 using real-server evidence.
+- [`../livingworld/VALIDATION_0.1.15.md`](../livingworld/VALIDATION_0.1.15.md) — production Chat/STT/TTS, endpoint-policy, persistence and restart validation.
 - [`APPROVED_SCRIPT_INVENTORY.json`](APPROVED_SCRIPT_INVENTORY.json) — the five approved build/security launchers.
 - [`APPROVED_SOURCE_SECURITY_EXCEPTIONS.json`](APPROVED_SOURCE_SECURITY_EXCEPTIONS.json) — exact reviewed source-policy exceptions.
 - [`DEPENDENCY_UPDATE_PROCEDURE.md`](DEPENDENCY_UPDATE_PROCEDURE.md) — controlled Gradle, dependency and GitHub Action update procedure.
@@ -22,8 +24,8 @@ This directory contains the canonical security-review evidence and hardening pla
 
 ## Current status
 
-- H1 provider endpoint and credential policy: merged and automated-CI validated; real-server smoke remains required before SEC-001/SEC-002 closure.
-- H2 bounded network I/O and voice resource controls: merged as `15c56526417ac7dfb76567d51d1aa107f522cda7`; real-server smoke remains required before SEC-003/SEC-004/SEC-007 closure.
+- H1 provider endpoint and credential policy: merged and live-validated in `0.1.15+1.21.1`; SEC-001 and SEC-002 are Closed.
+- H2 bounded network I/O and voice resource controls: normal production and TTS fail-soft behavior passed in `0.1.15+1.21.1`; SEC-003, SEC-004 and SEC-007 remain open for isolated acceptance.
 - H3 supply-chain verification: merged as `4cf9aef2e5c31a5682a7cad8544219154330e056`; SEC-005 is Closed.
 - H4 CI security coverage: merged as `05d105c1f558d5643b8190a88cc744b4d7cbe129`; SEC-006 is Closed.
 - H5 legacy-tool cleanup: merged as `6d82b4e4650294a4a42b9ea2113e64d990e08811`; SEC-008 and SEC-009 are Closed.
