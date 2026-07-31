@@ -8,6 +8,8 @@ import de.maxhenkel.voicechat.api.opus.OpusDecoder;
 import net.conczin.mca.MCA;
 import net.conczin.mca.entity.ai.chatAI.ChatAI;
 import net.conczin.mca.livingworld.LivingWorldConfig;
+import net.conczin.mca.livingworld.voice.VoiceCaptureLimits;
+import net.conczin.mca.livingworld.voice.VoicePcmBudget;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
@@ -24,6 +26,7 @@ final class VoiceCaptureManager implements AutoCloseable {
 
     private final VoicechatApi voicechatApi;
     private final VoiceConversationService conversationService;
+    private final VoicePcmBudget pcmBudget = new VoicePcmBudget(VoiceCaptureLimits.MAX_ACTIVE_PCM_BYTES);
     private final Map<UUID, CaptureSession> sessions = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "livingworld-voice-segmentation");
@@ -55,9 +58,22 @@ final class VoiceCaptureManager implements AutoCloseable {
         if (opus == null || opus.length == 0) return;
 
         try {
-            CaptureSession session = sessions.computeIfAbsent(playerId, ignored -> new CaptureSession(voicechatApi.createDecoder()));
-            boolean full = session.append(opus, Math.multiplyExact(VOICECHAT_SAMPLE_RATE, config.voiceMaxSeconds));
-            if (full && sessions.remove(playerId, session)) finish(playerId, session);
+            CaptureSession session = sessions.computeIfAbsent(
+                    playerId,
+                    ignored -> new CaptureSession(voicechatApi.createDecoder(), pcmBudget)
+            );
+            int maxSeconds = VoiceCaptureLimits.clampSeconds(config.voiceMaxSeconds);
+            int maxSamples = Math.multiplyExact(VOICECHAT_SAMPLE_RATE, maxSeconds);
+            AppendResult result = session.append(opus, maxSamples);
+            if (result == AppendResult.FULL && sessions.remove(playerId, session)) {
+                finish(playerId, session);
+            } else if (result == AppendResult.BUDGET_EXHAUSTED && sessions.remove(playerId, session)) {
+                MCA.LOGGER.warn(
+                        "LivingWorld microphone capture dropped for {} because the active PCM budget is exhausted",
+                        playerId
+                );
+                session.close();
+            }
         } catch (RuntimeException e) {
             MCA.LOGGER.warn("LivingWorld failed to decode microphone audio for {}", playerId, e);
             CaptureSession removed = sessions.remove(playerId);
@@ -70,7 +86,9 @@ final class VoiceCaptureManager implements AutoCloseable {
         int silenceMillis = LivingWorldConfig.getInstance().voiceSilenceMillis;
         for (Map.Entry<UUID, CaptureSession> entry : sessions.entrySet()) {
             CaptureSession session = entry.getValue();
-            if (session.isIdle(now, silenceMillis) && sessions.remove(entry.getKey(), session)) finish(entry.getKey(), session);
+            if (session.isIdle(now, silenceMillis) && sessions.remove(entry.getKey(), session)) {
+                finish(entry.getKey(), session);
+            }
         }
     }
 
@@ -88,29 +106,49 @@ final class VoiceCaptureManager implements AutoCloseable {
         conversationService.close();
     }
 
+    private enum AppendResult {
+        CONTINUE,
+        FULL,
+        BUDGET_EXHAUSTED
+    }
+
     private static final class CaptureSession implements AutoCloseable {
         private final OpusDecoder decoder;
+        private final VoicePcmBudget pcmBudget;
         private final ByteArrayOutputStream pcmBytes = new ByteArrayOutputStream();
         private volatile long lastPacketMillis = System.currentTimeMillis();
         private int samples;
+        private long reservedBytes;
         private boolean closed;
 
-        private CaptureSession(OpusDecoder decoder) {
+        private CaptureSession(OpusDecoder decoder, VoicePcmBudget pcmBudget) {
             if (decoder == null) throw new IllegalStateException("Simple Voice Chat did not provide an Opus decoder");
             this.decoder = decoder;
+            this.pcmBudget = pcmBudget;
         }
 
-        synchronized boolean append(byte[] opus, int maxSamples) {
-            if (closed) return true;
+        synchronized AppendResult append(byte[] opus, int maxSamples) {
+            if (closed) return AppendResult.FULL;
             short[] decoded = decoder.decode(opus);
             int remaining = Math.max(0, maxSamples - samples);
             int accepted = Math.min(decoded.length, remaining);
-            ByteBuffer buffer = ByteBuffer.allocate(accepted * 2).order(ByteOrder.LITTLE_ENDIAN);
-            for (int i = 0; i < accepted; i++) buffer.putShort(decoded[i]);
-            pcmBytes.writeBytes(buffer.array());
-            samples += accepted;
-            lastPacketMillis = System.currentTimeMillis();
-            return samples >= maxSamples;
+            if (accepted <= 0) return AppendResult.FULL;
+
+            long bytesToReserve = Math.multiplyExact((long) accepted, 2L);
+            if (!pcmBudget.tryReserve(bytesToReserve)) return AppendResult.BUDGET_EXHAUSTED;
+
+            try {
+                ByteBuffer buffer = ByteBuffer.allocate(Math.toIntExact(bytesToReserve)).order(ByteOrder.LITTLE_ENDIAN);
+                for (int i = 0; i < accepted; i++) buffer.putShort(decoded[i]);
+                pcmBytes.writeBytes(buffer.array());
+                reservedBytes += bytesToReserve;
+                samples += accepted;
+                lastPacketMillis = System.currentTimeMillis();
+                return samples >= maxSamples ? AppendResult.FULL : AppendResult.CONTINUE;
+            } catch (RuntimeException e) {
+                pcmBudget.release(bytesToReserve);
+                throw e;
+            }
         }
 
         boolean isIdle(long nowMillis, int silenceMillis) {
@@ -118,12 +156,15 @@ final class VoiceCaptureManager implements AutoCloseable {
         }
 
         synchronized short[] finish() {
-            if (!closed) close();
-            byte[] bytes = pcmBytes.toByteArray();
-            ByteBuffer buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
-            short[] output = new short[bytes.length / 2];
-            for (int i = 0; i < output.length; i++) output[i] = buffer.getShort();
-            return output;
+            try {
+                byte[] bytes = pcmBytes.toByteArray();
+                ByteBuffer buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
+                short[] output = new short[bytes.length / 2];
+                for (int i = 0; i < output.length; i++) output[i] = buffer.getShort();
+                return output;
+            } finally {
+                close();
+            }
         }
 
         @Override
@@ -131,6 +172,11 @@ final class VoiceCaptureManager implements AutoCloseable {
             if (closed) return;
             closed = true;
             decoder.close();
+            if (reservedBytes > 0L) {
+                long releaseBytes = reservedBytes;
+                reservedBytes = 0L;
+                pcmBudget.release(releaseBytes);
+            }
         }
     }
 }
