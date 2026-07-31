@@ -1,5 +1,6 @@
 package net.conczin.mca.livingworld.ai;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -65,12 +66,21 @@ public final class AccountVerificationAcceptanceProbe {
             int readTimeout = args.length >= 3
                     ? parsePositiveTimeout(args[2], "read-ms")
                     : DEFAULT_TIMEOUT_MILLIS;
-            AccountVerificationClient.Result result = AccountVerificationClient.execute(
-                    uri,
-                    connectTimeout,
-                    readTimeout
-            );
-            System.out.println(toJson(uri, result));
+            try {
+                AccountVerificationTransport.Response response = AccountVerificationTransport.execute(
+                        uri,
+                        connectTimeout,
+                        readTimeout
+                );
+                String outcome = response.success() ? "SUCCESS" : "HTTP_ERROR";
+                System.out.println(toJson(uri, outcome, response.status(), null));
+            } catch (BoundedResponseReader.ResponseTooLargeException e) {
+                System.out.println(toJson(uri, "TOO_LARGE", -1, e.getClass().getSimpleName()));
+            } catch (BoundedResponseReader.ResponseDeadlineExceededException e) {
+                System.out.println(toJson(uri, "DEADLINE", -1, e.getClass().getSimpleName()));
+            } catch (IOException e) {
+                System.out.println(toJson(uri, "IO_ERROR", -1, e.getClass().getSimpleName()));
+            }
         } catch (IllegalArgumentException e) {
             System.err.println("Verification probe rejected unsafe or invalid arguments: " + e.getMessage());
             System.exit(2);
@@ -87,10 +97,12 @@ public final class AccountVerificationAcceptanceProbe {
         }
     }
 
-    private static String toJson(URI uri, AccountVerificationClient.Result result) {
+    private static String toJson(URI uri, String outcome, int status, String errorType) {
         return "{"
                 + "\"marker\":\"VILLAIGENCE_VERIFICATION_PROBE\","
-                + "\"result\":\"" + result.name() + "\","
+                + "\"outcome\":\"" + outcome + "\","
+                + "\"status\":" + status + ","
+                + "\"errorType\":" + (errorType == null ? "null" : "\"" + errorType + "\"") + ","
                 + "\"target\":\"" + jsonEscape(redactedTarget(uri)) + "\""
                 + "}";
     }
