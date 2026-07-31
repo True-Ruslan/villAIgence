@@ -2,7 +2,7 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md` when resuming work.
 >
-> Last major state update: **2026-07-31**, after merged Step 1 security PRs #59–#63.
+> Last major state update: **2026-07-31**, after live validation of `0.1.14+1.21.1` and repository-side completion of Step 1 security hardening.
 >
 > Reconcile this state with newer PRs, tags/releases, CI and live-server evidence before starting development.
 
@@ -18,8 +18,8 @@ NeoForge: compile compatibility required
 
 latest merged engineering program:
 Step 1 Security and supply-chain hardening — H1 through H5
-PRs: #59, #60, #61, #62, #63
-closing merge: 6d82b4e4650294a4a42b9ea2113e64d990e08811
+PRs: #59, #60, #61, #62, #63, documentation closure #64
+latest canonical security closure: 26070c37b806897e37cc3dabe2e4b27af458ac20
 final H5 validated code head: ae26a9445b646c02e53b9fe8a557204fd703c7ff
 
 final H5 exact-head CI:
@@ -33,23 +33,41 @@ merge: 73145dd0925d403af7ef343521eb3ae27f68804d
 exact verified feature head: c08b47431b6a121deae4be8410be1e4fe4c5126a
 
 latest live-validated release checkpoint:
-0.1.13+1.21.1 — PASS
-validation date: 2026-07-30
-tested release commit: b553bf7e83674145bdf42927b9ace7287afa560c
+0.1.14+1.21.1 — PASS
+validation date: 2026-07-31
+tested release commit: c45aea45dd915b24ba236344feef30559c7171bb
+validation marker: V0114_FINAL_RESTART_VERIFICATION_PASS
 ```
 
-**Status boundary:** repository-side Step 1 H1–H5 is merged and automated-CI validated. SEC-005, SEC-006, SEC-008 and SEC-009 are Closed. Runtime-sensitive SEC-001, SEC-002, SEC-003, SEC-004 and SEC-007 still require the controlled H1/H2 server scenario. Deterministic forgetting/decay from PR #56 also remains pending real-server validation. `0.1.13+1.21.1` remains the latest live-server checkpoint.
+**Status boundary:** deterministic forgetting/decay, source durability, existing-entry eviction, persistence and NPC isolation are live-proven by `0.1.14+1.21.1`. The rejected-**new**-append no-rewrite branch remains automated-test proven but was not reached through the live Chat model. Repository-side Step 1 H1–H5 is merged and automated-CI validated, but runtime-sensitive SEC-001, SEC-002, SEC-003, SEC-004 and SEC-007 still require the controlled H1/H2 server scenario in a later security candidate.
 
 Canonical evidence:
 
 ```text
+docs/livingworld/VALIDATION_0.1.14.md
 docs/livingworld/VALIDATION_0.1.13.md
 docs/livingworld/SEMANTIC_FORGETTING_DECAY.md
-docs/superpowers/specs/2026-07-30-memory2-semantic-forgetting-decay-design.md
-docs/superpowers/plans/2026-07-30-memory2-semantic-forgetting-decay.md
+docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md
 ```
 
-## Step 1 security hardening — repository implementation complete
+---
+
+# Release metadata status
+
+```text
+0.1.11+1.21.1 → 60236524e37b60c639b93405f809ade883be253f
+0.1.12+1.21.1 → 746fa75ab4b5f4bee385efa0c8ae51009c1aec58
+0.1.13+1.21.1 → b553bf7e83674145bdf42927b9ace7287afa560c
+0.1.14+1.21.1 → c45aea45dd915b24ba236344feef30559c7171bb
+```
+
+`0.1.14` identifies the exact forgetting/decay payload tested on the real server. Current `1.21.1` is a descendant of that tag and subsequently advanced through H1–H5 security and supply-chain hardening. Those later commits are not part of the `0.1.14` live checkpoint.
+
+---
+
+# Step 1 security hardening
+
+## Repository implementation — complete
 
 Merged sequence:
 
@@ -59,30 +77,36 @@ H2 bounded network and voice resources         PR #60 → 15c56526417ac7dfb76567
 H3 immutable verified build inputs             PR #61 → 4cf9aef2e5c31a5682a7cad8544219154330e056
 H4 primary CI and repository security policy   PR #62 → 05d105c1f558d5643b8190a88cc744b4d7cbe129
 H5 legacy utility and whole-tree closure       PR #63 → 6d82b4e4650294a4a42b9ea2113e64d990e08811
+canonical closure                              PR #64 → 26070c37b806897e37cc3dabe2e4b27af458ac20
 ```
 
-Implemented controls include:
+Implemented controls:
 
-- normalized endpoint validation, endpoint-family credential binding and blocked authenticated redirects;
-- bounded Chat/STT/TTS/error/verification bodies plus a hard total response deadline;
-- voice capture clamp and aggregate PCM memory budget;
-- stable Fabric Loom, verified Gradle wrapper, dependency checksums/locks and immutable GitHub Actions;
-- required common/Fabric/NeoForge CI and deterministic secret/source/workflow policy;
-- exact-head tracked-tree manifests and a five-launcher approved script inventory;
-- removal of every inherited non-CI network/generation utility and its tool-only resources.
+- normalized endpoint validation and endpoint-family credential binding;
+- authenticated provider redirects blocked;
+- byte-bounded Chat, STT, TTS, provider-error and verification responses;
+- hard total response-body deadline;
+- fixed trusted-origin account verification;
+- voice capture clamped to `1..120` seconds;
+- aggregate active PCM memory bounded to 128 MiB;
+- stable Fabric Loom and verified Gradle wrapper;
+- dependency verification metadata and lockfiles;
+- immutable GitHub Actions references;
+- required common, Fabric and NeoForge CI;
+- deterministic secret, dangerous-source, workflow and script policy;
+- exact-head tracked-tree manifests;
+- removal of inherited non-CI network and generation utilities.
 
-Closed findings:
+Finding status:
 
 ```text
+Closed:
 SEC-005
 SEC-006
 SEC-008
 SEC-009
-```
 
 Pending controlled runtime validation:
-
-```text
 SEC-001
 SEC-002
 SEC-003
@@ -90,17 +114,19 @@ SEC-004
 SEC-007
 ```
 
-Canonical security evidence starts at `docs/security/README.md`. The required runtime scenario is `docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md`.
-
-## Release metadata status
+Canonical security evidence starts at:
 
 ```text
-0.1.11+1.21.1 → 60236524e37b60c639b93405f809ade883be253f
-0.1.12+1.21.1 → 746fa75ab4b5f4bee385efa0c8ae51009c1aec58
-0.1.13+1.21.1 → b553bf7e83674145bdf42927b9ace7287afa560c
+docs/security/README.md
 ```
 
-`0.1.13` points at the exact consolidation payload tested on the server. Branch `1.21.1` subsequently advanced through validation documentation and PR #56. No release containing PR #56 has yet been live-tested.
+Required runtime scenario:
+
+```text
+docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md
+```
+
+`0.1.14` does not contain H1–H5 and cannot close these runtime-sensitive findings.
 
 ---
 
@@ -136,15 +162,16 @@ Do not rename these without a dedicated migration design.
 3. LLM may propose dialogue, actions and relationship deltas; server policy validates, revalidates and executes mutations.
 4. Provider/model changes must not redefine persistent NPC identity.
 5. External AI and auxiliary persistence failures fail soft whenever safe.
-6. API credentials remain server-side.
+6. API credentials remain server-side and endpoint-bound.
 7. Persistent formats remain explicit, inspectable and backed up with the world.
 8. Retry/replay paths must not duplicate persistent or gameplay side effects.
 9. Claims and beliefs remain non-authoritative unless server-owned evidence makes them factual.
 10. Confidence never upgrades BELIEF into FACT.
 11. Consolidation preserves provenance and every independent source event.
-12. Forgetting is a deterministic storage decision, not an LLM decision or a confidence mutation.
+12. Forgetting is a deterministic storage decision, not an LLM decision or confidence mutation.
 13. Time alone must not delete semantic knowledge while the NPC is under capacity.
-14. Autonomous AI must eventually be event-driven and budgeted rather than “LLM every tick.”
+14. Retention pressure must remain isolated per NPC owner.
+15. Autonomous AI must eventually be event-driven and budgeted rather than “LLM every tick.”
 
 Canonical authority and retention flow:
 
@@ -205,14 +232,12 @@ Implemented and retained:
 - structured-response sanitation;
 - fail-open malformed auxiliary JSON recovery;
 - diagnostics without secrets, prompts, transcripts or hidden reasoning;
-- validated provider destinations and endpoint-aware credential selection;
+- validated provider destinations and endpoint-aware credentials;
 - no authenticated provider redirects;
-- byte-bounded Chat/STT/TTS/error/verification responses and a ten-minute total body-read deadline;
-- `voiceMaxSeconds` clamped to `1..120` and global active PCM bounded to 128 MiB;
-- stable verified Gradle/dependency/action inputs;
+- bounded network bodies and voice memory;
+- stable verified Gradle, dependency and action inputs;
 - required common, Fabric and NeoForge CI;
-- deterministic secret/source/workflow/script policy and exact-head whole-tree evidence;
-- only five approved Gradle/CI/security launchers remain in the repository.
+- deterministic repository security policy.
 
 Reliability policy:
 
@@ -338,8 +363,6 @@ DIALOGUE
 
 An explicit sourced BELIEF API exists, but ordinary dialogue is not automatically converted to BELIEF.
 
-PR #49 was live-validated by `0.1.12+1.21.1`.
-
 ## Deterministic semantic consolidation — PR #53
 
 ```text
@@ -359,10 +382,9 @@ canonical statement
 canonical relatedEntities set
 ```
 
-Both entries require source event IDs. Compatible entries produce one deterministic UUID with sorted source union, related-entity union and maximum time/importance/confidence fields.
-
 Safety boundaries:
 
+- both entries require source event IDs;
 - exact UUID replay is a no-op;
 - FACT never merges with BELIEF;
 - different BELIEF provenance never merges;
@@ -381,12 +403,6 @@ merge: 73145dd0925d403af7ef343521eb3ae27f68804d
 verified head: c08b47431b6a121deae4be8410be1e4fe4c5126a
 VillAIgence CI #764 / 30573965448 — SUCCESS
 Java Pull Request CI #307 / 30573965439 — SUCCESS
-```
-
-Implemented production component:
-
-```text
-SemanticMemoryRetentionPolicy
 ```
 
 Forgetting is pressure-based:
@@ -446,54 +462,44 @@ Safety properties:
 - no mutation of confidence, importance, provenance, kind or evidence;
 - consolidation occurs before forgetting;
 - corroboration adds bounded durability without confidence inflation;
-- rejected weak append does not rewrite `semantic-memory.json`;
+- rejected weak append does not rewrite `semantic-memory.json` in automated tests;
 - exact replay remains a no-op;
 - retention is isolated per NPC;
 - JSON and configuration formats are unchanged.
 
-TDD evidence:
-
-```text
-policy RED:
-1ea407ab2cd16eb74ea86dacb1aa04e476341e34
-VillAIgence CI #756 / 30572701052 — expected FAILURE
-
-policy GREEN:
-0410b8c4b9bcbe604effca2154d092ef6a2af1a5
-VillAIgence CI #758 / 30572959755 — SUCCESS
-Java Pull Request CI #304 / 30572959844 — SUCCESS
-
-store RED:
-4c42a3f13f73657fade630fa6fd212e0a7677657
-VillAIgence CI #760 / 30573293522 — expected FAILURE
-
-final GREEN:
-c08b47431b6a121deae4be8410be1e4fe4c5126a
-VillAIgence CI #764 / 30573965448 — SUCCESS
-Java Pull Request CI #307 / 30573965439 — SUCCESS
-```
+`0.1.14+1.21.1` live-validates real retention pressure, source durability, decay ordering, weak existing-entry eviction, persistence and NPC isolation.
 
 ---
 
 # Live validation status
 
-## 0.1.13+1.21.1 — PASS
+## 0.1.14+1.21.1 — PASS
 
-Validated on a real server:
+Validation marker:
 
 ```text
-two same-knowledge authoritative ACTION events             PASS
-distinct ACTION UUIDs                                      PASS
-one consolidated Semantic Memory entry                     PASS
-both sourceEventIds present exactly once                   PASS
-deterministic UUID independently reproduced                PASS
-retry created new ACTION                                   no
-retry changed semantic file                                no
-NPC A / NPC B owner isolation                              PASS
-NPC A / NPC B relatedEntities isolation                    PASS
+V0114_FINAL_RESTART_VERIFICATION_PASS
 ```
 
-Byte-identical after restart:
+Controlled test configuration:
+
+```text
+semantic capacity during pressure test = 3
+semantic capacity after test           = 256
+```
+
+Live-proven:
+
+```text
+older corroborated Basiliso FACT survived pressure        PASS
+Basiliso semantic UUID and sourceEventIds preserved       PASS
+source-evidence durability affected retention             PASS
+decay ordering among equal entries                        PASS
+weak Casimiro RELATIONSHIP_CHANGE FACT evicted            PASS
+Basiliso/Casimiro pressure isolated by owner               PASS
+```
+
+Byte-identical after the final restart:
 
 ```text
 memory.json
@@ -506,10 +512,10 @@ voices.json
 Operations:
 
 ```text
-0.1.13 reloaded                                            PASS
-Chat and DIALOGUE                                          PASS
+Chat                                                       SUCCESS
+STT                                                        SUCCESS
+TTS                                                        SUCCESS
 Voice Chat / Opus                                          PASS
-STT / TTS voice dialogue                                   PASS
 UDP 24454 / 25565                                          PASS
 LinuxGSM monitor                                           PASS
 server STARTED                                             PASS
@@ -519,22 +525,36 @@ VillAIgence / persistence / OutOfMemory errors             none
 Canonical evidence:
 
 ```text
-docs/livingworld/VALIDATION_0.1.13.md
+docs/livingworld/VALIDATION_0.1.14.md
 ```
 
-## PR #56 validation boundary
+Explicit remaining boundary:
 
-Not yet live-proven:
+```text
+rejection of a newly appended weak candidate without file rewrite
+→ automated-test proven
+→ not reached in the live gameplay pipeline because the Chat model did not emit RELATIONSHIP_CHANGE
+```
 
-- actual retention pressure on a real server;
-- older strong semantic knowledge surviving newer weak knowledge;
-- predicted rejection/eviction using the exact score formula;
-- corroboration durability affecting a real capacity decision;
-- byte-identical `semantic-memory.json` after a rejected append;
-- retention persistence across restart;
-- voice/chat operational stability in a build containing PR #56.
+This does not block promotion of `0.1.14` as the live forgetting/decay checkpoint. It prevents claiming that the rejected-new-append branch itself was exercised on the server.
 
-Do not call forgetting/decay live-validated until the scenario below passes.
+## Previous live checkpoints
+
+```text
+0.1.13+1.21.1 — semantic consolidation
+0.1.12+1.21.1 — controlled semantic ingestion
+0.1.11+1.21.1 — Working Memory
+0.1.10+1.21.1 — text/voice Memory 2.0 parity
+```
+
+Evidence:
+
+```text
+docs/livingworld/VALIDATION_0.1.13.md
+docs/livingworld/VALIDATION_0.1.12.md
+docs/livingworld/VALIDATION_0.1.11.md
+docs/livingworld/VALIDATION_0.1.10.md
+```
 
 ---
 
@@ -542,11 +562,13 @@ Do not call forgetting/decay live-validated until the scenario below passes.
 
 ## 0.1.x Reliability
 
-Stable and live-validated through `0.1.13+1.21.1`. Continue only for concrete defects or explicit soak, backup/restore or provider-failure goals.
+Gameplay and Memory 2.0 behavior is live-validated through `0.1.14+1.21.1`.
+
+Repository-side security hardening is merged after that release and awaits a controlled security candidate validation.
 
 ## 0.2 Memory 2.0 — active and substantially advanced
 
-Implemented and live-proven through `0.1.13`:
+Implemented and live-proven:
 
 ```text
 Episodic MemoryEvent model and persistence
@@ -556,22 +578,20 @@ Episodic MemoryEvent model and persistence
 + Working Memory bounds
 + Semantic FACT/BELIEF model and persistence
 + deterministic semantic retrieval
-+ shared layered prompt integration
++ layered prompt integration
 + controlled semantic FACT ingestion
 + deterministic semantic consolidation
 + source-union and retry idempotency
++ deterministic pressure-based forgetting/decay
++ source durability
++ existing weak-entry eviction
 + NPC and related-entity isolation
++ restart-safe persistence
 ```
 
-Implemented and CI-proven, pending live validation:
+Still not implemented or not fully proven:
 
-```text
-deterministic pressure-based forgetting/decay
-```
-
-Still not implemented or not proven:
-
-- live-server forgetting/decay validation;
+- rejected-new-append no-rewrite behavior on a real server;
 - automatic controlled BELIEF producers;
 - legacy `memory.json` migration;
 - NPC-to-NPC knowledge and rumor propagation;
@@ -583,47 +603,41 @@ Still not implemented or not proven:
 ## Next sequence
 
 ```text
-1. Build and install candidate 0.1.15+1.21.1 from current 1.21.1
+1. Build and install a security candidate containing H1–H5, expected 0.1.15+1.21.1
 2. Run docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md
-3. Live-validate PR #56 forgetting/decay in the candidate or a dedicated controlled build
-4. Calibrate only if live evidence exposes a concrete defect
-5. Design legacy memory.json migration after semantic layers stabilize
-6. Run long-horizon Memory 2.0 exit-criterion validation
-7. Begin 0.3 Personality + NPC↔NPC social graph
+3. Preserve candidate JAR SHA-256, dependency manifest, redacted logs and restart hashes
+4. Promote the candidate only after applicable security/runtime evidence is complete
+5. Exercise rejected-new-append live only if a deterministic test path becomes available; do not block other work on model randomness
+6. Design legacy memory.json migration
+7. Run long-horizon Memory 2.0 exit-criterion validation
+8. Begin 0.3 Personality + NPC↔NPC social graph
 ```
 
 No embeddings, vector DB or LLM truth classification should be prerequisites.
 
 ---
 
-# Immediate validation sequence
+# Immediate validation target
 
-1. Run the complete H1/H2 security and resource-bound scenario in `docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md` against candidate `0.1.15+1.21.1`.
-2. Preserve the candidate JAR SHA-256, dependency manifest, redacted logs and pre/post-restart hashes.
-3. Then run the deterministic forgetting/decay scenario below.
-4. Promote the candidate only after both applicable validation records are complete.
-
-# Immediate live-test scenario
+Run the complete H1/H2 security and resource-bound scenario:
 
 ```text
-1. Install a build containing PR #56.
-2. Back up memory.json, memory2.json, semantic-memory.json, relationships.json and voices.json.
-3. Reach semantic capacity for NPC A using a controlled small limit or enough eligible events.
-4. Create an older high-importance/high-confidence authoritative FACT.
-5. Create newer low-importance/low-confidence entries until pressure occurs.
-6. Calculate durability and effective retention scores independently.
-7. Confirm the predicted stronger UUID remains and the weakest candidate is rejected or evicted.
-8. Add corroborating source evidence for one consolidation key.
-9. Confirm sourceEventIds contains every source exactly once and the evidence contribution changes durability as predicted.
-10. Repeat a weak rejected append and confirm semantic-memory.json remains byte-identical.
-11. Apply equivalent pressure to NPC B and confirm owner/related-entity isolation.
-12. Restart the server and compare all five file hashes.
-13. Confirm retained semantic UUIDs and evidence survive restart.
-14. Confirm Chat, DIALOGUE, STT, TTS, Voice Chat, Opus, monitor, UDP 24454 and 25565 remain healthy.
-15. Confirm no VillAIgence persistence or OutOfMemory errors.
+docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md
 ```
 
-After success, create a validation document and promote the tested build to the latest live-server checkpoint.
+Required candidate characteristics:
+
+- contains PRs #59–#63;
+- common, Fabric, NeoForge and repository security workflows green;
+- release artifact and dependency manifest retained;
+- provider endpoint and credential behavior exercised;
+- bounded Chat/STT/TTS/error responses exercised;
+- voice duration and aggregate PCM limits exercised;
+- normal Chat/STT/TTS/Voice Chat behavior preserved;
+- five persistent files stable across restart;
+- no secrets or unredacted provider bodies stored in evidence.
+
+After successful security validation, the next implementation design target is legacy `memory.json` migration unless live evidence exposes a concrete defect.
 
 ---
 
@@ -631,7 +645,7 @@ After success, create a validation document and promote the tested build to the 
 
 Preferred resume prompt:
 
-> **Open `docs/PROJECT_STATE.md`, `docs/CHANGELOG.md`, `docs/ROADMAP.md` and the latest validation evidence in `True-Ruslan/villAIgence`. Check recent PRs, tags/releases and CI, then tell me what is implemented, what is live-validated, what changed since the state file, and what should be built next.**
+> **Open `docs/PROJECT_STATE.md`, `docs/CHANGELOG.md`, `docs/ROADMAP.md`, `docs/livingworld/VALIDATION_0.1.14.md` and `docs/security/README.md` in `True-Ruslan/villAIgence`. Check recent PRs, tags/releases and CI, then tell me what is implemented, what is live-validated, what changed since the state file, and what should happen next.**
 
 A new session must:
 
@@ -642,7 +656,7 @@ A new session must:
 5. inspect recent merged/open PRs;
 6. inspect latest tag/release and CI state;
 7. reconcile newer live-test evidence;
-8. continue from the first unimplemented priority;
+8. continue from the first unimplemented or unvalidated priority;
 9. update canonical state after material progress.
 
 ```text
