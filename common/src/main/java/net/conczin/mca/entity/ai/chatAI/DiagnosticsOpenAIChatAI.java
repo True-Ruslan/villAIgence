@@ -61,7 +61,7 @@ public final class DiagnosticsOpenAIChatAI extends OpenAIChatAI {
             } finally {
                 long durationMillis = Math.max(0L, (System.nanoTime() - startedNanos) / 1_000_000L);
                 ChatDiagnosticsRecorder.finishRequest(
-                        provider.endpoint(),
+                        provider.endpoint().externalForm(),
                         provider.model(),
                         durationMillis,
                         success
