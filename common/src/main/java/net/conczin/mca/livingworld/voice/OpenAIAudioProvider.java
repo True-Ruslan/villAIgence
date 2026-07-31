@@ -4,8 +4,10 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.conczin.mca.livingworld.LivingWorldConfig;
+import net.conczin.mca.livingworld.ai.BoundedResponseReader;
 import net.conczin.mca.livingworld.ai.ProviderCredentialBinding;
 import net.conczin.mca.livingworld.ai.ProviderEndpoint;
+import net.conczin.mca.livingworld.ai.ProviderResponseLimits;
 import net.conczin.mca.livingworld.audio.PcmAudio;
 import net.conczin.mca.livingworld.audio.RawPcmCodec;
 import net.conczin.mca.livingworld.audio.WavCodec;
@@ -57,7 +59,8 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
         AudioHttpResponse response = execute(
                 open(binding, contentType),
                 requestBody,
-                "speech-to-text"
+                "speech-to-text",
+                ProviderResponseLimits.STT_JSON_BYTES
         );
         JsonObject json = JsonParser.parseString(new String(response.body(), StandardCharsets.UTF_8)).getAsJsonObject();
         if (!json.has("text") || json.get("text").isJsonNull()) throw new IOException("STT response did not contain text");
@@ -96,7 +99,8 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
                             format,
                             binding.endpoint().externalForm()
                     ).getBytes(StandardCharsets.UTF_8),
-                    "text-to-speech"
+                    "text-to-speech",
+                    ProviderResponseLimits.TTS_AUDIO_BYTES
             );
 
             return switch (format) {
@@ -236,16 +240,34 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
         return connection;
     }
 
-    private AudioHttpResponse execute(HttpURLConnection connection, byte[] requestBody, String operation) throws IOException {
+    private AudioHttpResponse execute(
+            HttpURLConnection connection,
+            byte[] requestBody,
+            String operation,
+            int successLimitBytes
+    ) throws IOException {
         try (OutputStream output = connection.getOutputStream()) {
             output.write(requestBody);
         }
         int status = connection.getResponseCode();
-        InputStream stream = status >= 200 && status < 300 ? connection.getInputStream() : connection.getErrorStream();
-        byte[] response = stream == null ? new byte[0] : readAll(stream);
+        boolean success = status >= 200 && status < 300;
+        InputStream stream = success ? connection.getInputStream() : connection.getErrorStream();
+        int limitBytes = success ? successLimitBytes : ProviderResponseLimits.ERROR_BODY_BYTES;
+        byte[] response;
+        if (stream == null) {
+            response = new byte[0];
+        } else {
+            try (stream) {
+                response = BoundedResponseReader.readBytes(
+                        stream,
+                        connection.getContentLengthLong(),
+                        limitBytes
+                );
+            }
+        }
         String contentType = safeValue(connection.getHeaderField("Content-Type"));
         String generationId = safeValue(connection.getHeaderField("X-Generation-Id"));
-        if (status < 200 || status >= 300) {
+        if (!success) {
             String detail = extractError(response);
             String metadata = " [contentType=" + contentType + ", generationId=" + generationId + "]";
             if (status == 402 && SttRequestFormat.isOpenRouterEndpoint(connection.getURL().toString())) {
@@ -254,13 +276,6 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
             throw new IOException("AI audio " + operation + " failed (HTTP " + status + "): " + detail + metadata);
         }
         return new AudioHttpResponse(response, contentType, generationId);
-    }
-
-    private static byte[] readAll(InputStream input) throws IOException {
-        try (input; ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            input.transferTo(output);
-            return output.toByteArray();
-        }
     }
 
     private static String extractError(byte[] response) {

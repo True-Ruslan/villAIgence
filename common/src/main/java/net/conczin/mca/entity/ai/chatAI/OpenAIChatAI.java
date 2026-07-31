@@ -14,11 +14,13 @@ import net.conczin.mca.entity.ai.chatAI.modules.*;
 import net.conczin.mca.entity.ai.relationship.AgeState;
 import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.ai.AiProviderSettings;
+import net.conczin.mca.livingworld.ai.BoundedResponseReader;
 import net.conczin.mca.livingworld.ai.ChatCompletionResponseParser;
 import net.conczin.mca.livingworld.ai.ChatCompletionRetryPolicy;
 import net.conczin.mca.livingworld.ai.LivingWorldAI;
 import net.conczin.mca.livingworld.ai.ProviderEndpoint;
 import net.conczin.mca.livingworld.ai.ProviderEndpointPolicy;
+import net.conczin.mca.livingworld.ai.ProviderResponseLimits;
 import net.conczin.mca.livingworld.ai.StructuredAiResponseParser;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
 import net.conczin.mca.livingworld.memory.PersistentChatMemory;
@@ -34,14 +36,12 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Tuple;
-import org.apache.commons.io.IOUtils;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -190,22 +190,40 @@ public class OpenAIChatAI implements ChatAIStrategy {
                 out.write(requestBody.getBytes(StandardCharsets.UTF_8));
             }
             int status = con.getResponseCode();
-            InputStream response = status >= 200 && status < 300 ? con.getInputStream() : con.getErrorStream();
+            boolean success = status >= 200 && status < 300;
+            InputStream response = success ? con.getInputStream() : con.getErrorStream();
             if (response == null) {
                 return new ParsedProviderAnswer(new Answer(null, "AI provider returned HTTP " + status), null);
             }
+            int limitBytes = success
+                    ? ProviderResponseLimits.CHAT_JSON_BYTES
+                    : ProviderResponseLimits.ERROR_BODY_BYTES;
             String body;
             try (response) {
-                body = IOUtils.toString(response, StandardCharsets.UTF_8);
+                body = BoundedResponseReader.readUtf8(
+                        response,
+                        con.getContentLengthLong(),
+                        limitBytes
+                );
             }
             ParsedProviderAnswer parsed = parseAnswer(body);
-            if (status < 200 || status >= 300) {
+            if (!success) {
                 String error = parsed.answer().error != null
                         ? parsed.answer().error
                         : "AI provider returned HTTP " + status;
                 return new ParsedProviderAnswer(new Answer(null, error), parsed.completion());
             }
             return parsed;
+        } catch (BoundedResponseReader.ResponseTooLargeException e) {
+            MCA.LOGGER.warn(
+                    "AI provider response exceeded safe byte limit: limit={}, observed={}",
+                    e.limitBytes(),
+                    e.observedBytes()
+            );
+            return new ParsedProviderAnswer(
+                    new Answer(null, "AI provider response exceeded safe size limit"),
+                    null
+            );
         } catch (Exception e) {
             MCA.LOGGER.error("AI provider request failed", e);
             return new ParsedProviderAnswer(new Answer(null, "AI provider request failed; check server log"), null);
@@ -254,21 +272,6 @@ public class OpenAIChatAI implements ChatAIStrategy {
         if (value == null || value.isBlank()) return "<none>";
         String cleaned = value.trim().replace('\n', ' ').replace('\r', ' ');
         return cleaned.length() <= maxLength ? cleaned : cleaned.substring(0, maxLength);
-    }
-
-    public static String verify(String encodedURL) {
-        try {
-            HttpURLConnection con = (HttpURLConnection) URI.create(encodedURL).toURL().openConnection();
-            con.setRequestProperty("Accept-Charset", StandardCharsets.UTF_8.toString());
-            con.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_MILLIS);
-            con.setReadTimeout(DEFAULT_READ_TIMEOUT_MILLIS);
-            String body = IOUtils.toString(con.getInputStream(), StandardCharsets.UTF_8);
-            JsonObject map = JsonParser.parseString(body).getAsJsonObject();
-            return map.has("answer") ? map.get("answer").getAsString().trim().replace("\n", " ") : "";
-        } catch (Exception e) {
-            MCA.LOGGER.error(e);
-            return "error";
-        }
     }
 
     static String jsonStringQuote(String string) {
