@@ -36,6 +36,12 @@
       "purpose": "Standard-library detector self-tests; contains synthetic secret and network signatures but performs no network requests.",
       "network": true,
       "ci": true
+    },
+    {
+      "path": "scripts/security/provider_acceptance_harness.py",
+      "purpose": "Operator-run hostile provider simulator bound exclusively to a literal loopback IP; streams bounded test payloads and records sanitized metadata.",
+      "network": true,
+      "ci": false
     }
   ]
 }
