@@ -62,7 +62,11 @@ class ProviderAcceptanceHarnessTest(unittest.TestCase):
             connection.request(method, path, body=body, headers=headers or {})
             response = connection.getresponse()
             response_headers = {key.lower(): value for key, value in response.getheaders()}
-            return response.status, response_headers, response.read()
+            try:
+                response_body = response.read()
+            except http.client.IncompleteRead as error:
+                response_body = error.partial
+            return response.status, response_headers, response_body
         finally:
             connection.close()
 
