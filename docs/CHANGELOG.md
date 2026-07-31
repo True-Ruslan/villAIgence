@@ -2,6 +2,60 @@
 
 > Human-readable implementation and validation history. For exact current state and next priority, read `docs/PROJECT_STATE.md`. For long-term direction, read `docs/ROADMAP.md`.
 
+## 2026-07-31 — Step 1 security and supply-chain hardening
+
+**Status:** repository-side H1–H5 merged and automated-CI validated; controlled H1/H2 real-server validation remains.
+
+### Merge sequence
+
+```text
+PR #59 H1 endpoint/credential policy       787f1a781b5970d4bafb851bfb3c7cba7c21fc0a
+PR #60 H2 bounded provider/voice resources 15c56526417ac7dfb76567d51d1aa107f522cda7
+PR #61 H3 verified supply chain            4cf9aef2e5c31a5682a7cad8544219154330e056
+PR #62 H4 CI security coverage             05d105c1f558d5643b8190a88cc744b4d7cbe129
+PR #63 H5 legacy-tool closure              6d82b4e4650294a4a42b9ea2113e64d990e08811
+```
+
+### Provider and runtime hardening
+
+- provider URLs are parsed and normalized before credentials are selected;
+- remote plaintext endpoints are rejected; HTTP is limited to explicit lexical loopback development mode;
+- OpenAI/OpenRouter/custom Chat, STT and TTS credentials cannot cross endpoint-family boundaries;
+- authenticated redirects are not followed;
+- Chat, STT, TTS, provider-error and verification bodies are byte-bounded;
+- slow-drip responses have a hard total deadline;
+- arbitrary-URL account verification was replaced with a fixed trusted-origin client;
+- voice capture is clamped to `1..120` seconds and aggregate active PCM is bounded to 128 MiB.
+
+### Supply-chain and CI hardening
+
+- Fabric Loom moved from snapshot to stable `1.17.17`;
+- Gradle wrapper distribution checksum and wrapper validation are enforced;
+- external GitHub Actions are pinned to immutable commit SHAs;
+- dependency verification metadata and per-project lockfiles are committed;
+- third-party Maven content is restricted;
+- release packages contain a deterministic lockfile-based dependency manifest;
+- primary CI requires common tests, Fabric and NeoForge;
+- a dependency-free policy scans high-confidence secrets, dangerous Java/Gradle APIs, workflow permissions and tracked scripts;
+- exact-head script and whole-tree SHA-256 artifacts are retained.
+
+### Whole-tree cleanup
+
+- all inherited non-CI utilities were semantically reviewed;
+- deprecated Google/AWS TTS, Crowdin/patron fetch, external-LLM localization, pirate translation, name generation and skin generation utilities were removed;
+- the unmanaged Python requirements and 4.3 MiB raw name dataset were removed;
+- generated game resources remain unchanged;
+- the approved executable/script surface is now exactly five Gradle/CI/security launchers.
+
+### Finding status
+
+```text
+Closed: SEC-005, SEC-006, SEC-008, SEC-009
+Pending controlled server validation: SEC-001, SEC-002, SEC-003, SEC-004, SEC-007
+```
+
+`0.1.13+1.21.1` remains the latest live-validated checkpoint. The expected validation candidate is `0.1.15+1.21.1`; its test plan is `docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md`.
+
 ## Post-0.1.13 — Deterministic Semantic Memory forgetting and decay
 
 **Status:** merged and automated-CI validated in PR #56; real-server validation pending.

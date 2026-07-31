@@ -13,6 +13,7 @@ This directory contains the canonical security-review evidence and hardening pla
 - [`H4_CI_SECURITY_COVERAGE_2026-07-31.md`](H4_CI_SECURITY_COVERAGE_2026-07-31.md) — complete primary loader matrix, secret/source policy, recursive script inventory and CI evidence.
 - [`SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H4.md`](SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H4.md) — dated reconciliation closing SEC-006 at merge commit `05d105c1f558d5643b8190a88cc744b4d7cbe129`.
 - [`H5_LEGACY_TOOLS_AUDIT_CLOSURE_2026-07-31.md`](H5_LEGACY_TOOLS_AUDIT_CLOSURE_2026-07-31.md) — semantic retain/remove decisions, exact-head whole-tree manifests and SEC-008/SEC-009 implementation evidence.
+- [`SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H5.md`](SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H5.md) — closes SEC-008 and SEC-009 at H5 merge `6d82b4e4650294a4a42b9ea2113e64d990e08811`.
 - [`APPROVED_SCRIPT_INVENTORY.json`](APPROVED_SCRIPT_INVENTORY.json) — the five approved build/security launchers.
 - [`APPROVED_SOURCE_SECURITY_EXCEPTIONS.json`](APPROVED_SOURCE_SECURITY_EXCEPTIONS.json) — exact reviewed source-policy exceptions.
 - [`DEPENDENCY_UPDATE_PROCEDURE.md`](DEPENDENCY_UPDATE_PROCEDURE.md) — controlled Gradle, dependency and GitHub Action update procedure.
@@ -24,9 +25,9 @@ This directory contains the canonical security-review evidence and hardening pla
 - H2 bounded network I/O and voice resource controls: merged as `15c56526417ac7dfb76567d51d1aa107f522cda7`; real-server smoke remains required before SEC-003/SEC-004/SEC-007 closure.
 - H3 supply-chain verification: merged as `4cf9aef2e5c31a5682a7cad8544219154330e056`; SEC-005 is Closed.
 - H4 CI security coverage: merged as `05d105c1f558d5643b8190a88cc744b4d7cbe129`; SEC-006 is Closed.
-- H5 legacy-tool cleanup: implementation and exact-head automated validation are complete in PR #63; SEC-008/SEC-009 remain open only until merge evidence is recorded.
+- H5 legacy-tool cleanup: merged as `6d82b4e4650294a4a42b9ea2113e64d990e08811`; SEC-008 and SEC-009 are Closed.
 
-The audit found no direct evidence of intentionally malicious runtime behavior in the inspected VillAIgence paths. All inherited non-CI utilities, external-maintenance scripts, raw generator inputs and tool-only masks have now been removed from the H5 branch. The retained script surface is limited to Gradle and VillAIgence-owned CI/security launchers and is enforced by deterministic policy.
+The audit found no direct evidence of intentionally malicious runtime behavior in the inspected VillAIgence paths. All inherited non-CI utilities, external-maintenance scripts, raw generator inputs and tool-only masks have been removed from the merged default branch. The retained script surface is limited to Gradle and VillAIgence-owned CI/security launchers and is enforced by deterministic policy.
 
 ## Security change rule
 

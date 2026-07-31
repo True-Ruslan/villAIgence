@@ -1,6 +1,6 @@
 # Step 1 Security Hardening Tracker
 
-**Status:** H1–H4 merged; H5 implementation and automated validation complete in PR #63; H1/H2 controlled real-server validation remains  
+**Status:** H1–H5 merged; repository-side hardening is complete; controlled H1/H2 real-server validation remains
 **Plan:** [`STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md`](STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md)  
 **Audit:** [`SECURITY_AUDIT_2026-07-31.md`](SECURITY_AUDIT_2026-07-31.md)  
 **Security index:** [`README.md`](README.md)
@@ -85,7 +85,7 @@ global active PCM:        128 MiB
 
 ## H5 — Legacy tools cleanup and audit closure
 
-**PR:** #63  
+**Merge:** PR #63 — `6d82b4e4650294a4a42b9ea2113e64d990e08811`
 **Evidence:** [`H5_LEGACY_TOOLS_AUDIT_CLOSURE_2026-07-31.md`](H5_LEGACY_TOOLS_AUDIT_CLOSURE_2026-07-31.md)
 
 - [x] Generate exact-head pre-cleanup whole-tree manifest.
@@ -101,8 +101,8 @@ global active PCM:        128 MiB
 - [x] Add build/CI/release invocation guard for removed utilities.
 - [x] Retain exact-head SHA-256 whole-tree manifest evidence.
 - [x] Complete common/Fabric/NeoForge/package/security validation on `ae26a9445b646c02e53b9fe8a557204fd703c7ff`.
-- [ ] Merge PR #63 and record exact squash commit.
-- [ ] Close SEC-008 and SEC-009 in a dated audit follow-up.
+- [x] Merge PR #63 and record exact squash commit.
+- [x] Close SEC-008 and SEC-009 in `SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H5.md`.
 
 ### H5 final automated evidence
 
@@ -139,7 +139,7 @@ tracked files: 3458
 
 - [x] H2, H3, H4 and H5 dated implementation evidence exists.
 - [x] SEC-005 and SEC-006 closing follow-ups exist.
-- [ ] Record H5 merge and close SEC-008/SEC-009.
-- [ ] Add combined H1/H2 real-server validation document.
-- [ ] Reconcile `docs/PROJECT_STATE.md` and `docs/CHANGELOG.md` after H5 merge.
+- [x] Record H5 merge and close SEC-008/SEC-009.
+- [x] Add `H1_H2_CONTROLLED_SERVER_VALIDATION.md`; execution evidence remains pending.
+- [x] Reconcile `docs/PROJECT_STATE.md` and `docs/CHANGELOG.md` after H5 merge.
 - [ ] Mark Step 1 fully complete only after applicable live validation exists.
