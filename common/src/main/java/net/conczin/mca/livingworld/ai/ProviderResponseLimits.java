@@ -6,6 +6,7 @@ public final class ProviderResponseLimits {
     public static final int STT_JSON_BYTES = 512 * 1024;
     public static final int TTS_AUDIO_BYTES = 32 * 1024 * 1024;
     public static final int ERROR_BODY_BYTES = 64 * 1024;
+    public static final int VERIFICATION_JSON_BYTES = 16 * 1024;
 
     private ProviderResponseLimits() {
     }
