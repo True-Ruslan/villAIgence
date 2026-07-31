@@ -14,8 +14,9 @@ import java.util.Locale;
 /**
  * Narrow legacy MCA account-verification client.
  *
- * <p>The request target is derived internally from a validated Conczin Chat endpoint. Callers cannot
- * supply an arbitrary verification URL.</p>
+ * <p>The public request target is derived internally from a validated Conczin Chat endpoint. Callers
+ * cannot supply an arbitrary verification URL. A package-private transport entry point exists only so
+ * the exact bounded/no-redirect implementation can be exercised by the local acceptance probe.</p>
  */
 public final class AccountVerificationClient {
     private static final String VERIFY_PATH = "/v1/mca/verify";
@@ -33,6 +34,18 @@ public final class AccountVerificationClient {
         try {
             ProviderEndpoint chatEndpoint = ProviderEndpointPolicy.parse(configuredChatEndpoint, false);
             URI verificationUri = buildVerificationUri(chatEndpoint, email, playerName);
+            return execute(verificationUri, connectTimeoutMillis, readTimeoutMillis);
+        } catch (RuntimeException ignored) {
+            return Result.ERROR;
+        }
+    }
+
+    static Result execute(
+            URI verificationUri,
+            int connectTimeoutMillis,
+            int readTimeoutMillis
+    ) {
+        try {
             HttpURLConnection connection = (HttpURLConnection) verificationUri.toURL().openConnection();
             connection.setInstanceFollowRedirects(false);
             connection.setRequestMethod("GET");
@@ -55,6 +68,8 @@ public final class AccountVerificationClient {
                                 ? ProviderResponseLimits.VERIFICATION_JSON_BYTES
                                 : ProviderResponseLimits.ERROR_BODY_BYTES
                 );
+            } finally {
+                connection.disconnect();
             }
             if (!success) return Result.ERROR;
             return parseResult(body);
