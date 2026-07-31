@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Explicit operator probe for the exact server-wide PCM reservation implementation.
+ * Explicit operator probe for the exact voice-duration and server-wide PCM reservation bounds.
  *
  * <p>The probe allocates reservation counters only; it does not allocate PCM byte arrays and is never
  * invoked by Minecraft startup.</p>
@@ -31,6 +31,8 @@ public final class VoicePcmBudgetAcceptanceProbe {
             throw new IllegalArgumentException("reservationBytes must be in 1..maxBytes");
         }
 
+        int clampedLowSeconds = VoiceCaptureLimits.clampSeconds(Integer.MIN_VALUE);
+        int clampedHighSeconds = VoiceCaptureLimits.clampSeconds(Integer.MAX_VALUE);
         VoicePcmBudget budget = new VoicePcmBudget(maxBytes);
         ExecutorService executor = Executors.newFixedThreadPool(workers);
         CountDownLatch ready = new CountDownLatch(workers);
@@ -103,7 +105,9 @@ public final class VoicePcmBudgetAcceptanceProbe {
 
             long expectedAcceptedLong = Math.min((long) workers, maxBytes / reservationBytes);
             int expectedAccepted = Math.toIntExact(expectedAcceptedLong);
-            boolean passed = acceptedCount == expectedAccepted
+            boolean passed = clampedLowSeconds == VoiceCaptureLimits.MIN_SECONDS
+                    && clampedHighSeconds == VoiceCaptureLimits.MAX_SECONDS
+                    && acceptedCount == expectedAccepted
                     && rejectedCount == workers - expectedAccepted
                     && observedPeak == expectedAcceptedLong * reservationBytes
                     && observedPeak <= maxBytes
@@ -115,6 +119,8 @@ public final class VoicePcmBudgetAcceptanceProbe {
                     maxBytes,
                     workers,
                     reservationBytes,
+                    clampedLowSeconds,
+                    clampedHighSeconds,
                     acceptedCount,
                     rejectedCount,
                     observedPeak,
@@ -179,6 +185,8 @@ public final class VoicePcmBudgetAcceptanceProbe {
             long maxBytes,
             int workers,
             long reservationBytes,
+            int clampedLowSeconds,
+            int clampedHighSeconds,
             int accepted,
             int rejected,
             long peakBytes,
@@ -195,6 +203,8 @@ public final class VoicePcmBudgetAcceptanceProbe {
                     + "\"maxBytes\":" + maxBytes + ","
                     + "\"workers\":" + workers + ","
                     + "\"reservationBytes\":" + reservationBytes + ","
+                    + "\"clampedLowSeconds\":" + clampedLowSeconds + ","
+                    + "\"clampedHighSeconds\":" + clampedHighSeconds + ","
                     + "\"accepted\":" + accepted + ","
                     + "\"rejected\":" + rejected + ","
                     + "\"peakBytes\":" + peakBytes + ","
