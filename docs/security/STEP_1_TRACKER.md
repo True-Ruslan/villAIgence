@@ -1,9 +1,10 @@
 # Step 1 Security Hardening Tracker
 
-**Status:** H1 and H2 implemented and automated-CI validated; real-server smoke pending  
+**Status:** H1/H2 implemented and automated-CI validated; H3 implemented with final CI green; H1/H2 real-server smoke and H3 merge pending  
 **Plan:** [`STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md`](STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md)  
 **Audit:** [`SECURITY_AUDIT_2026-07-31.md`](SECURITY_AUDIT_2026-07-31.md)  
-**H2 evidence:** [`H2_BOUNDED_NETWORK_HARDENING_2026-07-31.md`](H2_BOUNDED_NETWORK_HARDENING_2026-07-31.md)
+**H2 evidence:** [`H2_BOUNDED_NETWORK_HARDENING_2026-07-31.md`](H2_BOUNDED_NETWORK_HARDENING_2026-07-31.md)  
+**H3 evidence:** [`H3_SUPPLY_CHAIN_HARDENING_2026-07-31.md`](H3_SUPPLY_CHAIN_HARDENING_2026-07-31.md)
 
 GitHub Issues are disabled for this repository, so this versioned checklist is the canonical execution tracker.
 
@@ -81,7 +82,7 @@ H1 merge
 - [x] Verify oversized TTS fails without changing the valid text-response boundary.
 - [x] Preserve retry behavior so provider reads cannot duplicate actions or persistence effects.
 - [x] Record automated implementation evidence for SEC-003, SEC-004 and SEC-007.
-- [ ] Merge PR #60.
+- [x] Merge PR #60 at `15c56526417ac7dfb76567d51d1aa107f522cda7`.
 - [ ] Complete controlled real-server validation before marking SEC-003, SEC-004 and SEC-007 Closed.
 
 ### H2 final limits
@@ -146,26 +147,45 @@ Automated H2 coverage includes:
 
 ## H3 — Supply-chain verification
 
-- [ ] Move Fabric Loom from snapshot to a stable compatible release.
-- [ ] Add the official Gradle wrapper distribution checksum.
-- [ ] Add Gradle wrapper validation to CI.
-- [ ] Commit dependency verification metadata.
-- [ ] Enable dependency locking where compatible.
-- [ ] Restrict third-party Maven repository content.
-- [ ] Pin GitHub Actions to full commit SHAs.
-- [ ] Produce an SBOM or equivalent dependency manifest for releases.
-- [ ] Document dependency-update and metadata-refresh procedure.
-- [ ] Record closing commits and evidence for SEC-005.
+- [x] Move Fabric Loom from snapshot to stable `1.17.17`.
+- [x] Add the official Gradle 9.6.1 wrapper distribution checksum.
+- [x] Add Gradle wrapper validation to CI and release workflows.
+- [x] Commit dependency verification metadata with SHA-256 checksums.
+- [x] Enable dependency locking and commit project lockfiles.
+- [x] Restrict third-party Maven repository content.
+- [x] Pin external GitHub Actions to full commit SHAs.
+- [x] Produce a deterministic dependency manifest for release artifacts.
+- [x] Document the controlled dependency-update and metadata-refresh procedure.
+- [x] Constrain checksum exemptions to three reviewed classes of locally generated Loom JARs.
+- [x] Add regression policy preventing direct use of Loom synthetic `remapped.*` coordinates.
+- [x] Record branch/head evidence for SEC-005.
+- [ ] Merge PR #61 and record the closing squash commit.
+
+### H3 automated evidence
+
+```text
+final automated-validation head
+4d00ff296819196bd12fd5e3f16fd93820b5cf9c
+
+VillAIgence CI #875 / 30631724664 — SUCCESS
+Java Pull Request CI #413 / 30631724636 — SUCCESS
+VillAIgence GitHub Release #69 / 30631724672 — SUCCESS
+Supply-chain verification #29 / 30631724653 — SUCCESS
+```
+
+The final workflow runs with `contents: read` and verifies wrapper integrity, dependency checksums, lockfiles, common tests, Fabric, NeoForge, release packaging, deterministic manifest generation and immutability of committed verification inputs.
+
+Detailed evidence and the Fabric Loom generated-artifact trust boundary are recorded in `H3_SUPPLY_CHAIN_HARDENING_2026-07-31.md`.
 
 ## H4 — CI security coverage and build matrix
 
 - [ ] Add NeoForge build to required primary CI.
-- [x] Retain common tests and Fabric packaging checks during H1/H2.
+- [x] Retain common tests and Fabric packaging checks during H1/H2/H3.
 - [ ] Add secret scanning.
 - [ ] Add Java/Gradle static security analysis.
 - [ ] Add deterministic recursive script inventory.
 - [ ] Block undocumented executable or network-capable utilities.
-- [x] Keep CI permissions least-privilege during H1/H2.
+- [x] Keep CI permissions least-privilege during H1/H2/H3.
 - [ ] Keep release write access isolated to the release job.
 - [ ] Record closing commits and evidence for SEC-006 and part of SEC-009.
 
@@ -183,10 +203,10 @@ Automated H2 coverage includes:
 
 ## Final CI and live validation
 
-- [x] Common unit tests pass for H1/H2.
-- [x] Fabric build/package passes for H1/H2.
-- [x] NeoForge and Fabric compilation pass through Java Pull Request CI for H1/H2.
-- [ ] Wrapper and dependency verification pass after H3.
+- [x] Common unit tests pass for H1/H2/H3.
+- [x] Fabric build/package passes for H1/H2/H3.
+- [x] NeoForge and Fabric compilation pass through Java Pull Request CI for H1/H2/H3.
+- [x] Wrapper and dependency verification pass after H3.
 - [ ] Secret/static/script inventory checks pass after H4/H5.
 - [ ] Standard OpenRouter/OpenAI configuration works on a real server with H1/H2.
 - [ ] Invalid HTTP/lookalike endpoints fail safely.
@@ -204,7 +224,9 @@ Automated H2 coverage includes:
 ## Documentation closure
 
 - [x] Add the dated H2 implementation/evidence record.
+- [x] Add the dated H3 implementation/evidence record.
 - [x] Correct the audit record through the H2 follow-up for the active `/mca verify` path.
+- [ ] Record the H3 merge commit and close SEC-005 in a dated audit follow-up.
 - [ ] Update finding statuses after H1/H2 merge and live smoke.
 - [ ] Update `docs/PROJECT_STATE.md` after implementation and validation boundaries are reconciled.
 - [ ] Update `docs/CHANGELOG.md` after implementation and validation.

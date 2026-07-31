@@ -4,7 +4,13 @@ plugins {
 }
 
 repositories {
-    maven { url = 'https://maven.maxhenkel.de/repository/public' }
+    maven {
+        name = 'MaxHenkel'
+        url = 'https://maven.maxhenkel.de/repository/public'
+        content {
+            includeGroup('de.maxhenkel.voicechat')
+        }
+    }
 }
 
 dependencies {

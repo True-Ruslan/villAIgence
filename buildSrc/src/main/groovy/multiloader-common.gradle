@@ -41,12 +41,11 @@ repositories {
         filter { includeGroup('org.parchmentmc.data') }
     }
     maven {
-        name = 'BlameJared'
-        url = 'https://maven.blamejared.com'
-    }
-    maven {
         name = "Modrinth"
         url = "https://api.modrinth.com/maven"
+        content {
+            includeGroup('maven.modrinth')
+        }
     }
 }
 
