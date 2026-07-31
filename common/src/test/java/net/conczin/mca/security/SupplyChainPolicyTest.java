@@ -19,7 +19,7 @@ class SupplyChainPolicyTest {
     private static final Pattern ACTION_REFERENCE = Pattern.compile("^\\s*-?\\s*uses:\\s*([^#\\s]+)");
     private static final Pattern IMMUTABLE_ACTION = Pattern.compile("^[^@\\s]+@[0-9a-fA-F]{40}$");
     private static final String GRADLE_9_6_1_BIN_SHA256 =
-            "9c0f9fb38f9ee2af9fd4b26feb3a7e4c14a1660edbf9933a14b8f14dde1f0eb5";
+            "9c0f7faeeb306cb14e4279a3e084ca6b596894089a0638e68a07c945a32c9e14";
 
     @Test
     void fabricLoomUsesAStableRelease() throws IOException {
