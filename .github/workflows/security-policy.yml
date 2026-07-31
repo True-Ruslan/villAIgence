@@ -33,6 +33,12 @@ jobs:
           set -euo pipefail
           python3 scripts/ci/test_repository_security_policy.py
 
+      - name: Run provider acceptance harness tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/test_provider_acceptance_harness.py
+
       - name: Run deterministic repository security policy
         shell: bash
         run: |
