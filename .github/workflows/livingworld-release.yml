@@ -9,6 +9,9 @@ on:
       - '1.21.1'
     paths:
       - '.github/workflows/livingworld-release.yml'
+      - 'build.gradle'
+      - 'gradle/verification-metadata.xml'
+      - '**/gradle.lockfile'
       - 'docs/RELEASING.md'
       - 'scripts/ci/package-livingworld-release.sh'
   workflow_dispatch:
@@ -76,12 +79,13 @@ jobs:
         with:
           validate-wrappers: true
 
-      - name: Run tests and build Fabric JAR
+      - name: Run tests, build Fabric JAR and generate dependency manifest
         shell: bash
         run: |
           set -euo pipefail
           chmod +x gradlew
-          ./gradlew :common:test :fabric:build --stacktrace --no-daemon --console=plain
+          ./gradlew :common:test :fabric:build dependencyManifest --stacktrace --no-daemon --console=plain
+          test -s build/reports/dependencies/villaigence-dependencies.txt
 
       - name: Package and smoke-check VillAIgence artifact
         id: package
@@ -97,6 +101,9 @@ jobs:
             is_release=false
           fi
           scripts/ci/package-livingworld-release.sh "${artifact_label}" "${is_release}" dist
+          manifest_file="dist/villaigence-dependencies-${artifact_label}.txt"
+          cp build/reports/dependencies/villaigence-dependencies.txt "${manifest_file}"
+          echo "manifest=${manifest_file}" >> "$GITHUB_OUTPUT"
 
       - name: Upload verified VillAIgence Fabric package
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -105,6 +112,7 @@ jobs:
           path: |
             ${{ steps.package.outputs.jar }}
             ${{ steps.package.outputs.checksum }}
+            ${{ steps.package.outputs.manifest }}
           if-no-files-found: error
           retention-days: 30
 
@@ -134,8 +142,10 @@ jobs:
           minecraft_version="${release_tag#*+}"
           jar_file="dist/villaigence-fabric-${release_tag}.jar"
           checksum_file="${jar_file}.sha256"
+          manifest_file="dist/villaigence-dependencies-${release_tag}.txt"
           test -f "${jar_file}"
           test -f "${checksum_file}"
+          test -f "${manifest_file}"
 
           checksum="$(cat "${checksum_file}")"
           notes_file="release-notes.md"
@@ -161,6 +171,8 @@ jobs:
             "" \
             "SHA-256:" \
             "${checksum}" \
+            "" \
+            "The attached dependency manifest records the sorted resolved build coordinates used by this release." \
             > "${notes_file}"
 
           title="VillAIgence ${mod_version} for Minecraft ${minecraft_version}"
@@ -183,12 +195,14 @@ jobs:
             gh release upload "${release_tag}" \
               "${jar_file}" \
               "${checksum_file}" \
+              "${manifest_file}" \
               --clobber
           else
             common_args=(
               "${release_tag}"
               "${jar_file}"
               "${checksum_file}"
+              "${manifest_file}"
               --verify-tag
               --title "${title}"
               --notes-file "${notes_file}"
