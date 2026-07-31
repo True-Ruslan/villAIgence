@@ -50,6 +50,12 @@
       "ci": true
     },
     {
+      "path": "scripts/ci/test_repository_security_policy.py",
+      "purpose": "Standard-library self-tests for secret, source, network and script-inventory detection rules.",
+      "network": false,
+      "ci": true
+    },
+    {
       "path": "scripts/fetch_contributors.py",
       "purpose": "Inherited manual contributor metadata fetcher; not part of VillAIgence runtime or CI.",
       "network": true,
