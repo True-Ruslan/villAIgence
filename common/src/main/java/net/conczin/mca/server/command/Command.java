@@ -9,7 +9,7 @@ import net.conczin.mca.Config;
 import net.conczin.mca.MCA;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.ai.chatAI.ChatAI;
-import net.conczin.mca.entity.ai.chatAI.OpenAIChatAI;
+import net.conczin.mca.livingworld.ai.AccountVerificationClient;
 import net.conczin.mca.network.Network;
 import net.conczin.mca.network.s2c.OpenGuiRequest;
 import net.conczin.mca.server.ServerInteractionManager;
@@ -22,13 +22,8 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 public class Command {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -211,24 +206,24 @@ public class Command {
 
     private static int verify(CommandContext<CommandSourceStack> ctx) {
         ServerPlayer player = ctx.getSource().getPlayer();
+        if (player == null) return 1;
+
+        String email = StringArgumentType.getString(ctx, "email");
+        String playerName = player.getName().getString();
+        String configuredEndpoint = Config.getInstance().villagerChatAIEndpoint;
 
         CompletableFuture.runAsync(() -> {
-            // build http request
-            Map<String, String> params = new HashMap<>();
-            params.put("email", StringArgumentType.getString(ctx, "email"));
-            assert player != null;
-            params.put("player", player.getName().getString());
+            AccountVerificationClient.Result result = AccountVerificationClient.verify(
+                    configuredEndpoint,
+                    email,
+                    playerName,
+                    10_000,
+                    60_000
+            );
 
-            // encode and create url
-            String encodedURL = params.keySet().stream()
-                    .map(key -> key + "=" + URLEncoder.encode(params.get(key), StandardCharsets.UTF_8))
-                    .collect(Collectors.joining("&", Config.getInstance().villagerChatAIEndpoint.replace("v1/mca/chat", "v1/mca/verify") + "?", ""));
-
-            String request = OpenAIChatAI.verify(encodedURL);
-
-            if (request.equals("success")) {
+            if (result == AccountVerificationClient.Result.SUCCESS) {
                 sendMessage(ctx, Component.translatable("command.verify.success").withStyle(ChatFormatting.GREEN));
-            } else if (request.equals("failed")) {
+            } else if (result == AccountVerificationClient.Result.FAILED) {
                 sendMessage(ctx, Component.translatable("command.verify.failed").withStyle(ChatFormatting.RED));
             } else {
                 sendMessage(ctx, Component.translatable("command.verify.crashed").withStyle(ChatFormatting.RED));
