@@ -1,0 +1,78 @@
+name: Supply-chain metadata generation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - '1.21.1'
+    paths:
+      - '.github/workflows/supply-chain-metadata.yml'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/wrapper/gradle-wrapper.properties'
+      - 'buildSrc/**'
+      - 'common/build.gradle'
+      - 'fabric/build.gradle'
+      - 'neoforge/build.gradle'
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      GRADLE_OPTS: --enable-native-access=ALL-UNNAMED
+      NO_COLOR: '1'
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+        with:
+          cache-read-only: true
+          validate-wrappers: true
+
+      - name: Generate verification metadata, lockfiles and dependency manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew \
+            :fabric:build \
+            :neoforge:build \
+            dependencyManifest \
+            --write-verification-metadata sha256 \
+            --write-locks \
+            --console=plain \
+            --non-interactive \
+            -x :common:test
+
+          test -s gradle/verification-metadata.xml
+          test -s common/gradle.lockfile
+          test -s fabric/gradle.lockfile
+          test -s neoforge/gradle.lockfile
+          test -s build/reports/dependencies/villaigence-dependencies.txt
+
+      - name: Upload generated supply-chain metadata
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: villaigence-supply-chain-metadata
+          path: |
+            gradle/verification-metadata.xml
+            common/gradle.lockfile
+            fabric/gradle.lockfile
+            neoforge/gradle.lockfile
+            build/reports/dependencies/villaigence-dependencies.txt
+          if-no-files-found: error
+          retention-days: 7
