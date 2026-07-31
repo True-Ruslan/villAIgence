@@ -85,6 +85,27 @@ class SupplyChainPolicyTest {
     }
 
     @Test
+    void onlyGeneratedLoomLayeredMappingJarReceivesChecksumExemption() throws IOException {
+        String xml = Files.readString(repositoryRoot().resolve("gradle/verification-metadata.xml"));
+        String expectedTrust = "<trust group=\"loom\" name=\"mappings\" "
+                + "version=\"layered[+]hash[.][0-9]+\" "
+                + "file=\"mappings-layered[+]hash[.][0-9]+[.]jar\" regex=\"true\"";
+
+        assertTrue(
+                xml.contains(expectedTrust),
+                "Locally generated Loom layered mappings need a narrow trusted-artifact rule"
+        );
+        assertFalse(
+                xml.contains("<trust group=\"loom\" reason="),
+                "The entire Loom group must never be trusted without artifact constraints"
+        );
+        assertFalse(
+                xml.contains("<trust group=\"net.fabricmc\""),
+                "External Fabric artifacts must remain checksum verified"
+        );
+    }
+
+    @Test
     void dependencyLockingAndProjectLockfilesAreCommitted() throws IOException {
         String rootBuild = Files.readString(repositoryRoot().resolve("build.gradle"));
         assertTrue(rootBuild.contains("lockAllConfigurations()"), "Dependency locking must be enabled");
