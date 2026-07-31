@@ -85,24 +85,50 @@ class SupplyChainPolicyTest {
     }
 
     @Test
-    void onlyGeneratedLoomLayeredMappingJarReceivesChecksumExemption() throws IOException {
+    void onlyLocallyGeneratedLoomArtifactsReceiveChecksumExemptions() throws IOException {
         String xml = Files.readString(repositoryRoot().resolve("gradle/verification-metadata.xml"));
-        String expectedTrust = "<trust group=\"loom\" name=\"mappings\" "
+        String layeredMappingsTrust = "<trust group=\"loom\" name=\"mappings\" "
                 + "version=\"layered[+]hash[.][0-9]+\" "
                 + "file=\"mappings-layered[+]hash[.][0-9]+[.]jar\" regex=\"true\"";
+        String remappedJarTrust = "<trust group=\"^remapped[.].+\" file=\".*[.]jar\" regex=\"true\"";
+        String mergedMinecraftTrust = "<trust group=\"net[.]minecraft\" "
+                + "name=\"minecraft-merged-[0-9a-f]+\" "
+                + "version=\"1[.]21[.]1-loom[.]mappings[.].+\" "
+                + "file=\"minecraft-merged-[0-9a-f]+-1[.]21[.]1-loom[.]mappings[.].+[.]jar\" "
+                + "regex=\"true\"";
 
-        assertTrue(
-                xml.contains(expectedTrust),
-                "Locally generated Loom layered mappings need a narrow trusted-artifact rule"
+        assertTrue(xml.contains(layeredMappingsTrust),
+                "Locally generated Loom layered mappings need a narrow trusted-artifact rule");
+        assertTrue(xml.contains(remappedJarTrust),
+                "Locally remapped Loom JARs need a file-scoped trusted-artifact rule");
+        assertTrue(xml.contains(mergedMinecraftTrust),
+                "The locally merged Minecraft development JAR needs a coordinate-scoped trusted-artifact rule");
+
+        long trustRuleCount = xml.lines().filter(line -> line.contains("<trust ")).count();
+        assertTrue(trustRuleCount == 3,
+                "Only the three reviewed Loom-generated artifact classes may bypass checksums");
+        assertFalse(xml.contains("<trust group=\"loom\" reason="),
+                "The entire Loom group must never be trusted without artifact constraints");
+        assertFalse(xml.contains("<trust group=\"net.fabricmc\""),
+                "External Fabric artifacts must remain checksum verified");
+    }
+
+    @Test
+    void buildScriptsCannotDeclareSyntheticRemappedCoordinates() throws IOException {
+        List<String> buildFiles = List.of(
+                "build.gradle",
+                "settings.gradle",
+                "gradle.properties",
+                "common/build.gradle",
+                "fabric/build.gradle",
+                "neoforge/build.gradle"
         );
-        assertFalse(
-                xml.contains("<trust group=\"loom\" reason="),
-                "The entire Loom group must never be trusted without artifact constraints"
-        );
-        assertFalse(
-                xml.contains("<trust group=\"net.fabricmc\""),
-                "External Fabric artifacts must remain checksum verified"
-        );
+
+        for (String buildFile : buildFiles) {
+            String content = Files.readString(repositoryRoot().resolve(buildFile));
+            assertFalse(content.contains("remapped."),
+                    buildFile + " must not declare Loom's synthetic remapped dependency coordinates");
+        }
     }
 
     @Test
