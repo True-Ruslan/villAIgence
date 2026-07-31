@@ -12,6 +12,8 @@ class VoicePcmBudgetAcceptanceProbeTest {
         VoicePcmBudgetAcceptanceProbe.Result result =
                 VoicePcmBudgetAcceptanceProbe.run(16L, 10, 4L);
 
+        assertEquals(VoiceCaptureLimits.MIN_SECONDS, result.clampedLowSeconds());
+        assertEquals(VoiceCaptureLimits.MAX_SECONDS, result.clampedHighSeconds());
         assertEquals(4, result.accepted());
         assertEquals(6, result.rejected());
         assertEquals(16L, result.peakBytes());
@@ -19,6 +21,8 @@ class VoicePcmBudgetAcceptanceProbeTest {
         assertTrue(result.recoveryReservationSucceeded());
         assertTrue(result.passed());
         assertTrue(result.toJson().contains("VILLAIGENCE_PCM_PROBE_PASS"));
+        assertTrue(result.toJson().contains("\"clampedLowSeconds\":1"));
+        assertTrue(result.toJson().contains("\"clampedHighSeconds\":120"));
     }
 
     @Test
