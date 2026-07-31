@@ -17,7 +17,7 @@ permissions:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - name: Checkout without external actions
@@ -43,11 +43,16 @@ jobs:
         run: |
           find .github/workflows -maxdepth 1 -type f -print -exec grep -HnE '^[[:space:]]*-?[[:space:]]*uses:' {} \; | sort
 
-      - name: Run unit tests and Fabric build
+      - name: Run repository security policy
+        run: |
+          python3 scripts/ci/repository_security_policy.py --check
+          test -s build/security/script-inventory.json
+
+      - name: Run unit tests and supported loader builds
         run: |
           chmod +x gradlew
           set +e
-          ./gradlew :common:test :fabric:build --stacktrace --no-daemon > gradle-build.log 2>&1
+          ./gradlew :common:test :fabric:build :neoforge:build --stacktrace --no-daemon > gradle-build.log 2>&1
           status=$?
           set -e
 
