@@ -26,6 +26,12 @@
       "ci": true
     },
     {
+      "path": "scripts/ci/test_provider_acceptance_harness.py",
+      "purpose": "Standard-library loopback integration tests for the provider acceptance harness; all network activity is confined to ephemeral local ports.",
+      "network": true,
+      "ci": true
+    },
+    {
       "path": "scripts/ci/test_repository_security_policy.py",
       "purpose": "Standard-library detector self-tests; contains synthetic secret and network signatures but performs no network requests.",
       "network": true,
