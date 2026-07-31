@@ -5,6 +5,8 @@
       <verify-signatures>false</verify-signatures>
       <trusted-artifacts>
          <trust group="loom" name="mappings" version="layered[+]hash[.][0-9]+" file="mappings-layered[+]hash[.][0-9]+[.]jar" regex="true" reason="Locally generated Fabric Loom layered mappings; external mapping inputs remain checksum verified"/>
+         <trust group="^remapped[.].+" file=".*[.]jar" regex="true" reason="Locally remapped Fabric Loom development JARs; source dependencies remain checksum verified"/>
+         <trust group="net[.]minecraft" name="minecraft-merged-[0-9a-f]+" version="1[.]21[.]1-loom[.]mappings[.].+" file="minecraft-merged-[0-9a-f]+-1[.]21[.]1-loom[.]mappings[.].+[.]jar" regex="true" reason="Locally generated merged Minecraft development JAR; official Minecraft inputs remain checksum verified"/>
       </trusted-artifacts>
    </configuration>
    <components>
