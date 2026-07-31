@@ -51,8 +51,8 @@
     },
     {
       "path": "scripts/ci/test_repository_security_policy.py",
-      "purpose": "Standard-library self-tests for secret, source, network and script-inventory detection rules.",
-      "network": false,
+      "purpose": "Standard-library detector self-tests; contains synthetic secret and network signatures but performs no network requests.",
+      "network": true,
       "ci": true
     },
     {
