@@ -80,7 +80,7 @@ class SupplyChainPolicyTest {
         assertTrue(Files.isRegularFile(metadata), "Gradle dependency verification metadata is missing");
 
         String xml = Files.readString(metadata);
-        assertTrue(xml.contains("<verification-metadata>"));
+        assertTrue(xml.contains("<verification-metadata"));
         assertTrue(xml.contains("<sha256 value="), "Verification metadata must contain SHA-256 checksums");
     }
 
@@ -151,6 +151,9 @@ class SupplyChainPolicyTest {
         );
 
         assertTrue(rootBuild.contains("tasks.register('dependencyManifest')"));
+        assertTrue(rootBuild.contains("common/gradle.lockfile"));
+        assertTrue(rootBuild.contains("fabric/gradle.lockfile"));
+        assertTrue(rootBuild.contains("neoforge/gradle.lockfile"));
         assertTrue(releaseWorkflow.contains("dependencyManifest"));
         assertTrue(releaseWorkflow.contains("villaigence-dependencies.txt"));
     }
