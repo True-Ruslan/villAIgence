@@ -40,20 +40,23 @@ allprojects {
     }
 }
 
-def dependencyManifestFile = layout.buildDirectory.file('reports/dependencies/villaigence-dependencies.txt')
+subprojects { subproject ->
+    def fragmentFile = subproject.layout.buildDirectory.file(
+            "reports/dependencies/${subproject.name}-dependencies.txt"
+    )
 
-tasks.register('dependencyManifest') {
-    group = 'verification'
-    description = 'Writes a deterministic sorted manifest of resolved external build dependencies.'
-    outputs.file(dependencyManifestFile)
+    subproject.tasks.register('dependencyManifestFragment') {
+        group = 'verification'
+        description = "Writes ${subproject.path} resolved dependency coordinates."
+        outputs.file(fragmentFile)
 
-    doLast {
-        def coordinates = new TreeSet<String>()
-        subprojects.sort { left, right -> left.path <=> right.path }.each { project ->
-            project.configurations
-                    .findAll { configuration ->
+        doLast {
+            def coordinates = new TreeSet<String>()
+            subproject.configurations
+                    .matching { configuration ->
                         configuration.canBeResolved && manifestConfigurationNames.contains(configuration.name)
                     }
+                    .toList()
                     .sort { left, right -> left.name <=> right.name }
                     .each { configuration ->
                         configuration.incoming.resolutionResult.allComponents.each { component ->
@@ -63,6 +66,36 @@ tasks.register('dependencyManifest') {
                             }
                         }
                     }
+
+            def output = fragmentFile.get().asFile
+            output.parentFile.mkdirs()
+            output.setText(coordinates.join('\n') + (coordinates.isEmpty() ? '' : '\n'), 'UTF-8')
+        }
+    }
+}
+
+def dependencyManifestFile = layout.buildDirectory.file('reports/dependencies/villaigence-dependencies.txt')
+
+tasks.register('dependencyManifest') {
+    group = 'verification'
+    description = 'Writes a deterministic sorted manifest of resolved external build dependencies.'
+    dependsOn(subprojects.collect { project -> project.tasks.named('dependencyManifestFragment') })
+    inputs.files(subprojects.collect { project ->
+        project.layout.buildDirectory.file("reports/dependencies/${project.name}-dependencies.txt")
+    })
+    outputs.file(dependencyManifestFile)
+
+    doLast {
+        def coordinates = new TreeSet<String>()
+        subprojects.sort { left, right -> left.path <=> right.path }.each { project ->
+            def fragment = project.layout.buildDirectory.file(
+                    "reports/dependencies/${project.name}-dependencies.txt"
+            ).get().asFile
+            if (fragment.isFile()) {
+                fragment.readLines('UTF-8')
+                        .findAll { line -> !line.isBlank() }
+                        .each { line -> coordinates.add(line) }
+            }
         }
 
         def output = dependencyManifestFile.get().asFile
