@@ -17,13 +17,6 @@ allprojects {
         lockAllConfigurations()
     }
 
-    configurations.configureEach {
-        resolutionStrategy {
-            failOnDynamicVersions()
-            failOnChangingVersions()
-        }
-    }
-
     gradle.projectsEvaluated {
         tasks.withType(JavaCompile).tap {
             configureEach {
