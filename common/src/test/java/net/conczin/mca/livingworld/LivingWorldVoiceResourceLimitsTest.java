@@ -12,16 +12,16 @@ class LivingWorldVoiceResourceLimitsTest {
 
         assertEquals(20, config.voiceMaxSeconds);
         assertEquals(20, VoiceCaptureLimits.clampSeconds(config.voiceMaxSeconds));
-        assertEquals(32L * 1024L * 1024L, VoiceCaptureLimits.MAX_ACTIVE_PCM_BYTES);
+        assertEquals(128L * 1024L * 1024L, VoiceCaptureLimits.MAX_ACTIVE_PCM_BYTES);
     }
 
     @Test
-    void runtimeDurationIsAlwaysClampedToOneThroughSixtySeconds() {
+    void runtimeDurationIsAlwaysClampedToOneThroughOneHundredTwentySeconds() {
         assertEquals(1, VoiceCaptureLimits.clampSeconds(-5));
         assertEquals(1, VoiceCaptureLimits.clampSeconds(0));
         assertEquals(1, VoiceCaptureLimits.clampSeconds(1));
-        assertEquals(60, VoiceCaptureLimits.clampSeconds(60));
-        assertEquals(60, VoiceCaptureLimits.clampSeconds(9999));
+        assertEquals(120, VoiceCaptureLimits.clampSeconds(120));
+        assertEquals(120, VoiceCaptureLimits.clampSeconds(9999));
     }
 
     @Test
@@ -30,6 +30,6 @@ class LivingWorldVoiceResourceLimitsTest {
                 "{\"version\":2,\"voiceMaxSeconds\":2147483647}"
         );
 
-        assertEquals(60, VoiceCaptureLimits.clampSeconds(config.voiceMaxSeconds));
+        assertEquals(120, VoiceCaptureLimits.clampSeconds(config.voiceMaxSeconds));
     }
 }
