@@ -39,6 +39,10 @@ jobs:
           fi
           java -version
 
+      - name: Inventory workflow action references
+        run: |
+          find .github/workflows -maxdepth 1 -type f -print -exec grep -HnE '^[[:space:]]*-?[[:space:]]*uses:' {} \; | sort
+
       - name: Run unit tests and Fabric build
         run: |
           chmod +x gradlew
