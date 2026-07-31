@@ -70,6 +70,20 @@ class ProviderAcceptanceHarnessTest(unittest.TestCase):
         finally:
             connection.close()
 
+    def wait_for_records(self, minimum: int) -> list[dict[str, object]]:
+        deadline = time.monotonic() + 1.0
+        while True:
+            records = [
+                json.loads(line)
+                for line in self.server.evidence_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            if len(records) >= minimum:
+                return records
+            if time.monotonic() >= deadline:
+                self.fail(f"Expected at least {minimum} evidence records, found {len(records)}")
+            time.sleep(0.01)
+
     def test_rejects_non_loopback_bind_addresses(self) -> None:
         self.assertEqual("127.0.0.1", HARNESS.validate_loopback_bind("127.0.0.1"))
         self.assertEqual("::1", HARNESS.validate_loopback_bind("::1"))
@@ -139,11 +153,7 @@ class ProviderAcceptanceHarnessTest(unittest.TestCase):
         )
         self.assertEqual(200, status)
 
-        records = [
-            json.loads(line)
-            for line in self.server.evidence_path.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        ]
+        records = self.wait_for_records(1)
         serialized = json.dumps(records, ensure_ascii=False)
         self.assertNotIn(secret, serialized)
         self.assertNotIn(email, serialized)
@@ -155,6 +165,7 @@ class ProviderAcceptanceHarnessTest(unittest.TestCase):
     def test_manifest_and_summary_are_machine_readable(self) -> None:
         self.request("POST", "/v1/audio/transcriptions/ok")
         self.request("POST", "/v1/audio/speech/redirect")
+        self.wait_for_records(2)
 
         manifest = json.loads(self.server.manifest_path.read_text(encoding="utf-8"))
         summary = HARNESS.summarize_evidence(Path(self.temp.name))
