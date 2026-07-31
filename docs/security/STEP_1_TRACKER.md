@@ -1,12 +1,11 @@
 # Step 1 Security Hardening Tracker
 
-**Status:** H1/H2 implemented and automated-CI validated; H3 implemented with final CI green; H1/H2 real-server smoke and H3 merge pending  
+**Status:** H1–H3 merged; H4 implementation and automated validation complete in PR #62; H1/H2 real-server validation and H5 legacy-tool closure remain  
 **Plan:** [`STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md`](STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md)  
 **Audit:** [`SECURITY_AUDIT_2026-07-31.md`](SECURITY_AUDIT_2026-07-31.md)  
-**H2 evidence:** [`H2_BOUNDED_NETWORK_HARDENING_2026-07-31.md`](H2_BOUNDED_NETWORK_HARDENING_2026-07-31.md)  
-**H3 evidence:** [`H3_SUPPLY_CHAIN_HARDENING_2026-07-31.md`](H3_SUPPLY_CHAIN_HARDENING_2026-07-31.md)
+**Security index:** [`README.md`](README.md)
 
-GitHub Issues are disabled for this repository, so this versioned checklist is the canonical execution tracker.
+GitHub Issues are disabled for this repository, so this versioned checklist is the canonical execution tracker. Detailed TDD logs and run identifiers live in the linked dated evidence documents rather than being duplicated here.
 
 ## Planning and evidence
 
@@ -14,9 +13,12 @@ GitHub Issues are disabled for this repository, so this versioned checklist is t
 - [x] Correct the earlier claim that the repository contained no Python scripts.
 - [x] Document audit coverage limitations.
 - [x] Define ordered work packages, tests, rollout and closure criteria.
-- [x] Validate and merge planning PR #58 at `cd7343fff75bb2ed21a3fa74f63743712388bd7d`.
+- [x] Merge planning PR #58 at `cd7343fff75bb2ed21a3fa74f63743712388bd7d`.
 
 ## H1 — Provider endpoint and credential policy
+
+**Merge:** PR #59 — `787f1a781b5970d4bafb851bfb3c7cba7c21fc0a`  
+**Operator guide:** [`../livingworld/PROVIDER_ENDPOINT_SECURITY.md`](../livingworld/PROVIDER_ENDPOINT_SECURITY.md)
 
 - [x] Add a centralized validated endpoint/origin model.
 - [x] Require HTTPS for non-loopback providers.
@@ -25,67 +27,32 @@ GitHub Issues are disabled for this repository, so this versioned checklist is t
 - [x] Remove custom-endpoint fallback to an unrelated main API key.
 - [x] Replace substring hostname trust checks with normalized exact-host rules.
 - [x] Prevent redirects from leaking authorization or trusted metadata.
-- [x] Add negative tests for malformed, lookalike, IDN and user-info URIs.
-- [x] Record automated implementation evidence for SEC-001 and SEC-002.
-- [ ] Complete real-server smoke validation before marking SEC-001 and SEC-002 Closed.
-
-### H1 evidence
-
-```text
-endpoint policy RED
-8d869863858eca558377e4cbf51024a6004f2a5d
-VillAIgence CI #774 — expected FAILURE
-
-endpoint policy GREEN
-99a632aa3f855467c94691152d703bcea3967891
-VillAIgence CI #776 — SUCCESS
-Java Pull Request CI #316 — SUCCESS
-
-credential binding RED
-1d9edbc6e8643cc36b96f3bc3ab0a212d08534c7
-VillAIgence CI #777 — expected FAILURE
-
-credential binding GREEN
-7148eca77edde8f3d1fac1c1b3059eab2ae0d08d
-VillAIgence CI #778 — SUCCESS
-Java Pull Request CI #318 — SUCCESS
-
-configuration integration GREEN
-c7d4c38313f683cb7be282c4f104107d123e0811
-VillAIgence CI #783 — SUCCESS
-Java Pull Request CI #323 — SUCCESS
-
-final H1 automated GREEN
-4fe1a12ed9627afe30573e1ad2ce458699c82105
-VillAIgence CI #797 — SUCCESS
-Java Pull Request CI #337 — SUCCESS
-
-H1 merge
-787f1a781b5970d4bafb851bfb3c7cba7c21fc0a
-```
+- [x] Add malformed, lookalike, IDN, user-info and redirect regression tests.
+- [x] Merge implementation and automated evidence for SEC-001/SEC-002.
+- [ ] Complete controlled real-server smoke validation.
+- [ ] Close SEC-001 and SEC-002 in a dated audit follow-up.
 
 ## H2 — Bounded network I/O and SSRF removal
 
+**Merge:** PR #60 — `15c56526417ac7dfb76567d51d1aa107f522cda7`  
+**Evidence:** [`H2_BOUNDED_NETWORK_HARDENING_2026-07-31.md`](H2_BOUNDED_NETWORK_HARDENING_2026-07-31.md)
+
 - [x] Introduce shared bounded response readers.
 - [x] Add independent Chat, STT, TTS, verification and error-body limits.
-- [x] Enforce limits for both declared and chunked/unknown-length responses.
-- [x] Retain strict connect and socket-read timeouts.
-- [x] Add a hard total provider body-read deadline against slow-drip responses.
-- [x] Remove `OpenAIChatAI.verify(String encodedURL)`.
-- [x] Replace it with trusted-origin-only `AccountVerificationClient`.
-- [x] Confirm and document the active legacy `/mca verify` call site missed by the initial audit.
+- [x] Enforce limits for declared, chunked and unknown-length responses.
+- [x] Retain strict connect/socket timeouts and add total body-read deadline.
+- [x] Remove arbitrary-URL verification helper.
+- [x] Replace it with trusted-origin-only account verification.
+- [x] Confirm and document the active legacy `/mca verify` call site.
 - [x] Disable redirects for verification and authenticated provider requests.
-- [x] Clamp microphone capture to a documented runtime range.
-- [x] Add an aggregate active PCM budget.
-- [x] Reserve PCM bytes before buffering and release them on all lifecycle paths.
-- [x] Release PCM reservation even if decoder cleanup throws.
-- [x] Verify oversized TTS fails without changing the valid text-response boundary.
-- [x] Preserve retry behavior so provider reads cannot duplicate actions or persistence effects.
-- [x] Record automated implementation evidence for SEC-003, SEC-004 and SEC-007.
-- [x] Merge PR #60 at `15c56526417ac7dfb76567d51d1aa107f522cda7`.
-- [ ] Complete controlled real-server validation before marking SEC-003, SEC-004 and SEC-007 Closed.
+- [x] Clamp microphone capture duration.
+- [x] Add aggregate active PCM budget and atomic reservation/release.
+- [x] Preserve text output and exactly-once side-effect boundaries on failures/retries.
+- [x] Merge automated evidence for SEC-003, SEC-004 and SEC-007.
+- [ ] Complete controlled real-server validation.
+- [ ] Close runtime-sensitive findings in a dated audit follow-up.
 
-### H2 final limits
+### H2 enforced limits
 
 ```text
 Chat JSON:                 8 MiB
@@ -98,120 +65,84 @@ voice capture/session:     1..120 seconds
 global active PCM:        128 MiB
 ```
 
-### H2 TDD and CI evidence
-
-```text
-bounded-reader RED
-85a88b9fceb7553c3a04f9c1e54f19ad020c3c2d
-VillAIgence CI #801 / 30593290408 — expected FAILURE
-reason: BoundedResponseReader did not exist
-
-bounded-reader GREEN
-94fe1c03a05c7c85fa0a112b963b4cfe96754496
-VillAIgence CI #803 / 30593479219 — SUCCESS
-Java Pull Request CI #342 / 30593479217 — SUCCESS
-
-widened-limit GREEN checkpoint
-8a2116191b484810b8b20ef0a476ecaede1c0dc7
-VillAIgence CI #821 / 30618378645 — SUCCESS
-Java Pull Request CI #360 / 30618378582 — SUCCESS
-
-PCM release hardening
-cb5ed05c66b1015abc2b951c4fd1987742d651cd
-source regression guard
-19c4a667a47fba63694410e8c0cdb6899228c615
-
-total body-read deadline RED
-5d49462fa81a2c12c7e8d2894d18eeedb9c9331c
-VillAIgence CI #825 / 30625004367 — expected FAILURE
-reason: deadline API and exception did not exist
-
-total body-read deadline GREEN
-d7291d277e9bfe9745974abdcdc69569567e3a96
-VillAIgence CI #826 / 30625132186 — SUCCESS
-Java Pull Request CI #365 / 30625131764 — SUCCESS
-```
-
-Automated H2 coverage includes:
-
-- declared-length rejection before reading;
-- chunked and unknown-length rejection on the first excess byte;
-- total body-read deadline for slow-drip streams;
-- safe exceptions without provider payload content;
-- oversized STT and TTS local-server integration cases;
-- removal of unbounded Chat/Audio whole-stream helpers;
-- trusted Conczin HTTPS verification boundary with fixed path and no redirects;
-- atomic PCM reservation, exhaustion, release and concurrency;
-- release in `finally` when decoder cleanup fails;
-- common tests, Fabric package verification, Fabric compilation and NeoForge compilation.
-
 ## H3 — Supply-chain verification
 
+**Merge:** PR #61 — `4cf9aef2e5c31a5682a7cad8544219154330e056`  
+**Evidence:** [`H3_SUPPLY_CHAIN_HARDENING_2026-07-31.md`](H3_SUPPLY_CHAIN_HARDENING_2026-07-31.md)  
+**Audit closure:** [`SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H3.md`](SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H3.md)
+
 - [x] Move Fabric Loom from snapshot to stable `1.17.17`.
-- [x] Add the official Gradle 9.6.1 wrapper distribution checksum.
-- [x] Add Gradle wrapper validation to CI and release workflows.
+- [x] Add official Gradle 9.6.1 wrapper distribution checksum.
+- [x] Enable Gradle wrapper validation in CI/release workflows.
 - [x] Commit dependency verification metadata with SHA-256 checksums.
-- [x] Enable dependency locking and commit project lockfiles.
+- [x] Enable dependency locking and commit all project lockfiles.
 - [x] Restrict third-party Maven repository content.
-- [x] Pin external GitHub Actions to full commit SHAs.
-- [x] Produce a deterministic dependency manifest for release artifacts.
-- [x] Document the controlled dependency-update and metadata-refresh procedure.
-- [x] Constrain checksum exemptions to three reviewed classes of locally generated Loom JARs.
-- [x] Add regression policy preventing direct use of Loom synthetic `remapped.*` coordinates.
-- [x] Record branch/head evidence for SEC-005.
-- [ ] Merge PR #61 and record the closing squash commit.
-
-### H3 automated evidence
-
-```text
-final automated-validation head
-4d00ff296819196bd12fd5e3f16fd93820b5cf9c
-
-VillAIgence CI #875 / 30631724664 — SUCCESS
-Java Pull Request CI #413 / 30631724636 — SUCCESS
-VillAIgence GitHub Release #69 / 30631724672 — SUCCESS
-Supply-chain verification #29 / 30631724653 — SUCCESS
-```
-
-The final workflow runs with `contents: read` and verifies wrapper integrity, dependency checksums, lockfiles, common tests, Fabric, NeoForge, release packaging, deterministic manifest generation and immutability of committed verification inputs.
-
-Detailed evidence and the Fabric Loom generated-artifact trust boundary are recorded in `H3_SUPPLY_CHAIN_HARDENING_2026-07-31.md`.
+- [x] Pin external GitHub Actions to immutable commit SHAs.
+- [x] Produce deterministic lockfile-based release dependency manifest.
+- [x] Document controlled dependency-update procedure.
+- [x] Constrain trust to three reviewed classes of locally generated Loom JARs.
+- [x] Add regression policy against broad trust and synthetic dependency declarations.
+- [x] Merge PR #61 and record exact closing commit.
+- [x] Close SEC-005.
 
 ## H4 — CI security coverage and build matrix
 
-- [ ] Add NeoForge build to required primary CI.
-- [x] Retain common tests and Fabric packaging checks during H1/H2/H3.
-- [ ] Add secret scanning.
-- [ ] Add Java/Gradle static security analysis.
-- [ ] Add deterministic recursive script inventory.
-- [ ] Block undocumented executable or network-capable utilities.
-- [x] Keep CI permissions least-privilege during H1/H2/H3.
-- [ ] Keep release write access isolated to the release job.
-- [ ] Record closing commits and evidence for SEC-006 and part of SEC-009.
+**PR:** #62  
+**Evidence:** [`H4_CI_SECURITY_COVERAGE_2026-07-31.md`](H4_CI_SECURITY_COVERAGE_2026-07-31.md)
+
+- [x] Add NeoForge build to primary VillAIgence CI.
+- [x] Retain common tests, Fabric build and release-package verification.
+- [x] Add dependency-free high-confidence secret scanning.
+- [x] Add deterministic Java/Gradle dangerous-API source policy.
+- [x] Add exact reviewed source-security exception registry.
+- [x] Add deterministic recursive tracked script/executable inventory.
+- [x] Record SHA-256, mode, network indicators and CI references in inventory artifact.
+- [x] Block undocumented scripts/executables and stale inventory entries.
+- [x] Normalize accidental executable bit on NeoForge `pack.mcmeta`.
+- [x] Add detector self-tests.
+- [x] Enforce explicit workflow permission boundaries.
+- [x] Keep all non-release workflows read-only.
+- [x] Keep `contents: write` isolated to the tag-only `github-release` job.
+- [x] Complete automated validation on code head `afcef79a761f5b3f96e02c419a4ba63bf83e890b`.
+- [ ] Merge PR #62 and record the closing squash commit.
+- [ ] Close SEC-006 after merge.
+- [ ] Carry the partially remediated SEC-009 inventory evidence into H5.
+
+### H4 final automated evidence
+
+```text
+VillAIgence CI #893 / 30633864131 — SUCCESS
+Java Pull Request CI #430 / 30633864150 — SUCCESS
+Repository security policy #20 / 30633864188 — SUCCESS
+inventory artifact 8794446800
+artifact digest sha256:5a26629ec24f28eaef6c2899b6f3505cf104ee038ed84443e65d8b7f6893c887
+```
 
 ## H5 — Legacy tools cleanup and audit closure
 
-- [ ] Generate the recursive manifest for the closing commit.
-- [ ] Classify every executable and network-capable script.
-- [ ] Remove `scripts/pirate_translator.py`, unless a documented maintenance need is proven.
-- [ ] If retained, harden and isolate the translator with mocked-network tests.
-- [ ] Confirm no unexpected Python invocation from build, CI or release paths.
-- [ ] Add an approved script inventory document.
-- [ ] Rerun whole-tree secret and dependency scans.
-- [ ] Update the audit with exact closing commits and residual risk.
-- [ ] Record closing evidence for SEC-008 and SEC-009.
+- [ ] Review the generated recursive inventory at the H4/H5 boundary.
+- [ ] Classify each inherited utility by actual behavior and maintenance need.
+- [ ] Remove `scripts/pirate_translator.py`, unless a documented need is proven.
+- [ ] Review inherited TTS, contributor, localization, name and skin utilities.
+- [ ] Remove obsolete utilities or isolate retained tools under explicit developer documentation.
+- [ ] If network utilities remain, add bounded timeouts, response limits and mocked-network tests where appropriate.
+- [ ] Confirm no unexpected Python/shell invocation from build, CI or release paths.
+- [ ] Rerun whole-tree secret, source-policy, dependency and script-inventory checks.
+- [ ] Record inherited versus VillAIgence-owned origin where practical.
+- [ ] Update audit with exact closing commits and residual risk.
+- [ ] Close SEC-008 and SEC-009, or explicitly document accepted residual risk.
 
 ## Final CI and live validation
 
-- [x] Common unit tests pass for H1/H2/H3.
-- [x] Fabric build/package passes for H1/H2/H3.
-- [x] NeoForge and Fabric compilation pass through Java Pull Request CI for H1/H2/H3.
+- [x] Common unit tests pass through H4.
+- [x] Fabric build/package passes through H4.
+- [x] NeoForge build passes in primary and independent PR CI.
 - [x] Wrapper and dependency verification pass after H3.
-- [ ] Secret/static/script inventory checks pass after H4/H5.
+- [x] Secret/source/script/workflow policy checks pass after H4.
 - [ ] Standard OpenRouter/OpenAI configuration works on a real server with H1/H2.
 - [ ] Invalid HTTP/lookalike endpoints fail safely.
 - [ ] Explicit loopback development mode works only with opt-in.
-- [ ] Oversized declared and chunked provider responses fail safely.
+- [ ] Oversized declared/chunked responses fail safely.
 - [ ] Slow-drip provider responses terminate at the total deadline.
 - [ ] Text Chat persists exactly once.
 - [ ] Voice STT/TTS pipeline remains operational.
@@ -219,16 +150,14 @@ Detailed evidence and the Fabric Loom generated-artifact trust boundary are reco
 - [ ] Concurrent voice capture remains stable under the global PCM budget.
 - [ ] Logs contain no credentials, authorization headers, prompts or transcripts.
 - [ ] Persistent world files remain stable across restart where no mutation is expected.
-- [ ] Release JAR, checksum and dependency manifest are retained as validation evidence.
+- [ ] Release JAR, checksum and dependency manifest are retained as evidence.
 
 ## Documentation closure
 
-- [x] Add the dated H2 implementation/evidence record.
-- [x] Add the dated H3 implementation/evidence record.
-- [x] Correct the audit record through the H2 follow-up for the active `/mca verify` path.
-- [ ] Record the H3 merge commit and close SEC-005 in a dated audit follow-up.
-- [ ] Update finding statuses after H1/H2 merge and live smoke.
-- [ ] Update `docs/PROJECT_STATE.md` after implementation and validation boundaries are reconciled.
-- [ ] Update `docs/CHANGELOG.md` after implementation and validation.
-- [ ] Add the combined H1/H2 real-server validation document.
-- [ ] Mark Step 1 complete only after code, CI and live evidence all exist.
+- [x] Add dated H2 evidence.
+- [x] Add dated H3 evidence and SEC-005 closure follow-up.
+- [x] Add dated H4 evidence.
+- [ ] Record H4 merge and SEC-006 closure follow-up.
+- [ ] Add combined H1/H2 real-server validation document.
+- [ ] Update `docs/PROJECT_STATE.md` and `docs/CHANGELOG.md` after validation boundaries are reconciled.
+- [ ] Mark Step 1 complete only after H5 and applicable live evidence exist.
