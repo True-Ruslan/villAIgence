@@ -74,6 +74,40 @@ class SupplyChainPolicyTest {
         );
     }
 
+    @Test
+    void dependencyVerificationMetadataIsCommitted() throws IOException {
+        Path metadata = repositoryRoot().resolve("gradle/verification-metadata.xml");
+        assertTrue(Files.isRegularFile(metadata), "Gradle dependency verification metadata is missing");
+
+        String xml = Files.readString(metadata);
+        assertTrue(xml.contains("<verification-metadata>"));
+        assertTrue(xml.contains("<sha256 value="), "Verification metadata must contain SHA-256 checksums");
+    }
+
+    @Test
+    void dependencyLockingAndProjectLockfilesAreCommitted() throws IOException {
+        String rootBuild = Files.readString(repositoryRoot().resolve("build.gradle"));
+        assertTrue(rootBuild.contains("lockAllConfigurations()"), "Dependency locking must be enabled");
+
+        for (String project : List.of("common", "fabric", "neoforge")) {
+            Path lockfile = repositoryRoot().resolve(project).resolve("gradle.lockfile");
+            assertTrue(Files.isRegularFile(lockfile), project + " dependency lockfile is missing");
+            assertFalse(Files.readString(lockfile).isBlank(), project + " dependency lockfile is empty");
+        }
+    }
+
+    @Test
+    void releasePublishesDeterministicDependencyManifest() throws IOException {
+        String rootBuild = Files.readString(repositoryRoot().resolve("build.gradle"));
+        String releaseWorkflow = Files.readString(
+                repositoryRoot().resolve(".github/workflows/livingworld-release.yml")
+        );
+
+        assertTrue(rootBuild.contains("tasks.register('dependencyManifest')"));
+        assertTrue(releaseWorkflow.contains("dependencyManifest"));
+        assertTrue(releaseWorkflow.contains("villaigence-dependencies.txt"));
+    }
+
     private static Path repositoryRoot() {
         return Path.of("..").toAbsolutePath().normalize();
     }
