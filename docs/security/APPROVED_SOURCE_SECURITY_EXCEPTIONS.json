@@ -12,6 +12,12 @@
       "rule": "GRADLE_COMMAND_LINE",
       "contains": "commandLine 'git', 'tag', '--points-at', 'HEAD'",
       "reason": "Fixed git-tag lookup paired with the reviewed providers.exec version derivation."
+    },
+    {
+      "path": "common/src/main/java/net/conczin/mca/client/gui/immersive_library/RecordTypeAdapterFactory.java",
+      "rule": "JAVA_REFLECTION_ACCESS",
+      "contains": "constructor.setAccessible(true)",
+      "reason": "The Gson TypeAdapter instantiates a statically selected record type through its declared canonical constructor; no model, provider or user-controlled class name is loaded."
     }
   ]
 }
