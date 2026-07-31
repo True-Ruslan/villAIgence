@@ -1,9 +1,10 @@
 # Step 1 Security Hardening Tracker
 
-**Status:** H1–H5 merged; `0.1.15+1.21.1` production validation passed; SEC-003/SEC-004/SEC-007 isolated acceptance remains
+**Status:** H1–H5 merged; `0.1.15+1.21.1` production validation passed; deterministic tooling prepared for SEC-003/SEC-004/SEC-007 isolated acceptance
 **Plan:** [`STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md`](STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md)  
 **Audit:** [`SECURITY_AUDIT_2026-07-31.md`](SECURITY_AUDIT_2026-07-31.md)  
-**Security index:** [`README.md`](README.md)
+**Security index:** [`README.md`](README.md)  
+**Residual acceptance procedure:** [`LOCAL_SECURITY_ACCEPTANCE_HARNESS.md`](LOCAL_SECURITY_ACCEPTANCE_HARNESS.md)
 
 GitHub Issues are disabled, so this versioned checklist is the canonical execution tracker. Detailed TDD runs and artifact identifiers live in the linked dated evidence records.
 
@@ -36,9 +37,14 @@ GitHub Issues are disabled, so this versioned checklist is the canonical executi
 - [x] Exactly-once side-effect and persistence boundaries retained.
 - [x] Implementation merged and automated-CI validated.
 - [x] Complete production Chat/STT/TTS, TTS fail-soft and restart validation in `0.1.15+1.21.1`.
+- [x] Prepare literal-loopback hostile-provider server with sanitized evidence.
+- [x] Prepare exact-release-JAR verification transport probe.
+- [x] Prepare exact-release-JAR voice clamp and concurrent PCM probe.
+- [x] Add package smoke checks for every probe class.
+- [x] Add standard-library harness regression tests to read-only security CI.
 - [ ] Complete isolated mock-provider acceptance for SEC-003.
-- [ ] Complete controlled `/mca verify` and redirect acceptance for SEC-004.
-- [ ] Complete voice clamp and concurrent PCM acceptance for SEC-007.
+- [ ] Complete controlled verification and redirect acceptance for SEC-004.
+- [ ] Complete voice clamp, PCM exhaustion/recovery and final microphone smoke for SEC-007.
 - [ ] Close SEC-003, SEC-004 and SEC-007 after those scenarios pass.
 
 ### H2 enforced limits
@@ -88,7 +94,7 @@ global active PCM:        128 MiB
 
 ## H5 — Legacy tools cleanup and audit closure
 
-**Merge:** PR #63 — `6d82b4e4650294a4a42b9ea2113e64d990e08811`
+**Merge:** PR #63 — `6d82b4e4650294a4a42b9ea2113e64d990e08811`  
 **Evidence:** [`H5_LEGACY_TOOLS_AUDIT_CLOSURE_2026-07-31.md`](H5_LEGACY_TOOLS_AUDIT_CLOSURE_2026-07-31.md)
 
 - [x] Generate exact-head pre-cleanup whole-tree manifest.
@@ -123,19 +129,49 @@ sha256:fa0868462479b85c16027f989ab44693dbd0e39a0d3d90fbe6b48cde77d40175
 tracked files: 3458
 ```
 
+The H5 five-script result is historical exact-head evidence. The current approved inventory intentionally contains seven scripts after adding the reviewed loopback harness and its CI test.
+
+## Current acceptance tool boundary
+
+```text
+scripts/security/provider_acceptance_harness.py
+→ literal loopback bind only
+→ declared/chunked/error/redirect/slow-drip routes
+→ streamed hostile bodies
+→ sanitized manifest and JSONL evidence
+
+AccountVerificationAcceptanceProbe
+→ explicit java -cp only
+→ literal loopback target only
+→ same JDK-only bounded/no-redirect transport as production verification
+
+VoicePcmBudgetAcceptanceProbe
+→ explicit java -cp only
+→ exact 1..120 second clamp
+→ exact 128 MiB production budget
+→ synchronized contention, rejection, release and recovery
+```
+
+None of these tools has an in-game command, Minecraft startup hook or production-provider credential lookup.
+
 ## Remaining controlled real-server validation
 
 - [x] Standard OpenRouter configuration works with merged H1/H2 in `0.1.15+1.21.1`.
 - [x] LAN HTTP, lookalike, user-info and fragment endpoints fail safely without persistence mutation.
-- [ ] Explicit loopback development mode works only with opt-in.
-- [ ] Oversized declared/chunked responses fail safely in the mock-provider harness.
-- [ ] Slow-drip responses terminate at the total deadline in the mock-provider harness.
+- [ ] Explicit loopback development mode works only with opt-in on the acceptance candidate.
+- [ ] Oversized declared/chunked responses fail safely through the loopback harness.
+- [ ] Oversized non-2xx bodies remain bounded and sanitized.
+- [ ] Chat/STT/TTS redirects are not followed and target hits remain zero.
+- [ ] Slow-drip responses terminate at the ten-minute total deadline.
+- [ ] Verification success/redirect/oversize behavior matches the exact-JAR probe output.
+- [ ] Voice clamp reports exactly 1 and 120 seconds.
+- [ ] Concurrent PCM probe reaches but never exceeds 128 MiB, rejects overflow and fully recovers.
+- [ ] A normal real microphone capture succeeds after the PCM probe.
 - [x] Text Chat and Memory 2.0 DIALOGUE persistence remain operational.
 - [x] Voice STT/TTS remains operational.
 - [x] TTS failure preserves text output and DIALOGUE.
-- [ ] Concurrent voice capture remains stable under the PCM budget.
-- [x] Logs contain no credentials or authorization headers in the reviewed run.
-- [x] All six persistent world files remain hash-identical across restart.
+- [x] Logs contain no credentials or authorization headers in the reviewed `0.1.15` run.
+- [x] All six persistent world files remain hash-identical across restart in the reviewed `0.1.15` run.
 - [x] Release JAR filename, tag, commit and SHA-256 are retained as evidence.
 
 ## Documentation closure
@@ -143,6 +179,9 @@ tracked files: 3458
 - [x] H2, H3, H4 and H5 dated implementation evidence exists.
 - [x] SEC-005 and SEC-006 closing follow-ups exist.
 - [x] Record H5 merge and close SEC-008/SEC-009.
-- [x] Add `H1_H2_CONTROLLED_SERVER_VALIDATION.md`; execution evidence remains pending.
-- [x] Reconcile `docs/PROJECT_STATE.md` and `docs/CHANGELOG.md` after H5 merge.
+- [x] Add `H1_H2_CONTROLLED_SERVER_VALIDATION.md`.
+- [x] Record production validation and close SEC-001/SEC-002.
+- [x] Add the deterministic local residual-acceptance procedure.
+- [ ] Record the acceptance-harness merge and candidate identity.
+- [ ] Add a dated SEC-003/SEC-004/SEC-007 validation follow-up after the controlled run.
 - [ ] Mark Step 1 fully complete only after SEC-003, SEC-004 and SEC-007 isolated acceptance exists.

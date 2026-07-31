@@ -35,6 +35,16 @@ class LegacyToolClosurePolicyTest {
             "scripts/skins"
     );
 
+    private static final List<String> APPROVED_SCRIPTS = List.of(
+            "gradlew",
+            "gradlew.bat",
+            "scripts/ci/package-livingworld-release.sh",
+            "scripts/ci/repository_security_policy.py",
+            "scripts/ci/test_provider_acceptance_harness.py",
+            "scripts/ci/test_repository_security_policy.py",
+            "scripts/security/provider_acceptance_harness.py"
+    );
+
     @Test
     void obsoleteInheritedUtilitiesAreAbsent() {
         Path root = repositoryRoot();
@@ -45,18 +55,12 @@ class LegacyToolClosurePolicyTest {
     }
 
     @Test
-    void onlyApprovedBuildAndSecurityScriptsRemain() throws IOException {
+    void onlyApprovedBuildSecurityAndAcceptanceScriptsRemain() throws IOException {
         String inventory = Files.readString(
                 repositoryRoot().resolve("docs/security/APPROVED_SCRIPT_INVENTORY.json")
         );
 
-        for (String required : List.of(
-                "gradlew",
-                "gradlew.bat",
-                "scripts/ci/package-livingworld-release.sh",
-                "scripts/ci/repository_security_policy.py",
-                "scripts/ci/test_repository_security_policy.py"
-        )) {
+        for (String required : APPROVED_SCRIPTS) {
             assertTrue(inventory.contains("\"path\": \"" + required + "\""),
                     "Required approved script is missing: " + required);
         }
@@ -64,8 +68,8 @@ class LegacyToolClosurePolicyTest {
         long approvedPathCount = inventory.lines()
                 .filter(line -> line.contains("\"path\":"))
                 .count();
-        assertTrue(approvedPathCount == 5,
-                "Approved script inventory must contain exactly five reviewed launchers");
+        assertTrue(approvedPathCount == APPROVED_SCRIPTS.size(),
+                "Approved script inventory must contain exactly the reviewed script set");
 
         for (String obsolete : REMOVED_REFERENCE_TOKENS) {
             assertFalse(inventory.contains(obsolete),
@@ -106,6 +110,7 @@ class LegacyToolClosurePolicyTest {
                 repositoryRoot().resolve(".github/workflows/security-policy.yml")
         );
         assertTrue(workflow.contains("Checkout exact source head"));
+        assertTrue(workflow.contains("Run provider acceptance harness tests"));
         assertTrue(workflow.contains("Verify removed utilities are not referenced"));
         assertTrue(workflow.contains("build/security/tracked-tree-manifest.json"));
         assertTrue(workflow.contains("villaigence-tracked-tree-manifest"));
