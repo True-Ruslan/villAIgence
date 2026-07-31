@@ -14,7 +14,7 @@ class AiDiagnosticsConfigSnapshotTest {
         config.enabled = true;
         config.provider = "openrouter";
         config.apiKey = "SECRET_SENTINEL";
-        config.endpoint = "https://user:ENDPOINT_SECRET@openrouter.ai/api/v1/chat/completions?token=QUERY_SECRET";
+        config.endpoint = "https://openrouter.ai/api/v1/chat/completions?token=QUERY_SECRET";
         config.model = "openai/gpt-4.1-mini";
         config.voiceInputEnabled = true;
         config.sttApiKey = "STT_SECRET_SENTINEL";
@@ -42,8 +42,21 @@ class AiDiagnosticsConfigSnapshotTest {
         assertFalse(rendered.contains("SECRET_SENTINEL"));
         assertFalse(rendered.contains("STT_SECRET_SENTINEL"));
         assertFalse(rendered.contains("TTS_SECRET_SENTINEL"));
-        assertFalse(rendered.contains("ENDPOINT_SECRET"));
         assertFalse(rendered.contains("QUERY_SECRET"));
+    }
+
+    @Test
+    void endpointWithUserInfoIsMisconfiguredWithoutEchoingCredentials() {
+        LivingWorldConfig config = new LivingWorldConfig();
+        config.provider = "openrouter";
+        config.apiKey = "SECRET_SENTINEL";
+        config.endpoint = "https://user:ENDPOINT_SECRET@openrouter.ai/api/v1/chat/completions";
+
+        AiDiagnosticsConfigSnapshot snapshot = AiDiagnosticsConfigSnapshot.from(config);
+
+        assertEquals(AiConfigState.MISCONFIGURED, snapshot.chat().state());
+        assertFalse(snapshot.toString().contains("ENDPOINT_SECRET"));
+        assertFalse(snapshot.toString().contains("SECRET_SENTINEL"));
     }
 
     @Test

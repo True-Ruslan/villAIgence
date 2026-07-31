@@ -19,32 +19,36 @@ public final class LivingWorldAI {
 
     public static AiProviderSettings resolveChatProviderSettings() {
         LivingWorldConfig livingWorld = LivingWorldConfig.getInstance();
+        if (livingWorld.isConfigured()) {
+            ProviderCredentialBinding.BoundEndpoint binding = livingWorld.resolvedChatEndpoint();
+            return new AiProviderSettings(
+                    binding.endpoint(),
+                    livingWorld.model,
+                    binding.apiKey(),
+                    AiProviderSettings.secondsToMillis(livingWorld.connectTimeoutSeconds),
+                    AiProviderSettings.secondsToMillis(livingWorld.readTimeoutSeconds),
+                    false,
+                    false
+            );
+        }
+
         Config legacy = Config.getInstance();
-
-        AiProviderSettings livingWorldSettings = new AiProviderSettings(
-                livingWorld.endpoint,
-                livingWorld.model,
-                livingWorld.resolvedApiKey(),
-                AiProviderSettings.secondsToMillis(livingWorld.connectTimeoutSeconds),
-                AiProviderSettings.secondsToMillis(livingWorld.readTimeoutSeconds),
-                false,
-                false
-        );
-
-        String legacyEndpoint = legacy.villagerChatAIEndpoint == null ? "" : legacy.villagerChatAIEndpoint;
+        String legacyEndpointText = legacy.villagerChatAIEndpoint == null ? "" : legacy.villagerChatAIEndpoint;
+        ProviderEndpoint legacyEndpoint = ProviderEndpointPolicy.parse(legacyEndpointText, false);
         String legacyToken = legacy.villagerChatAIToken == null ? "" : legacy.villagerChatAIToken;
-        boolean usePlayerNameAsToken = legacyToken.isBlank() || legacyEndpoint.contains("conczin.net");
-        AiProviderSettings legacySettings = new AiProviderSettings(
+        return new AiProviderSettings(
                 legacyEndpoint,
                 legacy.villagerChatAIModel == null ? "default" : legacy.villagerChatAIModel,
                 legacyToken,
                 AiProviderSettings.secondsToMillis(LEGACY_CONNECT_TIMEOUT_SECONDS),
                 AiProviderSettings.secondsToMillis(LEGACY_READ_TIMEOUT_SECONDS),
-                usePlayerNameAsToken,
+                shouldUsePlayerNameAsToken(legacyEndpoint, legacyToken),
                 true
         );
+    }
 
-        return selectSettings(livingWorld.isConfigured(), livingWorldSettings, legacySettings);
+    static boolean shouldUsePlayerNameAsToken(ProviderEndpoint endpoint, String legacyToken) {
+        return legacyToken == null || legacyToken.isBlank() || endpoint.trustedConczin();
     }
 
     static AiProviderSettings selectSettings(

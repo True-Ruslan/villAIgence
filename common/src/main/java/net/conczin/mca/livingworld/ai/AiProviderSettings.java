@@ -7,7 +7,7 @@ import java.util.Objects;
  * Secrets are intentionally carried only in memory and must never be logged.
  */
 public record AiProviderSettings(
-        String endpoint,
+        ProviderEndpoint endpoint,
         String model,
         String apiKey,
         int connectTimeoutMillis,
@@ -18,7 +18,7 @@ public record AiProviderSettings(
     public AiProviderSettings {
         endpoint = Objects.requireNonNull(endpoint, "endpoint");
         model = Objects.requireNonNull(model, "model");
-        apiKey = apiKey == null ? "" : apiKey;
+        apiKey = apiKey == null ? "" : apiKey.trim();
         connectTimeoutMillis = Math.max(1_000, connectTimeoutMillis);
         readTimeoutMillis = Math.max(1_000, readTimeoutMillis);
     }

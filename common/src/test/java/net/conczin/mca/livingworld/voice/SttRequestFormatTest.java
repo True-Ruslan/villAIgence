@@ -3,6 +3,7 @@ package net.conczin.mca.livingworld.voice;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class SttRequestFormatTest {
     @Test
@@ -19,6 +20,10 @@ class SttRequestFormatTest {
                 SttRequestFormat.JSON_BASE64,
                 SttRequestFormat.AUTO.resolve("https://openrouter.ai/api/v1/audio/transcriptions")
         );
+        assertEquals(
+                SttRequestFormat.JSON_BASE64,
+                SttRequestFormat.AUTO.resolve("https://api.openrouter.ai/api/v1/audio/transcriptions")
+        );
     }
 
     @Test
@@ -27,6 +32,17 @@ class SttRequestFormatTest {
                 SttRequestFormat.MULTIPART,
                 SttRequestFormat.AUTO.resolve("https://api.openai.com/v1/audio/transcriptions")
         );
+    }
+
+    @Test
+    void malformedAndLookalikeEndpointsAreNeverClassifiedBySubstring() {
+        assertFalse(SttRequestFormat.isOpenRouterEndpoint("not-a-uri-openrouter.ai"));
+        assertFalse(SttRequestFormat.isOpenRouterEndpoint(
+                "https://evil.example/proxy/openrouter.ai/api/v1/audio/transcriptions"
+        ));
+        assertFalse(SttRequestFormat.isOpenRouterEndpoint(
+                "https://openrouter.ai.example.invalid/api/v1/audio/transcriptions"
+        ));
     }
 
     @Test

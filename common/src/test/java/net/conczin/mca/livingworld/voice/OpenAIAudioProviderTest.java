@@ -189,6 +189,7 @@ class OpenAIAudioProviderTest {
 
     private static LivingWorldConfig pcmConfig(String endpoint) {
         LivingWorldConfig config = new LivingWorldConfig();
+        config.allowInsecureLoopbackAiEndpoints = true;
         config.ttsEndpoint = endpoint;
         config.ttsApiKey = "test-key";
         config.ttsModel = "test-tts-model";
