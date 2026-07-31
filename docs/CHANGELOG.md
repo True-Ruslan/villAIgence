@@ -2,9 +2,36 @@
 
 > Human-readable implementation and validation history. For exact current state and next priority, read `docs/PROJECT_STATE.md`. For long-term direction, read `docs/ROADMAP.md`.
 
+## 2026-07-31 — 0.1.15 production and endpoint-policy validation
+
+**Status:** PASS within executed real-server scope; latest production/security live checkpoint.
+
+```text
+tag: 0.1.15+1.21.1
+commit: 26070c37b806897e37cc3dabe2e4b27af458ac20
+JAR: villaigence-fabric-0.1.15+1.21.1.jar
+SHA-256: af142be94885541bb4840d0effff73627afe3f0e245dec8307ed665701cc94fb
+```
+
+Validated production Text/STT/TTS, Pio/Justino isolation, Pio memory recall, TTS fail-soft behavior, controlled OpenRouter 429 handling, six-file restart hashes, endpoint rejection, byte-identical configuration restoration and log redaction.
+
+```text
+Closed: SEC-001, SEC-002
+Pending isolated acceptance: SEC-003, SEC-004, SEC-007
+```
+
+Canonical evidence:
+
+```text
+docs/livingworld/VALIDATION_0.1.15.md
+docs/security/SECURITY_AUDIT_FOLLOW_UP_2026-07-31_RUNTIME_0.1.15.md
+```
+
+---
+
 ## 2026-07-31 — Step 1 security and supply-chain hardening
 
-**Status:** repository-side H1–H5 merged and automated-CI validated; controlled H1/H2 real-server validation remains.
+**Status:** repository-side H1–H5 merged and automated-CI validated; production endpoint-policy validation passed in `0.1.15+1.21.1`; isolated SEC-003/SEC-004/SEC-007 acceptance remains.
 
 ### Merge sequence
 
@@ -51,11 +78,11 @@ PR #64 canonical closure                  26070c37b806897e37cc3dabe2e4b27af458ac
 ### Finding status
 
 ```text
-Closed: SEC-005, SEC-006, SEC-008, SEC-009
-Pending controlled server validation: SEC-001, SEC-002, SEC-003, SEC-004, SEC-007
+Closed: SEC-001, SEC-002, SEC-005, SEC-006, SEC-008, SEC-009
+Pending isolated acceptance: SEC-003, SEC-004, SEC-007
 ```
 
-`0.1.14+1.21.1` is now the latest live-validated Memory 2.0 checkpoint, but it predates H1–H5. The expected security-validation candidate is `0.1.15+1.21.1`; its test plan is `docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md`.
+`0.1.14+1.21.1` remains the forgetting/decay checkpoint. `0.1.15+1.21.1` is the latest production/security live checkpoint; remaining isolated acceptance uses `docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md`.
 
 ---
 

@@ -1,6 +1,6 @@
 # Step 1 Security Hardening Tracker
 
-**Status:** H1–H5 merged; repository-side hardening is complete; controlled H1/H2 real-server validation remains
+**Status:** H1–H5 merged; `0.1.15+1.21.1` production validation passed; SEC-003/SEC-004/SEC-007 isolated acceptance remains
 **Plan:** [`STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md`](STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md)  
 **Audit:** [`SECURITY_AUDIT_2026-07-31.md`](SECURITY_AUDIT_2026-07-31.md)  
 **Security index:** [`README.md`](README.md)
@@ -19,8 +19,8 @@ GitHub Issues are disabled, so this versioned checklist is the canonical executi
 - [x] Exact normalized host trust and no authenticated redirects.
 - [x] Malformed/lookalike/IDN/user-info/redirect regression tests.
 - [x] Implementation merged and automated-CI validated.
-- [ ] Complete controlled real-server smoke validation.
-- [ ] Close SEC-001 and SEC-002 in a dated audit follow-up.
+- [x] Complete production real-server endpoint and credential validation in `0.1.15+1.21.1`.
+- [x] Close SEC-001 and SEC-002 in `SECURITY_AUDIT_FOLLOW_UP_2026-07-31_RUNTIME_0.1.15.md`.
 
 ## H2 — Bounded network I/O and SSRF removal
 
@@ -35,8 +35,11 @@ GitHub Issues are disabled, so this versioned checklist is the canonical executi
 - [x] Voice duration clamp and global PCM budget.
 - [x] Exactly-once side-effect and persistence boundaries retained.
 - [x] Implementation merged and automated-CI validated.
-- [ ] Complete controlled real-server validation.
-- [ ] Close SEC-003, SEC-004 and SEC-007 in a dated follow-up.
+- [x] Complete production Chat/STT/TTS, TTS fail-soft and restart validation in `0.1.15+1.21.1`.
+- [ ] Complete isolated mock-provider acceptance for SEC-003.
+- [ ] Complete controlled `/mca verify` and redirect acceptance for SEC-004.
+- [ ] Complete voice clamp and concurrent PCM acceptance for SEC-007.
+- [ ] Close SEC-003, SEC-004 and SEC-007 after those scenarios pass.
 
 ### H2 enforced limits
 
@@ -122,18 +125,18 @@ tracked files: 3458
 
 ## Remaining controlled real-server validation
 
-- [ ] Standard OpenRouter/OpenAI configuration works with merged H1/H2.
-- [ ] Invalid HTTP/lookalike endpoints fail safely.
+- [x] Standard OpenRouter configuration works with merged H1/H2 in `0.1.15+1.21.1`.
+- [x] LAN HTTP, lookalike, user-info and fragment endpoints fail safely without persistence mutation.
 - [ ] Explicit loopback development mode works only with opt-in.
-- [ ] Oversized declared/chunked responses fail safely.
-- [ ] Slow-drip responses terminate at the total deadline.
-- [ ] Text Chat persists exactly once.
-- [ ] Voice STT/TTS remains operational.
-- [ ] TTS failure preserves text output.
+- [ ] Oversized declared/chunked responses fail safely in the mock-provider harness.
+- [ ] Slow-drip responses terminate at the total deadline in the mock-provider harness.
+- [x] Text Chat and Memory 2.0 DIALOGUE persistence remain operational.
+- [x] Voice STT/TTS remains operational.
+- [x] TTS failure preserves text output and DIALOGUE.
 - [ ] Concurrent voice capture remains stable under the PCM budget.
-- [ ] Logs contain no credentials, authorization headers, prompts or transcripts.
-- [ ] Persistent world files remain stable across restart when no mutation is expected.
-- [ ] Release JAR, checksum and dependency manifest are retained as evidence.
+- [x] Logs contain no credentials or authorization headers in the reviewed run.
+- [x] All six persistent world files remain hash-identical across restart.
+- [x] Release JAR filename, tag, commit and SHA-256 are retained as evidence.
 
 ## Documentation closure
 
@@ -142,4 +145,4 @@ tracked files: 3458
 - [x] Record H5 merge and close SEC-008/SEC-009.
 - [x] Add `H1_H2_CONTROLLED_SERVER_VALIDATION.md`; execution evidence remains pending.
 - [x] Reconcile `docs/PROJECT_STATE.md` and `docs/CHANGELOG.md` after H5 merge.
-- [ ] Mark Step 1 fully complete only after applicable live validation exists.
+- [ ] Mark Step 1 fully complete only after SEC-003, SEC-004 and SEC-007 isolated acceptance exists.

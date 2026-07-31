@@ -2,7 +2,7 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md` when resuming work.
 >
-> Last major state update: **2026-07-31**, after live validation of `0.1.14+1.21.1` and repository-side completion of Step 1 security hardening.
+> Last major state update: **2026-07-31**, after live validation of `0.1.15+1.21.1`; `0.1.14+1.21.1` remains the forgetting/decay checkpoint.
 >
 > Reconcile this state with newer PRs, tags/releases, CI and live-server evidence before starting development.
 
@@ -33,17 +33,20 @@ merge: 73145dd0925d403af7ef343521eb3ae27f68804d
 exact verified feature head: c08b47431b6a121deae4be8410be1e4fe4c5126a
 
 latest live-validated release checkpoint:
-0.1.14+1.21.1 — PASS
+0.1.15+1.21.1 — PASS within executed production/security scope
 validation date: 2026-07-31
-tested release commit: c45aea45dd915b24ba236344feef30559c7171bb
-validation marker: V0114_FINAL_RESTART_VERIFICATION_PASS
+tested release commit: 26070c37b806897e37cc3dabe2e4b27af458ac20
+JAR: villaigence-fabric-0.1.15+1.21.1.jar
+JAR SHA-256: af142be94885541bb4840d0effff73627afe3f0e245dec8307ed665701cc94fb
 ```
 
-**Status boundary:** deterministic forgetting/decay, source durability, existing-entry eviction, persistence and NPC isolation are live-proven by `0.1.14+1.21.1`. The rejected-**new**-append no-rewrite branch remains automated-test proven but was not reached through the live Chat model. Repository-side Step 1 H1–H5 is merged and automated-CI validated, but runtime-sensitive SEC-001, SEC-002, SEC-003, SEC-004 and SEC-007 still require the controlled H1/H2 server scenario in a later security candidate.
+**Status boundary:** `0.1.14+1.21.1` live-proves forgetting/decay, source durability, existing-entry eviction, persistence and NPC isolation; the rejected-new-append branch remains automated-test proven only. `0.1.15+1.21.1` live-proves production Chat/STT/TTS, endpoint rejection, fail-soft TTS and six-file restart durability. SEC-001 and SEC-002 are Closed. SEC-003, SEC-004 and SEC-007 remain open only for isolated mock-provider, verification/redirect and concurrent PCM acceptance.
 
 Canonical evidence:
 
 ```text
+docs/livingworld/VALIDATION_0.1.15.md
+docs/security/SECURITY_AUDIT_FOLLOW_UP_2026-07-31_RUNTIME_0.1.15.md
 docs/livingworld/VALIDATION_0.1.14.md
 docs/livingworld/VALIDATION_0.1.13.md
 docs/livingworld/SEMANTIC_FORGETTING_DECAY.md
@@ -59,9 +62,10 @@ docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md
 0.1.12+1.21.1 → 746fa75ab4b5f4bee385efa0c8ae51009c1aec58
 0.1.13+1.21.1 → b553bf7e83674145bdf42927b9ace7287afa560c
 0.1.14+1.21.1 → c45aea45dd915b24ba236344feef30559c7171bb
+0.1.15+1.21.1 → 26070c37b806897e37cc3dabe2e4b27af458ac20
 ```
 
-`0.1.14` identifies the exact forgetting/decay payload tested on the real server. Current `1.21.1` is a descendant of that tag and subsequently advanced through H1–H5 security and supply-chain hardening. Those later commits are not part of the `0.1.14` live checkpoint.
+`0.1.14` remains the exact forgetting/decay payload tested under retention pressure. `0.1.15` identifies the later H1–H5 security payload and is the latest production/security live checkpoint.
 
 ---
 
@@ -101,14 +105,14 @@ Finding status:
 
 ```text
 Closed:
+SEC-001
+SEC-002
 SEC-005
 SEC-006
 SEC-008
 SEC-009
 
-Pending controlled runtime validation:
-SEC-001
-SEC-002
+Pending isolated acceptance:
 SEC-003
 SEC-004
 SEC-007
@@ -126,7 +130,7 @@ Required runtime scenario:
 docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md
 ```
 
-`0.1.14` does not contain H1–H5 and cannot close these runtime-sensitive findings.
+`0.1.15` contains H1–H5 and closes SEC-001/SEC-002 with live evidence. SEC-003/SEC-004/SEC-007 remain pending isolated acceptance.
 
 ---
 
@@ -473,6 +477,36 @@ Safety properties:
 
 # Live validation status
 
+## 0.1.15+1.21.1 — PASS within executed scope
+
+```text
+commit: 26070c37b806897e37cc3dabe2e4b27af458ac20
+JAR: villaigence-fabric-0.1.15+1.21.1.jar
+SHA-256: af142be94885541bb4840d0effff73627afe3f0e245dec8307ed665701cc94fb
+```
+
+Live-proven:
+
+```text
+Text / STT / TTS                                      PASS
+Pio / Justino isolation                               PASS
+Pio name and favorite-color recall                    PASS
+TTS io_error preserved text and DIALOGUE              PASS
+OpenRouter HTTP 429 remained controlled               PASS
+six persistent files hash-identical after restart    PASS
+LAN HTTP / lookalike / user-info / fragment rejected PASS
+production config restored byte-for-byte              PASS
+keys or Authorization leaked                          no
+server / UDP 24454 / TCP 25565 / monitor              healthy
+```
+
+Canonical evidence:
+
+```text
+docs/livingworld/VALIDATION_0.1.15.md
+docs/security/SECURITY_AUDIT_FOLLOW_UP_2026-07-31_RUNTIME_0.1.15.md
+```
+
 ## 0.1.14+1.21.1 — PASS
 
 Validation marker:
@@ -562,9 +596,7 @@ docs/livingworld/VALIDATION_0.1.10.md
 
 ## 0.1.x Reliability
 
-Gameplay and Memory 2.0 behavior is live-validated through `0.1.14+1.21.1`.
-
-Repository-side security hardening is merged after that release and awaits a controlled security candidate validation.
+Gameplay and Memory 2.0 retention behavior is live-validated by `0.1.14+1.21.1`. Production Chat/STT/TTS and endpoint-policy behavior is live-validated by `0.1.15+1.21.1`.
 
 ## 0.2 Memory 2.0 — active and substantially advanced
 
@@ -603,11 +635,11 @@ Still not implemented or not fully proven:
 ## Next sequence
 
 ```text
-1. Build and install a security candidate containing H1–H5, expected 0.1.15+1.21.1
-2. Run docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md
-3. Preserve candidate JAR SHA-256, dependency manifest, redacted logs and restart hashes
-4. Promote the candidate only after applicable security/runtime evidence is complete
-5. Exercise rejected-new-append live only if a deterministic test path becomes available; do not block other work on model randomness
+1. Run isolated hostile mock-provider acceptance for SEC-003
+2. Run controlled /mca verify and redirect acceptance for SEC-004
+3. Run voice clamp and concurrent PCM exhaustion/recovery acceptance for SEC-007
+4. Close the remaining Step 1 findings if evidence passes
+5. Exercise rejected-new-append live only if a deterministic test path becomes available
 6. Design legacy memory.json migration
 7. Run long-horizon Memory 2.0 exit-criterion validation
 8. Begin 0.3 Personality + NPC↔NPC social graph
@@ -619,25 +651,22 @@ No embeddings, vector DB or LLM truth classification should be prerequisites.
 
 # Immediate validation target
 
-Run the complete H1/H2 security and resource-bound scenario:
+Preserve `0.1.15+1.21.1` as the latest production/security live checkpoint.
+
+Execute only the remaining isolated sections from:
 
 ```text
 docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md
 ```
 
-Required candidate characteristics:
+Required remaining evidence:
 
-- contains PRs #59–#63;
-- common, Fabric, NeoForge and repository security workflows green;
-- release artifact and dependency manifest retained;
-- provider endpoint and credential behavior exercised;
-- bounded Chat/STT/TTS/error responses exercised;
-- voice duration and aggregate PCM limits exercised;
-- normal Chat/STT/TTS/Voice Chat behavior preserved;
-- five persistent files stable across restart;
-- no secrets or unredacted provider bodies stored in evidence.
+- hostile oversized/chunked/error/slow-drip mock-provider behavior;
+- `/mca verify` trusted-origin and redirect behavior;
+- voice duration clamp and aggregate PCM exhaustion/recovery;
+- no secrets or unredacted provider bodies in evidence.
 
-After successful security validation, the next implementation design target is legacy `memory.json` migration unless live evidence exposes a concrete defect.
+After SEC-003/SEC-004/SEC-007 closure, continue with legacy `memory.json` migration unless live evidence exposes a concrete defect.
 
 ---
 
@@ -645,7 +674,7 @@ After successful security validation, the next implementation design target is l
 
 Preferred resume prompt:
 
-> **Open `docs/PROJECT_STATE.md`, `docs/CHANGELOG.md`, `docs/ROADMAP.md`, `docs/livingworld/VALIDATION_0.1.14.md` and `docs/security/README.md` in `True-Ruslan/villAIgence`. Check recent PRs, tags/releases and CI, then tell me what is implemented, what is live-validated, what changed since the state file, and what should happen next.**
+> **Open `docs/PROJECT_STATE.md`, `docs/CHANGELOG.md`, `docs/ROADMAP.md`, `docs/livingworld/VALIDATION_0.1.15.md`, `docs/livingworld/VALIDATION_0.1.14.md` and `docs/security/README.md` in `True-Ruslan/villAIgence`. Check recent PRs, tags/releases and CI, then tell me what is implemented, what is live-validated, what changed since the state file, and what should happen next.**
 
 A new session must:
 
