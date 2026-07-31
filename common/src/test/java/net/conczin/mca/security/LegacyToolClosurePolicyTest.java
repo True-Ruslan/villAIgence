@@ -80,11 +80,12 @@ class LegacyToolClosurePolicyTest {
                 root.resolve("build.gradle"),
                 root.resolve("settings.gradle"),
                 root.resolve("gradle.properties"),
+                root.resolve("buildSrc/build.gradle"),
                 root.resolve("common/build.gradle"),
                 root.resolve("fabric/build.gradle"),
                 root.resolve("neoforge/build.gradle")
         ));
-        collectFiles(root.resolve("buildSrc"), surfaces);
+        collectFiles(root.resolve("buildSrc/src"), surfaces);
         collectFiles(root.resolve(".github/workflows"), surfaces);
         collectFiles(root.resolve("scripts/ci"), surfaces);
 
@@ -105,6 +106,7 @@ class LegacyToolClosurePolicyTest {
                 repositoryRoot().resolve(".github/workflows/security-policy.yml")
         );
         assertTrue(workflow.contains("Checkout exact source head"));
+        assertTrue(workflow.contains("Verify removed utilities are not referenced"));
         assertTrue(workflow.contains("build/security/tracked-tree-manifest.json"));
         assertTrue(workflow.contains("villaigence-tracked-tree-manifest"));
     }
