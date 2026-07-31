@@ -11,7 +11,7 @@ This record reconciles the original security audit with the implementation evide
 
 H2 addresses:
 
-- SEC-003 — unbounded Chat, STT and TTS provider responses;
+- SEC-003 — unbounded or indefinitely streamed Chat, STT and TTS provider responses;
 - SEC-004 — the legacy generic URL verification helper;
 - SEC-007 — unbounded microphone capture duration and aggregate PCM buffering.
 
@@ -32,11 +32,12 @@ All inspected provider response paths now use the shared streaming `BoundedRespo
 Final limits:
 
 ```text
-Chat JSON:          8 MiB
-STT JSON:           4 MiB
-TTS audio:         64 MiB
-error body:       256 KiB
-verification JSON: 64 KiB
+Chat JSON:                 8 MiB
+STT JSON:                  4 MiB
+TTS audio:                64 MiB
+error body:              256 KiB
+verification JSON:        64 KiB
+provider body-read time:  10 minutes
 ```
 
 The reader:
@@ -44,8 +45,11 @@ The reader:
 - rejects an excessive declared `Content-Length` before reading the body;
 - enforces the same bound for chunked or unknown-length streams;
 - aborts immediately after the first byte beyond the limit;
-- never includes provider payload data in its size-limit exception;
+- enforces a hard total body-read deadline so slow-drip responses cannot continue indefinitely;
+- never includes provider payload data in its limit exceptions;
 - replaces unbounded `IOUtils.toString` and `InputStream.transferTo` response handling.
+
+Connect and socket-read timeouts remain active. The total body-read deadline is an additional invariant and is deliberately generous at ten minutes.
 
 ### Constrained account verification
 
@@ -58,6 +62,7 @@ The replacement `AccountVerificationClient`:
 - constructs the fixed `/v1/mca/verify` path internally;
 - disables automatic redirects;
 - applies connect/read timeouts;
+- applies the shared total body-read deadline;
 - applies the 64 KiB verification response limit;
 - returns only the expected `success`, `failed` or controlled error state.
 
@@ -98,6 +103,16 @@ defensive PCM release
 cb5ed05c66b1015abc2b951c4fd1987742d651cd
 regression source guard
 19c4a667a47fba63694410e8c0cdb6899228c615
+
+total body-read deadline RED
+5d49462fa81a2c12c7e8d2894d18eeedb9c9331c
+VillAIgence CI #825 / 30625004367 — expected FAILURE
+reason: deadline API and exception did not exist
+
+total body-read deadline GREEN
+d7291d277e9bfe9745974abdcdc69569567e3a96
+VillAIgence CI #826 / 30625132186 — SUCCESS
+Java Pull Request CI #365 / 30625131764 — SUCCESS
 ```
 
 ## Automated coverage
@@ -105,9 +120,10 @@ regression source guard
 - declared-length rejection before stream reads;
 - exact-limit acceptance;
 - chunked/unknown-length rejection on the first excess byte;
-- fragmented stream reconstruction;
+- total deadline rejection of deterministic slow-drip streams;
+- fragmented-stream reconstruction;
 - UTF-8 byte limits rather than character limits;
-- exceptions that do not expose provider payloads;
+- safe exceptions that do not include provider payloads;
 - oversized STT and TTS integration responses from local HTTP servers;
 - source guards against unbounded Chat/Audio response helpers;
 - trusted-origin-only account verification and disabled redirects;
@@ -133,9 +149,10 @@ SEC-003, SEC-004 and SEC-007 are **implemented and automated-CI validated**, but
 1. PR #60 is merged;
 2. a controlled Minecraft 1.21.1 server test confirms Chat, STT and TTS operation;
 3. hostile oversized declared and chunked responses fail safely;
-4. `/mca verify` works only against the trusted service boundary;
-5. concurrent voice capture remains stable;
-6. logs contain no credentials, authorization headers, prompts or transcripts;
-7. restart validation confirms persistent files remain stable where no mutation is expected.
+4. a controlled slow-drip provider response is terminated;
+5. `/mca verify` works only against the trusted service boundary;
+6. concurrent voice capture remains stable;
+7. logs contain no credentials, authorization headers, prompts or transcripts;
+8. restart validation confirms persistent files remain stable where no mutation is expected.
 
 This status follows the closure rule in `SECURITY_AUDIT_2026-07-31.md`: code and green CI alone are not sufficient for final closure of runtime-sensitive findings.
