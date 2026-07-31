@@ -16,6 +16,12 @@ Final automated-validation head before documentation-only closure updates:
 4d00ff296819196bd12fd5e3f16fd93820b5cf9c
 ```
 
+Merged through PR #61 as squash commit:
+
+```text
+4cf9aef2e5c31a5682a7cad8544219154330e056
+```
+
 The change does not modify gameplay behavior, provider behavior, Memory 2.0 schemas or persistent world formats.
 
 ## Implemented controls
@@ -68,7 +74,7 @@ Plugin and build-tool artifacts remain represented in `gradle/verification-metad
 
 ## Final automated evidence
 
-Final head:
+Final code head:
 
 ```text
 4d00ff296819196bd12fd5e3f16fd93820b5cf9c
@@ -107,12 +113,14 @@ The final supply-chain workflow ran with `contents: read` and verified:
 
 ## Finding status
 
-SEC-005 implementation and automated validation are complete on the PR branch.
+**SEC-005 — Closed.**
 
-SEC-005 must remain open until:
+Closure evidence:
 
-- PR #61 is merged;
-- the exact merge commit is recorded in the audit/tracker;
-- the merged default-branch result is reconciled in the dated security documentation.
+- implementation and regression policy merged through PR #61;
+- exact squash commit `4cf9aef2e5c31a5682a7cad8544219154330e056`;
+- all four final automated workflows succeeded on the validated code head;
+- the merged controls are build/release controls and do not require a game-server runtime smoke test;
+- the merged default branch contains the dated evidence, controlled update procedure and canonical tracker entries.
 
 H4 CI security coverage and H5 whole-tree legacy-tool closure are separate work packages and are not claimed complete by this record.
