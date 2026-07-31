@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: agent/security-acceptance-harness
-          fetch-depth: 2
+          fetch-depth: 64
           persist-credentials: true
 
       - name: Apply canonical state patch
@@ -35,7 +35,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git show HEAD^:.github/workflows/security-policy.yml > .github/workflows/security-policy.yml
+          git show 575c8ce65d051c416796ad6c577ffb6aed51c608:.github/workflows/security-policy.yml \
+            > .github/workflows/security-policy.yml
           rm .github/security_acceptance_state_patch.py
 
       - name: Commit reconciled documentation
