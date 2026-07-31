@@ -16,6 +16,12 @@ Final automated-validation code head:
 ae26a9445b646c02e53b9fe8a557204fd703c7ff
 ```
 
+Merged through PR #63 as squash commit:
+
+```text
+6d82b4e4650294a4a42b9ea2113e64d990e08811
+```
+
 No gameplay, provider, Memory 2.0, generated game-resource or persistent world format was changed.
 
 ## Pre-cleanup evidence
@@ -229,7 +235,7 @@ The first invocation guard run exposed a test-environment mistake: scanning all 
 
 ### SEC-008
 
-Implementation and automated validation are complete. The network-capable pirate translator and all related unmanaged Python dependency metadata are removed. SEC-008 remains open only until PR #63 is merged and the exact squash commit is recorded.
+**Closed.** The network-capable pirate translator and all related unmanaged Python dependency metadata were removed and squash-merged through PR #63 at `6d82b4e4650294a4a42b9ea2113e64d990e08811`. Exact closing reconciliation is recorded in `SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H5.md`.
 
 ### SEC-009
 
@@ -242,4 +248,4 @@ Implementation and automated validation are complete:
 - undocumented additions and removed utility references are blocked;
 - secret, source, permission, Fabric, NeoForge and package checks pass.
 
-SEC-009 remains open only until PR #63 is merged and the exact closing commit is reconciled in a dated audit follow-up.
+**SEC-009 is Closed.** PR #63 was squash-merged at `6d82b4e4650294a4a42b9ea2113e64d990e08811`; the dated closing record is `SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H5.md`.
