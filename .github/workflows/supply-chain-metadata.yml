@@ -90,3 +90,7 @@ jobs:
           fi
           git commit -m 'build: trust only Loom generated development JARs'
           git push origin "HEAD:agent/h3-supply-chain-verification"
+
+      - name: Confirm bootstrap branch target
+        shell: bash
+        run: test "${{ github.event.pull_request.head.ref }}" = 'agent/h3-supply-chain-verification'
