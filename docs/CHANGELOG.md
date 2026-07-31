@@ -2,6 +2,37 @@
 
 > Human-readable implementation and validation history. For exact current state and next priority, read `docs/PROJECT_STATE.md`. For long-term direction, read `docs/ROADMAP.md`.
 
+## 2026-07-31 — Residual Step 1 security acceptance harness
+
+**Status:** implementation and automated validation prepared in PR #68; controlled release/server execution remains pending.
+
+### Added
+
+- dependency-free Python provider harness restricted to literal loopback;
+- deterministic normal, declared-oversize, chunked-oversize, oversized-error, redirect and slow-drip routes for Chat/STT/TTS/verification;
+- streamed hostile payloads without whole-body allocation;
+- sanitized JSONL evidence containing header-presence booleans and query-key names, never values;
+- shared JDK-only account-verification transport preserving fixed production origin policy and disabled redirects;
+- exact-release-JAR verification probe restricted to literal loopback;
+- exact-release-JAR voice probe covering the 1..120 second clamp, 128 MiB concurrent budget, overflow rejection, release and recovery;
+- package smoke checks requiring every probe/transport class in the distributable Fabric JAR;
+- standard-library harness tests in read-only repository security CI;
+- current approved script inventory expanded from the historical H5 five launchers to seven reviewed scripts.
+
+### Safety boundary
+
+```text
+no in-game command
+no Minecraft startup hook
+no production-provider traffic
+no production credential lookup by probes
+no config or persistence schema change
+```
+
+SEC-003, SEC-004 and SEC-007 remain Open. Tooling alone is not closure evidence. The next candidate, expected `0.1.16+1.21.1`, must complete `docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md` on the controlled server.
+
+---
+
 ## 2026-07-31 — 0.1.15 production and endpoint-policy validation
 
 **Status:** PASS within executed real-server scope; latest production/security live checkpoint.
@@ -73,7 +104,7 @@ PR #64 canonical closure                  26070c37b806897e37cc3dabe2e4b27af458ac
 - deprecated Google/AWS TTS, external localization, translation, name and skin generation utilities were removed;
 - unmanaged Python requirements and the raw name dataset were removed;
 - generated game resources remain unchanged;
-- the approved executable/script surface is reduced to five Gradle/CI/security launchers.
+- H5 reduced the executable/script surface to five Gradle/CI/security launchers; the later reviewed acceptance harness and its CI test intentionally bring the current approved inventory to seven scripts.
 
 ### Finding status
 
@@ -82,7 +113,7 @@ Closed: SEC-001, SEC-002, SEC-005, SEC-006, SEC-008, SEC-009
 Pending isolated acceptance: SEC-003, SEC-004, SEC-007
 ```
 
-`0.1.14+1.21.1` remains the forgetting/decay checkpoint. `0.1.15+1.21.1` is the latest production/security live checkpoint; remaining isolated acceptance uses `docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md`.
+`0.1.14+1.21.1` remains the forgetting/decay checkpoint. `0.1.15+1.21.1` is the latest production/security live checkpoint; remaining isolated acceptance uses `docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md` in a release containing PR #68.
 
 ---
 

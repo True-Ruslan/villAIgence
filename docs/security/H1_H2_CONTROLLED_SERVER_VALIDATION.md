@@ -12,20 +12,22 @@ SEC-004 constrained account verification
 SEC-007 bounded voice capture and aggregate PCM
 ```
 
-Repository-side implementation H1–H5 is merged. This document covers only real Minecraft 1.21.1 server behavior.
+Repository-side implementation H1–H5 is merged. Release `0.1.15+1.21.1` completed production validation and closed SEC-001/SEC-002. This historical full scenario remains canonical; execute the residual SEC-003/SEC-004/SEC-007 phases through `LOCAL_SECURITY_ACCEPTANCE_HARNESS.md`, which provides the literal-loopback server and exact-JAR probes.
 
 ## Candidate boundary
 
-Run this scenario only on a release built from default branch `1.21.1` after merge commit:
-
-```text
-6d82b4e4650294a4a42b9ea2113e64d990e08811
-```
-
-The expected candidate version is:
+Historical production/endpoint-policy candidate:
 
 ```text
 0.1.15+1.21.1
+commit 26070c37b806897e37cc3dabe2e4b27af458ac20
+SEC-001 / SEC-002 Closed
+```
+
+Residual acceptance must use a later release built from default branch `1.21.1` after PR #68 is merged, expected:
+
+```text
+0.1.16+1.21.1
 ```
 
 Before testing, record:
@@ -39,7 +41,7 @@ dependency manifest filename:
 server start timestamp:
 ```
 
-Do not promote the candidate to the latest live-validated checkpoint until every required positive test passes and every negative test fails safely.
+Use `LOCAL_SECURITY_ACCEPTANCE_HARNESS.md` for exact commands. Do not close SEC-003/SEC-004/SEC-007 until every required negative path fails safely, the probes pass and normal production behavior is restored.
 
 ## Safety and backup preparation
 

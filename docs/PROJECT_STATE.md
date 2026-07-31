@@ -2,7 +2,7 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md` when resuming work.
 >
-> Last major state update: **2026-07-31**, after live validation of `0.1.15+1.21.1`; `0.1.14+1.21.1` remains the forgetting/decay checkpoint.
+> Last major state update: **2026-07-31**, after preparing the residual Step 1 security acceptance harness on top of live-validated `0.1.15+1.21.1`; `0.1.14+1.21.1` remains the forgetting/decay checkpoint.
 >
 > Reconcile this state with newer PRs, tags/releases, CI and live-server evidence before starting development.
 
@@ -40,7 +40,7 @@ JAR: villaigence-fabric-0.1.15+1.21.1.jar
 JAR SHA-256: af142be94885541bb4840d0effff73627afe3f0e245dec8307ed665701cc94fb
 ```
 
-**Status boundary:** `0.1.14+1.21.1` live-proves forgetting/decay, source durability, existing-entry eviction, persistence and NPC isolation; the rejected-new-append branch remains automated-test proven only. `0.1.15+1.21.1` live-proves production Chat/STT/TTS, endpoint rejection, fail-soft TTS and six-file restart durability. SEC-001 and SEC-002 are Closed. SEC-003, SEC-004 and SEC-007 remain open only for isolated mock-provider, verification/redirect and concurrent PCM acceptance.
+**Status boundary:** `0.1.14+1.21.1` live-proves forgetting/decay, source durability, existing-entry eviction, persistence and NPC isolation; the rejected-new-append branch remains automated-test proven only. `0.1.15+1.21.1` live-proves production Chat/STT/TTS, endpoint rejection, fail-soft TTS and six-file restart durability. SEC-001 and SEC-002 are Closed. Deterministic literal-loopback provider tooling and exact-release-JAR verification/PCM probes are prepared for SEC-003, SEC-004 and SEC-007; those findings remain open until the controlled candidate run passes.
 
 Canonical evidence:
 
@@ -51,6 +51,7 @@ docs/livingworld/VALIDATION_0.1.14.md
 docs/livingworld/VALIDATION_0.1.13.md
 docs/livingworld/SEMANTIC_FORGETTING_DECAY.md
 docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md
+docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md
 ```
 
 ---
@@ -131,6 +132,32 @@ docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md
 ```
 
 `0.1.15` contains H1–H5 and closes SEC-001/SEC-002 with live evidence. SEC-003/SEC-004/SEC-007 remain pending isolated acceptance.
+
+## Residual acceptance tooling — prepared
+
+PR #68 adds the controlled execution surface required for the remaining findings:
+
+```text
+scripts/security/provider_acceptance_harness.py
+→ literal loopback bind only
+→ normal / declared / chunked / error / redirect / slow-drip routes
+→ streamed hostile payloads without whole-body allocation
+→ sanitized manifest and JSONL evidence
+
+AccountVerificationAcceptanceProbe
+→ explicit java -cp invocation only
+→ literal loopback target validation
+→ shared JDK-only bounded/no-redirect production transport
+
+VoicePcmBudgetAcceptanceProbe
+→ explicit java -cp invocation only
+→ exact 1..120 second clamp
+→ exact 128 MiB budget contention, rejection, release and recovery
+```
+
+The distributable Fabric package is required to contain both probes and the shared verification transport. Security CI runs the Python harness contract tests and deterministic seven-script inventory. No probe or harness has an in-game command, startup hook, production-key lookup or persistent schema effect.
+
+Tooling does not close SEC-003, SEC-004 or SEC-007. A release containing PR #68 must still complete `docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md` on the controlled server.
 
 ---
 
@@ -635,14 +662,15 @@ Still not implemented or not fully proven:
 ## Next sequence
 
 ```text
-1. Run isolated hostile mock-provider acceptance for SEC-003
-2. Run controlled /mca verify and redirect acceptance for SEC-004
-3. Run voice clamp and concurrent PCM exhaustion/recovery acceptance for SEC-007
-4. Close the remaining Step 1 findings if evidence passes
-5. Exercise rejected-new-append live only if a deterministic test path becomes available
-6. Design legacy memory.json migration
-7. Run long-horizon Memory 2.0 exit-criterion validation
-8. Begin 0.3 Personality + NPC↔NPC social graph
+1. Merge PR #68 and build the first release containing the acceptance harness, expected 0.1.16+1.21.1
+2. Run docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md for SEC-003
+3. Run the exact-JAR verification probe and redirect checks for SEC-004
+4. Run the exact-JAR voice clamp/PCM probe plus final microphone smoke for SEC-007
+5. Close the remaining Step 1 findings only if persistence, redaction and recovery evidence passes
+6. Exercise rejected-new-append live only if a deterministic test path becomes available
+7. Design legacy memory.json migration
+8. Run long-horizon Memory 2.0 exit-criterion validation
+9. Begin 0.3 Personality + NPC↔NPC social graph
 ```
 
 No embeddings, vector DB or LLM truth classification should be prerequisites.
@@ -653,17 +681,20 @@ No embeddings, vector DB or LLM truth classification should be prerequisites.
 
 Preserve `0.1.15+1.21.1` as the latest production/security live checkpoint.
 
-Execute only the remaining isolated sections from:
+Build the first candidate containing PR #68, expected `0.1.16+1.21.1`, then execute:
 
 ```text
-docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md
+docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md
 ```
 
 Required remaining evidence:
 
-- hostile oversized/chunked/error/slow-drip mock-provider behavior;
-- `/mca verify` trusted-origin and redirect behavior;
-- voice duration clamp and aggregate PCM exhaustion/recovery;
+- declared, chunked, error and slow-drip Chat/STT/TTS behavior from literal loopback;
+- zero redirect-target hits for provider and verification redirects;
+- 64 KiB verification response bound through the exact-JAR transport probe;
+- exact 1/120 second clamp and 128 MiB PCM rejection/recovery output;
+- normal microphone operation after the PCM probe;
+- byte-identical rejected-operation persistence and production configuration restoration;
 - no secrets or unredacted provider bodies in evidence.
 
 After SEC-003/SEC-004/SEC-007 closure, continue with legacy `memory.json` migration unless live evidence exposes a concrete defect.
@@ -674,7 +705,7 @@ After SEC-003/SEC-004/SEC-007 closure, continue with legacy `memory.json` migrat
 
 Preferred resume prompt:
 
-> **Open `docs/PROJECT_STATE.md`, `docs/CHANGELOG.md`, `docs/ROADMAP.md`, `docs/livingworld/VALIDATION_0.1.15.md`, `docs/livingworld/VALIDATION_0.1.14.md` and `docs/security/README.md` in `True-Ruslan/villAIgence`. Check recent PRs, tags/releases and CI, then tell me what is implemented, what is live-validated, what changed since the state file, and what should happen next.**
+> **Open `docs/PROJECT_STATE.md`, `docs/CHANGELOG.md`, `docs/ROADMAP.md`, `docs/livingworld/VALIDATION_0.1.15.md`, `docs/livingworld/VALIDATION_0.1.14.md`, `docs/security/README.md` and `docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md` in `True-Ruslan/villAIgence`. Check recent PRs, tags/releases and CI, then tell me what is implemented, what is live-validated, what changed since the state file, and what should happen next.**
 
 A new session must:
 
