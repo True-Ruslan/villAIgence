@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "scripts": [
+    {
+      "path": "gradlew",
+      "purpose": "Pinned Gradle wrapper launcher; may download the checksum-pinned Gradle distribution.",
+      "network": true,
+      "ci": true
+    },
+    {
+      "path": "gradlew.bat",
+      "purpose": "Pinned Windows Gradle wrapper launcher; may download the checksum-pinned Gradle distribution.",
+      "network": true,
+      "ci": false
+    },
+    {
+      "path": "scripts/TTS/googole.py",
+      "purpose": "Inherited manual Google text-to-speech utility; not part of VillAIgence runtime or CI.",
+      "network": true,
+      "ci": false
+    },
+    {
+      "path": "scripts/TTS/main.py",
+      "purpose": "Inherited manual text-to-speech orchestration utility; not part of VillAIgence runtime or CI.",
+      "network": true,
+      "ci": false
+    },
+    {
+      "path": "scripts/TTS/polly.py",
+      "purpose": "Inherited manual AWS Polly text-to-speech utility; not part of VillAIgence runtime or CI.",
+      "network": true,
+      "ci": false
+    },
+    {
+      "path": "scripts/all.sh",
+      "purpose": "Inherited manual umbrella maintenance script; not invoked by VillAIgence CI or release workflows.",
+      "network": true,
+      "ci": false
+    },
+    {
+      "path": "scripts/ci/package-livingworld-release.sh",
+      "purpose": "Packages and smoke-checks the distributable VillAIgence Fabric JAR.",
+      "network": false,
+      "ci": true
+    },
+    {
+      "path": "scripts/ci/repository_security_policy.py",
+      "purpose": "Runs deterministic secret, source-policy, workflow-permission and script-inventory checks; its source contains detector signatures but performs no network requests.",
+      "network": true,
+      "ci": true
+    },
+    {
+      "path": "scripts/ci/test_repository_security_policy.py",
+      "purpose": "Standard-library detector self-tests; contains synthetic secret and network signatures but performs no network requests.",
+      "network": true,
+      "ci": true
+    },
+    {
+      "path": "scripts/fetch_contributors.py",
+      "purpose": "Inherited manual contributor metadata fetcher; not part of VillAIgence runtime or CI.",
+      "network": true,
+      "ci": false
+    },
+    {
+      "path": "scripts/lang_pre_generation.py",
+      "purpose": "Inherited manual localization pre-generation utility; not part of VillAIgence runtime or CI.",
+      "network": true,
+      "ci": false
+    },
+    {
+      "path": "scripts/names/convert_names.py",
+      "purpose": "Inherited manual name-data conversion utility; not part of VillAIgence runtime or CI.",
+      "network": true,
+      "ci": false
+    },
+    {
+      "path": "scripts/names/countries.py",
+      "purpose": "Inherited manual country-name data utility; not part of VillAIgence runtime or CI.",
+      "network": true,
+      "ci": false
+    },
+    {
+      "path": "scripts/names/unicodes.py",
+      "purpose": "Inherited manual Unicode name-data utility; not part of VillAIgence runtime or CI.",
+      "network": true,
+      "ci": false
+    },
+    {
+      "path": "scripts/pirate_translator.py",
+      "purpose": "Legacy manual localization translator retained temporarily pending H5 removal decision.",
+      "network": true,
+      "ci": false
+    },
+    {
+      "path": "scripts/skins/clothing_generator.py",
+      "purpose": "Inherited manual skin clothing asset generator; not part of VillAIgence runtime or CI.",
+      "network": true,
+      "ci": false
+    },
+    {
+      "path": "scripts/skins/face_generator.py",
+      "purpose": "Inherited manual skin face asset generator; not part of VillAIgence runtime or CI.",
+      "network": true,
+      "ci": false
+    }
+  ]
+}

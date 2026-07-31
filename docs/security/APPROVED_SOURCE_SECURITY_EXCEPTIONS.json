@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "exceptions": [
+    {
+      "path": "build.gradle",
+      "rule": "GRADLE_PROCESS_EXEC",
+      "contains": "providers.exec",
+      "reason": "Reads the exact Git tag at HEAD to derive the build version; arguments are fixed and no untrusted input is executed."
+    },
+    {
+      "path": "build.gradle",
+      "rule": "GRADLE_COMMAND_LINE",
+      "contains": "commandLine 'git', 'tag', '--points-at', 'HEAD'",
+      "reason": "Fixed git-tag lookup paired with the reviewed providers.exec version derivation."
+    },
+    {
+      "path": "common/src/main/java/net/conczin/mca/client/gui/immersive_library/RecordTypeAdapterFactory.java",
+      "rule": "JAVA_REFLECTION_ACCESS",
+      "contains": "constructor.setAccessible(true)",
+      "reason": "The Gson TypeAdapter instantiates a statically selected record type through its declared canonical constructor; no model, provider or user-controlled class name is loaded."
+    }
+  ]
+}
