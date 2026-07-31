@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "scripts": [
+    {
+      "path": "gradlew",
+      "purpose": "Pinned Gradle wrapper launcher used by local and CI builds.",
+      "network": false,
+      "ci": true
+    },
+    {
+      "path": "gradlew.bat",
+      "purpose": "Pinned Windows Gradle wrapper launcher for developer builds.",
+      "network": false,
+      "ci": false
+    },
+    {
+      "path": "scripts/ci/package-livingworld-release.sh",
+      "purpose": "Packages and smoke-checks the distributable VillAIgence Fabric JAR.",
+      "network": false,
+      "ci": true
+    },
+    {
+      "path": "scripts/ci/repository_security_policy.py",
+      "purpose": "Runs deterministic secret, source-policy, workflow-permission and script-inventory checks.",
+      "network": false,
+      "ci": true
+    },
+    {
+      "path": "scripts/pirate_translator.py",
+      "purpose": "Legacy manual localization translator retained temporarily pending H5 removal decision.",
+      "network": true,
+      "ci": false
+    }
+  ]
+}
