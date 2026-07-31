@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class VoicePcmBudgetAcceptanceProbe {
     private static final int DEFAULT_WORKERS = 256;
+    private static final int MAX_WORKERS = 512;
     private static final long DEFAULT_RESERVATION_BYTES = 1024L * 1024L;
     private static final long WAIT_SECONDS = 30L;
 
@@ -24,8 +25,8 @@ public final class VoicePcmBudgetAcceptanceProbe {
 
     static Result run(long maxBytes, int workers, long reservationBytes) throws InterruptedException {
         if (maxBytes <= 0L) throw new IllegalArgumentException("maxBytes must be positive");
-        if (workers <= 0 || workers > 4_096) {
-            throw new IllegalArgumentException("workers must be between 1 and 4096");
+        if (workers <= 0 || workers > MAX_WORKERS) {
+            throw new IllegalArgumentException("workers must be between 1 and " + MAX_WORKERS);
         }
         if (reservationBytes <= 0L || reservationBytes > maxBytes) {
             throw new IllegalArgumentException("reservationBytes must be in 1..maxBytes");
