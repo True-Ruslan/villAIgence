@@ -11,7 +11,9 @@ This directory contains the canonical security-review evidence and hardening pla
 - [`H3_SUPPLY_CHAIN_HARDENING_2026-07-31.md`](H3_SUPPLY_CHAIN_HARDENING_2026-07-31.md) — immutable build inputs and SEC-005 closure evidence.
 - [`SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H3.md`](SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H3.md) — dated audit reconciliation closing SEC-005 at merge commit `4cf9aef2e5c31a5682a7cad8544219154330e056`.
 - [`H4_CI_SECURITY_COVERAGE_2026-07-31.md`](H4_CI_SECURITY_COVERAGE_2026-07-31.md) — complete primary loader matrix, secret/source policy, recursive script inventory and CI evidence.
-- [`APPROVED_SCRIPT_INVENTORY.json`](APPROVED_SCRIPT_INVENTORY.json) — approved tracked scripts/executables and their network/CI classifications.
+- [`SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H4.md`](SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H4.md) — dated reconciliation closing SEC-006 at merge commit `05d105c1f558d5643b8190a88cc744b4d7cbe129`.
+- [`H5_LEGACY_TOOLS_AUDIT_CLOSURE_2026-07-31.md`](H5_LEGACY_TOOLS_AUDIT_CLOSURE_2026-07-31.md) — semantic retain/remove decisions, exact-head whole-tree manifests and SEC-008/SEC-009 implementation evidence.
+- [`APPROVED_SCRIPT_INVENTORY.json`](APPROVED_SCRIPT_INVENTORY.json) — the five approved build/security launchers.
 - [`APPROVED_SOURCE_SECURITY_EXCEPTIONS.json`](APPROVED_SOURCE_SECURITY_EXCEPTIONS.json) — exact reviewed source-policy exceptions.
 - [`DEPENDENCY_UPDATE_PROCEDURE.md`](DEPENDENCY_UPDATE_PROCEDURE.md) — controlled Gradle, dependency and GitHub Action update procedure.
 - [`../livingworld/PROVIDER_ENDPOINT_SECURITY.md`](../livingworld/PROVIDER_ENDPOINT_SECURITY.md) — operator-facing H1 endpoint, credential and redirect policy.
@@ -19,12 +21,12 @@ This directory contains the canonical security-review evidence and hardening pla
 ## Current status
 
 - H1 provider endpoint and credential policy: merged and automated-CI validated; real-server smoke remains required before SEC-001/SEC-002 closure.
-- H2 bounded network I/O and voice resource controls: merged as `15c56526417ac7dfb76567d51d1aa107f522cda7`; real-server smoke remains required before runtime-sensitive finding closure.
+- H2 bounded network I/O and voice resource controls: merged as `15c56526417ac7dfb76567d51d1aa107f522cda7`; real-server smoke remains required before SEC-003/SEC-004/SEC-007 closure.
 - H3 supply-chain verification: merged as `4cf9aef2e5c31a5682a7cad8544219154330e056`; SEC-005 is Closed.
-- H4 CI security coverage: implementation and automated validation are complete in PR #62; SEC-006 remains open until merge evidence is recorded.
-- H5 legacy-tool cleanup and final whole-tree audit: not started.
+- H4 CI security coverage: merged as `05d105c1f558d5643b8190a88cc744b4d7cbe129`; SEC-006 is Closed.
+- H5 legacy-tool cleanup: implementation and exact-head automated validation are complete in PR #63; SEC-008/SEC-009 remain open only until merge evidence is recorded.
 
-The audit found no direct evidence of intentionally malicious runtime behavior in the inspected VillAIgence paths. Inherited manual utilities remain outside normal mod runtime and CI. They are now recursively inventoried and blocked from changing or expanding without an explicit reviewed classification.
+The audit found no direct evidence of intentionally malicious runtime behavior in the inspected VillAIgence paths. All inherited non-CI utilities, external-maintenance scripts, raw generator inputs and tool-only masks have now been removed from the H5 branch. The retained script surface is limited to Gradle and VillAIgence-owned CI/security launchers and is enforced by deterministic policy.
 
 ## Security change rule
 

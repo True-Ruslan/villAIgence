@@ -22,8 +22,10 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout sources
+      - name: Checkout exact source head
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Run policy detector self-tests
         shell: bash
@@ -38,10 +40,114 @@ jobs:
           python3 scripts/ci/repository_security_policy.py --check
           test -s build/security/script-inventory.json
 
+      - name: Verify removed utilities are not referenced
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys
+
+          root = Path.cwd()
+          tokens = [
+              'scripts/' + 'TTS',
+              'scripts/' + 'all.sh',
+              'fetch_' + 'contributors.py',
+              'lang_' + 'pre_generation.py',
+              'scripts/' + 'names',
+              'pirate_' + 'translator.py',
+              'scripts/' + 'requirements.txt',
+              'scripts/' + 'skins',
+          ]
+          files = [
+              root / 'build.gradle',
+              root / 'settings.gradle',
+              root / 'gradle.properties',
+              root / 'common/build.gradle',
+              root / 'fabric/build.gradle',
+              root / 'neoforge/build.gradle',
+          ]
+          for directory in [root / 'buildSrc', root / '.github/workflows', root / 'scripts/ci']:
+              files.extend(sorted(path for path in directory.rglob('*') if path.is_file()))
+
+          findings = []
+          for path in files:
+              text = path.read_text(encoding='utf-8', errors='replace')
+              for line_number, line in enumerate(text.splitlines(), start=1):
+                  for token in tokens:
+                      if token in line:
+                          findings.append(f'{path.relative_to(root)}:{line_number}: {token}')
+
+          if findings:
+              print('Removed utility references remain:', file=sys.stderr)
+              print('\n'.join(findings), file=sys.stderr)
+              raise SystemExit(1)
+          PY
+
+      - name: Generate deterministic tracked-tree manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          import subprocess
+
+          root = Path.cwd()
+          raw = subprocess.run(
+              ['git', 'ls-files', '--stage', '-z'],
+              check=True,
+              stdout=subprocess.PIPE,
+          ).stdout
+          files = []
+          for entry in raw.split(b'\0'):
+              if not entry:
+                  continue
+              metadata, relative = entry.decode('utf-8').split('\t', 1)
+              mode, blob_sha, stage = metadata.split()
+              path = root / relative
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              files.append({
+                  'path': relative,
+                  'mode': mode,
+                  'git_blob': blob_sha,
+                  'sha256': digest,
+                  'size': path.stat().st_size,
+              })
+
+          commit = subprocess.run(
+              ['git', 'rev-parse', 'HEAD'],
+              check=True,
+              stdout=subprocess.PIPE,
+              text=True,
+          ).stdout.strip()
+          output = root / 'build/security/tracked-tree-manifest.json'
+          output.parent.mkdir(parents=True, exist_ok=True)
+          output.write_text(
+              json.dumps({
+                  'schema': 1,
+                  'commit': commit,
+                  'file_count': len(files),
+                  'files': files,
+              }, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          PY
+          test -s build/security/tracked-tree-manifest.json
+
       - name: Upload deterministic script inventory
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: villaigence-script-inventory
           path: build/security/script-inventory.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload deterministic tracked-tree manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: villaigence-tracked-tree-manifest
+          path: build/security/tracked-tree-manifest.json
           if-no-files-found: error
           retention-days: 14
