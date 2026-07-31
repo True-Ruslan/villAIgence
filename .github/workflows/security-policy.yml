@@ -40,6 +40,50 @@ jobs:
           python3 scripts/ci/repository_security_policy.py --check
           test -s build/security/script-inventory.json
 
+      - name: Verify removed utilities are not referenced
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import sys
+
+          root = Path.cwd()
+          tokens = [
+              'scripts/' + 'TTS',
+              'scripts/' + 'all.sh',
+              'fetch_' + 'contributors.py',
+              'lang_' + 'pre_generation.py',
+              'scripts/' + 'names',
+              'pirate_' + 'translator.py',
+              'scripts/' + 'requirements.txt',
+              'scripts/' + 'skins',
+          ]
+          files = [
+              root / 'build.gradle',
+              root / 'settings.gradle',
+              root / 'gradle.properties',
+              root / 'common/build.gradle',
+              root / 'fabric/build.gradle',
+              root / 'neoforge/build.gradle',
+          ]
+          for directory in [root / 'buildSrc', root / '.github/workflows', root / 'scripts/ci']:
+              files.extend(sorted(path for path in directory.rglob('*') if path.is_file()))
+
+          findings = []
+          for path in files:
+              text = path.read_text(encoding='utf-8', errors='replace')
+              for line_number, line in enumerate(text.splitlines(), start=1):
+                  for token in tokens:
+                      if token in line:
+                          findings.append(f'{path.relative_to(root)}:{line_number}: {token}')
+
+          if findings:
+              print('Removed utility references remain:', file=sys.stderr)
+              print('\n'.join(findings), file=sys.stderr)
+              raise SystemExit(1)
+          PY
+
       - name: Generate deterministic tracked-tree manifest
         shell: bash
         run: |
