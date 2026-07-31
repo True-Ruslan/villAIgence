@@ -2,12 +2,14 @@
 
 import importlib.util
 from pathlib import Path
+import sys
 import unittest
 
 MODULE_PATH = Path(__file__).with_name("repository_security_policy.py")
 SPEC = importlib.util.spec_from_file_location("repository_security_policy", MODULE_PATH)
 POLICY = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
+sys.modules[SPEC.name] = POLICY
 SPEC.loader.exec_module(POLICY)
 
 
