@@ -39,6 +39,14 @@ jobs:
           git show 6d82b4e4650294a4a42b9ea2113e64d990e08811:.github/workflows/security-policy.yml > .github/workflows/security-policy.yml
           rm -f .github/workflows/step1-security-docs-bootstrap.yml
           rm -f .github/step1_security_docs_patch.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('docs/security/STEP_1_TRACKER.md')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('validation remains  \n', 'validation remains\n')
+          text = text.replace('990e08811`  \n', '990e08811`\n')
+          path.write_text(text, encoding='utf-8')
+          PY
           git diff --check
 
       - name: Commit canonical closure documentation
@@ -56,9 +64,9 @@ jobs:
             docs/security/H5_LEGACY_TOOLS_AUDIT_CLOSURE_2026-07-31.md \
             docs/security/README.md \
             docs/security/STEP_1_TRACKER.md
-          git diff --cached --exit-code && {
+          if git diff --cached --quiet; then
             echo "Expected documentation changes were not produced" >&2
             exit 1
-          } || true
+          fi
           git commit -m "docs: reconcile Step 1 security closure"
           git push origin HEAD:docs/step1-security-closure
