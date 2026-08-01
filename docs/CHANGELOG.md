@@ -1,41 +1,282 @@
 # VillAIgence Changelog
 
-> Human-readable implementation and validation history. For exact current state and next priority, read `docs/PROJECT_STATE.md`. For long-term direction, read `docs/ROADMAP.md`.
+> Human-readable implementation and validation history. Read `docs/PROJECT_STATE.md` for exact current state and next priority; read `docs/ROADMAP.md` for long-term direction.
+
+## 2026-08-01 — S10b server-authoritative operator lore API
+
+**Status:** merged to `1.21.1`; automated validation PASS; live-server acceptance pending.
+
+```text
+PR: #85
+feature head: de2ab0ad38e6b88999cfb397a8dd42ba88c6b1bb
+merge: 3cc3137b09629ab348cf0d3e79c821a524259d56
+```
+
+Added:
+
+- permission-level-2 READ/WRITE authority;
+- trusted server-side scope resolution;
+- PLAYER bound to authenticated sender UUID;
+- VILLAGER/VILLAGE bound to live nearby same-level MCA villagers;
+- home-village dimension and ID derived by the server;
+- SHA-256 optimistic revisions;
+- explicit `OK`, `UNCHANGED`, `FORBIDDEN`, `CONFLICT`, `INVALID`, `NOT_FOUND`, `ERROR` statuses;
+- bounded C2S read/write and canonical S2C response payloads;
+- code-point, UTF-8-byte and control-character validation;
+- safe network view for transport-oversized pre-existing lore;
+- minimal client mailbox for the later UI.
+
+Security boundary:
+
+```text
+client-provided player UUID     none
+client-provided villager UUID   none
+client-provided dimension       none
+client-provided village ID      none
+client file access              none
+client authority decision       none
+```
+
+TDD/CI:
+
+```text
+canonical RED: f442660ec79f555a6e3f3866435d0b9aa0067238
+additional RED: 3d3384e9b3fefb321820dad3094e15f7c98a83dc
+
+VillAIgence CI #1116 / 30705048055              SUCCESS
+Java Pull Request CI #623 / 30705048075       SUCCESS
+Repository security policy #438 / 30705048038 SUCCESS
+```
+
+Evidence:
+
+```text
+docs/livingworld/VALIDATION_UPSTREAM_S10B_OPERATOR_LORE_AUTHORITY.md
+```
+
+---
+
+## 2026-08-01 — S10a immutable operator lore AI context
+
+**Status:** merged to `1.21.1`; automated validation PASS; live provider behavior pending cumulative acceptance.
+
+```text
+PR: #84
+feature head: f5ebfdad0b90e86be7b2ea0309dd61bceef39346
+merge: b700e14636e3370774173978b0b2519941dafed0
+```
+
+Implemented:
+
+- separate immutable `operatorAuthoredContext` snapshot component;
+- server-thread loading of world, villager, player and home-village lore;
+- no synthetic village scope for villagers without a home village;
+- explicit prompt provenance;
+- observed current facts before operator lore;
+- current observations win conflicts;
+- lore inserted before structured JSON/command instructions;
+- narrow prompt-return mixin without provider transport/parser/retry changes.
+
+```text
+VillAIgence CI #1101 / 30703811853              SUCCESS
+Java Pull Request CI #609 / 30703811848       SUCCESS
+Repository security policy #407 / 30703811864 SUCCESS
+```
+
+Evidence:
+
+```text
+docs/livingworld/VALIDATION_UPSTREAM_S10A_OPERATOR_LORE_CONTEXT.md
+```
+
+---
+
+## 2026-08-01 — S9 world-local operator lore store
+
+**Status:** merged to `1.21.1`; automated persistence validation PASS.
+
+```text
+PR: #83
+feature head: e5699bd491fc8deff6719cce0094320b43dcd744
+merge: f4a0d369c6e787d9ed91501fc87323aded9b4cbc
+file: <world>/livingworld/operator-lore.json
+schema: version 1
+```
+
+Implemented scopes:
+
+```text
+WORLD
+VILLAGER by persistent NPC UUID
+PLAYER by player UUID
+VILLAGE by dimension + stable MCA village ID
+```
+
+Persistence guarantees:
+
+- 4096-code-point value limit;
+- Unicode-safe truncation in the store boundary;
+- line-ending normalization;
+- forbidden-control rejection;
+- deterministic inspectable JSON;
+- exact replay no-op;
+- temporary file and atomic replace;
+- `.corrupt` backup and fail-open empty-schema recovery;
+- explicit provenance formatter;
+- no prompt integration, packets, UI or semantic-memory ingestion in S9 itself.
+
+```text
+VillAIgence CI #1091 / 30702297647              SUCCESS
+Java Pull Request CI #600 / 30702297654       SUCCESS
+Repository security policy #387 / 30702297650 SUCCESS
+```
+
+Evidence:
+
+```text
+docs/livingworld/VALIDATION_UPSTREAM_S9_OPERATOR_LORE.md
+```
+
+---
+
+## 2026-08-01 — S7–S8 server behavior and compatibility train
+
+**Status:** merged; automated validation PASS; cumulative live acceptance pending.
+
+### S7 — Graveyard mourning
+
+```text
+PR #79
+merge: 8dccf686f5f8ab245979e7ab64e1d75b87d14623
+```
+
+- persistent mourning site and position memories;
+- safe adjacent standing positions;
+- reservation-aware multi-NPC distribution;
+- flower/look/dialogue grieving lifecycle;
+- 1200-tick retry;
+- grave-removal completion and resurrection cleanup.
+
+### S8a — Relationship gifts
+
+```text
+PR #80
+merge: 0d833659626f1a91d6e86c7e0cae0b2a7689b755
+```
+
+Replaced the ambiguous special-gift boolean with `InteractionResult` semantics:
+
+```text
+PASS    ordinary gift processing may continue; consume 0
+FAIL    handled rejection; consume 0
+CONSUME handled success; consume exactly 1
+```
+
+### S8b — Fishing and AquaCulture compatibility
+
+```text
+PR #81
+merge: 75c2c0c77508571c010c0c5838c8a8b62ab6afaf
+```
+
+- actual held rod used in loot context;
+- loot generated at catch time;
+- target-water center used as origin;
+- safe cod fallback for empty loot;
+- dominant-hand stack and slot damaged correctly;
+- compatible modded `FishingRodItem` subclasses retained.
+
+### S8c — Mounted archer crash fix
+
+```text
+PR #82
+merge: 15ee14321f1b8d846ddb2df7c24c5159a53e6938
+```
+
+- captures the original stable `ArcherMoveControl`;
+- vehicle replacement of active move control no longer breaks archer behavior;
+- implemented through narrow owner interface and mixins;
+- full archer state machine left intact.
+
+Evidence:
+
+```text
+docs/livingworld/VALIDATION_UPSTREAM_S7_MOURNING.md
+docs/livingworld/VALIDATION_UPSTREAM_S8A_INTERACTION_RESULT.md
+docs/livingworld/VALIDATION_UPSTREAM_S8B_FISHING.md
+docs/livingworld/VALIDATION_UPSTREAM_S8C_ARCHER_MOUNTED.md
+```
+
+---
+
+## 2026-08-01 — S1–S6 MCA core synchronization checkpoint
+
+**Status:** implementation complete and automated PASS; exact installed-server acceptance pending.
+
+```text
+S1 PR #72 tombstone item/entity-data integrity
+S2 PR #73 UUID-preserving villager↔zombie conversion
+S3 PR #74 occupied HOME-bed rejection and ticket correctness
+S4 PR #75 water-tag and entity-AABB collision navigation
+S5 PR #76 stable climbable/ladder navigation
+S6 PR #77 staggered pathfinding plus retained progress watchdog
+checkpoint PR #78
+```
+
+Key outcomes:
+
+- filled tombstones retain NPC NBT across break/place;
+- infection/cure conversion preserves UUID identity without duplicate registered entities;
+- occupied beds are rejected as HOME targets;
+- water navigation recognizes tagged/modded water;
+- collision checks use the NPC's actual translated bounding box;
+- climbable path graph and motion handle ascent, descent and exits;
+- expensive pathfinding starts are deterministically staggered per NPC;
+- the existing progress watchdog and recovery behavior remain active.
+
+Protected boundaries retained:
+
+```text
+OpenAIChatAI transport/parser/security
+LivingWorld persistent schemas
+security workflows and scripts
+verified dependencies and lockfiles
+```
+
+Evidence begins at:
+
+```text
+docs/upstream/README.md
+docs/livingworld/VALIDATION_UPSTREAM_S1_TOMBSTONE.md
+docs/livingworld/VALIDATION_UPSTREAM_S6_PATH_SCHEDULING.md
+```
+
+---
 
 ## 2026-08-01 — 0.1.17 SEC-004 closure and Step 1 completion
 
-**Status:** exact official release JAR accepted; SEC-004 Closed; all Step 1 findings Closed.
+**Status:** exact official release JAR accepted; all Step 1 findings Closed.
 
 ```text
 tag: 0.1.17+1.21.1
 commit: 88a20d86e8b08e4b5eaf60da943a63e750f2b545
-JAR: villaigence-fabric-0.1.17+1.21.1.jar
 SHA-256: b33af40f7a2696dc679c49e0fc544f6b5df99e0aa600ea5c767bc5a9747da1ab
 marker: V0117_SEC004_ARTIFACT_AND_EVIDENCE_PASS
 ```
 
-Focused exact-JAR verification results:
+Focused exact-JAR results:
 
 ```text
 HTTP success                         SUCCESS / 200
 HTTP redirect                        HTTP_ERROR / 307
 redirect followed                    no
 redirect_target_hits                 0
-declared verification oversize       TOO_LARGE / ResponseTooLargeException
-chunked verification oversize        TOO_LARGE / ResponseTooLargeException
+declared/chunked oversize            TOO_LARGE
 HTTPS loopback                       rejected before connection
-HTTPS rejection exit code            2
 SSLException                         none
-sanitized HTTP requests              4
 ```
 
-The official `0.1.17` JAR was exercised directly with `java -cp`; Minecraft installation was not required. The production server remained on `0.1.16+1.21.1`, and `mods`, world data and configuration were untouched.
-
-The earlier `0.1.16` controlled server run remains authoritative for Chat/STT/TTS bounds, error-body limits, the `600.026 s` slow-drip deadline, provider redirects, TTS fail-soft persistence, voice clamp, the 128 MiB PCM budget, production restoration and restart durability.
-
-A local source build stopped before compilation because dependency verification lacked checksum records for transitive Fabric dependencies resolved in that environment. Verification failed closed: it was not disabled, no unverified dependency was accepted and the local output was not used. The exact official CI/release JAR was accepted by recorded SHA-256. Supporting that additional local resolution graph remains a non-blocking build-maintenance follow-up under the controlled dependency update procedure.
-
-Final finding matrix:
+Final matrix:
 
 ```text
 SEC-001 Closed
@@ -49,504 +290,95 @@ SEC-008 Closed
 SEC-009 Closed
 ```
 
-Canonical evidence:
-
-```text
-docs/livingworld/VALIDATION_0.1.16.md
-docs/livingworld/VALIDATION_0.1.17.md
-docs/security/SECURITY_AUDIT_FOLLOW_UP_2026-08-01_RUNTIME_0.1.16.md
-docs/security/SECURITY_AUDIT_FOLLOW_UP_2026-08-01_RUNTIME_0.1.17.md
-docs/security/STEP_1_TRACKER.md
-```
-
-Step 1 Security and supply-chain hardening is complete within its defined implementation and acceptance scope.
+`0.1.17` was exact-artifact validated, not installed as the production Minecraft checkpoint.
 
 ---
 
-## 2026-07-31 — Residual Step 1 security acceptance harness
-
-**Status:** implementation and automated validation prepared in PR #68; controlled release/server execution remains pending.
-
-### Added
-
-- dependency-free Python provider harness restricted to literal loopback;
-- deterministic normal, declared-oversize, chunked-oversize, oversized-error, redirect and slow-drip routes for Chat/STT/TTS/verification;
-- streamed hostile payloads without whole-body allocation;
-- sanitized JSONL evidence containing header-presence booleans and query-key names, never values;
-- shared JDK-only account-verification transport preserving fixed production origin policy and disabled redirects;
-- exact-release-JAR verification probe restricted to literal loopback;
-- exact-release-JAR voice probe covering the 1..120 second clamp, 128 MiB concurrent budget, overflow rejection, release and recovery;
-- package smoke checks requiring every probe/transport class in the distributable Fabric JAR;
-- standard-library harness tests in read-only repository security CI;
-- current approved script inventory expanded from the historical H5 five launchers to seven reviewed scripts.
-
-### Safety boundary
+## 2026-08-01 — 0.1.16 full controlled server acceptance
 
 ```text
-no in-game command
-no Minecraft startup hook
-no production-provider traffic
-no production credential lookup by probes
-no config or persistence schema change
+commit: 521568f903078b91dd5817cdc9a551bd2392e663
+SHA-256: 036cbacc657ceb676813f41ee293024690b981e971e7c6037fc5d3ecbe3ee062
 ```
 
-SEC-003, SEC-004 and SEC-007 remain Open. Tooling alone is not closure evidence. The next candidate, expected `0.1.16+1.21.1`, must complete `docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md` on the controlled server.
+Live-proven:
+
+- Chat/STT/TTS/error response limits;
+- authenticated redirect rejection;
+- ten-minute slow-drip deadline;
+- TTS fail-soft text/DIALOGUE preservation;
+- voice duration clamp;
+- exact 128 MiB PCM budget and recovery;
+- production configuration restoration;
+- six-file restart durability;
+- server, Voice Chat, ports and monitor health.
+
+This remains the latest installed-server checkpoint until a newer synchronized candidate passes live acceptance.
 
 ---
 
-## 2026-07-31 — 0.1.15 production and endpoint-policy validation
-
-**Status:** PASS within executed real-server scope; latest production/security live checkpoint.
+## 2026-07-31 — 0.1.15 production and endpoint-policy checkpoint
 
 ```text
-tag: 0.1.15+1.21.1
 commit: 26070c37b806897e37cc3dabe2e4b27af458ac20
-JAR: villaigence-fabric-0.1.15+1.21.1.jar
 SHA-256: af142be94885541bb4840d0effff73627afe3f0e245dec8307ed665701cc94fb
 ```
 
-Validated production Text/STT/TTS, Pio/Justino isolation, Pio memory recall, TTS fail-soft behavior, controlled OpenRouter 429 handling, six-file restart hashes, endpoint rejection, byte-identical configuration restoration and log redaction.
-
-```text
-Closed: SEC-001, SEC-002
-Pending isolated acceptance: SEC-003, SEC-004, SEC-007
-```
-
-Canonical evidence:
-
-```text
-docs/livingworld/VALIDATION_0.1.15.md
-docs/security/SECURITY_AUDIT_FOLLOW_UP_2026-07-31_RUNTIME_0.1.15.md
-```
+Validated production Text/STT/TTS, NPC isolation, memory recall, TTS fail-soft behavior, controlled 429 handling, endpoint rejection, configuration restoration and persistent-file restart hashes.
 
 ---
 
-## 2026-07-31 — Step 1 security and supply-chain hardening
-
-**Status:** repository-side H1–H5 merged and automated-CI validated; production endpoint-policy validation passed in `0.1.15+1.21.1`; isolated SEC-003/SEC-004/SEC-007 acceptance remains.
-
-### Merge sequence
+## 2026-07-31 — 0.1.14 deterministic semantic forgetting/decay
 
 ```text
-PR #59 H1 endpoint/credential policy       787f1a781b5970d4bafb851bfb3c7cba7c21fc0a
-PR #60 H2 bounded provider/voice resources 15c56526417ac7dfb76567d51d1aa107f522cda7
-PR #61 H3 verified supply chain            4cf9aef2e5c31a5682a7cad8544219154330e056
-PR #62 H4 CI security coverage             05d105c1f558d5643b8190a88cc744b4d7cbe129
-PR #63 H5 legacy-tool closure              6d82b4e4650294a4a42b9ea2113e64d990e08811
-PR #64 canonical closure                  26070c37b806897e37cc3dabe2e4b27af458ac20
+commit: c45aea45dd915b24ba236344feef30559c7171bb
+marker: V0114_FINAL_RESTART_VERIFICATION_PASS
 ```
 
-### Provider and runtime hardening
+Live-proven:
 
-- provider URLs are parsed and normalized before credentials are selected;
-- remote plaintext endpoints are rejected;
-- OpenAI/OpenRouter/custom credentials cannot cross endpoint-family boundaries;
-- authenticated redirects are not followed;
-- Chat, STT, TTS, provider-error and verification bodies are byte-bounded;
-- slow-drip responses have a hard total deadline;
-- account verification uses a fixed trusted origin;
-- voice capture is clamped to `1..120` seconds;
-- aggregate active PCM is bounded to 128 MiB.
+- older corroborated FACT survival under pressure;
+- source-event durability;
+- deterministic decay ordering;
+- weak existing FACT eviction;
+- per-NPC retention isolation;
+- semantic UUID/source preservation;
+- restart-safe persistence.
 
-### Supply-chain and CI hardening
-
-- Fabric Loom uses stable `1.17.17`;
-- Gradle wrapper checksum and wrapper validation are enforced;
-- external GitHub Actions are pinned to immutable commit SHAs;
-- dependency verification metadata and lockfiles are committed;
-- release packages contain a deterministic dependency manifest;
-- primary CI requires common tests, Fabric and NeoForge;
-- repository policy scans secrets, dangerous APIs, workflow permissions and scripts;
-- exact-head tracked-tree evidence is retained.
-
-### Whole-tree cleanup
-
-- inherited non-CI utilities were reviewed;
-- deprecated Google/AWS TTS, external localization, translation, name and skin generation utilities were removed;
-- unmanaged Python requirements and the raw name dataset were removed;
-- generated game resources remain unchanged;
-- H5 reduced the executable/script surface to five Gradle/CI/security launchers; the later reviewed acceptance harness and its CI test intentionally bring the current approved inventory to seven scripts.
-
-### Finding status
-
-```text
-Closed: SEC-001, SEC-002, SEC-005, SEC-006, SEC-008, SEC-009
-Pending isolated acceptance: SEC-003, SEC-004, SEC-007
-```
-
-`0.1.14+1.21.1` remains the forgetting/decay checkpoint. `0.1.15+1.21.1` is the latest production/security live checkpoint; remaining isolated acceptance uses `docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md` in a release containing PR #68.
+Rejected-new-append no-rewrite remains automated-proven but was not reached through the live randomized model path.
 
 ---
 
-## 0.1.14+1.21.1 — Deterministic Semantic Memory forgetting/decay live-server checkpoint
+## Memory 2.0 implementation train
 
-**Status:** live-tested successfully on a real Minecraft 1.21.1 server after controlled retention pressure and final restart on 2026-07-31.
-
-Validation marker:
+Material milestones retained:
 
 ```text
-V0114_FINAL_RESTART_VERIFICATION_PASS
+PRs #31–#43  episodic MemoryEvent model, persistence, retrieval and ingestion
+PR #46       Working Memory and Semantic Memory foundation
+PR #49       controlled semantic FACT ingestion
+PR #53       deterministic semantic consolidation and source union
+PR #56       deterministic pressure-based forgetting/decay
 ```
 
-Release identity:
+Current remaining Memory 2.0 work is intentionally sequenced after the S10c/release gate:
 
-```text
-release/tag and tested commit:
-c45aea45dd915b24ba236344feef30559c7171bb
-```
-
-The current `1.21.1` branch is a descendant of this tag. Later H1–H5 security commits are not part of the tested payload.
-
-### Controlled capacity
-
-```text
-capacity during pressure test: 3
-capacity restored after test: 256
-```
-
-The final restart and hash comparison were performed after restoring the normal capacity.
-
-### Forgetting and durability evidence
-
-```text
-older corroborated Basiliso FACT survived pressure        PASS
-Basiliso semantic UUID preserved                          PASS
-Basiliso sourceEventIds preserved                         PASS
-source-evidence durability affected retention             PASS
-decay ordering among equal entries                        PASS
-weak Casimiro RELATIONSHIP_CHANGE FACT evicted            PASS
-```
-
-The live scenario confirms that the policy no longer behaves as newest-only trimming. Older strong and corroborated knowledge can survive while a weak existing semantic entry is removed.
-
-### NPC isolation
-
-```text
-Basiliso pressure isolated                                PASS
-Casimiro pressure isolated                                PASS
-cross-NPC eviction, merge or reinforcement                none
-```
-
-### Restart persistence
-
-Byte-identical after restart:
-
-```text
-memory.json                                                PASS
-memory2.json                                               PASS
-semantic-memory.json                                       PASS
-relationships.json                                         PASS
-voices.json                                                PASS
-```
-
-Semantic UUIDs and `sourceEventIds` for the tested Basiliso and Casimiro entries remained stable.
-
-### Chat, voice and operations
-
-```text
-Chat                                                       SUCCESS
-STT                                                        SUCCESS
-TTS                                                        SUCCESS
-Simple Voice Chat connection                               PASS
-Opus initialization                                        PASS
-UDP 24454 / 25565                                          PASS
-LinuxGSM monitor                                           PASS
-server STARTED                                             PASS
-VillAIgence / persistence / OutOfMemory errors             none
-```
-
-### Explicit validation boundary
-
-The normal gameplay pipeline did not exercise rejection of a **new** weak candidate:
-
-- three different social scenarios were attempted;
-- the active Chat model produced no `RELATIONSHIP_CHANGE`;
-- no new weak semantic candidate reached the store;
-- therefore byte-identical file behavior for rejected-new-append was not live-observed.
-
-Current evidence:
-
-```text
-existing weak FACT eviction under pressure                live-proven
-rejected-new-append no-rewrite                             automated-proven
-rejected-new-append no-rewrite                             not live-proven
-```
-
-Automated anchor:
-
-```text
-rejectedWeakAppendDoesNotRewriteSemanticFile
-```
-
-Exact feature head and CI:
-
-```text
-c08b47431b6a121deae4be8410be1e4fe4c5126a
-VillAIgence CI #764 / 30573965448 — SUCCESS
-Java Pull Request CI #307 / 30573965439 — SUCCESS
-```
-
-This boundary does not invalidate the live forgetting/decay checkpoint. It prevents claiming that this one branch was reached on a real server.
-
-Canonical evidence:
-
-```text
-docs/livingworld/VALIDATION_0.1.14.md
-```
-
-Development consequence:
-
-- forgetting/decay, source durability, persistence and NPC isolation move from CI-only to live-proven;
-- the next release-validation priority is the controlled H1/H2 security scenario in a build containing PRs #59–#63;
-- rejected-new-append may be exercised later through a deterministic test path, but should not block progress on model randomness.
+- additive legacy `memory.json` migration;
+- controlled BELIEF producers;
+- relationship reasons;
+- long-horizon and multiplayer soak;
+- NPC-to-NPC knowledge and rumors.
 
 ---
 
-## Post-0.1.13 — Deterministic Semantic Memory forgetting and decay
-
-**Status:** merged and automated-CI validated in PR #56; subsequently live-validated by `0.1.14+1.21.1`, except for the rejected-new-append branch described above.
-
-### What changed
-
-Added `SemanticMemoryRetentionPolicy` and integrated it into `SemanticMemoryStore` after consolidation.
-
-The previous policy removed the oldest entry whenever the per-NPC limit was exceeded. The new policy keeps all valid knowledge while under capacity and forgets only under retention pressure.
+# Current next step
 
 ```text
-exact UUID replay check
-→ append candidate
-→ deterministic consolidation
-→ deterministic retention selection
-→ atomic save only when retained state changed
+S10c operator lore client editor UI
+→ synchronized release candidate
+→ cumulative installed-server acceptance S1–S10c
+→ release promotion only on PASS
+→ resume additive legacy memory.json migration
 ```
 
-### Durability and decay
-
-```text
-importance contribution = importance × 4                 // 0..400
-confidence contribution = confidence × 5 / 2             // 0..250
-
-provenance contribution:
-SYSTEM_OBSERVED = 200
-PLAYER_TOLD     = 100
-NPC_TOLD        = 75
-INFERRED        = 25
-
-source contribution = min(sourceEventIds count, 6) × 25   // 0..150
-```
-
-```text
-DECAY_STEP_TICKS = 36000
-ageTicks = max(0, nowGameTime - entry.gameTime)
-effectiveRetentionScore = durability × 36000 - ageTicks
-```
-
-At 20 TPS, one decay step is approximately 30 minutes of active server runtime.
-
-### Deterministic selection
-
-```text
-effective score descending
-importance descending
-confidence descending
-source count descending
-gameTime descending
-createdAtEpochMillis descending
-UUID ascending
-```
-
-### Safety and persistence
-
-- entries are never removed while under capacity;
-- confidence is not mutated;
-- consolidation occurs before forgetting;
-- corroboration adds bounded source durability and preserves every source UUID;
-- exact UUID replay remains a no-op;
-- NPC pressure remains isolated;
-- no timer, background task, wall-clock TTL or world-tick hook exists;
-- JSON remains format version 1;
-- no config fields were added.
-
-### TDD anchors
-
-```text
-policy RED:
-1ea407ab2cd16eb74ea86dacb1aa04e476341e34
-VillAIgence CI #756 / 30572701052 → expected FAILURE
-
-policy GREEN:
-0410b8c4b9bcbe604effca2154d092ef6a2af1a5
-VillAIgence CI #758 / 30572959755 → SUCCESS
-Java Pull Request CI #304 / 30572959844 → SUCCESS
-
-store RED:
-4c42a3f13f73657fade630fa6fd212e0a7677657
-VillAIgence CI #760 / 30573293522 → expected FAILURE
-
-final exact head:
-c08b47431b6a121deae4be8410be1e4fe4c5126a
-VillAIgence CI #764 / 30573965448 → SUCCESS
-Java Pull Request CI #307 / 30573965439 → SUCCESS
-
-merge:
-73145dd0925d403af7ef343521eb3ae27f68804d
-```
-
-Documentation:
-
-```text
-docs/livingworld/SEMANTIC_FORGETTING_DECAY.md
-docs/superpowers/specs/2026-07-30-memory2-semantic-forgetting-decay-design.md
-docs/superpowers/plans/2026-07-30-memory2-semantic-forgetting-decay.md
-```
-
----
-
-## 0.1.13+1.21.1 — Deterministic Semantic Memory consolidation live-server checkpoint
-
-**Status:** live-tested successfully on 2026-07-30.
-
-```text
-release/tag and tested commit:
-b553bf7e83674145bdf42927b9ace7287afa560c
-```
-
-Validated:
-
-```text
-same-knowledge authoritative ACTION events: 2              PASS
-ACTION UUIDs distinct                                      PASS
-consolidated semantic entries: 1                           PASS
-both sourceEventIds present exactly once                   PASS
-deterministic UUID independently reproduced                PASS
-retry created another ACTION                               no
-retry changed semantic-memory.json                         no
-NPC A / NPC B isolation                                    PASS
-```
-
-Deterministic UUID:
-
-```text
-093aabb0-e61b-3e62-a5fe-fbb9d15b8494
-```
-
-Byte-identical after restart:
-
-```text
-memory.json
-memory2.json
-semantic-memory.json
-relationships.json
-voices.json
-```
-
-Operations:
-
-```text
-Chat / DIALOGUE                                             PASS
-Simple Voice Chat / Opus                                   PASS
-STT / TTS                                                  PASS
-UDP 24454 / 25565                                          PASS
-LinuxGSM monitor                                           PASS
-server STARTED                                             PASS
-```
-
-Canonical evidence:
-
-```text
-docs/livingworld/VALIDATION_0.1.13.md
-```
-
----
-
-## Post-0.1.12 — Deterministic Semantic Memory consolidation
-
-**Status:** PR #53 merged, automated-CI validated and live-validated by `0.1.13`.
-
-```text
-merge: f85879d254f37d7f860380362b296e047bbbb781
-verified head: 19c3d3e840431cc2b1b34e1841e2075f56e99f71
-VillAIgence CI #746 / 30561015885 → SUCCESS
-Java Pull Request CI #300 / 30561015985 → SUCCESS
-```
-
-Consolidation preserves provenance and all independent `sourceEventIds`, keeps FACT and BELIEF separate, isolates related entities and uses deterministic UUIDs without fuzzy matching, embeddings or LLM classification.
-
-Documentation:
-
-```text
-docs/livingworld/SEMANTIC_CONSOLIDATION.md
-docs/superpowers/specs/2026-07-30-memory2-semantic-consolidation-design.md
-```
-
----
-
-## 0.1.12+1.21.1 — Controlled Semantic Memory live-server checkpoint
-
-**Status:** live-tested successfully on 2026-07-30.
-
-```text
-release/tag and tested commit:
-746fa75ab4b5f4bee385efa0c8ae51009c1aec58
-```
-
-Validated ACTION and RELATIONSHIP_CHANGE FACT ingestion, deterministic source-linked semantic UUIDs, retry idempotency, DIALOGUE exclusion, restart persistence and Chat/STT/TTS/Voice Chat health.
-
-Canonical evidence:
-
-```text
-docs/livingworld/VALIDATION_0.1.12.md
-```
-
----
-
-## Post-0.1.11 — Controlled Semantic Memory ingestion
-
-**Status:** PR #49 merged, automated-CI validated and live-validated by `0.1.12`.
-
-```text
-merge: c6a7a17aa5bd7806667ff3b8b502b852640e606c
-verified head: 7f9916e510a2ca70245d93c5b308ee31758fed0f
-VillAIgence CI #721 / 30548196801 → SUCCESS
-Java Pull Request CI #289 / 30548198746 → SUCCESS
-```
-
-Automatic conversion accepts server-observed ACTION, OBSERVATION and RELATIONSHIP_CHANGE events and rejects ordinary DIALOGUE, told provenance and inferred provenance.
-
----
-
-## 0.1.11+1.21.1 — Working Memory checkpoint
-
-Validated bounded persistent and prompt history, NPC isolation, retry recovery, three voice turns, restart persistence and operational health.
-
-Canonical evidence:
-
-```text
-docs/livingworld/VALIDATION_0.1.11.md
-```
-
----
-
-## 0.1.10+1.21.1 — Text/voice Memory 2.0 parity checkpoint
-
-Validated shared text/voice post-success ingestion, bounded DIALOGUE events, NPC isolation, legacy plus Memory 2.0 persistence and unchanged voice behavior.
-
-Canonical evidence:
-
-```text
-docs/livingworld/VALIDATION_0.1.10.md
-```
-
----
-
-## 0.1.8+1.21.1 — Reliability foundation
-
-Established safe provider response parsing, `content:null` handling, diagnostics, admission/backpressure, persistent JSON recovery and stable voice/memory persistence.
-
-```text
-release commit:
-23fba1ee373e932c0b17aba3755f8ac478c26941
-
-workflow:
-29918008438 → SUCCESS
-```
+No S1–S10b live-validation or new-release claim is implied by the successful automated package gates.
