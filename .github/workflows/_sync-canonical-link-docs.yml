@@ -1,0 +1,59 @@
+name: Apply canonical link continuity sync
+
+on:
+  push:
+    branches: [docs/sync-canonical-portfolio-link]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/sync-canonical-portfolio-link
+          fetch-depth: 0
+      - name: Patch durable documents
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          changes = [
+              (
+                  Path('docs/PROJECT_STATE.md'),
+                  '\n\n## Executive snapshot',
+                  '''\n\n## Repository visibility update — 2026-08-01\n\nThe public README now exposes the canonical author and engineering-portfolio origin `https://trueruslan.ru/`.\n\n```text\nfeature PR:                  #90\naccepted head:               19e397ea3250384d7063e5df46ea3f05f66c9514\nVillAIgence CI:              30714996167 / #1154 — SUCCESS\nJava Pull Request CI:        30714996171 / #654 — SUCCESS\nRepository security policy:  30714996231 / #505 — SUCCESS\nsquash merge:                62091309f61667ce38a6c60aa9477309093392c5\nchanged file:                README.md only\n```\n\nThis is repository-discovery maintenance only. It changes no gameplay, provider, memory, persistence, packet, security, compatibility, release or live-validation claim. **S10c operator-lore client editor UI remains the next development step.**\n''',
+                  'feature PR:                  #90',
+              ),
+              (
+                  Path('docs/ROADMAP.md'),
+                  '\n\n## Product vision',
+                  '''\n\n> **Repository maintenance note (2026-08-01):** README canonical portfolio-link rollout completed through PR #90 (`19e397e` → squash `6209130`). VillAIgence CI #1154 / run `30714996167`, Java PR CI #654 / run `30714996171`, and security policy #505 / run `30714996231` all passed. Roadmap sequencing is unchanged; S10c remains next.\n''',
+                  'README canonical portfolio-link rollout completed through PR #90',
+              ),
+              (
+                  Path('docs/CHANGELOG.md'),
+                  '\n\n## 2026-08-01 — S10b server-authoritative operator lore API',
+                  '''\n\n## 2026-08-01 — Canonical engineering-portfolio link\n\n**Status:** merged to `1.21.1`; all exact-head automated gates PASS.\n\n```text\nPR:                          #90\naccepted head:               19e397ea3250384d7063e5df46ea3f05f66c9514\nVillAIgence CI:              30714996167 / #1154 — SUCCESS\nJava Pull Request CI:        30714996171 / #654 — SUCCESS\nRepository security policy:  30714996231 / #505 — SUCCESS\nsquash merge:                62091309f61667ce38a6c60aa9477309093392c5\n```\n\nAdded one explicit README link to `https://trueruslan.ru/`. MCA attribution, installation guidance, compatibility-sensitive identifiers, runtime behavior, security policy, release status and live-server evidence remain unchanged. S10c remains the selected next step.\n\n---\n''',
+                  '## 2026-08-01 — Canonical engineering-portfolio link',
+              ),
+          ]
+
+          for path, marker, block, sentinel in changes:
+              text = path.read_text(encoding='utf-8')
+              if sentinel in text:
+                  continue
+              if text.count(marker) != 1:
+                  raise SystemExit(f'{path}: expected exactly one marker, found {text.count(marker)}')
+              path.write_text(text.replace(marker, block + marker, 1), encoding='utf-8')
+          PY
+          rm -f .github/workflows/_sync-canonical-link-docs.yml
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/PROJECT_STATE.md docs/ROADMAP.md docs/CHANGELOG.md .github/workflows/_sync-canonical-link-docs.yml
+          git commit -m 'docs: sync canonical portfolio link state'
+          git push origin HEAD:docs/sync-canonical-portfolio-link
