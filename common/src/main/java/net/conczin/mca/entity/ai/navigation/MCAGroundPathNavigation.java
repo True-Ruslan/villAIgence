@@ -7,6 +7,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.pathfinder.PathFinder;
+import net.minecraft.world.phys.Vec3;
 
 public class MCAGroundPathNavigation extends GroundPathNavigation {
     private static final int MAX_WATER_SURFACE_SCAN = 16;
@@ -24,7 +25,11 @@ public class MCAGroundPathNavigation extends GroundPathNavigation {
     }
 
     @Override
-    public int getSurfaceY() {
+    protected Vec3 getTempMobPos() {
+        return new Vec3(this.mob.getX(), getWaterAwareSurfaceY(), this.mob.getZ());
+    }
+
+    private int getWaterAwareSurfaceY() {
         int startY = this.mob.getBlockY();
         int fallbackY = Mth.floor(this.mob.getY() + 0.5D);
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(
