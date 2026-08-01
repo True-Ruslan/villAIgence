@@ -34,7 +34,7 @@ docs/superpowers/plans/2026-08-01-s10c-operator-lore-editor.md
 ### Dedicated screen
 
 - standalone `OperatorLoreEditorScreen`, separate from Villager Editor;
-- stable WORLD, PLAYER, VILLAGER and VILLAGE scope controls;
+- stable scope order: WORLD, PLAYER, VILLAGER, VILLAGE;
 - targetless opening starts on WORLD and disables target scopes;
 - targeted opening starts on VILLAGER and enables all scopes;
 - responsive multiline editor with bounded presentation layout;
@@ -43,9 +43,10 @@ docs/superpowers/plans/2026-08-01-s10c-operator-lore-editor.md
 - Reload, Clear, Save and Close controls;
 - dirty-state confirmation for scope change, reload and close;
 - saving-close warning;
-- Ctrl/Cmd+S and Ctrl/Cmd+R shortcuts;
+- Ctrl/Cmd+S and Ctrl/Cmd+R shortcuts that respect busy-state controls;
 - explicit conflict choices: use server version or retain local draft;
-- no implicit write on close, reload, clear or conflict.
+- no implicit write on close, reload, clear or conflict;
+- confirmation modals continue forwarding in-flight lore responses to the owning editor.
 
 ### Pure state model
 
@@ -107,10 +108,11 @@ Rules:
 ### Client dispatch and classloading boundary
 
 - `OperatorLoreResponse` dispatches through `ClientHandler`;
-- only an active `OperatorLoreEditorScreen` receives a response;
+- an active editor or its client-only `OperatorLoreConfirmScreen` receives the response;
+- the modal delegates the response to its owning editor, preventing a cancelled close-during-save flow from becoming permanently stuck in SAVING;
 - the temporary global `OperatorLoreClientState` mailbox was removed;
 - controller state is screen-local and in-memory only;
-- screen/controller classes live under the client GUI package;
+- screen/controller/modal classes live under the client GUI package;
 - no common/server initialization path directly references the screen;
 - both Fabric and NeoForge builds compile the client integration.
 
@@ -213,7 +215,7 @@ Java Pull Request CI #641 / 30708795986 — SUCCESS
 Repository security policy #478 / 30708795981 — SUCCESS
 ```
 
-## Implementation GREEN
+## Initial implementation GREEN
 
 ```text
 head: 1d383f66531d8cdf8518a387cdffc9a34fbeac74
@@ -222,22 +224,51 @@ Java Pull Request CI #646 / 30709370847       SUCCESS
 Repository security policy #489 / 30709370842 SUCCESS
 ```
 
-Validated automatically at this head:
+## Post-GREEN UI review hardening
+
+Manual patch review found three presentation-only edge cases after the initial GREEN:
 
 ```text
-common unit tests                         PASS
-Fabric build                              PASS
-NeoForge build                            PASS
+enum declaration order differed from approved tab order
+Ctrl/Cmd+R could bypass the disabled Reload button while busy
+a vanilla ConfirmScreen temporarily replaced the active response receiver during close-while-saving
+```
+
+Corrections:
+
+```text
+explicit WORLD, PLAYER, VILLAGER, VILLAGE order
+keyboard shortcuts require the corresponding active button
+client-only response-receiving confirmation modal delegates in-flight responses to the editor
+```
+
+Final implementation GREEN:
+
+```text
+head: 20ffbaf4cf6a138767f1458cddfe8d014bb5c8ee
+VillAIgence CI #1149 / 30709770608              SUCCESS
+Java Pull Request CI #651 / 30709770646       SUCCESS
+Repository security policy #499 / 30709770642 SUCCESS
+```
+
+Validated automatically at the final implementation head:
+
+```text
+common unit tests                          PASS
+Fabric build                               PASS
+NeoForge build                             PASS
 Fabric distributable package verification PASS
-repository security policy               PASS
+repository security policy                PASS
 ```
 
 ## Changed runtime scope
 
 ```text
+client/gui/lore/OperatorLoreConfirmScreen.java
 client/gui/lore/OperatorLoreEditorController.java
 client/gui/lore/OperatorLoreEditorOpenContext.java
 client/gui/lore/OperatorLoreEditorScreen.java
+client/gui/lore/OperatorLoreResponseReceiver.java
 livingworld/lore/editor/OperatorLoreEditorModel.java
 livingworld/lore/editor/OperatorLoreEditorOpenPolicy.java
 livingworld/lore/editor/OperatorLoreProtocolPolicy.java
@@ -300,6 +331,8 @@ Reload dirty confirmation
 scope-switch dirty confirmation
 close dirty confirmation
 saving-close warning
+response arrives while close confirmation is open
+cancel close after successful in-flight response
 GUI scale changes
 window resize and narrow layout
 keyboard Save/Reload
