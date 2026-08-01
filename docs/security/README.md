@@ -7,6 +7,7 @@ This directory contains the canonical security-review evidence and hardening pla
 - [`SECURITY_AUDIT_2026-07-31.md`](SECURITY_AUDIT_2026-07-31.md) — original source, runtime-boundary and supply-chain audit against `1.21.1` commit `c45aea45dd915b24ba236344feef30559c7171bb`.
 - [`STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md`](STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md) — ordered implementation plan for Step 1.
 - [`STEP_1_TRACKER.md`](STEP_1_TRACKER.md) — completed canonical execution checklist; GitHub Issues are disabled for this repository.
+- [`STEP_1_COMPLETION_2026-08-01.md`](STEP_1_COMPLETION_2026-08-01.md) — final compact completion record and evidence chain for SEC-001 through SEC-009.
 - [`H2_BOUNDED_NETWORK_HARDENING_2026-07-31.md`](H2_BOUNDED_NETWORK_HARDENING_2026-07-31.md) — bounded provider I/O, verification and voice-resource evidence.
 - [`H3_SUPPLY_CHAIN_HARDENING_2026-07-31.md`](H3_SUPPLY_CHAIN_HARDENING_2026-07-31.md) — immutable build inputs and SEC-005 closure evidence.
 - [`SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H3.md`](SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H3.md) — dated audit reconciliation closing SEC-005 at merge commit `4cf9aef2e5c31a5682a7cad8544219154330e056`.
