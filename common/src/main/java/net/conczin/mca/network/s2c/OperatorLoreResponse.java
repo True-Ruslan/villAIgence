@@ -1,8 +1,8 @@
 package net.conczin.mca.network.s2c;
 
+import net.conczin.mca.ClientProxy;
 import net.conczin.mca.MCA;
 import net.conczin.mca.livingworld.lore.OperatorLoreScope;
-import net.conczin.mca.livingworld.lore.editor.OperatorLoreClientState;
 import net.conczin.mca.livingworld.lore.editor.OperatorLoreEditorPolicy;
 import net.conczin.mca.livingworld.lore.editor.OperatorLoreEditorResult;
 import net.conczin.mca.network.HandleablePayload;
@@ -47,7 +47,7 @@ public record OperatorLoreResponse(
 
     @Override
     public void handle(Player player) {
-        OperatorLoreClientState.accept(toResult());
+        ClientProxy.getNetworkHandler().handleOperatorLoreResponse(this);
     }
 
     public OperatorLoreEditorResult toResult() {
