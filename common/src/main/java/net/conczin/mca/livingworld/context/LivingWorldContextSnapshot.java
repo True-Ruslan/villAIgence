@@ -12,6 +12,7 @@ public record LivingWorldContextSnapshot(
         String villagerName,
         List<String> contextLines,
         List<String> worldFacts,
+        List<String> operatorAuthoredContext,
         List<String> memoryContext,
         List<String> semanticMemoryContext,
         List<ActionDescriptor> availableActions,
@@ -25,11 +26,50 @@ public record LivingWorldContextSnapshot(
     public LivingWorldContextSnapshot {
         contextLines = contextLines == null ? List.of() : List.copyOf(contextLines);
         worldFacts = worldFacts == null ? List.of() : List.copyOf(worldFacts);
+        operatorAuthoredContext = operatorAuthoredContext == null ? List.of() : List.copyOf(operatorAuthoredContext);
         memoryContext = memoryContext == null ? List.of() : List.copyOf(memoryContext);
         semanticMemoryContext = semanticMemoryContext == null ? List.of() : List.copyOf(semanticMemoryContext);
         availableActions = availableActions == null ? List.of() : List.copyOf(availableActions);
         worldRoot = worldRoot.toAbsolutePath().normalize();
         language = language == null ? "" : language;
+    }
+
+    /** Source-compatible constructor for call sites that predate operator-authored context. */
+    public LivingWorldContextSnapshot(
+            UUID playerId,
+            UUID villagerId,
+            String playerName,
+            String villagerName,
+            List<String> contextLines,
+            List<String> worldFacts,
+            List<String> memoryContext,
+            List<String> semanticMemoryContext,
+            List<ActionDescriptor> availableActions,
+            long worldSeed,
+            long gameTime,
+            Path worldRoot,
+            boolean child,
+            boolean relative,
+            String language
+    ) {
+        this(
+                playerId,
+                villagerId,
+                playerName,
+                villagerName,
+                contextLines,
+                worldFacts,
+                List.of(),
+                memoryContext,
+                semanticMemoryContext,
+                availableActions,
+                worldSeed,
+                gameTime,
+                worldRoot,
+                child,
+                relative,
+                language
+        );
     }
 
     /** Source-compatible constructor for call sites that know episodic Memory 2.0 but predate semantic memory. */
@@ -56,6 +96,7 @@ public record LivingWorldContextSnapshot(
                 villagerName,
                 contextLines,
                 worldFacts,
+                List.of(),
                 memoryContext,
                 List.of(),
                 availableActions,
@@ -91,6 +132,7 @@ public record LivingWorldContextSnapshot(
                 villagerName,
                 contextLines,
                 worldFacts,
+                List.of(),
                 List.of(),
                 List.of(),
                 availableActions,

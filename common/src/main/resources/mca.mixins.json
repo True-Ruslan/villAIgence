@@ -17,6 +17,7 @@
     "MixinLivingEntity",
     "MixinMilkBucketItem",
     "MixinMob",
+    "MixinOpenAIChatAI",
     "MixinPlayer",
     "MixinProtoChunk",
     "MixinScreenHandler",

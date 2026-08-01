@@ -82,6 +82,12 @@ public final class LivingWorldContextCapture {
         }
 
         addRecentEventFacts(worldFacts, worldRoot, dimension, position, gameTime);
+        List<String> operatorAuthoredContext = loadOperatorAuthoredContext(
+                worldRoot,
+                dimension,
+                villager,
+                player
+        );
         List<String> memoryContext = loadMemory2Context(
                 livingWorld,
                 worldRoot,
@@ -118,6 +124,7 @@ public final class LivingWorldContextCapture {
                 villager.getName().getString(),
                 context,
                 worldFacts,
+                operatorAuthoredContext,
                 memoryContext,
                 semanticMemoryContext,
                 actions,
@@ -128,6 +135,34 @@ public final class LivingWorldContextCapture {
                 Relationship.IS_RELATIVE.test(villager, player),
                 MCA.language
         );
+    }
+
+    private static List<String> loadOperatorAuthoredContext(
+            Path worldRoot,
+            String dimension,
+            VillagerEntityMCA villager,
+            ServerPlayer player
+    ) {
+        try {
+            int villageId = villager.getResidency().getHomeVillage()
+                    .map(village -> village.getId())
+                    .orElse(-1);
+            return OperatorLoreContextProvider.load(
+                    worldRoot,
+                    dimension,
+                    villager.getUUID(),
+                    player.getUUID(),
+                    villageId
+            );
+        } catch (RuntimeException e) {
+            MCA.LOGGER.warn(
+                    "Unable to load operator-authored lore context for villager {} and player {}",
+                    villager.getUUID(),
+                    player.getUUID(),
+                    e
+            );
+            return List.of();
+        }
     }
 
     private static List<String> loadMemory2Context(
