@@ -6,22 +6,28 @@ import net.conczin.mca.network.s2c.OperatorLoreResponse;
 import net.conczin.mca.util.compat.ButtonWidget;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.MultiLineEditBox;
-import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 /** Dedicated presentation layer for the server-authoritative operator lore API. */
-public final class OperatorLoreEditorScreen extends Screen {
+public final class OperatorLoreEditorScreen extends Screen implements OperatorLoreResponseReceiver {
     private static final int PANEL_COLOR = 0xE0101010;
     private static final int TEXT_COLOR = 0xFFFFFF;
     private static final int MUTED_COLOR = 0xB0B0B0;
     private static final int INVALID_COLOR = 0xFF6B6B;
     private static final int UI_CHARACTER_LIMIT = 16_384;
+    private static final List<OperatorLoreScope> SCOPE_ORDER = List.of(
+            OperatorLoreScope.WORLD,
+            OperatorLoreScope.PLAYER,
+            OperatorLoreScope.VILLAGER,
+            OperatorLoreScope.VILLAGE
+    );
 
     private final OperatorLoreEditorModel model;
     private final OperatorLoreEditorController controller;
@@ -86,7 +92,7 @@ public final class OperatorLoreEditorScreen extends Screen {
         int x = panelLeft + 12;
         int y = panelTop + 24;
 
-        for (OperatorLoreScope scope : OperatorLoreScope.values()) {
+        for (OperatorLoreScope scope : SCOPE_ORDER) {
             Component label = Component.translatable("gui.operator_lore.scope." + scope.name().toLowerCase());
             Component tooltip = Component.translatable("gui.operator_lore.disabled.no_target");
             ButtonWidget button = addRenderableWidget(new ButtonWidget(
@@ -234,6 +240,9 @@ public final class OperatorLoreEditorScreen extends Screen {
     }
 
     private void requestReload() {
+        if (reloadButton != null && !reloadButton.active) {
+            return;
+        }
         if (model.isDirty()) {
             showDiscardConfirmation(
                     Component.translatable("gui.operator_lore.discard_reload_message"),
@@ -250,7 +259,8 @@ public final class OperatorLoreEditorScreen extends Screen {
     }
 
     private void showDiscardConfirmation(Component message, Runnable confirmedAction) {
-        Objects.requireNonNull(minecraft).setScreen(new ConfirmScreen(
+        Objects.requireNonNull(minecraft).setScreen(new OperatorLoreConfirmScreen(
+                this,
                 confirmed -> {
                     Objects.requireNonNull(minecraft).setScreen(this);
                     if (confirmed) {
@@ -276,7 +286,8 @@ public final class OperatorLoreEditorScreen extends Screen {
     }
 
     private void showCloseConfirmation(Component message) {
-        Objects.requireNonNull(minecraft).setScreen(new ConfirmScreen(
+        Objects.requireNonNull(minecraft).setScreen(new OperatorLoreConfirmScreen(
+                this,
                 confirmed -> {
                     if (confirmed) {
                         closeNow();
@@ -294,6 +305,7 @@ public final class OperatorLoreEditorScreen extends Screen {
         Objects.requireNonNull(minecraft).setScreen(null);
     }
 
+    @Override
     public void accept(OperatorLoreResponse response) {
         OperatorLoreEditorModel.State before = model.state();
         controller.accept(response);
@@ -351,12 +363,18 @@ public final class OperatorLoreEditorScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (hasControlDown() && keyCode == GLFW.GLFW_KEY_S && model.canSave()) {
+        if (hasControlDown()
+                && keyCode == GLFW.GLFW_KEY_S
+                && saveButton != null
+                && saveButton.active) {
             controller.save();
             refreshControls();
             return true;
         }
-        if (hasControlDown() && keyCode == GLFW.GLFW_KEY_R) {
+        if (hasControlDown()
+                && keyCode == GLFW.GLFW_KEY_R
+                && reloadButton != null
+                && reloadButton.active) {
             requestReload();
             return true;
         }
