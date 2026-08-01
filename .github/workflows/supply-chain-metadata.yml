@@ -57,6 +57,7 @@ jobs:
             :fabric:build \
             :neoforge:build \
             dependencyManifest \
+            --write-verification-metadata sha256 \
             --refresh-dependencies \
             --console=plain \
             --non-interactive
@@ -66,6 +67,9 @@ jobs:
           test -s fabric/gradle.lockfile
           test -s neoforge/gradle.lockfile
           test -s build/reports/dependencies/villaigence-dependencies.txt
+          test -s build/reports/dependencies/refmap-hotfix/verification-metadata.xml
+          test -s build/reports/dependencies/refmap-hotfix/fabric.gradle.lockfile
+          test -s build/reports/dependencies/refmap-hotfix/mca.refmap.json
 
       - name: Ensure verification inputs remain immutable
         shell: bash
@@ -87,5 +91,6 @@ jobs:
             fabric/gradle.lockfile
             neoforge/gradle.lockfile
             build/reports/dependencies/villaigence-dependencies.txt
+            build/reports/dependencies/refmap-hotfix/**
           if-no-files-found: error
           retention-days: 7
