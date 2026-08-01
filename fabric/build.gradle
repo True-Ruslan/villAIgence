@@ -39,6 +39,11 @@ loom {
         accessWidenerPath.set(aw)
     }
 
+    mixin {
+        useLegacyMixinAp = true
+        defaultRefmapName = "${mod_id}.refmap.json"
+    }
+
     mods {
         "${mod_id}" {
             sourceSet sourceSets.main
@@ -72,4 +77,72 @@ fabricApi {
         outputDirectory = rootProject.project(':common').file('src/generated/resources')
         strictValidation = true
     }
+}
+
+def remappedFabricJar = tasks.named('remapJar').flatMap { it.archiveFile }
+def refmapEntryName = "${project.property('mod_id')}.refmap.json"
+
+def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
+    group = 'verification'
+    description = 'Requires the distributable Fabric JAR to contain the correct Mixin refmap for controlled climbing.'
+    dependsOn tasks.named('remapJar')
+    inputs.file(remappedFabricJar)
+
+    doLast {
+        def jarFile = remappedFabricJar.get().asFile
+        def zip = new java.util.zip.ZipFile(jarFile)
+        try {
+            def mixinConfigEntry = zip.getEntry('mca.mixins.json')
+            if (mixinConfigEntry == null) {
+                throw new GradleException("Distributable Fabric JAR is missing mca.mixins.json: ${jarFile}")
+            }
+
+            def mixinConfig = new groovy.json.JsonSlurper().parse(
+                    zip.getInputStream(mixinConfigEntry),
+                    'UTF-8'
+            )
+            if (mixinConfig.refmap != refmapEntryName) {
+                throw new GradleException(
+                        "mca.mixins.json must declare ${refmapEntryName}, found ${mixinConfig.refmap}: ${jarFile}"
+                )
+            }
+
+            def refmapEntry = zip.getEntry(refmapEntryName)
+            if (refmapEntry == null) {
+                throw new GradleException("Distributable Fabric JAR is missing required ${refmapEntryName}: ${jarFile}")
+            }
+
+            def refmap = new groovy.json.JsonSlurper().parse(
+                    zip.getInputStream(refmapEntry),
+                    'UTF-8'
+            )
+            if (!(refmap instanceof Map) || !(refmap.mappings instanceof Map)) {
+                throw new GradleException("Distributable Fabric JAR contains an invalid ${refmapEntryName}: ${jarFile}")
+            }
+
+            def livingEntityMappings = refmap.mappings['net/conczin/mca/mixin/MixinLivingEntity']
+            def jumpingTarget = livingEntityMappings instanceof Map
+                    ? livingEntityMappings['setJumping']
+                    : null
+            def expectedJumpingTarget = 'Lnet/minecraft/class_1309;method_6100(Z)V'
+            if (jumpingTarget != expectedJumpingTarget) {
+                throw new GradleException(
+                        "${refmapEntryName} must map MixinLivingEntity.setJumping to ${expectedJumpingTarget}, found ${jumpingTarget}: ${jarFile}"
+                )
+            }
+
+            def mobMappings = refmap.mappings['net/conczin/mca/mixin/MixinMob']
+            if (mobMappings instanceof Map && mobMappings.containsKey('setJumping')) {
+                throw new GradleException(
+                        "${refmapEntryName} must not map setJumping through MixinMob: ${jarFile}"
+                )
+            }
+        } finally {
+            zip.close()
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn verifyFabricRefmap
 }

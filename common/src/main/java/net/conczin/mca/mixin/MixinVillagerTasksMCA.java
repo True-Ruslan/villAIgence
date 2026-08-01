@@ -19,12 +19,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(VillagerTasksMCA.class)
 abstract class MixinVillagerTasksMCA {
-    @Shadow
+    @Shadow(remap = false)
     @Final
     @Mutable
     private static ImmutableList<MemoryModuleType<?>> MEMORY_TYPES;
 
-    @Inject(method = "<clinit>", at = @At("TAIL"))
+    @Inject(method = "<clinit>", at = @At("TAIL"), remap = false)
     private static void mca$appendMourningMemories(CallbackInfo ci) {
         MEMORY_TYPES = ImmutableList.<MemoryModuleType<?>>builder()
                 .addAll(MEMORY_TYPES)
@@ -33,7 +33,7 @@ abstract class MixinVillagerTasksMCA {
                 .build();
     }
 
-    @Inject(method = "getGrievingPackage", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "getGrievingPackage", at = @At("HEAD"), cancellable = true, remap = false)
     private static void mca$useStableMourningPackage(
             CallbackInfoReturnable<ImmutableList<Pair<Integer, ? extends BehaviorControl<? super VillagerEntityMCA>>>> cir
     ) {

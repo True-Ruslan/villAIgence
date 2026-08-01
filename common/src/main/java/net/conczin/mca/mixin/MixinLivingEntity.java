@@ -2,6 +2,8 @@ package net.conczin.mca.mixin;
 
 import net.conczin.mca.entity.PlayerDimensions;
 import net.conczin.mca.entity.VillagerEntityMCA;
+import net.conczin.mca.entity.ai.navigation.ClimbNavigationPolicy;
+import net.conczin.mca.entity.ai.navigation.MCAGroundPathNavigation;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -10,6 +12,7 @@ import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(LivingEntity.class)
@@ -33,5 +36,14 @@ abstract class MixinLivingEntity {
         if ((Object) this instanceof Mob mob && mob.getControllingPassenger() instanceof VillagerEntityMCA) {
             info.setReturnValue(false);
         }
+    }
+
+    @ModifyVariable(method = "setJumping", at = @At("HEAD"), argsOnly = true)
+    private boolean mca$suppressJumpDuringControlledClimb(boolean jumping) {
+        LivingEntity entity = (LivingEntity) (Object) this;
+        boolean navigationControlsClimb = entity instanceof VillagerEntityMCA villager
+                && villager.getNavigation() instanceof MCAGroundPathNavigation navigation
+                && navigation.isControllingClimbable();
+        return ClimbNavigationPolicy.allowJump(jumping, navigationControlsClimb);
     }
 }

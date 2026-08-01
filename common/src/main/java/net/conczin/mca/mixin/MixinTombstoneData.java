@@ -15,8 +15,10 @@ abstract class MixinTombstoneData {
             method = "tick",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/conczin/mca/entity/ai/relationship/CompassionateEntity;getRelationships()Lnet/conczin/mca/entity/ai/relationship/EntityRelationship;"
-            )
+                    target = "Lnet/conczin/mca/entity/ai/relationship/CompassionateEntity;getRelationships()Lnet/conczin/mca/entity/ai/relationship/EntityRelationship;",
+                    remap = false
+            ),
+            remap = false
     )
     private EntityRelationship mca$clearMourningAfterResurrection(
             CompassionateEntity<?> compassionateEntity
