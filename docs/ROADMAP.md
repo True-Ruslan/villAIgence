@@ -1,106 +1,129 @@
 # VillAIgence Roadmap
 
-> **Canonical product roadmap.** This document defines the long-term direction of VillAIgence and should be updated whenever a milestone materially changes. For the latest implementation status, see `docs/PROJECT_STATE.md`.
+> **Canonical product roadmap.** For exact implementation and validation state, read `docs/PROJECT_STATE.md` first.
 
 ## Product vision
 
-**VillAIgence** (`Vill-AI-gence`) is evolving from an MCA-derived AI conversation mod into a **living-society simulation layer for Minecraft**.
+VillAIgence is evolving from an MCA-derived AI conversation mod into a **persistent living-society simulation layer for Minecraft**.
 
-The end goal is not merely “NPCs that can chat with an LLM.” The goal is a world where NPCs:
+The goal is not merely NPCs that call an LLM. The target world contains NPCs that:
 
-- have stable identities, personalities, memories, relationships, goals and fears;
-- know only what they have observed, learned or been told;
-- talk naturally by text and voice;
-- remember meaningful interactions across sessions;
-- form relationships with players and with each other;
-- spread facts, rumors and distorted information socially;
-- make autonomous, server-authoritative decisions;
-- participate in families, settlements, economies, factions and politics;
-- create emergent stories that were not authored as fixed quests.
-
-The guiding product idea is:
+- retain stable identity, memory, personality, voice and relationships;
+- know only what they observed, learned or were explicitly told;
+- communicate naturally by text and voice;
+- act through server-authoritative policies;
+- form families, settlements, factions and social histories;
+- exchange facts, beliefs and rumors with provenance;
+- generate durable emergent stories rather than isolated AI tricks.
 
 > **VillAIgence — Giving villagers a mind of their own.**
 
-The internal `LivingWorld` name remains the compatible engine/data namespace for existing configuration and world data. Public product branding is **VillAIgence**.
+The compatible internal engine/data namespace remains `LivingWorld` / `livingworld`.
 
 ---
 
-## Architecture principles
+# Architecture principles
 
-These principles apply to every roadmap stage.
-
-### 1. The LLM is not the game authority
-
-The LLM may propose dialogue, interpretations or intentions. Minecraft/server code remains authoritative for facts, permissions and mutations.
+## 1. LLM is not authority
 
 ```text
-World state / server facts
-        ↓
-Immutable context snapshot
-        ↓
-LLM reasoning / proposal
-        ↓
-Validation + policy
-        ↓
-Server-side action
+server world state
+→ immutable bounded context
+→ LLM proposal
+→ validation and policy
+→ server-owned action
 ```
 
-The LLM must never directly invent authoritative world state or bypass action policy.
+## 2. Identity outlives providers
 
-### 2. Identity must survive provider/model changes
+Changing OpenAI, OpenRouter or a future local model must not regenerate NPC identity, memories, relationships or voice.
 
-NPC identity, memory, relationships, voice and long-term state must not depend on a specific OpenAI/OpenRouter/Groq/local model.
+## 3. Fail soft without corrupting state
 
-Changing an LLM provider should not make an NPC become a different person.
+Provider, voice, packet and auxiliary-store failures become controlled statuses. They must not crash conversations, duplicate actions, leak reasoning or damage world data.
 
-### 3. Fail soft, never corrupt the world
+## 4. Persistent state is explicit and world-local
 
-AI/STT/TTS providers are external and unreliable by nature. A malformed or empty response must degrade to a controlled fallback, never crash the conversation pipeline, corrupt persistent state, duplicate actions or expose raw JSON/reasoning.
+Important data belongs under `<world>/livingworld/`, remains inspectable, bounded, backup-safe and migration-aware.
 
-### 4. No hidden client secrets
+## 5. Provenance layers remain separate
 
-API keys and provider credentials remain server-side. Clients receive only gameplay/network data required for the experience.
+```text
+observed current facts       authoritative for this turn
+operator-authored lore       explicit background setting
+semantic FACT/BELIEF         learned persistent knowledge
+ episodic memory             remembered events/dialogue
+```
 
-### 5. Persistence is explicit and inspectable
+Current observations win conflicts.
 
-Important long-term state is stored under the world-local LivingWorld/VillAIgence data area and must be safe to back up, migrate and inspect.
+## 6. Client convenience never becomes authority
 
-### 6. Simulation before spectacle
+UI may request operations. The server resolves permissions, identities, targets, revisions and mutations.
 
-Prefer systems that create durable emergent behavior over isolated scripted “AI tricks.” Memory, social state and causality are more important than flashy one-off dialogue.
+## 7. Simulation before spectacle
+
+Prefer systems that produce durable behavior and causality over one-off generated text.
+
+---
+
+# Current execution track
+
+As of 2026-08-01:
+
+```text
+0.1.x reliability/security baseline                    COMPLETE
+Memory 2.0 foundation                                  SUBSTANTIALLY IMPLEMENTED
+MCA selective synchronization S1–S8                    AUTOMATED PASS
+operator lore store S9                                 AUTOMATED PASS
+immutable lore context S10a                            AUTOMATED PASS
+server-authoritative lore API S10b                     AUTOMATED PASS
+client editor UI S10c                                  NEXT
+cumulative installed-server acceptance                 AFTER S10c
+legacy memory.json migration                           AFTER RELEASE GATE
+```
+
+Immediate sequence:
+
+```text
+S10c client editor UI
+→ exact synchronized release candidate
+→ cumulative backed-up-world live acceptance
+→ release promotion only on PASS
+→ additive legacy memory.json migration
+→ remaining Memory 2.0 exit criteria
+→ 0.3 personality and NPC↔NPC social graph
+```
 
 ---
 
 # Versioned development roadmap
 
-## 0.1.x — Reliability and provider hardening
+## 0.1.x — Reliability, security and compatibility baseline
 
 ### Goal
 
-Make the current AI/voice foundation safe enough that provider failures are ordinary recoverable events rather than gameplay-breaking exceptions.
+Make provider, voice, persistence and inherited MCA gameplay behavior safe enough for continued simulation development.
 
-### Scope
+### Implemented baseline
 
-- harden OpenAI-compatible response envelope parsing;
-- handle `content: null`, partial responses, malformed structured JSON and provider errors;
-- bounded retry policies with no duplicated memory/actions/relationship effects;
-- diagnostics for `finish_reason`, provider errors, generation IDs and response modes;
-- robust STT/TTS timeout and error handling;
-- rate-limit/cooldown protection;
-- multiplayer concurrency validation;
-- restart/reconnect/crash recovery tests;
-- clear `/villaigence` diagnostics/status commands;
-- stable release packaging and migration behavior.
+- hardened OpenAI-compatible response handling;
+- controlled `content:null`, malformed JSON and provider errors;
+- bounded retries with idempotent side effects;
+- endpoint/credential policy and redirect rejection;
+- bounded Chat/STT/TTS/error/verification responses;
+- voice-duration and aggregate PCM limits;
+- verified supply-chain and deterministic security CI;
+- Fabric and NeoForge build gates;
+- selective MCA fixes for tombstones, entity conversion, HOME POIs, navigation, mourning, gifts, fishing and mounted archers;
+- world-local operator lore, immutable prompt integration and server-authoritative editor API.
 
-### Exit criteria
+### Remaining exit gate
 
-- provider failure never crashes the AI conversation path;
-- malformed responses never leak raw JSON/reasoning into chat or TTS;
-- retry cannot duplicate persistent/game-side effects;
-- voice input/output failure never removes a valid text reply;
-- CI covers common regression paths;
-- a server operator can diagnose STT → LLM → parser → memory → TTS failures from concise logs/status output.
+- S10c editor UI;
+- one cumulative installed-server acceptance on an exact candidate JAR;
+- restart/hash validation and normal Text/STT/Chat/TTS smoke;
+- release promotion with recorded SHA-256 only after PASS.
 
 ---
 
@@ -108,78 +131,73 @@ Make the current AI/voice foundation safe enough that provider failures are ordi
 
 ### Goal
 
-Move from “stored chat history” to **human-like layered memory**.
-
-### Memory model
+Move from stored raw chat history to bounded layered memory.
 
 ```text
-Working memory
-→ recent conversational context
-
-Episodic memory
-→ meaningful events involving this NPC
-
-Semantic memory
-→ facts the NPC believes/knows about people and the world
-
-Relationship memory
-→ reasons behind trust/respect/fear/affinity changes
+Working memory       recent turn-local context
+Episodic memory      meaningful events and dialogue
+Semantic memory      sourced FACT/BELIEF knowledge
+Relationship memory causal social history
 ```
 
-### Planned capabilities
+### Implemented
 
-- importance scoring for memories;
-- summarization/consolidation of old dialogue into durable facts/events;
-- decay/forgetting by importance and time;
-- provenance: observed vs told vs inferred;
-- confidence/uncertainty for remembered information;
-- duplicate memory merging;
-- bounded retrieval by relevance, recency and importance;
-- explicit reasons attached to relationship changes;
-- migration from current persistent dialogue memory.
+- persistent bounded episodic events;
+- explicit event types and provenance;
+- text/voice DIALOGUE parity;
+- deterministic episodic retrieval;
+- Working Memory bounds;
+- semantic FACT/BELIEF model;
+- controlled server-observed FACT ingestion;
+- deterministic semantic retrieval, consolidation and source union;
+- pressure-based forgetting/decay;
+- source durability and NPC isolation;
+- restart-safe world-local persistence.
 
-### Example
+### Remaining capabilities
 
-Instead of remembering only:
+- additive migration from `memory.json`;
+- controlled BELIEF producers;
+- explicit relationship-change reasons;
+- long-horizon recall and multi-day soak;
+- NPC-to-NPC knowledge transfer;
+- rumor propagation with uncertainty and distortion.
 
-> Player: I saved your daughter from zombies.
-
-The NPC can retain:
+### Migration requirements
 
 ```text
-EPISODE:
-Ruslan rescued my daughter during a zombie attack.
-importance: high
-emotion: gratitude/fear
-source: witnessed/confirmed
-
-RELATIONSHIP REASON:
-trust +2 — protected family
-respect +2 — acted bravely
+additive, never destructive
+backup before mutation
+explicit version/checkpoint
+bounded import
+deterministic event IDs
+idempotent rerun
+NPC ownership preserved
+DIALOGUE never becomes automatic FACT
+atomic writes
+dry-run and rollback evidence
+legacy reads retained until cutover acceptance
 ```
 
 ### Exit criteria
 
-NPCs can correctly recall important events days later without requiring full raw conversation history.
+NPCs recall important events days later without full raw dialogue history, while provenance, bounds, restart safety and rollback behavior remain proven.
 
 ---
 
-## 0.3 — Personality + NPC↔NPC social graph
+## 0.3 — Personality and NPC↔NPC social graph
 
 ### Goal
 
-Make every NPC a persistent individual and extend relationships beyond `Player ↔ NPC` to `NPC ↔ NPC`.
+Make each NPC a persistent individual and extend social state beyond player↔NPC.
 
-### Personality profile
-
-Planned stable traits include:
+Stable bounded personality dimensions may include:
 
 ```text
 temperament
 values
 goals
 fears
-likes / dislikes
 speech style
 morality
 ambition
@@ -189,11 +207,7 @@ aggression
 loyalty
 ```
 
-Traits should be mostly deterministic/persistent, with limited evolution caused by major experiences rather than random regeneration.
-
-### Social graph
-
-Each relevant NPC pair may track dimensions such as:
+NPC-pair state may include:
 
 ```text
 friendship
@@ -206,73 +220,37 @@ romance
 grudge
 ```
 
-The exact schema should remain compact and simulation-friendly rather than becoming an unbounded LLM-generated profile.
-
-### Why this milestone matters
-
-This is the point where NPC statements such as:
-
-> “I do not trust Rex.”
-
-can be grounded in actual persistent social state instead of invented dialogue.
+Generated biography must not replace deterministic identity or server-owned social state.
 
 ### Exit criteria
 
-Two NPCs can have a persistent relationship history that affects dialogue, behavior and information exchange.
+Two NPCs retain a persistent relationship history that affects dialogue, behavior and information exchange.
 
 ---
 
-## 0.4 — Knowledge, information propagation and rumors
+## 0.4 — Knowledge propagation and rumors
 
 ### Goal
 
-Create an actual **information ecosystem** inside the world.
+Create a real information ecosystem.
 
-### Knowledge provenance
-
-NPC knowledge should distinguish:
+Knowledge provenance distinguishes:
 
 ```text
 OBSERVED
-TOLD_BY_SOMEONE
-OFFICIAL / PUBLIC
+TOLD_BY_PLAYER
+TOLD_BY_NPC
+OFFICIAL
 INFERRED
 RUMOR
 UNKNOWN
 ```
 
-An NPC must not automatically know everything stored on the server.
-
-### Rumor propagation
-
-Example:
-
-```text
-FACT
-Ruslan stole one diamond from Rex.
-        ↓
-Rex tells Ara
-        ↓
-RUMOR
-Ruslan stole something valuable from Rex.
-        ↓
-Ara tells another villager
-        ↓
-DISTORTED RUMOR
-Ruslan robs villagers.
-```
-
-Propagation should depend on:
-
-- relationship/trust between speaker and listener;
-- sociability/gossip tendency;
-- importance/emotional intensity;
-- distance/community membership;
-- time and memory decay.
+Propagation depends on trust, social proximity, emotional importance, community membership, memory and time. Rumors may lose detail or distort, but source history remains inspectable.
 
 ### Exit criteria
 
-Information can move through a settlement without the player directly talking to every NPC, while preserving source/provenance and allowing uncertainty/distortion.
+Information moves through a settlement without every NPC receiving omniscient server knowledge.
 
 ---
 
@@ -280,74 +258,33 @@ Information can move through a settlement without the player directly talking to
 
 ### Goal
 
-Move from purely reactive NPCs to **server-authoritative autonomous behavior**.
-
-Current pattern:
+Move from purely reactive conversation to budgeted server-authoritative behavior.
 
 ```text
-Player speaks
-→ AI responds
-→ optional action
+perceive event/state
+→ evaluate needs/goals/social context
+→ choose bounded intent
+→ server policy validation
+→ act
+→ observe result
+→ remember
 ```
 
-Target pattern:
+The LLM proposes intent, never arbitrary Minecraft commands.
 
-```text
-NPC perceives event/state
-→ evaluates needs/goals/social context
-→ chooses intention
-→ validated server action
-→ observes result
-→ memory/state update
-```
-
-### Agent loop
-
-```text
-Perceive
-↓
-Evaluate
-↓
-Plan / choose intent
-↓
-Policy validation
-↓
-Act
-↓
-Observe result
-↓
-Remember
-```
-
-### Important safety rule
-
-The LLM proposes **intent**, not arbitrary Minecraft commands.
-
-Example:
-
-```json
-{
-  "intent": "seek_help",
-  "targetRole": "guard"
-}
-```
-
-Server-side code resolves whether this is possible, selects a valid target and executes allowed behavior.
-
-### Candidate autonomous behaviors
+Candidate behaviors:
 
 - flee danger;
-- seek food/shelter/help;
-- avoid disliked or feared characters;
+- seek food, shelter or help;
 - report threats;
-- visit family/friends;
+- visit family and friends;
 - investigate important events;
-- ask the player/NPCs for help;
-- pursue role-specific tasks.
+- pursue role-specific tasks;
+- avoid feared or disliked entities.
 
 ### Exit criteria
 
-NPCs produce meaningful behavior while no player is actively talking to them, without uncontrolled LLM calls or unsafe world mutation.
+NPCs perform meaningful off-dialogue behavior without uncontrolled LLM calls or unsafe mutation.
 
 ---
 
@@ -355,43 +292,20 @@ NPCs produce meaningful behavior while no player is actively talking to them, wi
 
 ### Goal
 
-Treat villages as social/economic systems rather than collections of independent NPCs.
+Treat villages as social and economic systems.
 
-### Settlement state
+Potential state:
 
-```text
-Settlement
-├── population
-├── families
-├── roles/professions
-├── resources
-├── food/economy
-├── security
-├── leadership
-├── reputation
-└── current problems/events
-```
-
-### Example systemic consequences
-
-```text
-food shortage
-→ dissatisfaction rises
-→ food prices/value rise
-→ farmers gain social importance
-→ theft/conflict risk increases
-```
-
-```text
-frequent hostile attacks
-→ fear rises
-→ demand for guards grows
-→ leadership is judged by security
-```
+- population and households;
+- resources and shortages;
+- professions and labor demand;
+- safety, morale and reputation;
+- public events and local priorities;
+- bounded settlement memory.
 
 ### Exit criteria
 
-NPC decisions and dialogue can be grounded in persistent settlement-level conditions with visible gameplay consequences.
+Settlement conditions influence NPC behavior and dialogue through authoritative simulation state.
 
 ---
 
@@ -399,44 +313,11 @@ NPC decisions and dialogue can be grounded in persistent settlement-level condit
 
 ### Goal
 
-Scale social simulation beyond one settlement.
-
-### Possible entities
-
-```text
-villages / towns
-merchant groups
-bandits
-kingdoms
-religious orders
-military groups
-player-created alliances
-```
-
-### Relationship states
-
-```text
-ALLY
-FRIENDLY
-NEUTRAL
-RIVAL
-HOSTILE
-WAR
-```
-
-### Planned systems
-
-- faction membership and reputation;
-- diplomatic relations;
-- leadership and succession;
-- alliances/conflicts;
-- political goals;
-- player alignment and consequences;
-- local knowledge of faction events rather than omniscience.
+Add persistent alliances, disputes, leadership, laws and inter-settlement relations.
 
 ### Exit criteria
 
-A player’s actions in one community can create persistent political/social consequences elsewhere through believable information channels.
+Factions produce observable consequences through server-owned state rather than improvised dialogue alone.
 
 ---
 
@@ -444,187 +325,103 @@ A player’s actions in one community can create persistent political/social con
 
 ### Goal
 
-Allow stories to emerge from interacting systems rather than authored quest scripts.
-
-Example chain:
-
-```text
-Rex and Ara become rivals
-↓
-Ara spreads a damaging rumor
-↓
-Rex loses social support
-↓
-Rex suspects the player helped Ara
-↓
-player chooses a side
-↓
-settlement opinion splits
-↓
-leadership dispute develops
-↓
-new alliances and grudges form
-```
-
-No single fixed quest script needs to define that chain. The story emerges from:
-
-- memory;
-- personality;
-- relationships;
-- knowledge propagation;
-- goals;
-- settlement state;
-- autonomous choices.
-
-### Supporting systems
-
-- event significance classification;
-- story-thread tracking for debugging/UX, not scripting outcomes;
-- optional journals/history summaries;
-- anti-chaos constraints so the simulation remains coherent.
+Turn accumulated memory, relationships, events and faction state into unscripted but causally grounded narratives.
 
 ### Exit criteria
 
-Playtests consistently produce understandable, causally connected stories unique to each world.
+The world produces multi-session stories whose causes can be reconstructed from persistent state and event history.
 
 ---
 
-## 0.9 — Scale, performance and local AI
+## 0.9 — Performance, large servers and local models
 
 ### Goal
 
-Make the simulation practical for large persistent servers.
+Scale simulation safely.
 
-### Provider support target
-
-```text
-OpenRouter
-OpenAI
-Groq where applicable
-Ollama
-LM Studio
-vLLM
-other OpenAI-compatible endpoints
-```
-
-### Performance architecture
-
-- event-driven AI activation rather than polling every NPC;
-- tiered simulation detail based on relevance/distance;
-- deterministic server logic for simple decisions;
-- LLM only where language/high-level reasoning adds value;
-- batching/caching where safe;
-- per-server token/cost budgets;
-- rate-limit queues and backpressure;
-- local-model support for high-volume NPC reasoning;
-- profiling for hundreds/thousands of NPC state records.
+- event-driven AI scheduling;
+- global and per-NPC budgets;
+- backpressure and admission control;
+- cache and retrieval profiling;
+- large multiplayer soak tests;
+- optional local-model support without identity migration;
+- observability without private-content leakage.
 
 ### Exit criteria
 
-VillAIgence can support a substantial persistent population without requiring one expensive LLM call per NPC per tick or destabilizing server TPS.
+Large worlds remain bounded, diagnosable and restart-safe under sustained load.
 
 ---
 
-## 1.0 — Living world milestone
+## 1.0 — Persistent Living Society
 
-### Product promise
+### Goal
 
-A mature VillAIgence world should support this kind of experience:
-
-> You return to a village after several in-game weeks. A villager remembers that you rescued his daughter. His wife knows because he told her. A neighbor heard a distorted version. Someone who hates that family now distrusts you by association. The local leadership has changed because of events that happened while you were away. NPCs discuss those events, act according to their own goals, and react differently based on what they personally know.
-
-At 1.0, VillAIgence should feel less like **“Minecraft + chatbot NPCs”** and more like a **persistent simulation of people, communities and history inside Minecraft**.
-
----
-
-# Voice roadmap across milestones
-
-Voice is a cross-cutting system rather than a separate end goal.
-
-Already-established direction:
-
-- microphone/STT input;
-- text always remains authoritative fallback;
-- persistent per-NPC voice identities;
-- gender/age-aware configurable voice pools;
-- mood-aware delivery without changing NPC identity;
-- spatial playback from the NPC;
-- provider-independent voice profile state.
-
-Future voice capabilities:
-
-### Group-addressed speech
+Ship a coherent system where identity, memory, relationships, knowledge, autonomy, settlements and factions form one persistent simulation layer.
 
 ```text
-Player: “Has anyone seen the blacksmith?”
-↓
-Nearby NPCs hear the utterance
-↓
-Only NPCs with relevant knowledge/attention respond
+NPC Identity
++ Personality
++ Memory
++ Relationships
++ Knowledge
++ Voice
++ Goals
++ Autonomous Actions
++ Settlements
++ Factions
++ Emergent History
+= VillAIgence
 ```
-
-### NPC↔NPC audible conversations
-
-NPCs may initiate short contextual conversations that nearby players can overhear.
-
-This must be rate-limited, relevance-driven and simulation-grounded to avoid constant noisy AI chatter.
 
 ---
 
-# Recommended immediate sequence
+# Immediate S10c specification boundary
 
-The preferred development order from the current foundation is:
+S10c is a client experience over the already-complete S10b authority API.
+
+Required UI capabilities:
+
+- operator-only entry point;
+- WORLD / VILLAGER / PLAYER / VILLAGE scope selector;
+- nearby MCA villager selection for entity-bound scopes;
+- canonical server read before editing;
+- multiline text editor;
+- code-point and UTF-8 budget indicators;
+- revision-protected save and clear;
+- explicit status feedback;
+- conflict reload/review without blind overwrite;
+- keyboard, mouse, resize and localization-safe layout.
+
+The UI must never:
+
+- access world files directly;
+- accept arbitrary UUID/dimension/village ID;
+- decide permissions locally;
+- bypass S10b revision checks;
+- send unbounded text;
+- modify AI transport or semantic-memory rules.
+
+---
+
+# Milestone governance
+
+A milestone is not complete merely because code compiles.
+
+Required progression:
 
 ```text
-0.1.x  Reliability / provider hardening
-        ↓
-0.2    Memory 2.0
-        ↓
-0.3    Personality + NPC↔NPC social graph
-        ↓
-0.4    Knowledge + rumors
-        ↓
-0.5    Autonomous agents
-        ↓
-0.6    Settlement simulation
-        ↓
-0.7    Factions + politics
-        ↓
-0.8    Emergent stories
-        ↓
-0.9    Performance + local LLM + large servers
-        ↓
-1.0    Persistent living society
+specification
+→ RED regression boundary
+→ minimal implementation
+→ unit tests
+→ Fabric + NeoForge
+→ package verification
+→ security policy
+→ scope review
+→ exact candidate artifact
+→ live acceptance when runtime behavior is involved
+→ canonical state update
 ```
 
-The highest-value next major product milestone after `0.1.x` stabilization is **Memory 2.0**, followed immediately by **Personality + NPC↔NPC social relationships**. These systems unlock nearly every later feature.
-
----
-
-# Scope discipline
-
-To prevent feature creep:
-
-1. Every major feature should map to one roadmap milestone.
-2. Reliability/security/data-integrity fixes may interrupt any milestone.
-3. A milestone should establish a reusable system, not a one-off demo.
-4. LLM prompts are not a substitute for persistent simulation state.
-5. New persistent schemas require migration/backward-compatibility planning.
-6. Every external-provider path must have deterministic fallback behavior.
-7. Expensive autonomous behavior must be event-driven and budget-aware.
-
----
-
-# How to resume this project in a new ChatGPT/Codex session
-
-When starting a fresh session, use the repository as the source of truth and ask:
-
-> **“Open `docs/PROJECT_STATE.md` and `docs/ROADMAP.md` in `True-Ruslan/villAIgence`. Tell me the current VillAIgence status, what has been completed, what is in progress, what the next milestone is, and continue development from there.”**
-
-The assistant/agent should:
-
-1. read `docs/PROJECT_STATE.md` first;
-2. read this roadmap;
-3. inspect recent merged/open PRs and CI before assuming the state is current;
-4. update `docs/PROJECT_STATE.md` whenever a milestone or release materially advances;
-5. never infer completion solely from this roadmap — roadmap describes intent, project state describes progress.
+Automated validation and live-server validation must always be reported separately.
