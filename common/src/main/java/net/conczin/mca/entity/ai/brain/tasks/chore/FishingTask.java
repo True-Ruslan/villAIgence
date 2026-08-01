@@ -7,7 +7,6 @@ import net.conczin.mca.entity.ai.TaskUtils;
 import net.conczin.mca.util.InventoryUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.ai.memory.MemoryStatus;
 import net.minecraft.world.item.FishingRodItem;
@@ -19,6 +18,7 @@ import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Comparator;
 import java.util.List;
@@ -28,11 +28,9 @@ public class FishingTask extends AbstractChoreTask {
     private BlockPos targetWater;
     private boolean hasCastRod;
     private int ticks;
-    private List<ItemStack> list;
 
     public FishingTask() {
         super(ImmutableMap.of(MemoryModuleType.LOOK_TARGET, MemoryStatus.VALUE_ABSENT, MemoryModuleType.WALK_TARGET, MemoryStatus.VALUE_ABSENT));
-
     }
 
     @Override
@@ -48,37 +46,23 @@ public class FishingTask extends AbstractChoreTask {
     @Override
     protected void start(ServerLevel world, VillagerEntityMCA villager, long time) {
         super.start(world, villager, time);
-        if (!villager.hasItemInSlot(villager.getDominantSlot())) {
-            int i = InventoryUtils.getFirstSlotContainingItem(villager.getInventory(), stack -> stack.getItem() instanceof FishingRodItem);
-            if (i == -1) {
-                abandonJobWithMessage("chore.fishing.norod");
-            } else {
-                villager.setItemInHand(villager.getDominantHand(), villager.getInventory().getItem(i));
-            }
-        }
-
-        LootTable loottable = world.getServer().reloadableRegistries().getLootTable(BuiltInLootTables.FISHING);
-        LootParams.Builder lootcontext$builder = (new LootParams.Builder(world)).withParameter(LootContextParams.ORIGIN, villager.position()).withParameter(LootContextParams.TOOL, new ItemStack(Items.FISHING_ROD)).withParameter(LootContextParams.THIS_ENTITY, villager).withLuck(0F);
-        this.list = loottable.getRandomItems(lootcontext$builder.create(LootContextParamSets.FISHING));
+        equipFishingRod(villager);
     }
 
     @Override
     protected void tick(ServerLevel world, VillagerEntityMCA villager, long time) {
         super.tick(world, villager, time);
 
-        if (!InventoryUtils.contains(villager.getInventory(), FishingRodItem.class) && !villager.hasItemInSlot(villager.getDominantSlot())) {
-            abandonJobWithMessage("chore.fishing.norod");
-        } else if (!villager.hasItemInSlot(villager.getDominantSlot())) {
-            int i = InventoryUtils.getFirstSlotContainingItem(villager.getInventory(), stack -> stack.getItem() instanceof FishingRodItem);
-            ItemStack stack = villager.getInventory().getItem(i);
-            villager.setItemInHand(villager.getDominantHand(), stack);
+        if (!equipFishingRod(villager)) {
+            return;
         }
 
         if (targetWater == null) {
             List<BlockPos> nearbyStaticLiquid = TaskUtils.getNearbyBlocks(villager.blockPosition(), villager.level(), blockState -> blockState.is(Blocks.WATER), 12, 3);
             targetWater = nearbyStaticLiquid.stream()
-                    .filter((p) -> villager.level().getBlockState(p).getBlock() == Blocks.WATER)
-                    .min(Comparator.comparingDouble(d -> villager.distanceToSqr(d.getX(), d.getY(), d.getZ()))).orElse(null);
+                    .filter(p -> villager.level().getBlockState(p).getBlock() == Blocks.WATER)
+                    .min(Comparator.comparingDouble(d -> villager.distanceToSqr(d.getX(), d.getY(), d.getZ())))
+                    .orElse(null);
 
             if (targetWater == null) {
                 failedTicks = FAILED_COOLDOWN;
@@ -96,18 +80,69 @@ public class FishingTask extends AbstractChoreTask {
 
             if (ticks >= villager.level().random.nextInt(200) + 200) {
                 if (villager.level().random.nextFloat() >= 0.35F) {
-                    ItemStack stack = list.get(villager.getRandom().nextInt(list.size())).copy();
+                    ItemStack stack = getFishingLoot(world, villager);
 
                     villager.swing(villager.getDominantHand());
                     villager.getInventory().addItem(stack);
-                    villager.getMainHandItem().hurtAndBreak(1, villager, EquipmentSlot.MAINHAND);
+                    villager.getItemInHand(villager.getDominantHand())
+                            .hurtAndBreak(1, villager, villager.getDominantSlot());
                 }
                 ticks = 0;
             }
         } else {
             villager.moveTowards(targetWater);
         }
+    }
 
+    private boolean equipFishingRod(VillagerEntityMCA villager) {
+        ItemStack heldStack = villager.getItemInHand(villager.getDominantHand());
+        int inventorySlot = InventoryUtils.getFirstSlotContainingItem(
+                villager.getInventory(),
+                stack -> stack.getItem() instanceof FishingRodItem
+        );
+
+        return switch (FishingTaskPolicy.rodSource(
+                heldStack.getItem() instanceof FishingRodItem,
+                inventorySlot
+        )) {
+            case HELD -> true;
+            case INVENTORY -> {
+                villager.setItemInHand(
+                        villager.getDominantHand(),
+                        villager.getInventory().getItem(inventorySlot)
+                );
+                yield true;
+            }
+            case ABSENT -> {
+                abandonJobWithMessage("chore.fishing.norod");
+                yield false;
+            }
+        };
+    }
+
+    private ItemStack getFishingLoot(ServerLevel world, VillagerEntityMCA villager) {
+        LootTable lootTable = world.getServer().reloadableRegistries()
+                .getLootTable(BuiltInLootTables.FISHING);
+        Vec3 origin = Vec3.atCenterOf(targetWater);
+        ItemStack fishingRod = villager.getItemInHand(villager.getDominantHand());
+        LootParams.Builder builder = new LootParams.Builder(world)
+                .withParameter(LootContextParams.ORIGIN, origin)
+                .withParameter(LootContextParams.TOOL, fishingRod)
+                .withParameter(LootContextParams.THIS_ENTITY, villager)
+                .withLuck(0F);
+        List<ItemStack> loot = lootTable.getRandomItems(
+                builder.create(LootContextParamSets.FISHING)
+        );
+
+        if (FishingTaskPolicy.useFallbackLoot(loot.size())) {
+            return new ItemStack(Items.COD);
+        }
+
+        int index = FishingTaskPolicy.selectLootIndex(
+                loot.size(),
+                villager.getRandom().nextInt(loot.size())
+        );
+        return loot.get(index).copy();
     }
 
     @Override
