@@ -32,13 +32,19 @@ dependencies {
 }
 
 def devUsername = providers.gradleProperty('mca_dev_username').orElse('Dev').get()
-
 def generatingFabricMetadata = gradle.startParameter.taskNames.any {
-    it == ':fabric:build' || it == 'fabric:build' || it == ':fabric:dependencies' || it == 'fabric:dependencies'
+    it == ':fabric:build' || it == 'fabric:build'
 }
+def verificationMetadataFile = rootProject.file('gradle/verification-metadata.xml')
+def originalVerificationMetadata = generatingFabricMetadata && verificationMetadataFile.exists()
+        ? verificationMetadataFile.bytes
+        : null
+
 if (generatingFabricMetadata) {
-    gradle.startParameter.writeDependencyLocks = true
     gradle.startParameter.writeDependencyVerifications = ['sha256']
+    configurations.named('annotationProcessor') {
+        resolutionStrategy.deactivateDependencyLocking()
+    }
 }
 
 loom {
@@ -125,12 +131,77 @@ def emitGeneratedFabricMetadata = tasks.register('emitGeneratedFabricMetadata') 
     dependsOn tasks.named('verifyFabricRefmap')
 
     doLast {
-        println('VILLAIGENCE_FABRIC_LOCKFILE_BASE64_BEGIN')
-        println(file('gradle.lockfile').bytes.encodeBase64().toString())
-        println('VILLAIGENCE_FABRIC_LOCKFILE_BASE64_END')
-        println('VILLAIGENCE_VERIFICATION_METADATA_BASE64_BEGIN')
-        println(rootProject.file('gradle/verification-metadata.xml').bytes.encodeBase64().toString())
-        println('VILLAIGENCE_VERIFICATION_METADATA_BASE64_END')
+        def reportDir = rootProject.file('build/reports/dependencies/refmap-hotfix')
+        reportDir.mkdirs()
+
+        try {
+            if (!verificationMetadataFile.isFile()) {
+                throw new GradleException('Gradle did not generate verification-metadata.xml')
+            }
+            new File(reportDir, 'verification-metadata.xml').bytes = verificationMetadataFile.bytes
+
+            def lockFile = file('gradle.lockfile')
+            def lines = lockFile.readLines('UTF-8')
+            def headers = lines.findAll { it.startsWith('#') }
+            def entries = new TreeMap<String, String>()
+            lines.findAll { !it.startsWith('#') && it.contains('=') }.each { line ->
+                def separator = line.indexOf('=')
+                entries.put(line.substring(0, separator), line.substring(separator + 1))
+            }
+
+            def annotationProcessorCoordinates = [
+                    'io.github.llamalad7:mixinextras-fabric:0.5.4',
+                    'net.fabricmc:fabric-mixin-compile-extensions:0.6.0',
+                    'net.fabricmc:mapping-io:0.2.1',
+                    'net.fabricmc:sponge-mixin:0.17.3+mixin.0.8.7',
+                    'org.ow2.asm:asm-analysis:9.10.1',
+                    'org.ow2.asm:asm-commons:9.10.1',
+                    'org.ow2.asm:asm-tree:9.10.1',
+                    'org.ow2.asm:asm-util:9.10.1',
+                    'org.ow2.asm:asm:9.10.1'
+            ]
+            annotationProcessorCoordinates.each { coordinate ->
+                def configurations = entries.containsKey(coordinate)
+                        ? entries.get(coordinate).split(',').findAll { !it.isEmpty() }.toList()
+                        : []
+                configurations.add('annotationProcessor')
+                entries.put(coordinate, configurations.unique().sort().join(','))
+            }
+
+            if (entries.containsKey('empty')) {
+                def emptyConfigurations = entries.get('empty')
+                        .split(',')
+                        .findAll { !it.isEmpty() && it != 'annotationProcessor' }
+                        .toList()
+                entries.put('empty', emptyConfigurations.join(','))
+            }
+
+            def generatedLock = new StringBuilder()
+            headers.each { generatedLock.append(it).append('\n') }
+            entries.each { coordinate, configurations ->
+                generatedLock.append(coordinate).append('=').append(configurations).append('\n')
+            }
+            new File(reportDir, 'fabric.gradle.lockfile').setText(generatedLock.toString(), 'UTF-8')
+
+            def jarFile = remappedFabricJar.get().asFile
+            java.nio.file.Files.copy(
+                    jarFile.toPath(),
+                    new File(reportDir, jarFile.name).toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
+            )
+
+            def zip = new java.util.zip.ZipFile(jarFile)
+            try {
+                def refmap = zip.getEntry(refmapEntryName)
+                new File(reportDir, refmapEntryName).bytes = zip.getInputStream(refmap).bytes
+            } finally {
+                zip.close()
+            }
+        } finally {
+            if (originalVerificationMetadata != null) {
+                verificationMetadataFile.bytes = originalVerificationMetadata
+            }
+        }
     }
 }
 
