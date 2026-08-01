@@ -29,7 +29,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.behavior.BlockPosTracker;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
-import net.minecraft.world.entity.ai.memory.WalkTarget;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -106,7 +105,6 @@ public class Relationship<T extends Mob & VillagerLike<T>> implements EntityRela
         BlockState state = getConfiguredTombstoneState();
         int range = 2;
         for (int y = -range; y <= range; y++) {
-            // prefer center
             BlockPos pos = entityPos.offset(0, y, 0);
             if (world.getBlockState(pos).isAir() && state.canSurvive(world, pos)) {
                 world.setBlockAndUpdate(pos, state);
@@ -136,16 +134,12 @@ public class Relationship<T extends Mob & VillagerLike<T>> implements EntityRela
             getFamilyEntry().setDeceased(true);
 
             ServerLevel world = (ServerLevel) entity.level();
-
-            // look for a gravestone
             Optional<BlockPos> nearest = GraveyardManager.get(world).findNearest(entity.blockPosition(), GraveyardManager.TombstoneState.EMPTY, 10);
 
-            // if no one was found, try to place one
             if ((beRemembered || beLoved) && nearest.isEmpty()) {
                 nearest = placeTombstone(world, entity.blockPosition());
             }
 
-            // fill it and yeet the villager into depression
             nearest.ifPresentOrElse(pos -> {
                 if (entity.level().getBlockState(pos).is(TagsMCA.Blocks.TOMBSTONES) && entity.level().getBlockEntity(pos) instanceof TombstoneBlock.Data tombstone) {
                     onTragedy(cause, pos);
@@ -153,24 +147,18 @@ public class Relationship<T extends Mob & VillagerLike<T>> implements EntityRela
                 } else {
                     onTragedy(cause, null);
                 }
-            }, () -> {
-                onTragedy(cause, null);
-            });
+            }, () -> onTragedy(cause, null));
         } else {
             onTragedy(cause, null);
         }
 
-        // the family is too small to be remembered
         if (!beRemembered) {
-            getFamilyEntry().streamParents().forEach(uuid -> {
-                getFamilyTree().remove(uuid);
-            });
+            getFamilyEntry().streamParents().forEach(uuid -> getFamilyTree().remove(uuid));
             getFamilyTree().remove(entity.getUUID());
         }
     }
 
     public void onTragedy(DamageSource cause, @Nullable BlockPos burialSite) {
-        // The death of a villager negatively modifies the mood of nearby strangers
         if (!entity.isHostile()) {
             WorldUtils
                     .getCloseEntities(entity.level(), entity, 32, VillagerEntityMCA.class)
@@ -187,7 +175,6 @@ public class Relationship<T extends Mob & VillagerLike<T>> implements EntityRela
             entity.level().broadcastEntityEvent(entity, Status.MCA_VILLAGER_TRAGEDY);
             entity.getVillagerBrain().modifyMoodValue(-moodAffect);
 
-            // seen murder
             if (cause.getEntity() instanceof Player player) {
                 entity.getVillagerBrain().getMemoriesForPlayer(player).modHearts(-20);
             }
@@ -195,7 +182,10 @@ public class Relationship<T extends Mob & VillagerLike<T>> implements EntityRela
 
         if (burialSite != null && type != RelationshipType.STRANGER) {
             entity.getVillagerBrain().setGrieving();
-            entity.getBrain().setMemory(MemoryModuleType.WALK_TARGET, new WalkTarget(burialSite, 1, 1));
+            entity.getBrain().setMemory(MemoryModuleTypeMCA.MOURNING_SITE, burialSite);
+            entity.getBrain().eraseMemory(MemoryModuleTypeMCA.MOURNING_POSITION);
+            entity.getBrain().eraseMemory(MemoryModuleType.PATH);
+            entity.getBrain().eraseMemory(MemoryModuleType.WALK_TARGET);
             entity.getBrain().setMemory(MemoryModuleType.LOOK_TARGET, new BlockPosTracker(burialSite));
             entity.getBrain().setActiveActivityIfPossible(ActivitiesMCA.GRIEVE);
         }
@@ -216,7 +206,6 @@ public class Relationship<T extends Mob & VillagerLike<T>> implements EntityRela
     }
 
     public interface Predicate extends BiPredicate<CompassionateEntity<?>, Entity> {
-
         boolean test(CompassionateEntity<?> villager, UUID partner);
 
         @Override
