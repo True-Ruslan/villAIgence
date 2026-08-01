@@ -3,6 +3,7 @@ package net.conczin.mca.entity.ai.brain.tasks;
 import com.google.common.collect.ImmutableMap;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.ai.MemoryModuleTypeMCA;
+import net.conczin.mca.entity.ai.navigation.ClimbNavigationPolicy;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.ai.behavior.Behavior;
 import net.minecraft.world.entity.ai.behavior.BehaviorUtils;
@@ -29,15 +30,34 @@ public class FollowTask extends Behavior<VillagerEntityMCA> {
     @Override
     protected void tick(ServerLevel world, VillagerEntityMCA villager, long time) {
         villager.getBrain().getMemoryInternal(MemoryModuleTypeMCA.PLAYER_FOLLOWING).ifPresent(playerToFollow -> {
-            if (villager.getVillagerBrain().isPanicking() && villager.getBrain().getMemoryInternal(MemoryModuleType.HURT_BY_ENTITY).filter(livingEntity -> livingEntity == playerToFollow).isPresent()) {
+            if (villager.getVillagerBrain().isPanicking()
+                    && villager.getBrain().getMemoryInternal(MemoryModuleType.HURT_BY_ENTITY)
+                    .filter(livingEntity -> livingEntity == playerToFollow).isPresent()) {
                 villager.getBrain().eraseMemory(MemoryModuleTypeMCA.PLAYER_FOLLOWING);
-            } else if (shouldYieldToGuardCombat(villager)) {
                 return;
-            } else {
-                float dist = villager.distanceTo(playerToFollow) - 2;
-                float speed = Math.min(1.0f, Math.max(0.6f, dist * 0.4f * 0.25f));
-                BehaviorUtils.setWalkAndLookTargetMemories(villager, playerToFollow, (villager.isPassenger() ? 1.7f : 0.8f) * speed, 2);
             }
+
+            if (shouldYieldToGuardCombat(villager)) {
+                return;
+            }
+
+            float distance = villager.distanceTo(playerToFollow) - 2.0F;
+            float speed = Math.min(1.0F, Math.max(0.6F, distance * 0.1F));
+            float speedModifier = (villager.isPassenger() ? 1.7F : 0.8F) * speed;
+            int verticalDistance = Math.abs(
+                    villager.blockPosition().getY() - playerToFollow.blockPosition().getY()
+            );
+            int closeEnoughDistance = ClimbNavigationPolicy.followCloseEnoughDistance(
+                    verticalDistance,
+                    villager.onClimbable()
+            );
+
+            BehaviorUtils.setWalkAndLookTargetMemories(
+                    villager,
+                    playerToFollow,
+                    speedModifier,
+                    closeEnoughDistance
+            );
         });
     }
 
