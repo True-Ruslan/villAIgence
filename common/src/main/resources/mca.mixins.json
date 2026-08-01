@@ -23,6 +23,7 @@
     "MixinServerWorld",
     "MixinTranslatableContents",
     "MixinVillager",
+    "MixinVillagerEntityMCA",
     "MixinZombie",
     "MixinZombieVillager"
   ],
