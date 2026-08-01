@@ -229,13 +229,16 @@ public final class OperatorLoreServerAuthority {
             OperatorLoreEditorResult.Status status,
             String value
     ) {
-        String canonical = value == null ? "" : value;
+        OperatorLoreEditorPolicy.NetworkView view = OperatorLoreEditorPolicy.networkView(value);
+        OperatorLoreEditorResult.Status safeStatus = view.representable()
+                ? status
+                : OperatorLoreEditorResult.Status.INVALID;
         return new OperatorLoreEditorResult(
                 scope,
                 entityId,
-                status,
-                canonical,
-                OperatorLoreEditorPolicy.revision(canonical)
+                safeStatus,
+                view.value(),
+                view.revision()
         );
     }
 
