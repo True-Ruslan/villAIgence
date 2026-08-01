@@ -1,3 +1,10 @@
+def generatingFabricMetadata = gradle.startParameter.taskNames.any {
+    it == ':fabric:build' || it == 'fabric:build'
+}
+if (generatingFabricMetadata) {
+    gradle.startParameter.writeDependencyVerifications = ['sha256']
+}
+
 pluginManagement {
     repositories {
         gradlePluginPortal()
