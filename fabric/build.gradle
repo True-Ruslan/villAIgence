@@ -42,14 +42,6 @@ def originalVerificationMetadata = generatingFabricMetadata && verificationMetad
 
 def mixinProcessorConfigurations = ['annotationProcessor', 'datagenAnnotationProcessor']
 
-if (generatingFabricMetadata) {
-    configurations.configureEach {
-        if (name.endsWith('AnnotationProcessor')) {
-            resolutionStrategy.deactivateDependencyLocking()
-        }
-    }
-}
-
 loom {
     def aw = project(':common').file("src/main/resources/${mod_id}.classtweaker")
     if (aw.exists()) {
@@ -93,6 +85,14 @@ fabricApi {
         modId = "${mod_id}-datagen"
         outputDirectory = rootProject.project(':common').file('src/generated/resources')
         strictValidation = true
+    }
+}
+
+if (generatingFabricMetadata) {
+    mixinProcessorConfigurations.each { configurationName ->
+        configurations.named(configurationName) {
+            resolutionStrategy.deactivateDependencyLocking()
+        }
     }
 }
 
