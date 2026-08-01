@@ -5,6 +5,7 @@ import net.conczin.mca.MCAClient;
 import net.conczin.mca.client.book.Book;
 import net.conczin.mca.client.book.CivilRegistryBook;
 import net.conczin.mca.client.gui.*;
+import net.conczin.mca.client.gui.lore.OperatorLoreEditorScreen;
 import net.conczin.mca.client.resources.ClientSkinCatalog;
 import net.conczin.mca.client.tts.SpeechManager;
 import net.conczin.mca.entity.VillagerEntityMCA;
@@ -261,5 +262,13 @@ public class ClientHandlerImpl implements ClientHandler {
     @Override
     public void handleBuildingPolymorph(BuildingPolymorphMessage message) {
         client.setScreen(new BuildingPolymorphScreen(message.matchingTypes(), message.scanPos(), message.isRoom()));
+    }
+
+    @Override
+    public void handleOperatorLoreResponse(OperatorLoreResponse response) {
+        Screen screen = client.screen;
+        if (screen instanceof OperatorLoreEditorScreen editor) {
+            editor.accept(response);
+        }
     }
 }
