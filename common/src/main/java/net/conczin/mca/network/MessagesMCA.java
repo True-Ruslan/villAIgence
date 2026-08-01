@@ -23,6 +23,8 @@ public interface MessagesMCA {
         c.register(InteractionDialogueInitMessage.TYPE, InteractionDialogueInitMessage.STREAM_CODEC, true);
         c.register(InteractionDialogueMessage.TYPE, InteractionDialogueMessage.STREAM_CODEC, true);
         c.register(InteractionVillagerMessage.TYPE, InteractionVillagerMessage.STREAM_CODEC, true);
+        c.register(OperatorLoreReadRequest.TYPE, OperatorLoreReadRequest.STREAM_CODEC, true);
+        c.register(OperatorLoreWriteRequest.TYPE, OperatorLoreWriteRequest.STREAM_CODEC, true);
         c.register(PlayerDataRequest.TYPE, PlayerDataRequest.STREAM_CODEC, true);
         c.register(RemoveCustomClothingMessage.TYPE, RemoveCustomClothingMessage.STREAM_CODEC, true);
         c.register(RenameVillageMessage.TYPE, RenameVillageMessage.STREAM_CODEC, true);
@@ -50,6 +52,7 @@ public interface MessagesMCA {
         c.register(InteractionDialogueResponse.TYPE, InteractionDialogueResponse.STREAM_CODEC, false);
         c.register(OpenDestinyGuiRequest.TYPE, OpenDestinyGuiRequest.STREAM_CODEC, false);
         c.register(OpenGuiRequest.TYPE, OpenGuiRequest.STREAM_CODEC, false);
+        c.register(OperatorLoreResponse.TYPE, OperatorLoreResponse.STREAM_CODEC, false);
         c.register(PlayerDataMessage.TYPE, PlayerDataMessage.STREAM_CODEC, false);
         c.register(ShowToastRequest.TYPE, ShowToastRequest.STREAM_CODEC, false);
         c.register(CustomSkinListResponse.TYPE, CustomSkinListResponse.STREAM_CODEC, false);
