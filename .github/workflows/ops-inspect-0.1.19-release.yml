@@ -1,0 +1,30 @@
+name: Inspect isolated 0.1.19 release
+
+on:
+  pull_request:
+    branches:
+      - '1.21.1'
+    paths:
+      - '.github/workflows/ops-inspect-0.1.19-release.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Show tag-triggered release runs
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run list \
+            --workflow 316867461 \
+            --event push \
+            --limit 10 \
+            --json databaseId,status,conclusion,headBranch,headSha,displayTitle,url,createdAt,updatedAt
