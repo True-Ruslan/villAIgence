@@ -73,3 +73,40 @@ fabricApi {
         strictValidation = true
     }
 }
+
+def remappedFabricJar = tasks.named('remapJar').flatMap { it.archiveFile }
+
+def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
+    group = 'verification'
+    description = 'Requires the distributable Fabric JAR to contain a valid non-empty Mixin refmap.'
+    dependsOn tasks.named('remapJar')
+    inputs.file(remappedFabricJar)
+
+    doLast {
+        def jarFile = remappedFabricJar.get().asFile
+        def zip = new java.util.zip.ZipFile(jarFile)
+        try {
+            def entryName = "${mod_id}.refmap.json"
+            def entry = zip.getEntry(entryName)
+            if (entry == null) {
+                throw new GradleException("Distributable Fabric JAR is missing required ${entryName}: ${jarFile}")
+            }
+
+            def text = zip.getInputStream(entry).getText('UTF-8').trim()
+            if (text.isEmpty()) {
+                throw new GradleException("Distributable Fabric JAR contains an empty ${entryName}: ${jarFile}")
+            }
+
+            def parsed = new groovy.json.JsonSlurper().parseText(text)
+            if (!(parsed instanceof Map) || parsed.isEmpty()) {
+                throw new GradleException("Distributable Fabric JAR contains an invalid ${entryName}: ${jarFile}")
+            }
+        } finally {
+            zip.close()
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn verifyFabricRefmap
+}
