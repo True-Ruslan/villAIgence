@@ -3,7 +3,7 @@ package net.conczin.mca.entity.ai.navigation;
 /**
  * Loader-independent directional motion policy for climbable navigation.
  */
-final class ClimbNavigationPolicy {
+public final class ClimbNavigationPolicy {
     private ClimbNavigationPolicy() {
     }
 
@@ -50,11 +50,11 @@ final class ClimbNavigationPolicy {
         return clamp(delta * gain, -maxSpeed, maxSpeed);
     }
 
-    static boolean allowJump(boolean requested, boolean navigationControlsClimb) {
+    public static boolean allowJump(boolean requested, boolean navigationControlsClimb) {
         return requested && !navigationControlsClimb;
     }
 
-    static int followCloseEnoughDistance(int verticalDistance, boolean onClimbable) {
+    public static int followCloseEnoughDistance(int verticalDistance, boolean onClimbable) {
         if (onClimbable) {
             return 1;
         }
