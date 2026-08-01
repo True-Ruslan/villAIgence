@@ -33,11 +33,12 @@ dependencies {
 
 def devUsername = providers.gradleProperty('mca_dev_username').orElse('Dev').get()
 
-def generatingFabricLock = gradle.startParameter.taskNames.any {
+def generatingFabricMetadata = gradle.startParameter.taskNames.any {
     it == ':fabric:build' || it == 'fabric:build' || it == ':fabric:dependencies' || it == 'fabric:dependencies'
 }
-if (generatingFabricLock) {
+if (generatingFabricMetadata) {
     gradle.startParameter.writeDependencyLocks = true
+    gradle.startParameter.writeDependencyVerifications = ['sha256']
 }
 
 loom {
@@ -86,10 +87,6 @@ fabricApi {
     }
 }
 
-tasks.named('compileJava') {
-    notCompatibleWithConfigurationCache('Legacy Loom Mixin annotation processing carries a non-serializable processor configuration.')
-}
-
 def remappedFabricJar = tasks.named('remapJar').flatMap { it.archiveFile }
 def refmapEntryName = "${project.property('mod_id')}.refmap.json"
 
@@ -123,15 +120,17 @@ def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
     }
 }
 
-def emitGeneratedFabricLockfile = tasks.register('emitGeneratedFabricLockfile') {
+def emitGeneratedFabricMetadata = tasks.register('emitGeneratedFabricMetadata') {
     group = 'verification'
     dependsOn tasks.named('verifyFabricRefmap')
 
     doLast {
-        def lockFile = file('gradle.lockfile')
         println('VILLAIGENCE_FABRIC_LOCKFILE_BASE64_BEGIN')
-        println(lockFile.bytes.encodeBase64().toString())
+        println(file('gradle.lockfile').bytes.encodeBase64().toString())
         println('VILLAIGENCE_FABRIC_LOCKFILE_BASE64_END')
+        println('VILLAIGENCE_VERIFICATION_METADATA_BASE64_BEGIN')
+        println(rootProject.file('gradle/verification-metadata.xml').bytes.encodeBase64().toString())
+        println('VILLAIGENCE_VERIFICATION_METADATA_BASE64_END')
     }
 }
 
@@ -139,8 +138,8 @@ tasks.named('check') {
     dependsOn verifyFabricRefmap
 }
 
-if (generatingFabricLock) {
+if (generatingFabricMetadata) {
     tasks.named('build') {
-        finalizedBy emitGeneratedFabricLockfile
+        finalizedBy emitGeneratedFabricMetadata
     }
 }
