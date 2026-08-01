@@ -2,6 +2,9 @@
 
 > **Canonical product roadmap.** For exact implementation and validation state, read `docs/PROJECT_STATE.md` first.
 
+> **Repository maintenance note (2026-08-01):** README canonical portfolio-link rollout completed through PR #90 (`19e397e` → squash `6209130`). VillAIgence CI #1154 / run `30714996167`, Java PR CI #654 / run `30714996171`, and security policy #505 / run `30714996231` all passed. Roadmap sequencing is unchanged; S10c remains next.
+
+
 ## Product vision
 
 VillAIgence is evolving from an MCA-derived AI conversation mod into a **persistent living-society simulation layer for Minecraft**.

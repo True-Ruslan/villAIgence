@@ -2,6 +2,24 @@
 
 > Human-readable implementation and validation history. Read `docs/PROJECT_STATE.md` for exact current state and next priority; read `docs/ROADMAP.md` for long-term direction.
 
+## 2026-08-01 — Canonical engineering-portfolio link
+
+**Status:** merged to `1.21.1`; all exact-head automated gates PASS.
+
+```text
+PR:                          #90
+accepted head:               19e397ea3250384d7063e5df46ea3f05f66c9514
+VillAIgence CI:              30714996167 / #1154 — SUCCESS
+Java Pull Request CI:        30714996171 / #654 — SUCCESS
+Repository security policy:  30714996231 / #505 — SUCCESS
+squash merge:                62091309f61667ce38a6c60aa9477309093392c5
+```
+
+Added one explicit README link to `https://trueruslan.ru/`. MCA attribution, installation guidance, compatibility-sensitive identifiers, runtime behavior, security policy, release status and live-server evidence remain unchanged. S10c remains the selected next step.
+
+---
+
+
 ## 2026-08-01 — S10b server-authoritative operator lore API
 
 **Status:** merged to `1.21.1`; automated validation PASS; live-server acceptance pending.
