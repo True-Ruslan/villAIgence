@@ -21,9 +21,11 @@
     "MixinScreenHandler",
     "MixinServerGamePacketListenerImpl",
     "MixinServerWorld",
+    "MixinTombstoneData",
     "MixinTranslatableContents",
     "MixinVillager",
     "MixinVillagerEntityMCA",
+    "MixinVillagerTasksMCA",
     "MixinZombie",
     "MixinZombieVillager"
   ],
