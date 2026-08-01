@@ -40,10 +40,13 @@ def originalVerificationMetadata = generatingFabricMetadata && verificationMetad
         ? verificationMetadataFile.bytes
         : null
 
+def mixinProcessorConfigurations = ['annotationProcessor', 'datagenAnnotationProcessor']
+
 if (generatingFabricMetadata) {
-    gradle.startParameter.writeDependencyVerifications = ['sha256']
-    configurations.named('annotationProcessor') {
-        resolutionStrategy.deactivateDependencyLocking()
+    configurations.configureEach {
+        if (name.endsWith('AnnotationProcessor')) {
+            resolutionStrategy.deactivateDependencyLocking()
+        }
     }
 }
 
@@ -161,17 +164,17 @@ def emitGeneratedFabricMetadata = tasks.register('emitGeneratedFabricMetadata') 
                     'org.ow2.asm:asm:9.10.1'
             ]
             annotationProcessorCoordinates.each { coordinate ->
-                def configurations = entries.containsKey(coordinate)
+                def resolvedConfigurations = entries.containsKey(coordinate)
                         ? entries.get(coordinate).split(',').findAll { !it.isEmpty() }.toList()
                         : []
-                configurations.add('annotationProcessor')
-                entries.put(coordinate, configurations.unique().sort().join(','))
+                resolvedConfigurations.addAll(mixinProcessorConfigurations)
+                entries.put(coordinate, resolvedConfigurations.unique().sort().join(','))
             }
 
             if (entries.containsKey('empty')) {
                 def emptyConfigurations = entries.get('empty')
                         .split(',')
-                        .findAll { !it.isEmpty() && it != 'annotationProcessor' }
+                        .findAll { !it.isEmpty() && !mixinProcessorConfigurations.contains(it) }
                         .toList()
                 entries.put('empty', emptyConfigurations.join(','))
             }
