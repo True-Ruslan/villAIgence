@@ -1,6 +1,5 @@
 package net.conczin.mca.item;
 
-import net.minecraft.world.InteractionResult;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -9,25 +8,33 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SpecialGiftResultPolicyTest {
     @Test
     void passFallsThroughWithoutConsumption() {
-        assertFalse(SpecialGiftResultPolicy.isHandled(InteractionResult.PASS));
-        assertFalse(SpecialGiftResultPolicy.shouldConsume(InteractionResult.PASS));
+        SpecialGiftResultPolicy.Decision decision = SpecialGiftResultPolicy.decide(true, false);
+
+        assertFalse(decision.handled());
+        assertFalse(decision.consume());
     }
 
     @Test
     void failureIsHandledWithoutConsumption() {
-        assertTrue(SpecialGiftResultPolicy.isHandled(InteractionResult.FAIL));
-        assertFalse(SpecialGiftResultPolicy.shouldConsume(InteractionResult.FAIL));
+        SpecialGiftResultPolicy.Decision decision = SpecialGiftResultPolicy.decide(false, false);
+
+        assertTrue(decision.handled());
+        assertFalse(decision.consume());
     }
 
     @Test
     void consumeIsHandledAndConsumesExactlyOne() {
-        assertTrue(SpecialGiftResultPolicy.isHandled(InteractionResult.CONSUME));
-        assertTrue(SpecialGiftResultPolicy.shouldConsume(InteractionResult.CONSUME));
+        SpecialGiftResultPolicy.Decision decision = SpecialGiftResultPolicy.decide(false, true);
+
+        assertTrue(decision.handled());
+        assertTrue(decision.consume());
     }
 
     @Test
-    void successIsHandledButDoesNotImplyItemConsumption() {
-        assertTrue(SpecialGiftResultPolicy.isHandled(InteractionResult.SUCCESS));
-        assertFalse(SpecialGiftResultPolicy.shouldConsume(InteractionResult.SUCCESS));
+    void passNeverConsumesEvenForInvalidInputCombination() {
+        SpecialGiftResultPolicy.Decision decision = SpecialGiftResultPolicy.decide(true, true);
+
+        assertFalse(decision.handled());
+        assertFalse(decision.consume());
     }
 }
