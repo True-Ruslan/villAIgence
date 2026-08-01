@@ -1,4 +1,4 @@
-name: Inspect isolated 0.1.19 release
+name: Publish isolated 0.1.19 release
 
 on:
   pull_request:
@@ -8,23 +8,159 @@ on:
       - '.github/workflows/ops-inspect-0.1.19-release.yml'
 
 permissions:
-  actions: read
-  contents: read
+  contents: write
+
+concurrency:
+  group: publish-villaigence-0.1.19-release
+  cancel-in-progress: false
 
 jobs:
-  inspect:
+  publish-release:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 35
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: 0.1.19+1.21.1
+      MOD_VERSION: 0.1.19
+      MINECRAFT_VERSION: 1.21.1
+      EXPECTED_SHA: 5a6765223b8f3e3c52715fb506d65bc0dafe9fa7
+      GRADLE_OPTS: --enable-native-access=ALL-UNNAMED
+      NO_COLOR: '1'
     steps:
-      - name: Show tag-triggered release runs
+      - name: Checkout operation branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Verify immutable release source
         shell: bash
         run: |
           set -euo pipefail
-          gh run list \
-            --workflow 316867461 \
-            --event push \
-            --limit 10 \
-            --json databaseId,status,conclusion,headBranch,headSha,displayTitle,url,createdAt,updatedAt
+          git fetch origin refs/heads/1.21.1:refs/remotes/origin/1.21.1 --tags
+          canonical_sha="$(git rev-parse refs/remotes/origin/1.21.1)"
+          tag_sha="$(git rev-list -n 1 "${RELEASE_TAG}")"
+
+          test "${canonical_sha}" = "${EXPECTED_SHA}"
+          test "${tag_sha}" = "${EXPECTED_SHA}"
+
+          mapfile -t head_tags < <(git tag --points-at "${EXPECTED_SHA}" | sort)
+          if [[ "${#head_tags[@]}" -ne 1 || "${head_tags[0]}" != "${RELEASE_TAG}" ]]; then
+            printf 'Expected only %s at %s, found: %s\n' "${RELEASE_TAG}" "${EXPECTED_SHA}" "${head_tags[*]:-<none>}"
+            exit 1
+          fi
+
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "::error title=Release already exists::${RELEASE_TAG}"
+            exit 1
+          fi
+
+          git checkout --detach "${RELEASE_TAG}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_SHA}"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+        with:
+          cache-read-only: true
+          validate-wrappers: true
+
+      - name: Build and verify exact tagged artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew scripts/ci/package-livingworld-release.sh
+          ./gradlew \
+            :common:test \
+            :fabric:build \
+            :neoforge:build \
+            dependencyManifest \
+            --stacktrace \
+            --no-daemon \
+            --console=plain
+
+          scripts/ci/package-livingworld-release.sh "${RELEASE_TAG}" true dist
+          cp build/reports/dependencies/villaigence-dependencies.txt \
+            "dist/villaigence-dependencies-${RELEASE_TAG}.txt"
+
+          mapfile -t jars < <(find dist -maxdepth 1 -type f -name '*.jar' | sort)
+          if [[ "${#jars[@]}" -ne 1 ]]; then
+            printf 'Expected one release JAR, found %s: %s\n' "${#jars[@]}" "${jars[*]:-<none>}"
+            exit 1
+          fi
+
+          jar_file="${jars[0]}"
+          checksum_file="${jar_file}.sha256"
+          manifest_file="dist/villaigence-dependencies-${RELEASE_TAG}.txt"
+          test -s "${checksum_file}"
+          test -s "${manifest_file}"
+          sha256sum --check "${checksum_file}"
+
+          python - "${jar_file}" <<'PY'
+          import hashlib
+          import json
+          import sys
+          import zipfile
+
+          jar_path = sys.argv[1]
+          expected_target = "Lnet/minecraft/class_1309;method_6100(Z)V"
+          with zipfile.ZipFile(jar_path) as jar:
+              config = json.loads(jar.read("mca.mixins.json"))
+              if config.get("refmap") != "mca.refmap.json":
+                  raise SystemExit(f"unexpected refmap declaration: {config.get('refmap')!r}")
+              refmap_bytes = jar.read("mca.refmap.json")
+              mappings = json.loads(refmap_bytes).get("mappings", {})
+              living = mappings.get("net/conczin/mca/mixin/MixinLivingEntity", {})
+              mob = mappings.get("net/conczin/mca/mixin/MixinMob", {})
+              if living.get("setJumping") != expected_target:
+                  raise SystemExit(f"unexpected LivingEntity mapping: {living.get('setJumping')!r}")
+              if "setJumping" in mob:
+                  raise SystemExit(f"unexpected MixinMob mapping: {mob['setJumping']!r}")
+              print(f"tagged_jar_sha256={hashlib.sha256(open(jar_path, 'rb').read()).hexdigest()}")
+              print(f"tagged_refmap_sha256={hashlib.sha256(refmap_bytes).hexdigest()}")
+          PY
+
+      - name: Publish official GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          jar_file="$(find dist -maxdepth 1 -type f -name '*.jar' -print -quit)"
+          checksum_file="${jar_file}.sha256"
+          manifest_file="dist/villaigence-dependencies-${RELEASE_TAG}.txt"
+          checksum="$(awk '{print $1}' "${checksum_file}")"
+
+          cat > release-notes.md <<EOF
+          # VillAIgence ${MOD_VERSION}
+
+          Corrective Fabric build for Minecraft ${MINECRAFT_VERSION} that replaces the blocked 0.1.18 candidate.
+
+          ## Startup fix
+
+          - restores the generated and packaged `mca.refmap.json`;
+          - maps controlled-climb `setJumping` injection through `LivingEntity` / `method_6100`;
+          - prevents the incorrect `MixinMob.setJumping` mapping;
+          - adds a permanent distributable-JAR refmap contract;
+          - preserves world persistence formats and AI/memory behavior.
+
+          This build is intended to resume the interrupted S1-S10c cumulative acceptance. Back up the world and replace the old VillAIgence JAR on both server and client before testing.
+
+          **SHA-256**
+
+          ~~~text
+          ${checksum}
+          ~~~
+          EOF
+
+          gh release create "${RELEASE_TAG}" \
+            "${jar_file}" \
+            "${checksum_file}" \
+            "${manifest_file}" \
+            --verify-tag \
+            --title "VillAIgence ${MOD_VERSION} for Minecraft ${MINECRAFT_VERSION}" \
+            --notes-file release-notes.md
