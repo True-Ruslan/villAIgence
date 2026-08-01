@@ -7,6 +7,7 @@ import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.interaction.gifts.GiftType;
 import net.conczin.mca.entity.interaction.gifts.Response;
 import net.conczin.mca.item.SpecialCaseGift;
+import net.conczin.mca.item.SpecialGiftResultPolicy;
 import net.conczin.mca.network.Network;
 import net.conczin.mca.network.s2c.AnalysisResults;
 import net.conczin.mca.registry.CriterionMCA;
@@ -18,6 +19,7 @@ import net.conczin.mca.util.network.datasync.CParameter;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodProperties;
@@ -208,11 +210,16 @@ public class BreedableRelationship extends Relationship<VillagerEntityMCA> {
     private boolean handleSpecialCaseGift(ServerPlayer player, ItemStack stack) {
         Item item = stack.getItem();
 
-        if (item instanceof SpecialCaseGift) {
-            if (((SpecialCaseGift) item).handle(player, entity)) {
+        if (item instanceof SpecialCaseGift specialCaseGift) {
+            InteractionResult result = specialCaseGift.handle(player, entity);
+            SpecialGiftResultPolicy.Decision decision = SpecialGiftResultPolicy.decide(
+                    result == InteractionResult.PASS,
+                    result == InteractionResult.CONSUME
+            );
+            if (decision.consume()) {
                 stack.shrink(1);
             }
-            return true;
+            return decision.handled();
         }
 
         if (item == Items.CAKE && !entity.isBaby()) {
