@@ -46,4 +46,6 @@ public interface ClientHandler {
     void handleCivilRegistryResponse(CivilRegistryResponse response);
 
     void handleBuildingPolymorph(BuildingPolymorphMessage message);
+
+    void handleOperatorLoreResponse(OperatorLoreResponse response);
 }
