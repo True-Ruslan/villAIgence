@@ -1,7 +1,5 @@
 package net.conczin.mca.livingworld.lore;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -156,14 +154,13 @@ class WorldOperatorLoreStoreTest {
         WorldOperatorLoreStore store = WorldOperatorLoreStore.forWorld(tempDir);
         store.put(OperatorLoreKey.world(), "World lore");
         Path file = tempDir.resolve("livingworld/operator-lore.json");
+        String json = Files.readString(file);
 
-        JsonObject root = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
-
-        assertEquals(1, root.get("version").getAsInt());
-        assertEquals("World lore", root.get("world").getAsString());
-        assertTrue(root.get("villagers").isJsonObject());
-        assertTrue(root.get("players").isJsonObject());
-        assertTrue(root.get("villages").isJsonObject());
+        assertTrue(json.contains("\"version\": 1"));
+        assertTrue(json.contains("\"world\": \"World lore\""));
+        assertTrue(json.contains("\"villagers\": {}"));
+        assertTrue(json.contains("\"players\": {}"));
+        assertTrue(json.contains("\"villages\": {}"));
         assertFalse(Files.exists(file.resolveSibling("operator-lore.json.tmp")));
     }
 
@@ -178,8 +175,7 @@ class WorldOperatorLoreStoreTest {
 
         assertEquals("", store.get(OperatorLoreKey.world()));
         assertTrue(Files.exists(directory.resolve("operator-lore.json.corrupt")));
-        JsonObject recovered = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
-        assertEquals(1, recovered.get("version").getAsInt());
+        assertTrue(Files.readString(file).contains("\"version\": 1"));
     }
 
     @Test
