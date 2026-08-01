@@ -5,6 +5,7 @@ import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.ai.relationship.AgeState;
 import net.conczin.mca.util.WorldUtils;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Item;
 
 import java.util.Comparator;
@@ -16,20 +17,17 @@ public class MatchmakersRingItem extends Item implements SpecialCaseGift {
     }
 
     @Override
-    public boolean handle(ServerPlayer player, VillagerEntityMCA villager) {
-        // ensure two rings are in the inventory
+    public InteractionResult handle(ServerPlayer player, VillagerEntityMCA villager) {
         if (player.getMainHandItem().getCount() < 2) {
             villager.sendChatMessage(player, "interaction.matchmaker.fail.needtwo");
-            return false;
+            return InteractionResult.FAIL;
         }
 
-        // ensure our target isn't married already or young
         if (villager.getRelationships().isMarried() || villager.getAgeState() != AgeState.ADULT) {
             villager.sendChatMessage(player, "interaction.matchmaker.fail.married");
-            return false;
+            return InteractionResult.FAIL;
         }
 
-        // look for partner
         Optional<VillagerEntityMCA> target = WorldUtils.getCloseEntities(villager.level(), villager, 5.0).stream()
                 .filter(v -> v != villager && v instanceof VillagerEntityMCA)
                 .map(VillagerEntityMCA.class::cast)
@@ -38,25 +36,20 @@ public class MatchmakersRingItem extends Item implements SpecialCaseGift {
                 .filter(villager::canBeAttractedTo)
                 .min(Comparator.comparingDouble(villager::distanceTo));
 
-        // ensure we found a nearby villager
         if (target.isEmpty()) {
             villager.sendChatMessage(player, "interaction.matchmaker.fail.novillagers");
-            return false;
+            return InteractionResult.FAIL;
         }
 
-        // set up the marriage by assigning spouse UUIDs
         VillagerEntityMCA spouse = target.get();
         villager.getRelationships().marry(spouse);
         spouse.getRelationships().marry(villager);
-
-        // show a reaction
         player.level().broadcastEntityEvent(villager, Status.VILLAGER_HEARTS);
 
-        // remove the rings for survival mode (only one because the other one is gifted)
         if (!player.isCreative()) {
             player.getMainHandItem().shrink(1);
         }
 
-        return true;
+        return InteractionResult.CONSUME;
     }
 }
