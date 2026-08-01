@@ -71,6 +71,15 @@ jobs:
           test -s build/reports/dependencies/refmap-hotfix/fabric.gradle.lockfile
           test -s build/reports/dependencies/refmap-hotfix/mca.refmap.json
 
+      - name: Upload generated refmap evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: villaigence-refmap-hotfix-evidence
+          path: build/reports/dependencies/refmap-hotfix/**
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Ensure verification inputs remain immutable
         shell: bash
         run: |
@@ -82,6 +91,7 @@ jobs:
             neoforge/gradle.lockfile
 
       - name: Upload supply-chain evidence
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: villaigence-supply-chain-evidence
@@ -91,6 +101,5 @@ jobs:
             fabric/gradle.lockfile
             neoforge/gradle.lockfile
             build/reports/dependencies/villaigence-dependencies.txt
-            build/reports/dependencies/refmap-hotfix/**
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
