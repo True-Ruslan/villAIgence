@@ -5,6 +5,7 @@ import net.conczin.mca.MCAClient;
 import net.conczin.mca.client.book.Book;
 import net.conczin.mca.client.book.CivilRegistryBook;
 import net.conczin.mca.client.gui.*;
+import net.conczin.mca.client.gui.lore.OperatorLoreEditorOpenContext;
 import net.conczin.mca.client.gui.lore.OperatorLoreEditorScreen;
 import net.conczin.mca.client.resources.ClientSkinCatalog;
 import net.conczin.mca.client.tts.SpeechManager;
@@ -98,6 +99,11 @@ public class ClientHandlerImpl implements ClientHandler {
                 break;
             case VILLAGER_TRACKER:
                 client.setScreen(new VillagerTrackerSearchScreen());
+                break;
+            case OPERATOR_LORE_EDITOR:
+                client.setScreen(new OperatorLoreEditorScreen(
+                        new OperatorLoreEditorOpenContext(message.villager())
+                ));
                 break;
             default:
         }
