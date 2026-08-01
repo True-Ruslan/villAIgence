@@ -31,6 +31,26 @@ class SnapshotContextPromptPolicyTest {
     }
 
     @Test
+    void operatorLoreIsInsertedBeforeStructuredResponseInstructions() {
+        String basePrompt = "Observed factual context from the current Minecraft world.\n"
+                + "- Observed weather: rain.\n"
+                + "\nThe reply MUST be in this JSON format: {}\n";
+
+        String prompt = SnapshotContextPromptPolicy.insertOperatorLore(
+                basePrompt,
+                List.of("Server-authored world lore:\nThe kingdom is usually sunny.")
+        );
+
+        int observed = prompt.indexOf("Observed weather: rain.");
+        int lore = prompt.indexOf("Server-authored lore supplied by the server operator");
+        int schema = prompt.indexOf("The reply MUST be in this JSON format");
+
+        assertTrue(observed >= 0);
+        assertTrue(lore > observed);
+        assertTrue(schema > lore);
+    }
+
+    @Test
     void emptySectionsProduceNoPromptText() {
         assertEquals("", SnapshotContextPromptPolicy.compose(List.of(), List.of()));
         assertEquals("", SnapshotContextPromptPolicy.compose(null, null));
