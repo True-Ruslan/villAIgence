@@ -2,11 +2,11 @@
 
 ## Purpose
 
-This procedure exercises the remaining runtime-sensitive Step 1 boundaries without sending hostile responses to OpenRouter, OpenAI or any other production provider:
+This procedure exercises the runtime-sensitive Step 1 boundaries without sending hostile responses to OpenRouter, OpenAI or any other production provider:
 
 ```text
 SEC-003 bounded provider responses
-SEC-004 account verification and redirect handling
+SEC-004 constrained account verification and redirect handling
 SEC-007 voice duration and aggregate PCM budget
 ```
 
@@ -19,7 +19,46 @@ Python loopback provider server
 + exact-release-JAR voice/PCM probe
 ```
 
-The tooling does not run during Minecraft startup. Every component requires an explicit operator command.
+Every component requires an explicit operator command. Nothing in this procedure runs during Minecraft startup.
+
+## Normative persistence rule
+
+Persistence expectations depend on the stage that fails.
+
+### Failure before a dialogue exists
+
+For Chat rejection and STT rejection before successful Chat:
+
+```text
+no legitimate response exists
+→ no DIALOGUE should be persisted
+→ persistent-file hashes should remain unchanged
+```
+
+### TTS failure after successful Chat
+
+TTS is optional and occurs after visible text and the authoritative dialogue are produced. Therefore:
+
+```text
+successful STT + Chat
+→ visible text published
+→ DIALOGUE persisted
+→ TTS attempted
+→ TTS failure must not roll back the text or DIALOGUE
+```
+
+For TTS-negative cases, an empty diff for `memory.json` and `memory2.json` is not required and would contradict fail-soft behavior. Instead verify:
+
+- the visible text remains available;
+- the successful dialogue is persisted exactly once;
+- no duplicate DIALOGUE, source event or side effect is created;
+- redirect targets are not contacted;
+- no mutation is caused solely by consuming excess TTS bytes;
+- the server remains healthy.
+
+Files unrelated to a legitimate upstream Chat result must remain unchanged. Use a controlled prompt and inspect the resulting event identifiers when exact attribution matters.
+
+This rule supersedes the earlier generic statement that every rejected TTS operation must produce an empty six-file diff.
 
 ## Safety rules
 
@@ -32,13 +71,13 @@ The tooling does not run during Minecraft startup. Every component requires an e
 7. Never use production OpenRouter/OpenAI credentials in the temporary loopback configuration.
 8. Do not run oversized or slow-drip scenarios against any external provider.
 9. Restore the production configuration byte-for-byte after the test.
-10. Keep SEC-003, SEC-004 and SEC-007 open until the full controlled run and dated evidence follow-up are complete.
+10. Keep a finding open until its required release-JAR acceptance evidence is recorded.
 
-The harness itself rejects hostnames, wildcard binds, LAN addresses and internet addresses.
+The harness rejects hostnames, wildcard binds, LAN addresses and internet addresses.
 
-## Required candidate
+## Required candidate metadata
 
-Use a release built from a commit containing the acceptance harness PR.
+Use a release built from a commit containing the acceptance harness and any follow-up fixes required by the current test cycle.
 
 Record:
 
@@ -114,7 +153,7 @@ Expected startup marker:
 VILLAIGENCE_PROVIDER_HARNESS_READY
 ```
 
-Generated files:
+Generated evidence:
 
 ```text
 build/security-acceptance/provider/manifest.json
@@ -128,7 +167,7 @@ build/security-acceptance/provider/requests.jsonl
 - query key names;
 - request body byte count;
 - whether Authorization and X-Title headers were present;
-- stage/case/status.
+- stage, case and response status.
 
 It never stores header values, API keys, email values, prompts, transcripts or request bodies.
 
@@ -156,7 +195,7 @@ redirect
 slow-drip
 ```
 
-Harness diagnostics:
+Diagnostics:
 
 ```text
 /__harness__/status
@@ -181,9 +220,9 @@ Base loopback settings:
 }
 ```
 
-The placeholder values must not be real credentials. Custom loopback stages require dedicated explicit keys so that the stage remains configured while production environment keys stay endpoint-bound.
+The placeholder values must not be real credentials. Custom loopback stages require dedicated explicit placeholder keys so that the stage remains configured while production environment keys stay endpoint-bound.
 
-For each case, configure only the endpoint being tested. Examples:
+Examples:
 
 ```json
 {
@@ -227,15 +266,19 @@ Run for Chat, STT and TTS:
 <stage>/declared-oversize
 ```
 
-Expected:
+Expected transport behavior:
 
-- operation fails before the advertised body is read;
-- controlled size-limit diagnostic;
-- no server crash or OutOfMemory;
-- no provider body copied to logs;
-- rejected operation does not mutate persistent files.
+- operation fails before the advertised body is consumed;
+- a controlled size-limit diagnostic is produced;
+- no server crash or `OutOfMemoryError` occurs;
+- no provider body is copied to logs.
 
-### Chunked/unknown length
+Persistence expectation:
+
+- Chat/STT failure before a dialogue exists: empty persistent diff;
+- TTS failure after successful Chat: preserve exactly one legitimate dialogue according to the normative persistence rule.
+
+### Chunked or unknown length
 
 Run for Chat, STT and TTS:
 
@@ -247,7 +290,8 @@ Expected:
 
 - the client aborts on the first byte above the stage limit;
 - the harness may observe a broken connection after the client aborts;
-- no unbounded allocation or persistent mutation.
+- no unbounded allocation occurs;
+- persistence follows the stage-specific rule above.
 
 The TTS route streams 64 MiB plus one byte. Run it only on loopback during maintenance.
 
@@ -263,7 +307,8 @@ Expected:
 
 - HTTP failure remains controlled;
 - response processing stops at 256 KiB plus the first excess byte;
-- logs contain neither the complete body nor credentials.
+- logs contain neither the complete body nor credentials;
+- persistence follows the stage-specific rule.
 
 ### Redirect
 
@@ -276,13 +321,14 @@ Run for Chat, STT and TTS:
 Expected:
 
 - `307` is treated as provider failure;
-- the target is not requested;
+- the redirect target is not requested;
 - credentials and provider metadata are not forwarded;
-- persistent files remain unchanged.
+- Chat/STT rejection before a dialogue exists leaves persistence unchanged;
+- a TTS redirect after successful Chat preserves the legitimate dialogue once and does not create additional mutation.
 
 ### Slow-drip total deadline
 
-Use the harness defaults shown above: one chunk every five seconds for eleven minutes. Keep `readTimeoutSeconds` above the chunk interval so the socket idle timeout does not end the test first.
+Use one chunk every five seconds for eleven minutes. Keep `readTimeoutSeconds` above the chunk interval so the socket idle timeout does not end the test first.
 
 Run at least Chat:
 
@@ -295,13 +341,24 @@ Expected:
 - the operation terminates at the VillAIgence ten-minute total body deadline;
 - it does not continue until the harness finishes eleven minutes;
 - the server stays responsive;
-- no persistent mutation occurs.
+- no dialogue is persisted because Chat never completed.
 
 Record exact UTC start and end timestamps.
 
 ## SEC-004 verification probe
 
 The exact release JAR contains a JDK-only probe using the same bounded, no-redirect HTTP transport as production account verification.
+
+The acceptance harness is plaintext loopback. Therefore the probe must accept only:
+
+```text
+scheme: http
+host: literal 127.0.0.1 or literal IPv6 loopback
+no user-info
+no fragment
+```
+
+It must reject HTTPS loopback before any TLS connection attempt. Production `/mca verify` remains separate and stricter: it constructs a fixed path only for the exact trusted HTTPS provider family.
 
 Set:
 
@@ -310,7 +367,7 @@ jar=/absolute/path/to/villaigence-fabric-<version>.jar
 probe=net.conczin.mca.livingworld.ai.AccountVerificationAcceptanceProbe
 ```
 
-Normal transport:
+### Normal transport
 
 ```bash
 java -cp "$jar" "$probe" \
@@ -323,7 +380,7 @@ Expected:
 {"marker":"VILLAIGENCE_VERIFICATION_PROBE","outcome":"SUCCESS","status":200}
 ```
 
-Redirect:
+### Redirect
 
 ```bash
 java -cp "$jar" "$probe" \
@@ -338,11 +395,14 @@ status = 307
 redirect_target_hits = 0
 ```
 
-Declared oversize:
+### Declared and chunked oversize
 
 ```bash
 java -cp "$jar" "$probe" \
   http://127.0.0.1:18080/v1/mca/verify/declared-oversize
+
+java -cp "$jar" "$probe" \
+  http://127.0.0.1:18080/v1/mca/verify/chunked-oversize
 ```
 
 Expected:
@@ -352,30 +412,35 @@ outcome = TOO_LARGE
 errorType = ResponseTooLargeException
 ```
 
-Chunked oversize:
+### Rejected before connection
+
+The following must exit with code `2` and print the controlled rejection message:
 
 ```bash
 java -cp "$jar" "$probe" \
-  http://127.0.0.1:18080/v1/mca/verify/chunked-oversize
+  https://127.0.0.1:18080/v1/mca/verify/success
+
+java -cp "$jar" "$probe" \
+  https://[::1]:18080/v1/mca/verify/success
+
+java -cp "$jar" "$probe" \
+  http://localhost:18080/v1/mca/verify/success
+
+java -cp "$jar" "$probe" \
+  http://192.168.1.10:18080/v1/mca/verify/success
+
+java -cp "$jar" "$probe" \
+  'http://user:password@127.0.0.1:18080/v1/mca/verify/success'
+
+java -cp "$jar" "$probe" \
+  'http://127.0.0.1:18080/v1/mca/verify/success#fragment'
 ```
 
-Expected: the same `TOO_LARGE` classification.
-
-The probe rejects before connection:
-
-```text
-localhost hostnames
-LAN/internet addresses
-URI user-info
-URI fragments
-non-HTTP schemes
-```
-
-Production `/mca verify` remains stricter than the probe: it still constructs a fixed `/v1/mca/verify` path only from the exact trusted Conczin HTTPS provider family. The probe's arbitrary path is limited to literal loopback and is not reachable through Minecraft commands.
+None of these rejected inputs may appear in harness request evidence.
 
 ## SEC-007 voice and PCM probe
 
-Run directly from the same release JAR:
+Run directly from the release JAR:
 
 ```bash
 java -cp "$jar" \
@@ -383,7 +448,7 @@ java -cp "$jar" \
   256 1048576
 ```
 
-This starts 256 synchronized reservation workers at 1 MiB each against the exact production maximum of 128 MiB. It allocates reservation counters, not 256 MiB of PCM data.
+This starts 256 synchronized reservation workers at 1 MiB each against the production maximum of 128 MiB. It allocates reservation counters, not 256 MiB of PCM data.
 
 Expected core fields:
 
@@ -411,22 +476,28 @@ This proves:
 - every accepted reservation is released;
 - a full-budget reservation succeeds after recovery.
 
-A final real microphone smoke still remains required after the probe: one normal voice interaction must succeed, proving the operational capture path is healthy after the maintenance test.
+After the probe, run one normal real microphone interaction through:
 
-## Persistence checks
+```text
+microphone → Voice Chat / Opus → STT → Chat → visible text → TTS
+```
 
-Before every rejected provider case, hash the six persistent files. Hash them again after the operation and before introducing a legitimate interaction.
+## Persistence evidence
 
-Example:
+### Chat and STT negative cases
+
+Before each case:
 
 ```bash
 find <world>/livingworld -maxdepth 1 -type f -print0 \
   | sort -z \
   | xargs -0 sha256sum \
   > "$backup/case-before.sha256"
+```
 
-# Run one rejected case.
+After the rejected operation:
 
+```bash
 find <world>/livingworld -maxdepth 1 -type f -print0 \
   | sort -z \
   | xargs -0 sha256sum \
@@ -435,11 +506,25 @@ find <world>/livingworld -maxdepth 1 -type f -print0 \
 diff -u "$backup/case-before.sha256" "$backup/case-after.sha256"
 ```
 
-Expected: empty diff.
+Expected: empty diff when no legitimate dialogue was produced.
+
+### TTS negative cases
+
+Do not use an empty-diff requirement for `memory.json` and `memory2.json` after successful Chat. Instead record:
+
+- hashes before and after;
+- the visible response text;
+- the new DIALOGUE/event identifier;
+- the number of matching new entries;
+- whether any duplicate source event or unrelated side effect appeared.
+
+Expected: exactly one legitimate persisted dialogue and no duplicate caused by TTS failure.
+
+### Final restart
+
+After restoring production configuration and completing all intentional interactions, take a new baseline. Restart without new interaction and compare all six files. Expected: empty diff.
 
 ## Evidence summary
-
-After all routes:
 
 ```bash
 python3 scripts/security/provider_acceptance_harness.py summarize \
@@ -456,7 +541,7 @@ authorization_present_count may be > 0
 no credential/header/query values exist in requests.jsonl
 ```
 
-Search all evidence and server logs for accidental secrets before publication. Do not paste a real key into a search command that is preserved in shell history; use known non-secret prefixes or review locally.
+Search evidence and server logs for accidental secrets before publication. Do not paste a real key into a search command that is retained in shell history.
 
 ## Restore production
 
@@ -471,9 +556,11 @@ cmp -s "$backup/livingworld.json.production" config/livingworld.json
 4. Start the server.
 5. Confirm `villaigence ai status` reports production Chat/STT/TTS as configured.
 6. Run one text dialogue and one voice dialogue.
-7. Confirm ports 25565/TCP and 24454/UDP plus the service monitor.
-8. Stop and restart once more, then compare persistent hashes without new interactions.
-9. Stop the Python harness.
+7. Confirm TCP 25565, UDP 24454 and the service monitor.
+8. Take a new six-file baseline.
+9. Stop and restart once without new interactions.
+10. Confirm an empty six-file diff.
+11. Stop the Python harness.
 
 ## Pass criteria
 
@@ -484,14 +571,15 @@ The controlled run passes only if:
 - Chat/STT/TTS redirects are not followed;
 - verification redirect target receives zero requests;
 - verification responses are bounded at 64 KiB;
-- probe input cannot leave literal loopback;
+- verification probe accepts only HTTP literal loopback and rejects HTTPS before connection;
 - voice duration clamps are exactly 1 and 120 seconds;
 - concurrent PCM use never exceeds 128 MiB;
 - excess reservations fail and later full recovery succeeds;
-- rejected operations do not mutate world files;
+- Chat/STT rejection before dialogue creation leaves persistence unchanged;
+- TTS failure preserves exactly one legitimate upstream dialogue without duplication;
 - logs and evidence contain no secrets or private payloads;
 - production configuration is restored byte-for-byte;
 - normal Text/STT/TTS/Voice behavior works afterward;
 - restart persistence remains stable.
 
-After a complete pass, create a dated validation record, close SEC-003/SEC-004/SEC-007, update canonical state and mark Step 1 fully complete.
+After a complete pass, create a dated validation record, update the finding follow-up, reconcile canonical project state and mark Step 1 fully complete.

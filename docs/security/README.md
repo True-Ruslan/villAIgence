@@ -15,9 +15,11 @@ This directory contains the canonical security-review evidence and hardening pla
 - [`H5_LEGACY_TOOLS_AUDIT_CLOSURE_2026-07-31.md`](H5_LEGACY_TOOLS_AUDIT_CLOSURE_2026-07-31.md) — semantic retain/remove decisions, exact-head whole-tree manifests and SEC-008/SEC-009 implementation evidence.
 - [`SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H5.md`](SECURITY_AUDIT_FOLLOW_UP_2026-07-31_H5.md) — closes SEC-008 and SEC-009 at H5 merge `6d82b4e4650294a4a42b9ea2113e64d990e08811`.
 - [`H1_H2_CONTROLLED_SERVER_VALIDATION.md`](H1_H2_CONTROLLED_SERVER_VALIDATION.md) — complete H1/H2 real-server scenario and residual acceptance boundaries.
-- [`LOCAL_SECURITY_ACCEPTANCE_HARNESS.md`](LOCAL_SECURITY_ACCEPTANCE_HARNESS.md) — exact operator procedure for loopback hostile-provider, verification and PCM acceptance.
+- [`LOCAL_SECURITY_ACCEPTANCE_HARNESS.md`](LOCAL_SECURITY_ACCEPTANCE_HARNESS.md) — operator procedure for loopback hostile-provider, verification and PCM acceptance, including stage-specific persistence rules.
 - [`SECURITY_AUDIT_FOLLOW_UP_2026-07-31_RUNTIME_0.1.15.md`](SECURITY_AUDIT_FOLLOW_UP_2026-07-31_RUNTIME_0.1.15.md) — closes SEC-001 and SEC-002 using real-server evidence.
+- [`SECURITY_AUDIT_FOLLOW_UP_2026-08-01_RUNTIME_0.1.16.md`](SECURITY_AUDIT_FOLLOW_UP_2026-08-01_RUNTIME_0.1.16.md) — closes SEC-003 and SEC-007, retains SEC-004 pending the HTTP-only acceptance-probe fix and focused retest.
 - [`../livingworld/VALIDATION_0.1.15.md`](../livingworld/VALIDATION_0.1.15.md) — production Chat/STT/TTS, endpoint-policy, persistence and restart validation.
+- [`../livingworld/VALIDATION_0.1.16.md`](../livingworld/VALIDATION_0.1.16.md) — hostile response, redirect, deadline and PCM acceptance with the remaining SEC-004 probe discrepancy.
 - [`APPROVED_SCRIPT_INVENTORY.json`](APPROVED_SCRIPT_INVENTORY.json) — the seven approved Gradle, CI and loopback-acceptance scripts.
 - [`APPROVED_SOURCE_SECURITY_EXCEPTIONS.json`](APPROVED_SOURCE_SECURITY_EXCEPTIONS.json) — exact reviewed source-policy exceptions.
 - [`DEPENDENCY_UPDATE_PROCEDURE.md`](DEPENDENCY_UPDATE_PROCEDURE.md) — controlled Gradle, dependency and GitHub Action update procedure.
@@ -26,12 +28,13 @@ This directory contains the canonical security-review evidence and hardening pla
 ## Current status
 
 - H1 provider endpoint and credential policy: merged and live-validated in `0.1.15+1.21.1`; SEC-001 and SEC-002 are Closed.
-- H2 bounded network I/O and voice resource controls: normal production and TTS fail-soft behavior passed in `0.1.15+1.21.1`; deterministic loopback acceptance tooling is prepared for SEC-003, SEC-004 and SEC-007, which remain open until a release containing the tooling completes the controlled run.
+- H2 bounded network I/O and voice resource controls: `0.1.16+1.21.1` passed Chat/STT/TTS size limits, error-body limits, ten-minute total deadline, no-redirect behavior, voice duration clamp and 128 MiB PCM exhaustion/recovery. SEC-003 and SEC-007 are Closed.
+- SEC-004 remains Open only because the acceptance-only verification probe accepted HTTPS loopback and reached an `SSLException` instead of rejecting it before connection. Production `/mca verify` remains fixed-origin HTTPS and is not weakened by this probe defect.
 - H3 supply-chain verification: merged as `4cf9aef2e5c31a5682a7cad8544219154330e056`; SEC-005 is Closed.
 - H4 CI security coverage: merged as `05d105c1f558d5643b8190a88cc744b4d7cbe129`; SEC-006 is Closed.
 - H5 legacy-tool cleanup: merged as `6d82b4e4650294a4a42b9ea2113e64d990e08811`; SEC-008 and SEC-009 are Closed.
 
-Release `0.1.15+1.21.1` is the latest production/security live checkpoint, while `0.1.14+1.21.1` remains the canonical forgetting/decay retention-pressure checkpoint.
+Release `0.1.16+1.21.1` is the latest installed and partially accepted security candidate. Its production Chat/STT/TTS, Opus, configuration restoration and restart durability passed. `0.1.15+1.21.1` remains the last release with no open acceptance discrepancy, while `0.1.14+1.21.1` remains the canonical forgetting/decay retention-pressure checkpoint.
 
 The current acceptance tool surface is deliberately narrow:
 

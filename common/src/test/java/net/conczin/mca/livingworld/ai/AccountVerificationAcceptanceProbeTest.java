@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class AccountVerificationAcceptanceProbeTest {
     @Test
-    void acceptsOnlyLiteralLoopbackUrisWithoutUserInfoOrFragment() {
+    void acceptsOnlyLiteralHttpLoopbackUrisWithoutUserInfoOrFragment() {
         assertEquals(
                 URI.create("http://127.0.0.1:18080/v1/mca/verify/success"),
                 AccountVerificationAcceptanceProbe.validateLoopbackUri(
@@ -23,12 +23,20 @@ class AccountVerificationAcceptanceProbeTest {
                 )
         );
         assertEquals(
-                URI.create("https://[::1]:18443/v1/mca/verify/success"),
+                URI.create("http://[::1]:18080/v1/mca/verify/success"),
                 AccountVerificationAcceptanceProbe.validateLoopbackUri(
-                        "https://[::1]:18443/v1/mca/verify/success"
+                        "http://[::1]:18080/v1/mca/verify/success"
                 )
         );
 
+        assertThrows(IllegalArgumentException.class, () ->
+                AccountVerificationAcceptanceProbe.validateLoopbackUri(
+                        "https://127.0.0.1:18443/v1/mca/verify/success"
+                ));
+        assertThrows(IllegalArgumentException.class, () ->
+                AccountVerificationAcceptanceProbe.validateLoopbackUri(
+                        "https://[::1]:18443/v1/mca/verify/success"
+                ));
         assertThrows(IllegalArgumentException.class, () ->
                 AccountVerificationAcceptanceProbe.validateLoopbackUri(
                         "http://localhost:18080/v1/mca/verify/success"
