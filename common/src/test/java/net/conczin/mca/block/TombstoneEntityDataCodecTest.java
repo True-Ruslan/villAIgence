@@ -42,11 +42,13 @@ class TombstoneEntityDataCodecTest {
 
     @Test
     void absentComponentsReturnEmpty() {
-        assertTrue(TombstoneItemDataPolicy.read(
+        Optional<Map<String, String>> selected = TombstoneItemDataPolicy.read(
                 () -> null,
                 () -> null,
                 HashMap::new
-        ).isEmpty());
+        );
+
+        assertTrue(selected.isEmpty());
     }
 
     @Test
