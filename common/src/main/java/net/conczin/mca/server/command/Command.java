@@ -10,6 +10,7 @@ import net.conczin.mca.MCA;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.ai.chatAI.ChatAI;
 import net.conczin.mca.livingworld.ai.AccountVerificationClient;
+import net.conczin.mca.livingworld.lore.editor.OperatorLoreEditorOpenPolicy;
 import net.conczin.mca.network.Network;
 import net.conczin.mca.network.s2c.OpenGuiRequest;
 import net.conczin.mca.server.ServerInteractionManager;
@@ -21,6 +22,7 @@ import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -35,6 +37,12 @@ public class Command {
                 .then(register("separate", Command::separate))
                 .then(register("reject").then(Commands.argument("target", EntityArgument.player()).executes(Command::reject)))
                 .then(register("editor", Command::editor))
+                .then(Commands.literal("lore")
+                        .requires(source -> source.hasPermission(2))
+                        .then(Commands.literal("editor")
+                                .executes(Command::openGlobalLoreEditor)
+                                .then(Commands.argument("target", EntityArgument.entity())
+                                        .executes(Command::openTargetedLoreEditor))))
                 .then(register("destiny", Command::destiny))
                 .then(register("mail", Command::mail))
                 .then(register("verify").then(Commands.argument("email", StringArgumentType.greedyString()).executes(Command::verify)))
@@ -122,17 +130,13 @@ public class Command {
     }
 
     private static int setupPlayer2(CommandContext<CommandSourceStack> ctx) {
-        // Use player2s endpoint
         Config.getInstance().enableVillagerChatAI = true;
         Config.getInstance().villagerChatAIModel = "player2";
         Config.getInstance().villagerChatAIEndpoint = "http://127.0.0.1:4315/v1/chat/completions";
         Config.getInstance().villagerChatAIToken = "";
         Config.getInstance().villagerChatAIUseTools = true;
-
-        // And turn on TTS
         Config.getInstance().enableOnlineTTS = true;
         Config.getInstance().onlineTTSModel = "player2";
-
         Config.getInstance().save();
 
         sendMessage(ctx, Component.translatable("command.chat_ai.player2").withStyle(s -> s
@@ -151,7 +155,6 @@ public class Command {
     private static int ttsDisable(CommandContext<CommandSourceStack> ctx) {
         Config.getInstance().enableOnlineTTS = false;
         Config.getInstance().save();
-
         return 0;
     }
 
@@ -170,6 +173,45 @@ public class Command {
             sendMessage(ctx, Component.translatable("command.no_permission").withStyle(ChatFormatting.RED));
             return 1;
         }
+    }
+
+    private static int openGlobalLoreEditor(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        if (!OperatorLoreEditorOpenPolicy.canOpenGlobal(ctx.getSource().hasPermission(2))) {
+            sendMessage(ctx, Component.translatable("command.no_permission").withStyle(ChatFormatting.RED));
+            return 0;
+        }
+
+        Network.sendToPlayer(
+                new OpenGuiRequest(OpenGuiRequest.Type.OPERATOR_LORE_EDITOR, -1),
+                player
+        );
+        return 1;
+    }
+
+    private static int openTargetedLoreEditor(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        Entity entity = EntityArgument.getEntity(ctx, "target");
+        VillagerEntityMCA villager = entity instanceof VillagerEntityMCA candidate ? candidate : null;
+        boolean present = villager != null && villager.isAlive() && !villager.isRemoved();
+        boolean sameLevel = present && villager.level() == player.level();
+        double distanceSquared = present ? player.distanceToSqr(villager) : Double.POSITIVE_INFINITY;
+
+        if (!OperatorLoreEditorOpenPolicy.canOpenTargeted(
+                ctx.getSource().hasPermission(2),
+                present,
+                sameLevel,
+                distanceSquared
+        )) {
+            sendMessage(ctx, Component.translatable("command.lore_editor.invalid_target").withStyle(ChatFormatting.RED));
+            return 0;
+        }
+
+        Network.sendToPlayer(
+                new OpenGuiRequest(OpenGuiRequest.Type.OPERATOR_LORE_EDITOR, villager),
+                player
+        );
+        return 1;
     }
 
     private static int destiny(CommandContext<CommandSourceStack> ctx) {
@@ -235,7 +277,6 @@ public class Command {
     private static int propose(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
         ServerInteractionManager.getInstance().sendProposal(ctx.getSource().getPlayer(), target);
-
         return 0;
     }
 
@@ -247,7 +288,6 @@ public class Command {
 
     private static int displayProposal(CommandContext<CommandSourceStack> ctx) {
         ServerInteractionManager.getInstance().listProposals(ctx.getSource().getPlayer());
-
         return 0;
     }
 
@@ -266,7 +306,6 @@ public class Command {
         ServerInteractionManager.getInstance().rejectProposal(ctx.getSource().getPlayer(), target);
         return 0;
     }
-
 
     private static ArgumentBuilder<CommandSourceStack, ?> register(String name, com.mojang.brigadier.Command<CommandSourceStack> cmd) {
         return Commands.literal(name).requires(cs -> cs.hasPermission(0)).executes(cmd);

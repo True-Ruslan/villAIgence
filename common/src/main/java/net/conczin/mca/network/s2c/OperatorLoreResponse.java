@@ -1,8 +1,8 @@
 package net.conczin.mca.network.s2c;
 
+import net.conczin.mca.ClientProxy;
 import net.conczin.mca.MCA;
 import net.conczin.mca.livingworld.lore.OperatorLoreScope;
-import net.conczin.mca.livingworld.lore.editor.OperatorLoreClientState;
 import net.conczin.mca.livingworld.lore.editor.OperatorLoreEditorPolicy;
 import net.conczin.mca.livingworld.lore.editor.OperatorLoreEditorResult;
 import net.conczin.mca.network.HandleablePayload;
@@ -15,6 +15,7 @@ import net.minecraft.world.entity.player.Player;
 import java.util.Locale;
 
 public record OperatorLoreResponse(
+        int requestId,
         String scope,
         int villagerEntityId,
         String status,
@@ -24,6 +25,7 @@ public record OperatorLoreResponse(
     public static final CustomPacketPayload.Type<OperatorLoreResponse> TYPE =
             new CustomPacketPayload.Type<>(MCA.locate("operator_lore_response"));
     public static final StreamCodec<FriendlyByteBuf, OperatorLoreResponse> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.INT, OperatorLoreResponse::requestId,
             ByteBufCodecs.stringUtf8(16), OperatorLoreResponse::scope,
             ByteBufCodecs.INT, OperatorLoreResponse::villagerEntityId,
             ByteBufCodecs.stringUtf8(16), OperatorLoreResponse::status,
@@ -32,8 +34,9 @@ public record OperatorLoreResponse(
             OperatorLoreResponse::new
     );
 
-    public OperatorLoreResponse(OperatorLoreEditorResult result) {
+    public OperatorLoreResponse(int requestId, OperatorLoreEditorResult result) {
         this(
+                requestId,
                 result.scope().name(),
                 result.villagerEntityId(),
                 result.status().name(),
@@ -44,7 +47,7 @@ public record OperatorLoreResponse(
 
     @Override
     public void handle(Player player) {
-        OperatorLoreClientState.accept(toResult());
+        ClientProxy.getNetworkHandler().handleOperatorLoreResponse(this);
     }
 
     public OperatorLoreEditorResult toResult() {
