@@ -66,7 +66,7 @@ public final class MourningTaskPackage {
         if (outcome == MourningPolicy.Outcome.COMPLETE) {
             villager.getVillagerBrain().justGrieved();
         } else {
-            villager.getVillagerBrain().retryGrievingLater();
+            MourningMemoryLifecycle.retryLater(villager);
         }
         villager.getBrain().updateActivityFromSchedule(
                 villager.level().getDayTime(),
