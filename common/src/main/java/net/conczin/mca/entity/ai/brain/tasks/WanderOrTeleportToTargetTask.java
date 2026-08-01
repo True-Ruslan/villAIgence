@@ -15,14 +15,14 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 public class WanderOrTeleportToTargetTask extends MoveToTargetSink {
-    // Pathfinding is one of the slowest components, let's slow it down a bit.
-    private static final int SLOWDOWN = 5;
+    // Keep the historical seven-check cadence, but distribute initial checks by entity id.
+    private static final int PATHFINDING_INTERVAL = 7;
     // Replan only after sustained lack of meaningful movement. This avoids expensive path churn on short pauses.
     private static final int STUCK_THRESHOLD_TICKS = 20 * 8;
     private static final double MIN_PROGRESS_BLOCKS = 0.5D;
 
     private final Map<Mob, PathfindingProgressTracker> progressTrackers = new WeakHashMap<>();
-    private int cooldown = SLOWDOWN;
+    private final Map<Mob, Integer> pathfindingCooldowns = new WeakHashMap<>();
 
     public WanderOrTeleportToTargetTask() {
         // nop
@@ -30,13 +30,16 @@ public class WanderOrTeleportToTargetTask extends MoveToTargetSink {
 
     @Override
     protected boolean checkExtraStartConditions(ServerLevel serverWorld, Mob mobEntity) {
-        if (cooldown < 0) {
-            cooldown = SLOWDOWN;
-            return super.checkExtraStartConditions(serverWorld, mobEntity);
-        } else {
-            cooldown--;
-            return false;
-        }
+        int cooldown = pathfindingCooldowns.computeIfAbsent(
+                mobEntity,
+                entity -> PathfindingSchedulePolicy.initialCooldown(entity.getId(), PATHFINDING_INTERVAL)
+        );
+        PathfindingSchedulePolicy.Decision decision = PathfindingSchedulePolicy.tick(
+                cooldown,
+                PATHFINDING_INTERVAL
+        );
+        pathfindingCooldowns.put(mobEntity, decision.nextCooldown());
+        return decision.shouldRun() && super.checkExtraStartConditions(serverWorld, mobEntity);
     }
 
     @Override
@@ -61,7 +64,10 @@ public class WanderOrTeleportToTargetTask extends MoveToTargetSink {
                     && !targetPos.closerToCenterThan(entity.position(), Config.getInstance().villagerMinTeleportationDistance)) {
                 tryTeleport(world, entity, targetPos);
             }
-        }, () -> progressTrackers.remove(entity));
+        }, () -> {
+            progressTrackers.remove(entity);
+            pathfindingCooldowns.remove(entity);
+        });
 
         super.tick(world, entity, l);
     }
