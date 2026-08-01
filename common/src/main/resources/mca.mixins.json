@@ -15,6 +15,7 @@
     "MixinIronGolem",
     "MixinLivingEntity",
     "MixinMilkBucketItem",
+    "MixinMob",
     "MixinPlayer",
     "MixinProtoChunk",
     "MixinScreenHandler",
