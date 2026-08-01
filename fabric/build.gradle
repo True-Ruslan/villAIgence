@@ -33,6 +33,13 @@ dependencies {
 
 def devUsername = providers.gradleProperty('mca_dev_username').orElse('Dev').get()
 
+def generatingFabricLock = gradle.startParameter.taskNames.any {
+    it == ':fabric:build' || it == 'fabric:build' || it == ':fabric:dependencies' || it == 'fabric:dependencies'
+}
+if (generatingFabricLock) {
+    gradle.startParameter.writeDependencyLocks = true
+}
+
 loom {
     def aw = project(':common').file("src/main/resources/${mod_id}.classtweaker")
     if (aw.exists()) {
@@ -79,6 +86,10 @@ fabricApi {
     }
 }
 
+tasks.named('compileJava') {
+    notCompatibleWithConfigurationCache('Legacy Loom Mixin annotation processing carries a non-serializable processor configuration.')
+}
+
 def remappedFabricJar = tasks.named('remapJar').flatMap { it.archiveFile }
 def refmapEntryName = "${project.property('mod_id')}.refmap.json"
 
@@ -112,6 +123,24 @@ def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
     }
 }
 
+def emitGeneratedFabricLockfile = tasks.register('emitGeneratedFabricLockfile') {
+    group = 'verification'
+    dependsOn tasks.named('verifyFabricRefmap')
+
+    doLast {
+        def lockFile = file('gradle.lockfile')
+        println('VILLAIGENCE_FABRIC_LOCKFILE_BASE64_BEGIN')
+        println(lockFile.bytes.encodeBase64().toString())
+        println('VILLAIGENCE_FABRIC_LOCKFILE_BASE64_END')
+    }
+}
+
 tasks.named('check') {
     dependsOn verifyFabricRefmap
+}
+
+if (generatingFabricLock) {
+    tasks.named('build') {
+        finalizedBy emitGeneratedFabricLockfile
+    }
 }
