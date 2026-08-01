@@ -32,15 +32,6 @@ dependencies {
 }
 
 def devUsername = providers.gradleProperty('mca_dev_username').orElse('Dev').get()
-def generatingFabricMetadata = gradle.startParameter.taskNames.any {
-    it == ':fabric:build' || it == 'fabric:build'
-}
-def verificationMetadataFile = rootProject.file('gradle/verification-metadata.xml')
-def originalVerificationMetadata = generatingFabricMetadata && verificationMetadataFile.exists()
-        ? verificationMetadataFile.bytes
-        : null
-
-def mixinProcessorConfigurations = ['annotationProcessor', 'datagenAnnotationProcessor']
 
 loom {
     def aw = project(':common').file("src/main/resources/${mod_id}.classtweaker")
@@ -88,20 +79,12 @@ fabricApi {
     }
 }
 
-if (generatingFabricMetadata) {
-    mixinProcessorConfigurations.each { configurationName ->
-        configurations.named(configurationName) {
-            resolutionStrategy.deactivateDependencyLocking()
-        }
-    }
-}
-
 def remappedFabricJar = tasks.named('remapJar').flatMap { it.archiveFile }
 def refmapEntryName = "${project.property('mod_id')}.refmap.json"
 
 def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
     group = 'verification'
-    description = 'Requires the distributable Fabric JAR to contain a valid non-empty Mixin refmap.'
+    description = 'Requires the distributable Fabric JAR to contain the correct Mixin refmap for controlled climbing.'
     dependsOn tasks.named('remapJar')
     inputs.file(remappedFabricJar)
 
@@ -109,19 +92,50 @@ def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
         def jarFile = remappedFabricJar.get().asFile
         def zip = new java.util.zip.ZipFile(jarFile)
         try {
-            def entry = zip.getEntry(refmapEntryName)
-            if (entry == null) {
+            def mixinConfigEntry = zip.getEntry('mca.mixins.json')
+            if (mixinConfigEntry == null) {
+                throw new GradleException("Distributable Fabric JAR is missing mca.mixins.json: ${jarFile}")
+            }
+
+            def mixinConfig = new groovy.json.JsonSlurper().parse(
+                    zip.getInputStream(mixinConfigEntry),
+                    'UTF-8'
+            )
+            if (mixinConfig.refmap != refmapEntryName) {
+                throw new GradleException(
+                        "mca.mixins.json must declare ${refmapEntryName}, found ${mixinConfig.refmap}: ${jarFile}"
+                )
+            }
+
+            def refmapEntry = zip.getEntry(refmapEntryName)
+            if (refmapEntry == null) {
                 throw new GradleException("Distributable Fabric JAR is missing required ${refmapEntryName}: ${jarFile}")
             }
 
-            def text = zip.getInputStream(entry).getText('UTF-8').trim()
-            if (text.isEmpty()) {
-                throw new GradleException("Distributable Fabric JAR contains an empty ${refmapEntryName}: ${jarFile}")
+            def refmap = new groovy.json.JsonSlurper().parse(
+                    zip.getInputStream(refmapEntry),
+                    'UTF-8'
+            )
+            if (!(refmap instanceof Map) || !(refmap.mappings instanceof Map)) {
+                throw new GradleException("Distributable Fabric JAR contains an invalid ${refmapEntryName}: ${jarFile}")
             }
 
-            def parsed = new groovy.json.JsonSlurper().parseText(text)
-            if (!(parsed instanceof Map) || parsed.isEmpty()) {
-                throw new GradleException("Distributable Fabric JAR contains an invalid ${refmapEntryName}: ${jarFile}")
+            def livingEntityMappings = refmap.mappings['net/conczin/mca/mixin/MixinLivingEntity']
+            def jumpingTarget = livingEntityMappings instanceof Map
+                    ? livingEntityMappings['setJumping']
+                    : null
+            def expectedJumpingTarget = 'Lnet/minecraft/class_1309;method_6100(Z)V'
+            if (jumpingTarget != expectedJumpingTarget) {
+                throw new GradleException(
+                        "${refmapEntryName} must map MixinLivingEntity.setJumping to ${expectedJumpingTarget}, found ${jumpingTarget}: ${jarFile}"
+                )
+            }
+
+            def mobMappings = refmap.mappings['net/conczin/mca/mixin/MixinMob']
+            if (mobMappings instanceof Map && mobMappings.containsKey('setJumping')) {
+                throw new GradleException(
+                        "${refmapEntryName} must not map setJumping through MixinMob: ${jarFile}"
+                )
             }
         } finally {
             zip.close()
@@ -129,91 +143,6 @@ def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
     }
 }
 
-def emitGeneratedFabricMetadata = tasks.register('emitGeneratedFabricMetadata') {
-    group = 'verification'
-    dependsOn tasks.named('verifyFabricRefmap')
-
-    doLast {
-        def reportDir = rootProject.file('build/reports/dependencies/refmap-hotfix')
-        reportDir.mkdirs()
-
-        try {
-            if (!verificationMetadataFile.isFile()) {
-                throw new GradleException('Gradle did not generate verification-metadata.xml')
-            }
-            new File(reportDir, 'verification-metadata.xml').bytes = verificationMetadataFile.bytes
-
-            def lockFile = file('gradle.lockfile')
-            def lines = lockFile.readLines('UTF-8')
-            def headers = lines.findAll { it.startsWith('#') }
-            def entries = new TreeMap<String, String>()
-            lines.findAll { !it.startsWith('#') && it.contains('=') }.each { line ->
-                def separator = line.indexOf('=')
-                entries.put(line.substring(0, separator), line.substring(separator + 1))
-            }
-
-            def annotationProcessorCoordinates = [
-                    'io.github.llamalad7:mixinextras-fabric:0.5.4',
-                    'net.fabricmc:fabric-mixin-compile-extensions:0.6.0',
-                    'net.fabricmc:mapping-io:0.2.1',
-                    'net.fabricmc:sponge-mixin:0.17.3+mixin.0.8.7',
-                    'org.ow2.asm:asm-analysis:9.10.1',
-                    'org.ow2.asm:asm-commons:9.10.1',
-                    'org.ow2.asm:asm-tree:9.10.1',
-                    'org.ow2.asm:asm-util:9.10.1',
-                    'org.ow2.asm:asm:9.10.1'
-            ]
-            annotationProcessorCoordinates.each { coordinate ->
-                def resolvedConfigurations = entries.containsKey(coordinate)
-                        ? entries.get(coordinate).split(',').findAll { !it.isEmpty() }.toList()
-                        : []
-                resolvedConfigurations.addAll(mixinProcessorConfigurations)
-                entries.put(coordinate, resolvedConfigurations.unique().sort().join(','))
-            }
-
-            if (entries.containsKey('empty')) {
-                def emptyConfigurations = entries.get('empty')
-                        .split(',')
-                        .findAll { !it.isEmpty() && !mixinProcessorConfigurations.contains(it) }
-                        .toList()
-                entries.put('empty', emptyConfigurations.join(','))
-            }
-
-            def generatedLock = new StringBuilder()
-            headers.each { generatedLock.append(it).append('\n') }
-            entries.each { coordinate, configurations ->
-                generatedLock.append(coordinate).append('=').append(configurations).append('\n')
-            }
-            new File(reportDir, 'fabric.gradle.lockfile').setText(generatedLock.toString(), 'UTF-8')
-
-            def jarFile = remappedFabricJar.get().asFile
-            java.nio.file.Files.copy(
-                    jarFile.toPath(),
-                    new File(reportDir, jarFile.name).toPath(),
-                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
-            )
-
-            def zip = new java.util.zip.ZipFile(jarFile)
-            try {
-                def refmap = zip.getEntry(refmapEntryName)
-                new File(reportDir, refmapEntryName).bytes = zip.getInputStream(refmap).bytes
-            } finally {
-                zip.close()
-            }
-        } finally {
-            if (originalVerificationMetadata != null) {
-                verificationMetadataFile.bytes = originalVerificationMetadata
-            }
-        }
-    }
-}
-
 tasks.named('check') {
     dependsOn verifyFabricRefmap
-}
-
-if (generatingFabricMetadata) {
-    tasks.named('build') {
-        finalizedBy emitGeneratedFabricMetadata
-    }
 }
