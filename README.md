@@ -6,6 +6,8 @@ VillAIgence is an AI-driven Minecraft mod built on **Minecraft Comes Alive Rebor
 
 `LivingWorld` remains the name of the internal AI/living-world engine and its compatibility-sensitive paths. The public mod is **VillAIgence**.
 
+**Author and engineering portfolio:** [trueruslan.ru](https://trueruslan.ru/)
+
 > **Experimental software:** back up your world before installing or updating.
 
 ## What VillAIgence adds
