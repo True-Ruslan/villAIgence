@@ -91,4 +91,24 @@ class OperatorLoreEditorPolicyTest {
                 )
         );
     }
+
+    @Test
+    void oversizedStoredLoreProducesSafeEmptyViewWithOriginalRevision() {
+        String oversized = "🏰".repeat(OperatorLoreEditorPolicy.MAX_CODE_POINTS);
+
+        OperatorLoreEditorPolicy.NetworkView view = OperatorLoreEditorPolicy.networkView(oversized);
+
+        assertFalse(view.representable());
+        assertEquals("", view.value());
+        assertEquals(OperatorLoreEditorPolicy.revision(oversized), view.revision());
+    }
+
+    @Test
+    void normalStoredLoreRemainsCanonicalInNetworkView() {
+        OperatorLoreEditorPolicy.NetworkView view = OperatorLoreEditorPolicy.networkView("Line 1\r\nLine 2");
+
+        assertTrue(view.representable());
+        assertEquals("Line 1\nLine 2", view.value());
+        assertEquals(OperatorLoreEditorPolicy.revision("Line 1\nLine 2"), view.revision());
+    }
 }
