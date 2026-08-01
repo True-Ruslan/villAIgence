@@ -40,6 +40,14 @@ public final class OperatorLoreEditorPolicy {
                 : Decision.APPLY;
     }
 
+    public static NetworkView networkView(String storedValue) {
+        String canonical = canonicalize(storedValue);
+        String revision = revision(canonical);
+        return isValidPayload(canonical)
+                ? new NetworkView(true, canonical, revision)
+                : new NetworkView(false, "", revision);
+    }
+
     public static boolean isValidPayload(String value) {
         if (value == null) {
             return true;
@@ -73,6 +81,9 @@ public final class OperatorLoreEditorPolicy {
         }
         String normalized = value.replace("\r\n", "\n").replace('\r', '\n');
         return normalized.isBlank() ? "" : normalized;
+    }
+
+    public record NetworkView(boolean representable, String value, String revision) {
     }
 
     public enum Operation {
