@@ -22,6 +22,10 @@ public record OpenGuiRequest(int gui, int villager) implements HandleablePayload
         this(gui.ordinal(), villager.getId());
     }
 
+    public OpenGuiRequest(Type gui, int villagerEntityId) {
+        this(gui.ordinal(), villagerEntityId);
+    }
+
     public OpenGuiRequest(Type gui) {
         this(gui.ordinal(), 0);
     }
@@ -53,5 +57,6 @@ public record OpenGuiRequest(int gui, int villager) implements HandleablePayload
         NEEDLE_AND_THREAD,
         COMB,
         CLOSE,
+        OPERATOR_LORE_EDITOR,
     }
 }
