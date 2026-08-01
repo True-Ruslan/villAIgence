@@ -75,6 +75,7 @@ fabricApi {
 }
 
 def remappedFabricJar = tasks.named('remapJar').flatMap { it.archiveFile }
+def refmapEntryName = "${project.property('mod_id')}.refmap.json"
 
 def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
     group = 'verification'
@@ -86,20 +87,19 @@ def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
         def jarFile = remappedFabricJar.get().asFile
         def zip = new java.util.zip.ZipFile(jarFile)
         try {
-            def entryName = "${mod_id}.refmap.json"
-            def entry = zip.getEntry(entryName)
+            def entry = zip.getEntry(refmapEntryName)
             if (entry == null) {
-                throw new GradleException("Distributable Fabric JAR is missing required ${entryName}: ${jarFile}")
+                throw new GradleException("Distributable Fabric JAR is missing required ${refmapEntryName}: ${jarFile}")
             }
 
             def text = zip.getInputStream(entry).getText('UTF-8').trim()
             if (text.isEmpty()) {
-                throw new GradleException("Distributable Fabric JAR contains an empty ${entryName}: ${jarFile}")
+                throw new GradleException("Distributable Fabric JAR contains an empty ${refmapEntryName}: ${jarFile}")
             }
 
             def parsed = new groovy.json.JsonSlurper().parseText(text)
             if (!(parsed instanceof Map) || parsed.isEmpty()) {
-                throw new GradleException("Distributable Fabric JAR contains an invalid ${entryName}: ${jarFile}")
+                throw new GradleException("Distributable Fabric JAR contains an invalid ${refmapEntryName}: ${jarFile}")
             }
         } finally {
             zip.close()
