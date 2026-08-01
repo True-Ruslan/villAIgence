@@ -1,0 +1,55 @@
+name: Create isolated 0.1.19 release tag
+
+on:
+  pull_request:
+    branches:
+      - '1.21.1'
+    paths:
+      - '.github/workflows/ops-create-0.1.19-tag.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: create-villaigence-0.1.19-tag
+  cancel-in-progress: false
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout operation branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Create release tag on exact canonical head
+        shell: bash
+        env:
+          RELEASE_TAG: 0.1.19+1.21.1
+          EXPECTED_SHA: 5a6765223b8f3e3c52715fb506d65bc0dafe9fa7
+        run: |
+          set -euo pipefail
+          git fetch origin refs/heads/1.21.1:refs/remotes/origin/1.21.1 --tags
+          canonical_sha="$(git rev-parse refs/remotes/origin/1.21.1)"
+
+          if [[ "${canonical_sha}" != "${EXPECTED_SHA}" ]]; then
+            echo "::error title=Canonical head moved::Expected ${EXPECTED_SHA}, found ${canonical_sha}."
+            exit 1
+          fi
+
+          if git show-ref --tags --verify --quiet "refs/tags/${RELEASE_TAG}"; then
+            echo "::error title=Release tag already exists::${RELEASE_TAG}"
+            exit 1
+          fi
+
+          mapfile -t existing_tags < <(git tag --points-at "${canonical_sha}" | sort)
+          if [[ "${#existing_tags[@]}" -ne 0 ]]; then
+            echo "::error title=Canonical head already tagged::${existing_tags[*]}"
+            exit 1
+          fi
+
+          git tag "${RELEASE_TAG}" "${canonical_sha}"
+          git push origin "refs/tags/${RELEASE_TAG}"
