@@ -1,80 +1,95 @@
 package net.conczin.mca.block;
 
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TombstoneEntityDataCodecTest {
     @Test
-    void writesBlockEntityDataAndDefensivelyCopiesThePayload() {
-        ItemStack stack = new ItemStack(Items.CHEST);
-        CompoundTag payload = tombstonePayload("Pio");
+    void currentComponentTakesPrecedenceOverLegacyComponent() {
+        Map<String, String> current = payload("current");
+        Map<String, String> legacy = payload("legacy");
 
-        TombstoneBlock.Data.writeEntityTag(stack, BlockEntityType.CHEST, payload);
-        payload.putString("EntityName", "mutated-after-write");
+        Optional<Map<String, String>> selected = TombstoneItemDataPolicy.read(
+                () -> current,
+                () -> legacy,
+                HashMap::new
+        );
 
-        CompoundTag stored = TombstoneBlock.Data.readEntityTag(stack).orElseThrow();
-        assertEquals("Pio", stored.getString("EntityName"));
-        assertEquals("minecraft:chest", stored.getString("id"));
-        assertTrue(stack.has(DataComponents.BLOCK_ENTITY_DATA));
-        assertFalse(stack.has(DataComponents.ENTITY_DATA));
+        assertEquals("current", selected.orElseThrow().get("EntityName"));
     }
 
     @Test
-    void readsLegacyEntityDataWhenBlockEntityDataIsAbsent() {
-        ItemStack stack = new ItemStack(Items.CHEST);
-        stack.set(DataComponents.ENTITY_DATA, CustomData.of(tombstonePayload("legacy")));
+    void legacyComponentIsReadWhenCurrentComponentIsAbsent() {
+        Map<String, String> legacy = payload("legacy");
 
-        CompoundTag stored = TombstoneBlock.Data.readEntityTag(stack).orElseThrow();
+        Optional<Map<String, String>> selected = TombstoneItemDataPolicy.read(
+                () -> null,
+                () -> legacy,
+                HashMap::new
+        );
 
-        assertEquals("legacy", stored.getString("EntityName"));
+        assertEquals("legacy", selected.orElseThrow().get("EntityName"));
     }
 
     @Test
-    void blockEntityDataTakesPrecedenceOverLegacyEntityData() {
-        ItemStack stack = new ItemStack(Items.CHEST);
-        stack.set(DataComponents.ENTITY_DATA, CustomData.of(tombstonePayload("legacy")));
-        stack.set(DataComponents.BLOCK_ENTITY_DATA, CustomData.of(tombstonePayload("current")));
-
-        CompoundTag stored = TombstoneBlock.Data.readEntityTag(stack).orElseThrow();
-
-        assertEquals("current", stored.getString("EntityName"));
-    }
-
-    @Test
-    void missingComponentsReturnEmpty() {
-        assertTrue(TombstoneBlock.Data.readEntityTag(new ItemStack(Items.CHEST)).isEmpty());
-        assertTrue(TombstoneBlock.Data.readEntityTag(null).isEmpty());
+    void absentComponentsReturnEmpty() {
+        assertTrue(TombstoneItemDataPolicy.read(
+                () -> null,
+                () -> null,
+                HashMap::new
+        ).isEmpty());
     }
 
     @Test
     void readReturnsADefensiveCopy() {
-        ItemStack stack = new ItemStack(Items.CHEST);
-        stack.set(DataComponents.BLOCK_ENTITY_DATA, CustomData.of(tombstonePayload("Pio")));
+        Map<String, String> current = payload("Pio");
 
-        CompoundTag firstRead = TombstoneBlock.Data.readEntityTag(stack).orElseThrow();
-        firstRead.putString("EntityName", "mutated-read");
+        Map<String, String> selected = TombstoneItemDataPolicy.read(
+                () -> current,
+                () -> null,
+                HashMap::new
+        ).orElseThrow();
 
-        CompoundTag secondRead = TombstoneBlock.Data.readEntityTag(stack).orElseThrow();
-        assertEquals("Pio", secondRead.getString("EntityName"));
+        assertNotSame(current, selected);
+        selected.put("EntityName", "mutated-read");
+        assertEquals("Pio", current.get("EntityName"));
     }
 
-    private static CompoundTag tombstonePayload(String name) {
-        CompoundTag entity = new CompoundTag();
-        entity.putString("id", "mca:villager");
+    @Test
+    void writePublishesExactlyOneDefensiveCopyToTheCurrentComponent() {
+        Map<String, String> source = payload("Pio");
+        AtomicReference<Map<String, String>> written = new AtomicReference<>();
+        AtomicInteger writes = new AtomicInteger();
 
-        CompoundTag payload = new CompoundTag();
-        payload.put("EntityData", entity);
-        payload.putString("EntityName", name);
-        payload.putInt("EntityGender", 0);
+        TombstoneItemDataPolicy.write(
+                source,
+                value -> {
+                    writes.incrementAndGet();
+                    written.set(value);
+                },
+                HashMap::new
+        );
+        source.put("EntityName", "mutated-after-write");
+
+        assertEquals(1, writes.get());
+        assertEquals("Pio", written.get().get("EntityName"));
+        assertNotSame(source, written.get());
+    }
+
+    private static Map<String, String> payload(String name) {
+        Map<String, String> payload = new HashMap<>();
+        payload.put("EntityName", name);
+        payload.put("EntityGender", "0");
+        payload.put("EntityData.id", "mca:villager");
         return payload;
     }
 }
