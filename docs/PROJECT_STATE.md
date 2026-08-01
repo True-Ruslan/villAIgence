@@ -6,6 +6,23 @@
 >
 > Always reconcile this document with newer PRs, tags/releases, CI and live-server evidence before starting development.
 
+## Repository visibility update — 2026-08-01
+
+The public README now exposes the canonical author and engineering-portfolio origin `https://trueruslan.ru/`.
+
+```text
+feature PR:                  #90
+accepted head:               19e397ea3250384d7063e5df46ea3f05f66c9514
+VillAIgence CI:              30714996167 / #1154 — SUCCESS
+Java Pull Request CI:        30714996171 / #654 — SUCCESS
+Repository security policy:  30714996231 / #505 — SUCCESS
+squash merge:                62091309f61667ce38a6c60aa9477309093392c5
+changed file:                README.md only
+```
+
+This is repository-discovery maintenance only. It changes no gameplay, provider, memory, persistence, packet, security, compatibility, release or live-validation claim. **S10c operator-lore client editor UI remains the next development step.**
+
+
 ## Executive snapshot
 
 VillAIgence is a Minecraft 1.21.1 MCA-derived mod evolving from AI-assisted villager dialogue into a persistent living-society simulation layer.
