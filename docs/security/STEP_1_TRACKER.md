@@ -1,11 +1,13 @@
 # Step 1 Security Hardening Tracker
 
-**Status:** H1–H5 merged; `0.1.16+1.21.1` closed SEC-003 and SEC-007; SEC-004 remains open pending the HTTP-only verification-probe fix and focused release-JAR retest
+**Status:** Complete — H1 through H5 merged, SEC-001 through SEC-009 Closed, and the final SEC-004 exact-release-JAR acceptance passed in `0.1.17+1.21.1`
 **Plan:** [`STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md`](STEP_1_SECURITY_SUPPLY_CHAIN_HARDENING.md)  
 **Audit:** [`SECURITY_AUDIT_2026-07-31.md`](SECURITY_AUDIT_2026-07-31.md)  
 **Security index:** [`README.md`](README.md)  
-**Residual acceptance procedure:** [`LOCAL_SECURITY_ACCEPTANCE_HARNESS.md`](LOCAL_SECURITY_ACCEPTANCE_HARNESS.md)  
-**0.1.16 evidence:** [`../livingworld/VALIDATION_0.1.16.md`](../livingworld/VALIDATION_0.1.16.md)
+**Acceptance procedure:** [`LOCAL_SECURITY_ACCEPTANCE_HARNESS.md`](LOCAL_SECURITY_ACCEPTANCE_HARNESS.md)  
+**0.1.16 server evidence:** [`../livingworld/VALIDATION_0.1.16.md`](../livingworld/VALIDATION_0.1.16.md)  
+**0.1.17 artifact evidence:** [`../livingworld/VALIDATION_0.1.17.md`](../livingworld/VALIDATION_0.1.17.md)  
+**Final audit closure:** [`SECURITY_AUDIT_FOLLOW_UP_2026-08-01_RUNTIME_0.1.17.md`](SECURITY_AUDIT_FOLLOW_UP_2026-08-01_RUNTIME_0.1.17.md)
 
 GitHub Issues are disabled, so this versioned checklist is the canonical execution tracker. Detailed TDD runs and artifact identifiers live in the linked dated evidence records.
 
@@ -44,10 +46,10 @@ GitHub Issues are disabled, so this versioned checklist is the canonical executi
 - [x] Add package smoke checks for every probe class.
 - [x] Add standard-library harness regression tests to read-only security CI.
 - [x] Complete isolated mock-provider acceptance for SEC-003 in `0.1.16+1.21.1`.
-- [ ] Complete focused HTTP-only verification-probe acceptance for SEC-004 in a fixed release JAR.
+- [x] Complete focused HTTP-only verification-probe acceptance for SEC-004 in `0.1.17+1.21.1`.
 - [x] Complete voice clamp, PCM exhaustion/recovery and final microphone smoke for SEC-007 in `0.1.16+1.21.1`.
 - [x] Close SEC-003 and SEC-007 in `SECURITY_AUDIT_FOLLOW_UP_2026-08-01_RUNTIME_0.1.16.md`.
-- [ ] Close SEC-004 after the fixed probe rejects HTTPS loopback before connection while HTTP success/redirect/oversize behavior remains intact.
+- [x] Close SEC-004 in `SECURITY_AUDIT_FOLLOW_UP_2026-08-01_RUNTIME_0.1.17.md`.
 
 ### H2 enforced limits
 
@@ -76,6 +78,8 @@ global active PCM:        128 MiB
 - [x] Narrow trust rules for locally generated Loom JARs.
 - [x] Read-only cold-refresh Fabric/NeoForge verification.
 - [x] SEC-005 Closed.
+
+During the `0.1.17` acceptance window, one local environment resolved transitive Fabric artifacts without matching checksum records and Gradle stopped before compilation. This was a fail-closed verification result: no bypass was used and no locally built artifact entered acceptance. The official CI/release JAR was tested by exact SHA-256. Supporting that additional local resolution graph is a non-blocking maintenance task and must use the controlled dependency update procedure.
 
 ## H4 — CI security coverage and build matrix
 
@@ -144,7 +148,7 @@ scripts/security/provider_acceptance_harness.py
 
 AccountVerificationAcceptanceProbe
 → explicit java -cp only
-→ HTTP literal loopback target only after the follow-up fix
+→ HTTP literal loopback target only
 → same JDK-only bounded/no-redirect transport as production verification
 
 VoicePcmBudgetAcceptanceProbe
@@ -156,7 +160,7 @@ VoicePcmBudgetAcceptanceProbe
 
 None of these tools has an in-game command, Minecraft startup hook or production-provider credential lookup.
 
-## Controlled real-server validation
+## Controlled real-server and artifact validation
 
 - [x] Standard OpenRouter configuration works with merged H1/H2 in `0.1.15+1.21.1` and `0.1.16+1.21.1`.
 - [x] LAN HTTP, lookalike, user-info and fragment endpoints fail safely without persistence mutation.
@@ -166,17 +170,18 @@ None of these tools has an in-game command, Minecraft startup hook or production
 - [x] Chat/STT/TTS redirects were not followed and target hits remained zero.
 - [x] Slow-drip terminated at `600.026 s` under the ten-minute total deadline.
 - [x] Verification success/redirect/oversize transport behavior matched the exact-JAR probe output.
-- [ ] Verification probe rejects HTTPS loopback before connection in a fixed release JAR.
+- [x] `0.1.17+1.21.1` rejected HTTPS loopback before connection with exit code `2` and no `SSLException`.
+- [x] The focused `0.1.17` harness recorded exactly four HTTP requests and `redirect_target_hits=0`.
 - [x] Voice clamp reported exactly 1 and 120 seconds.
 - [x] Concurrent PCM probe reached but never exceeded 128 MiB, rejected overflow and fully recovered.
 - [x] A normal real microphone capture succeeded after the PCM probe.
 - [x] Text Chat and Memory 2.0 DIALOGUE persistence remained operational.
-- [x] TTS failure preserved visible text and one legitimate DIALOGUE; the acceptance procedure now uses stage-specific persistence expectations instead of a generic empty-diff rule.
+- [x] TTS failure preserved visible text and one legitimate DIALOGUE; the acceptance procedure uses stage-specific persistence expectations instead of a generic empty-diff rule.
 - [x] Production Chat/STT/TTS and Opus worked after restoration.
 - [x] Logs and evidence contained no credentials or authorization-header values.
 - [x] All six persistent world files remained hash-identical across the final restart when no new interaction occurred.
 - [x] Production configuration was restored byte-for-byte.
-- [x] Release tag, commit, JAR filename and SHA-256 are retained in `VALIDATION_0.1.16.md`.
+- [x] `0.1.16` server and `0.1.17` exact-artifact identities, commits and SHA-256 values are retained in their validation records.
 
 ## Documentation closure
 
@@ -189,5 +194,20 @@ None of these tools has an in-game command, Minecraft startup hook or production
 - [x] Record the acceptance-harness merge and `0.1.16+1.21.1` candidate identity.
 - [x] Add the dated `0.1.16` validation and audit follow-up.
 - [x] Close SEC-003 and SEC-007.
-- [ ] Record the focused fixed-JAR SEC-004 retest and close SEC-004.
-- [ ] Mark Step 1 fully complete only after SEC-004 closure.
+- [x] Record the focused `0.1.17` exact-JAR SEC-004 retest.
+- [x] Close SEC-004.
+- [x] Mark Step 1 fully complete.
+
+## Final finding matrix
+
+```text
+SEC-001 Closed
+SEC-002 Closed
+SEC-003 Closed
+SEC-004 Closed
+SEC-005 Closed
+SEC-006 Closed
+SEC-007 Closed
+SEC-008 Closed
+SEC-009 Closed
+```

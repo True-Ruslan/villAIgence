@@ -2,7 +2,7 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md` when resuming work.
 >
-> Last major state update: **2026-07-31**, after preparing the residual Step 1 security acceptance harness on top of live-validated `0.1.15+1.21.1`; `0.1.14+1.21.1` remains the forgetting/decay checkpoint.
+> Last major state update: **2026-08-01**, after the official `0.1.17+1.21.1` release JAR passed the focused SEC-004 acceptance and Step 1 Security and supply-chain hardening reached full closure.
 >
 > Reconcile this state with newer PRs, tags/releases, CI and live-server evidence before starting development.
 
@@ -16,42 +16,52 @@ Java: 21
 primary package: Fabric
 NeoForge: compile compatibility required
 
-latest merged engineering program:
-Step 1 Security and supply-chain hardening — H1 through H5
-PRs: #59, #60, #61, #62, #63, documentation closure #64
-latest canonical security closure: 26070c37b806897e37cc3dabe2e4b27af458ac20
-final H5 validated code head: ae26a9445b646c02e53b9fe8a557204fd703c7ff
+latest completed engineering program:
+Step 1 Security and supply-chain hardening — complete
+implementation PRs: #59, #60, #61, #62, #63
+repository closure: #64
+acceptance harness: #68
+acceptance reconciliation and SEC-004 fix: #70
+latest merged security implementation: 88a20d86e8b08e4b5eaf60da943a63e750f2b545
 
-final H5 exact-head CI:
-VillAIgence CI #922 / 30636167806 — SUCCESS
-Java Pull Request CI #458 / 30636168112 — SUCCESS
-Repository security policy #79 / 30636168870 — SUCCESS
+final Step 1 finding state:
+SEC-001 through SEC-009 — Closed
 
 latest gameplay/memory implementation:
 PR #56 — deterministic Semantic Memory forgetting and decay
 merge: 73145dd0925d403af7ef343521eb3ae27f68804d
 exact verified feature head: c08b47431b6a121deae4be8410be1e4fe4c5126a
 
-latest live-validated release checkpoint:
-0.1.15+1.21.1 — PASS within executed production/security scope
-validation date: 2026-07-31
-tested release commit: 26070c37b806897e37cc3dabe2e4b27af458ac20
-JAR: villaigence-fabric-0.1.15+1.21.1.jar
-JAR SHA-256: af142be94885541bb4840d0effff73627afe3f0e245dec8307ed665701cc94fb
+installed server checkpoint:
+0.1.16+1.21.1
+commit: 521568f903078b91dd5817cdc9a551bd2392e663
+JAR SHA-256: 036cbacc657ceb676813f41ee293024690b981e971e7c6037fc5d3ecbe3ee062
+status: full hostile-provider, PCM, production restoration and restart acceptance PASS
+
+final security artifact checkpoint:
+0.1.17+1.21.1
+commit: 88a20d86e8b08e4b5eaf60da943a63e750f2b545
+JAR SHA-256: b33af40f7a2696dc679c49e0fc544f6b5df99e0aa600ea5c767bc5a9747da1ab
+marker: V0117_SEC004_ARTIFACT_AND_EVIDENCE_PASS
+status: focused SEC-004 exact-release-JAR acceptance PASS
 ```
 
-**Status boundary:** `0.1.14+1.21.1` live-proves forgetting/decay, source durability, existing-entry eviction, persistence and NPC isolation; the rejected-new-append branch remains automated-test proven only. `0.1.15+1.21.1` live-proves production Chat/STT/TTS, endpoint rejection, fail-soft TTS and six-file restart durability. SEC-001 and SEC-002 are Closed. Deterministic literal-loopback provider tooling and exact-release-JAR verification/PCM probes are prepared for SEC-003, SEC-004 and SEC-007; those findings remain open until the controlled candidate run passes.
+**Status boundary:** `0.1.14+1.21.1` live-proves deterministic forgetting/decay, source durability, existing-entry eviction, persistence and NPC isolation. `0.1.15+1.21.1` live-proves normal production Chat/STT/TTS, endpoint rejection, TTS fail-soft behavior and six-file restart durability. `0.1.16+1.21.1` live-proves provider response bounds, oversized error handling, no redirects, the ten-minute slow-drip deadline, stage-specific persistence, voice duration clamps, the 128 MiB PCM budget, production restoration and final restart stability. `0.1.17+1.21.1` exact-artifact validation closes the final verification-probe discrepancy by rejecting HTTPS loopback before connection while retaining HTTP success, redirect and 64 KiB oversize behavior.
+
+The server remained on `0.1.16+1.21.1` during the `0.1.17` focused probe test. This is intentional: PR #70 changed only the explicit acceptance-probe URI validator and documentation, not Minecraft runtime behavior.
 
 Canonical evidence:
 
 ```text
-docs/livingworld/VALIDATION_0.1.15.md
-docs/security/SECURITY_AUDIT_FOLLOW_UP_2026-07-31_RUNTIME_0.1.15.md
 docs/livingworld/VALIDATION_0.1.14.md
-docs/livingworld/VALIDATION_0.1.13.md
-docs/livingworld/SEMANTIC_FORGETTING_DECAY.md
-docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md
-docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md
+docs/livingworld/VALIDATION_0.1.15.md
+docs/livingworld/VALIDATION_0.1.16.md
+docs/livingworld/VALIDATION_0.1.17.md
+docs/security/SECURITY_AUDIT_FOLLOW_UP_2026-07-31_RUNTIME_0.1.15.md
+docs/security/SECURITY_AUDIT_FOLLOW_UP_2026-08-01_RUNTIME_0.1.16.md
+docs/security/SECURITY_AUDIT_FOLLOW_UP_2026-08-01_RUNTIME_0.1.17.md
+docs/security/STEP_1_TRACKER.md
+docs/security/README.md
 ```
 
 ---
@@ -64,17 +74,26 @@ docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md
 0.1.13+1.21.1 → b553bf7e83674145bdf42927b9ace7287afa560c
 0.1.14+1.21.1 → c45aea45dd915b24ba236344feef30559c7171bb
 0.1.15+1.21.1 → 26070c37b806897e37cc3dabe2e4b27af458ac20
+0.1.16+1.21.1 → 521568f903078b91dd5817cdc9a551bd2392e663
+0.1.17+1.21.1 → 88a20d86e8b08e4b5eaf60da943a63e750f2b545
 ```
 
-`0.1.14` remains the exact forgetting/decay payload tested under retention pressure. `0.1.15` identifies the later H1–H5 security payload and is the latest production/security live checkpoint.
+Release roles:
+
+```text
+0.1.14  forgetting/decay retention-pressure checkpoint
+0.1.15  normal production and endpoint-policy checkpoint
+0.1.16  installed full hostile-provider/PCM server checkpoint
+0.1.17  final SEC-004 exact-artifact checkpoint
+```
+
+Do not describe `0.1.17` as installed or live-tested inside Minecraft unless that occurs later. Its accepted scope is the exact official JAR probe surface.
 
 ---
 
-# Step 1 security hardening
+# Step 1 security and supply-chain hardening — complete
 
-## Repository implementation — complete
-
-Merged sequence:
+## Merge sequence
 
 ```text
 H1 provider endpoint and credential policy     PR #59 → 787f1a781b5970d4bafb851bfb3c7cba7c21fc0a
@@ -82,16 +101,20 @@ H2 bounded network and voice resources         PR #60 → 15c56526417ac7dfb76567
 H3 immutable verified build inputs             PR #61 → 4cf9aef2e5c31a5682a7cad8544219154330e056
 H4 primary CI and repository security policy   PR #62 → 05d105c1f558d5643b8190a88cc744b4d7cbe129
 H5 legacy utility and whole-tree closure       PR #63 → 6d82b4e4650294a4a42b9ea2113e64d990e08811
-canonical closure                              PR #64 → 26070c37b806897e37cc3dabe2e4b27af458ac20
+canonical repository closure                   PR #64 → 26070c37b806897e37cc3dabe2e4b27af458ac20
+residual acceptance tooling                    PR #68 → 521568f903078b91dd5817cdc9a551bd2392e663
+acceptance reconciliation / probe fix          PR #70 → 88a20d86e8b08e4b5eaf60da943a63e750f2b545
 ```
 
-Implemented controls:
+## Implemented controls
 
 - normalized endpoint validation and endpoint-family credential binding;
+- remote plaintext provider endpoints rejected except explicit literal-loopback development mode;
 - authenticated provider redirects blocked;
-- byte-bounded Chat, STT, TTS, provider-error and verification responses;
-- hard total response-body deadline;
-- fixed trusted-origin account verification;
+- Chat, STT, TTS, provider-error and verification responses byte-bounded;
+- hard ten-minute total response-body deadline;
+- production account verification fixed to a trusted HTTPS origin;
+- acceptance verification probe restricted to HTTP literal loopback;
 - voice capture clamped to `1..120` seconds;
 - aggregate active PCM memory bounded to 128 MiB;
 - stable Fabric Loom and verified Gradle wrapper;
@@ -99,65 +122,65 @@ Implemented controls:
 - immutable GitHub Actions references;
 - required common, Fabric and NeoForge CI;
 - deterministic secret, dangerous-source, workflow and script policy;
-- exact-head tracked-tree manifests;
-- removal of inherited non-CI network and generation utilities.
+- exact-head tracked-tree and script manifests;
+- removal of inherited non-CI network and generation utilities;
+- loopback hostile-provider harness with sanitized evidence;
+- exact-release-JAR verification and PCM probes;
+- package smoke checks for the acceptance classes.
 
-Finding status:
-
-```text
-Closed:
-SEC-001
-SEC-002
-SEC-005
-SEC-006
-SEC-008
-SEC-009
-
-Pending isolated acceptance:
-SEC-003
-SEC-004
-SEC-007
-```
-
-Canonical security evidence starts at:
+## Final finding matrix
 
 ```text
-docs/security/README.md
+SEC-001 Closed
+SEC-002 Closed
+SEC-003 Closed
+SEC-004 Closed
+SEC-005 Closed
+SEC-006 Closed
+SEC-007 Closed
+SEC-008 Closed
+SEC-009 Closed
 ```
 
-Required runtime scenario:
+Step 1 is complete within its defined implementation and acceptance scope. Future security-sensitive changes remain subject to the established policy; Step 1 completion is a baseline, not a permanent exemption from review.
 
-```text
-docs/security/H1_H2_CONTROLLED_SERVER_VALIDATION.md
-```
-
-`0.1.15` contains H1–H5 and closes SEC-001/SEC-002 with live evidence. SEC-003/SEC-004/SEC-007 remain pending isolated acceptance.
-
-## Residual acceptance tooling — prepared
-
-PR #68 adds the controlled execution surface required for the remaining findings:
+## Acceptance tooling boundary
 
 ```text
 scripts/security/provider_acceptance_harness.py
 → literal loopback bind only
-→ normal / declared / chunked / error / redirect / slow-drip routes
-→ streamed hostile payloads without whole-body allocation
+→ declared/chunked/error/redirect/slow-drip routes
+→ streamed hostile payloads
 → sanitized manifest and JSONL evidence
 
 AccountVerificationAcceptanceProbe
 → explicit java -cp invocation only
-→ literal loopback target validation
-→ shared JDK-only bounded/no-redirect production transport
+→ HTTP literal-loopback target only
+→ shared bounded/no-redirect verification transport
 
 VoicePcmBudgetAcceptanceProbe
 → explicit java -cp invocation only
 → exact 1..120 second clamp
-→ exact 128 MiB budget contention, rejection, release and recovery
+→ exact 128 MiB contention, rejection, release and recovery
 ```
 
-The distributable Fabric package is required to contain both probes and the shared verification transport. Security CI runs the Python harness contract tests and deterministic seven-script inventory. No probe or harness has an in-game command, startup hook, production-key lookup or persistent schema effect.
+No acceptance tool has an in-game command, Minecraft startup hook, production-key lookup or persistence schema effect.
 
-Tooling does not close SEC-003, SEC-004 or SEC-007. A release containing PR #68 must still complete `docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md` on the controlled server.
+## Dependency-verification maintenance note
+
+During the `0.1.17` validation window, one local environment resolved transitive Fabric dependencies for which the committed verification metadata did not contain matching checksum records. Gradle stopped before compilation.
+
+Security interpretation:
+
+```text
+verification disabled or bypassed   no
+unverified dependency accepted      no
+local artifact used                 no
+official release artifact used      yes
+exact SHA-256 recorded              yes
+```
+
+The failure was fail-closed and does not invalidate the accepted official release JAR. Supporting that additional local resolution graph is a non-blocking build-maintenance task. Any metadata refresh must use `docs/security/DEPENDENCY_UPDATE_PROCEDURE.md`; do not disable dependency verification.
 
 ---
 
@@ -203,6 +226,7 @@ Do not rename these without a dedicated migration design.
 13. Time alone must not delete semantic knowledge while the NPC is under capacity.
 14. Retention pressure must remain isolated per NPC owner.
 15. Autonomous AI must eventually be event-driven and budgeted rather than “LLM every tick.”
+16. Migration must be additive, deterministic, idempotent and reversible until explicit cutover evidence exists.
 
 Canonical authority and retention flow:
 
@@ -242,7 +266,7 @@ Current server-observed `worldFacts` win when recalled memory conflicts with cur
 
 All files belong with world backup/restore procedures.
 
-`memory.json` remains active. Memory 2.0 is additive; legacy migration has not started.
+`memory.json` remains active. Memory 2.0 is additive; legacy migration has not started. Do not delete or rewrite `memory.json` as part of initial migration work.
 
 ---
 
@@ -502,14 +526,73 @@ Safety properties:
 
 ---
 
-# Live validation status
+# Validation checkpoints
 
-## 0.1.15+1.21.1 — PASS within executed scope
+## 0.1.17+1.21.1 — SEC-004 exact-artifact PASS
+
+```text
+commit: 88a20d86e8b08e4b5eaf60da943a63e750f2b545
+JAR SHA-256: b33af40f7a2696dc679c49e0fc544f6b5df99e0aa600ea5c767bc5a9747da1ab
+marker: V0117_SEC004_ARTIFACT_AND_EVIDENCE_PASS
+```
+
+Validated directly from the official release JAR:
+
+```text
+verification success                         SUCCESS / 200
+verification redirect                        HTTP_ERROR / 307
+redirect_target_hits                         0
+declared/chunked verification oversize       TOO_LARGE
+HTTPS loopback                               rejected before connection
+HTTPS rejection exit                         2
+SSLException                                 none
+sanitized harness HTTP requests              4
+```
+
+Minecraft server impact:
+
+```text
+server release changed   no
+mods changed             no
+restart performed        no
+world/config changed     no
+```
+
+## 0.1.16+1.21.1 — full controlled server acceptance PASS
+
+```text
+commit: 521568f903078b91dd5817cdc9a551bd2392e663
+JAR SHA-256: 036cbacc657ceb676813f41ee293024690b981e971e7c6037fc5d3ecbe3ee062
+```
+
+Live-proven:
+
+```text
+Chat JSON limit                                      8 MiB PASS
+STT JSON limit                                       4 MiB PASS
+TTS audio limit                                     64 MiB PASS
+provider error body                                256 KiB PASS
+slow-drip total deadline                            600.026 s PASS
+Chat/STT/TTS redirects                              not followed
+redirect_target_hits                                0
+TTS failure preserved visible text/DIALOGUE         PASS
+voice duration clamp                                1..120 seconds PASS
+PCM peak                                             128 MiB exactly
+PCM accepted/rejected                                128 / 128
+PCM final bytes                                      0
+PCM recovery                                         PASS
+production Chat/STT/TTS/Opus                         PASS
+production config byte restoration                   PASS
+six-file final restart diff                          empty
+secrets / OutOfMemoryError                           none
+server / ports / monitor                             healthy
+```
+
+## 0.1.15+1.21.1 — normal production and endpoint-policy PASS
 
 ```text
 commit: 26070c37b806897e37cc3dabe2e4b27af458ac20
-JAR: villaigence-fabric-0.1.15+1.21.1.jar
-SHA-256: af142be94885541bb4840d0effff73627afe3f0e245dec8307ed665701cc94fb
+JAR SHA-256: af142be94885541bb4840d0effff73627afe3f0e245dec8307ed665701cc94fb
 ```
 
 Live-proven:
@@ -527,14 +610,7 @@ keys or Authorization leaked                          no
 server / UDP 24454 / TCP 25565 / monitor              healthy
 ```
 
-Canonical evidence:
-
-```text
-docs/livingworld/VALIDATION_0.1.15.md
-docs/security/SECURITY_AUDIT_FOLLOW_UP_2026-07-31_RUNTIME_0.1.15.md
-```
-
-## 0.1.14+1.21.1 — PASS
+## 0.1.14+1.21.1 — forgetting/decay PASS
 
 Validation marker:
 
@@ -560,35 +636,6 @@ weak Casimiro RELATIONSHIP_CHANGE FACT evicted            PASS
 Basiliso/Casimiro pressure isolated by owner               PASS
 ```
 
-Byte-identical after the final restart:
-
-```text
-memory.json
-memory2.json
-semantic-memory.json
-relationships.json
-voices.json
-```
-
-Operations:
-
-```text
-Chat                                                       SUCCESS
-STT                                                        SUCCESS
-TTS                                                        SUCCESS
-Voice Chat / Opus                                          PASS
-UDP 24454 / 25565                                          PASS
-LinuxGSM monitor                                           PASS
-server STARTED                                             PASS
-VillAIgence / persistence / OutOfMemory errors             none
-```
-
-Canonical evidence:
-
-```text
-docs/livingworld/VALIDATION_0.1.14.md
-```
-
 Explicit remaining boundary:
 
 ```text
@@ -597,7 +644,7 @@ rejection of a newly appended weak candidate without file rewrite
 → not reached in the live gameplay pipeline because the Chat model did not emit RELATIONSHIP_CHANGE
 ```
 
-This does not block promotion of `0.1.14` as the live forgetting/decay checkpoint. It prevents claiming that the rejected-new-append branch itself was exercised on the server.
+This does not block the forgetting/decay checkpoint or the next product milestone.
 
 ## Previous live checkpoints
 
@@ -621,9 +668,9 @@ docs/livingworld/VALIDATION_0.1.10.md
 
 # Roadmap status
 
-## 0.1.x Reliability
+## 0.1.x Reliability and provider hardening — complete baseline
 
-Gameplay and Memory 2.0 retention behavior is live-validated by `0.1.14+1.21.1`. Production Chat/STT/TTS and endpoint-policy behavior is live-validated by `0.1.15+1.21.1`.
+The defined runtime and security baseline is implemented and accepted across `0.1.15`, `0.1.16` and `0.1.17` evidence. Future provider or voice work should be triggered by concrete regressions or a separately scoped product requirement.
 
 ## 0.2 Memory 2.0 — active and substantially advanced
 
@@ -650,7 +697,7 @@ Episodic MemoryEvent model and persistence
 
 Still not implemented or not fully proven:
 
-- rejected-new-append no-rewrite behavior on a real server;
+- deterministic live path for rejected-new-append no-rewrite;
 - automatic controlled BELIEF producers;
 - legacy `memory.json` migration;
 - NPC-to-NPC knowledge and rumor propagation;
@@ -659,45 +706,69 @@ Still not implemented or not fully proven:
 - large multiplayer and multi-day soak validation;
 - live test of manually seeded pre-existing semantic duplicates.
 
-## Next sequence
+## Next optimal development step
+
+Design and implement **legacy `memory.json` migration — Phase 1**.
+
+Required design properties:
 
 ```text
-1. Merge PR #68 and build the first release containing the acceptance harness, expected 0.1.16+1.21.1
-2. Run docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md for SEC-003
-3. Run the exact-JAR verification probe and redirect checks for SEC-004
-4. Run the exact-JAR voice clamp/PCM probe plus final microphone smoke for SEC-007
-5. Close the remaining Step 1 findings only if persistence, redaction and recovery evidence passes
-6. Exercise rejected-new-append live only if a deterministic test path becomes available
-7. Design legacy memory.json migration
-8. Run long-horizon Memory 2.0 exit-criterion validation
-9. Begin 0.3 Personality + NPC↔NPC social graph
+additive, not destructive
+world-local backup before mutation
+explicit format/version marker
+deterministic event IDs
+idempotent repeated execution
+NPC ownership preserved
+bounded import
+no automatic FACT creation from dialogue
+no deletion of memory.json
+atomic Memory 2.0 write
+dry-run / diagnostics before commit
+rollback path documented
 ```
 
-No embeddings, vector DB or LLM truth classification should be prerequisites.
+Recommended sequence:
+
+```text
+1. Define the exact legacy dialogue schema and migration compatibility matrix.
+2. Add deterministic conversion from eligible legacy dialogue to MemoryEvent DIALOGUE.
+3. Add a persisted migration marker/checkpoint without changing existing semantic truth rules.
+4. Prove rerun idempotency, malformed-entry fail-soft behavior and NPC isolation in tests.
+5. Package and validate on a copied world before any production cutover.
+6. Keep legacy reads active until long-horizon recall and rollback evidence passes.
+7. Exercise rejected-new-append live only through a deterministic test path if one is added.
+8. Continue to controlled BELIEF producers and relationship reasons.
+9. Begin 0.3 Personality + NPC↔NPC social graph after Memory 2.0 exit criteria are met.
+```
+
+No embeddings, vector database or LLM truth classification should be prerequisites.
+
+## Non-blocking maintenance follow-up
+
+Reproduce the local transitive Fabric checksum-resolution difference from the `0.1.17` acceptance environment. If support is required, refresh dependency verification metadata through the controlled procedure and retain fail-closed behavior. Do not mix this maintenance task into Memory migration logic unless it blocks the normal CI/release path.
 
 ---
 
-# Immediate validation target
+# Immediate target
 
-Preserve `0.1.15+1.21.1` as the latest production/security live checkpoint.
+The next implementation target is not another security acceptance release. Step 1 is closed.
 
-Build the first candidate containing PR #68, expected `0.1.16+1.21.1`, then execute:
+Start with a design/specification for additive legacy dialogue migration:
 
 ```text
-docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md
+memory.json
+→ deterministic bounded DIALOGUE import
+→ memory2.json
 ```
 
-Required remaining evidence:
+The first implementation must not:
 
-- declared, chunked, error and slow-drip Chat/STT/TTS behavior from literal loopback;
-- zero redirect-target hits for provider and verification redirects;
-- 64 KiB verification response bound through the exact-JAR transport probe;
-- exact 1/120 second clamp and 128 MiB PCM rejection/recovery output;
-- normal microphone operation after the PCM probe;
-- byte-identical rejected-operation persistence and production configuration restoration;
-- no secrets or unredacted provider bodies in evidence.
-
-After SEC-003/SEC-004/SEC-007 closure, continue with legacy `memory.json` migration unless live evidence exposes a concrete defect.
+- delete or truncate `memory.json`;
+- infer FACT from old dialogue;
+- merge NPC identities;
+- duplicate events on restart or rerun;
+- require an LLM, embeddings or external service;
+- change production provider or voice behavior.
 
 ---
 
@@ -705,7 +776,7 @@ After SEC-003/SEC-004/SEC-007 closure, continue with legacy `memory.json` migrat
 
 Preferred resume prompt:
 
-> **Open `docs/PROJECT_STATE.md`, `docs/CHANGELOG.md`, `docs/ROADMAP.md`, `docs/livingworld/VALIDATION_0.1.15.md`, `docs/livingworld/VALIDATION_0.1.14.md`, `docs/security/README.md` and `docs/security/LOCAL_SECURITY_ACCEPTANCE_HARNESS.md` in `True-Ruslan/villAIgence`. Check recent PRs, tags/releases and CI, then tell me what is implemented, what is live-validated, what changed since the state file, and what should happen next.**
+> **Open `docs/PROJECT_STATE.md`, `docs/CHANGELOG.md`, `docs/ROADMAP.md`, `docs/livingworld/VALIDATION_0.1.16.md`, `docs/livingworld/VALIDATION_0.1.17.md`, `docs/security/README.md` and `docs/security/STEP_1_TRACKER.md` in `True-Ruslan/villAIgence`. Check recent PRs, releases and CI, then tell me what is implemented, what is live-validated versus exact-artifact validated, whether any new regression exists, and how to begin the additive legacy `memory.json` migration.**
 
 A new session must:
 
@@ -715,7 +786,7 @@ A new session must:
 4. inspect current `1.21.1` HEAD;
 5. inspect recent merged/open PRs;
 6. inspect latest tag/release and CI state;
-7. reconcile newer live-test evidence;
+7. distinguish installed server evidence from exact-artifact-only evidence;
 8. continue from the first unimplemented or unvalidated priority;
 9. update canonical state after material progress.
 

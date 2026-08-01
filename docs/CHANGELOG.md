@@ -2,6 +2,67 @@
 
 > Human-readable implementation and validation history. For exact current state and next priority, read `docs/PROJECT_STATE.md`. For long-term direction, read `docs/ROADMAP.md`.
 
+## 2026-08-01 — 0.1.17 SEC-004 closure and Step 1 completion
+
+**Status:** exact official release JAR accepted; SEC-004 Closed; all Step 1 findings Closed.
+
+```text
+tag: 0.1.17+1.21.1
+commit: 88a20d86e8b08e4b5eaf60da943a63e750f2b545
+JAR: villaigence-fabric-0.1.17+1.21.1.jar
+SHA-256: b33af40f7a2696dc679c49e0fc544f6b5df99e0aa600ea5c767bc5a9747da1ab
+marker: V0117_SEC004_ARTIFACT_AND_EVIDENCE_PASS
+```
+
+Focused exact-JAR verification results:
+
+```text
+HTTP success                         SUCCESS / 200
+HTTP redirect                        HTTP_ERROR / 307
+redirect followed                    no
+redirect_target_hits                 0
+declared verification oversize       TOO_LARGE / ResponseTooLargeException
+chunked verification oversize        TOO_LARGE / ResponseTooLargeException
+HTTPS loopback                       rejected before connection
+HTTPS rejection exit code            2
+SSLException                         none
+sanitized HTTP requests              4
+```
+
+The official `0.1.17` JAR was exercised directly with `java -cp`; Minecraft installation was not required. The production server remained on `0.1.16+1.21.1`, and `mods`, world data and configuration were untouched.
+
+The earlier `0.1.16` controlled server run remains authoritative for Chat/STT/TTS bounds, error-body limits, the `600.026 s` slow-drip deadline, provider redirects, TTS fail-soft persistence, voice clamp, the 128 MiB PCM budget, production restoration and restart durability.
+
+A local source build stopped before compilation because dependency verification lacked checksum records for transitive Fabric dependencies resolved in that environment. Verification failed closed: it was not disabled, no unverified dependency was accepted and the local output was not used. The exact official CI/release JAR was accepted by recorded SHA-256. Supporting that additional local resolution graph remains a non-blocking build-maintenance follow-up under the controlled dependency update procedure.
+
+Final finding matrix:
+
+```text
+SEC-001 Closed
+SEC-002 Closed
+SEC-003 Closed
+SEC-004 Closed
+SEC-005 Closed
+SEC-006 Closed
+SEC-007 Closed
+SEC-008 Closed
+SEC-009 Closed
+```
+
+Canonical evidence:
+
+```text
+docs/livingworld/VALIDATION_0.1.16.md
+docs/livingworld/VALIDATION_0.1.17.md
+docs/security/SECURITY_AUDIT_FOLLOW_UP_2026-08-01_RUNTIME_0.1.16.md
+docs/security/SECURITY_AUDIT_FOLLOW_UP_2026-08-01_RUNTIME_0.1.17.md
+docs/security/STEP_1_TRACKER.md
+```
+
+Step 1 Security and supply-chain hardening is complete within its defined implementation and acceptance scope.
+
+---
+
 ## 2026-07-31 — Residual Step 1 security acceptance harness
 
 **Status:** implementation and automated validation prepared in PR #68; controlled release/server execution remains pending.
