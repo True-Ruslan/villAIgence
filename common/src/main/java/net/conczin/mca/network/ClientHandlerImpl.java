@@ -7,6 +7,7 @@ import net.conczin.mca.client.book.CivilRegistryBook;
 import net.conczin.mca.client.gui.*;
 import net.conczin.mca.client.gui.lore.OperatorLoreEditorOpenContext;
 import net.conczin.mca.client.gui.lore.OperatorLoreEditorScreen;
+import net.conczin.mca.client.gui.lore.OperatorLoreResponseReceiver;
 import net.conczin.mca.client.resources.ClientSkinCatalog;
 import net.conczin.mca.client.tts.SpeechManager;
 import net.conczin.mca.entity.VillagerEntityMCA;
@@ -273,8 +274,8 @@ public class ClientHandlerImpl implements ClientHandler {
     @Override
     public void handleOperatorLoreResponse(OperatorLoreResponse response) {
         Screen screen = client.screen;
-        if (screen instanceof OperatorLoreEditorScreen editor) {
-            editor.accept(response);
+        if (screen instanceof OperatorLoreResponseReceiver receiver) {
+            receiver.accept(response);
         }
     }
 }
