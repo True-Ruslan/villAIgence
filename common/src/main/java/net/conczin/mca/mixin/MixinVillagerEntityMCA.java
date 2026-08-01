@@ -6,13 +6,13 @@ import net.conczin.mca.entity.ai.ArcherMoveControl;
 import net.conczin.mca.entity.ai.ArcherMoveControlOwner;
 import net.conczin.mca.entity.ai.relationship.Gender;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.GoalSelector;
 import net.minecraft.world.entity.ai.goal.OpenDoorGoal;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -24,9 +24,6 @@ abstract class MixinVillagerEntityMCA implements ArcherMoveControlOwner {
     @Unique
     private ArcherMoveControl mca$stableArcherMoveControl;
 
-    @Shadow
-    public abstract MoveControl getMoveControl();
-
     @Inject(method = "<init>", at = @At("TAIL"))
     private void mca$captureArcherMoveControl(
             EntityType<VillagerEntityMCA> type,
@@ -34,7 +31,7 @@ abstract class MixinVillagerEntityMCA implements ArcherMoveControlOwner {
             Gender gender,
             CallbackInfo ci
     ) {
-        MoveControl activeControl = this.getMoveControl();
+        MoveControl activeControl = mca$getCurrentMoveControl();
         if (!(activeControl instanceof ArcherMoveControl archerMoveControl)) {
             throw new IllegalStateException(
                     "VillagerEntityMCA must be constructed with ArcherMoveControl"
@@ -45,10 +42,16 @@ abstract class MixinVillagerEntityMCA implements ArcherMoveControlOwner {
 
     @Override
     public ArcherMoveControl mca$getArcherMoveControl() {
+        MoveControl activeControl = mca$getCurrentMoveControl();
         return ArcherControlPolicy.select(
                 this.mca$stableArcherMoveControl,
-                this.getMoveControl() instanceof ArcherMoveControl active ? active : null
+                activeControl instanceof ArcherMoveControl active ? active : null
         );
+    }
+
+    @Unique
+    private MoveControl mca$getCurrentMoveControl() {
+        return ((Mob) (Object) this).getMoveControl();
     }
 
     @Redirect(
