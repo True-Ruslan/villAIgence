@@ -26,9 +26,8 @@ public final class AccountVerificationAcceptanceProbe {
         }
 
         String scheme = uri.getScheme();
-        if (scheme == null
-                || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
-            throw new IllegalArgumentException("Probe target must use HTTP or HTTPS");
+        if (scheme == null || !scheme.equalsIgnoreCase("http")) {
+            throw new IllegalArgumentException("Probe target must use HTTP for the local acceptance harness");
         }
         if (uri.getRawUserInfo() != null || uri.getRawFragment() != null) {
             throw new IllegalArgumentException("Probe target must not contain user-info or a fragment");
@@ -53,7 +52,7 @@ public final class AccountVerificationAcceptanceProbe {
 
     public static void main(String[] args) {
         if (args.length < 1 || args.length > 3) {
-            System.err.println("Usage: AccountVerificationAcceptanceProbe <loopback-uri> [connect-ms] [read-ms]");
+            System.err.println("Usage: AccountVerificationAcceptanceProbe <http-loopback-uri> [connect-ms] [read-ms]");
             System.exit(2);
             return;
         }
