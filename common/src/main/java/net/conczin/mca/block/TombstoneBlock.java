@@ -497,15 +497,37 @@ public class TombstoneBlock extends BaseEntityBlock implements SimpleWaterlogged
         }
 
         public void readFromStack(ItemStack stack) {
-            entityData = Optional.ofNullable(stack)
-                    .filter(s -> s.has(DataComponents.ENTITY_DATA))
-                    .map(s -> s.getOrDefault(DataComponents.ENTITY_DATA, CustomData.EMPTY).copyTag())
+            if (stack == null) {
+                entityData = Optional.empty();
+                return;
+            }
+
+            entityData = TombstoneItemDataPolicy.read(
+                            () -> stack.has(DataComponents.BLOCK_ENTITY_DATA)
+                                    ? stack.getOrDefault(DataComponents.BLOCK_ENTITY_DATA, CustomData.EMPTY).copyTag()
+                                    : null,
+                            () -> stack.has(DataComponents.ENTITY_DATA)
+                                    ? stack.getOrDefault(DataComponents.ENTITY_DATA, CustomData.EMPTY).copyTag()
+                                    : null,
+                            CompoundTag::copy
+                    )
+                    .filter(tag -> tag.contains("EntityData", Tag.TAG_COMPOUND))
                     .map(EntityData::new);
         }
 
         public void writeToStack(ItemStack stack) {
+            if (stack == null) {
+                return;
+            }
+
             entityData.ifPresent(data -> {
-                data.writeNbt(stack.getOrDefault(DataComponents.ENTITY_DATA, CustomData.EMPTY).copyTag());
+                CompoundTag entityTag = new CompoundTag();
+                data.writeNbt(entityTag);
+                TombstoneItemDataPolicy.write(
+                        entityTag,
+                        tag -> BlockItem.setBlockEntityData(stack, BlockEntityTypesMCA.TOMBSTONE, tag),
+                        CompoundTag::copy
+                );
             });
         }
 
