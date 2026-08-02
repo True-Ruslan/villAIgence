@@ -84,7 +84,7 @@ def refmapEntryName = "${project.property('mod_id')}.refmap.json"
 
 def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
     group = 'verification'
-    description = 'Requires the distributable Fabric JAR to contain valid startup-safe Mixin and resurrection hooks.'
+    description = 'Requires the distributable Fabric JAR to contain valid startup-safe Mixin, navigation and resurrection hooks.'
     dependsOn tasks.named('remapJar')
     inputs.file(remappedFabricJar)
 
@@ -139,6 +139,69 @@ def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
             }
 
             def commonMixins = mixinConfig.mixins instanceof List ? mixinConfig.mixins : []
+            if (!commonMixins.contains('MixinGroundPathNavigation')) {
+                throw new GradleException(
+                        "mca.mixins.json must register MixinGroundPathNavigation: ${jarFile}"
+                )
+            }
+
+            def groundNavigationMappings = refmap.mappings['net/conczin/mca/mixin/MixinGroundPathNavigation']
+            def surfaceTarget = groundNavigationMappings instanceof Map
+                    ? groundNavigationMappings['getSurfaceY']
+                    : null
+            if (!(surfaceTarget instanceof String) || !surfaceTarget.endsWith('()I')) {
+                throw new GradleException(
+                        "${refmapEntryName} must map MixinGroundPathNavigation.getSurfaceY to an int-returning target, found ${surfaceTarget}: ${jarFile}"
+                )
+            }
+
+            def groundMixinEntry = zip.getEntry('net/conczin/mca/mixin/MixinGroundPathNavigation.class')
+            if (groundMixinEntry == null) {
+                throw new GradleException(
+                        "Distributable Fabric JAR is missing MixinGroundPathNavigation.class: ${jarFile}"
+                )
+            }
+
+            def navigationEntry = zip.getEntry(
+                    'net/conczin/mca/entity/ai/navigation/MCAGroundPathNavigation.class'
+            )
+            if (navigationEntry == null) {
+                throw new GradleException(
+                        "Distributable Fabric JAR is missing MCAGroundPathNavigation.class: ${jarFile}"
+                )
+            }
+
+            def navigationMethods = [] as Set
+            def navigationBytes = zip.getInputStream(navigationEntry).bytes
+            new org.objectweb.asm.ClassReader(navigationBytes).accept(
+                    new org.objectweb.asm.ClassVisitor(org.objectweb.asm.Opcodes.ASM9) {
+                        @Override
+                        org.objectweb.asm.MethodVisitor visitMethod(
+                                int access,
+                                String name,
+                                String descriptor,
+                                String signature,
+                                String[] exceptions
+                        ) {
+                            navigationMethods.add(name + descriptor)
+                            return null
+                        }
+                    },
+                    org.objectweb.asm.ClassReader.SKIP_CODE
+                            | org.objectweb.asm.ClassReader.SKIP_DEBUG
+                            | org.objectweb.asm.ClassReader.SKIP_FRAMES
+            )
+            if (!navigationMethods.contains('mca$getWaterAwareSurfaceY()I')) {
+                throw new GradleException(
+                        "MCAGroundPathNavigation must expose mca\$getWaterAwareSurfaceY()I: ${jarFile}"
+                )
+            }
+            if (navigationMethods.any { it.startsWith('getTempMobPos(') }) {
+                throw new GradleException(
+                        "MCAGroundPathNavigation must preserve inherited GroundPathNavigation.getTempMobPos(): ${jarFile}"
+                )
+            }
+
             if (commonMixins.contains('MixinTombstoneData')) {
                 throw new GradleException(
                         "mca.mixins.json must not inject into TombstoneBlock.Data synthetic resurrection lambda: ${jarFile}"
