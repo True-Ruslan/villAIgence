@@ -2,224 +2,100 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Prevent a filled MCA tombstone from destroying its stored body and inventory when the underlying loot path does not produce the tombstone block item, including the installed Silk Touch failure.
+**Goal:** Prevent a filled MCA tombstone from destroying its stored body and inventory when evaluated loot omits the tombstone block item, including the installed Silk Touch failure.
 
-**Architecture:** Keep vanilla/datapack loot evaluation authoritative for ordinary drops. For a filled tombstone only, pass the evaluated list through a loader-independent policy that reuses the first existing tombstone item or appends one fallback tombstone item, then serializes the block-entity body into that item. Empty tombstones, remains naming, other loot entries, persistence schemas and placement restoration remain unchanged.
+**Architecture:** Keep vanilla/datapack loot evaluation authoritative. A loader-independent policy copies the evaluated list, reuses the first tombstone item or appends one fallback item, and serializes the stored body into that one target. A narrow common Mixin applies the policy at the return of MCA-owned `TombstoneBlock.getDrops()` only when the block entity is filled; this avoids replacing the large tombstone class while preserving its existing remains-name and item-data logic.
 
-**Tech Stack:** Java 21, Minecraft 1.21.1 Mojang mappings, JUnit 5, Fabric Loom, NeoForge, Gradle package verification.
+**Tech Stack:** Java 21, Minecraft 1.21.1 Mojang mappings, Sponge Mixin, JUnit 5, Fabric Loom, NeoForge.
 
 ## Global Constraints
 
-- Base branch is `1.21.1` at `ff4df17a086b6f904f7efda3abc77f8a135fa8ed`.
-- Preserve the internal mod ID `mca` and package root `net.conczin.mca`.
+- Base: `1.21.1` at `ff4df17a086b6f904f7efda3abc77f8a135fa8ed`.
+- Preserve internal mod ID `mca` and package root `net.conczin.mca`.
 - Do not change tombstone block-entity NBT or item component schemas.
 - Do not change empty-tombstone loot behavior.
-- Do not duplicate a tombstone item when the loot list already contains one.
-- Preserve all unrelated loot entries and remains-name decoration.
-- Do not change water navigation, AI providers, Chat/STT/TTS, memory, packets, operator lore or release version.
-- Require common tests, Fabric build/package verification, NeoForge build, supply-chain verification and repository security policy.
-- Treat installed Silk Touch acceptance as pending until an exact candidate JAR is tested.
+- Do not duplicate a tombstone item when loot already contains one.
+- Preserve unrelated loot entries, their order and remains-name decoration.
+- Do not change water navigation, AI providers, Chat/STT/TTS, memory, packets, operator lore, dependencies or embedded release version.
+- Require common tests, Fabric/NeoForge builds, distributable package verification and repository security checks.
+- Installed Silk Touch acceptance remains pending until an exact candidate JAR is tested.
 
 ---
 
-### Task 1: Establish the loader-independent RED contract
+### Task 1: Canonical RED policy contract
 
 **Files:**
 - Create: `common/src/test/java/net/conczin/mca/block/TombstoneDropPolicyTest.java`
 
 **Interfaces:**
 - Consumes: planned `TombstoneDropPolicy.ensurePreservedDrop(List<T>, Predicate<T>, Supplier<T>, Consumer<T>)`.
-- Produces: executable contracts for reuse, fallback creation, unrelated-drop preservation and exactly-once serialization.
+- Produces: contracts for fallback creation, existing-item reuse, order preservation, input-list isolation and exactly-once serialization.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] Write four tests using loader-independent fake drops.
+- [x] Run `:common:test` through CI.
+- [x] Confirm canonical RED is `:common:compileTestJava` failure because `TombstoneDropPolicy` is absent.
+- [x] Commit RED at `4448f2a062e76645fefa0d67fd499a0c1824a540`.
 
-Create tests with a small mutable fake-drop record and verify:
-
-```java
-List<FakeDrop> result = TombstoneDropPolicy.ensurePreservedDrop(
-        List.of(remains),
-        FakeDrop::tombstone,
-        () -> created,
-        drop -> drop.preserved = true
-);
-assertEquals(List.of(remains, created), result);
-assertTrue(created.preserved);
-```
-
-Also verify an existing tombstone is reused without a duplicate, unrelated entries retain order, the input list is not mutated, and the preservation callback runs once.
-
-- [ ] **Step 2: Run the RED gate**
-
-Run:
-
-```bash
-./gradlew :common:test --tests net.conczin.mca.block.TombstoneDropPolicyTest --no-daemon
-```
-
-Expected: compile-test failure because `TombstoneDropPolicy` does not exist.
-
-- [ ] **Step 3: Commit the canonical RED boundary**
-
-```bash
-git add common/src/test/java/net/conczin/mca/block/TombstoneDropPolicyTest.java
-git commit -m "test: define filled tombstone drop safety contract"
-```
-
-### Task 2: Implement minimal filled-drop preservation
+### Task 2: Pure drop preservation policy
 
 **Files:**
 - Create: `common/src/main/java/net/conczin/mca/block/TombstoneDropPolicy.java`
-- Modify: `common/src/main/java/net/conczin/mca/block/TombstoneBlock.java`
 
 **Interfaces:**
-- Consumes: evaluated `List<ItemStack>`, predicate for the current tombstone item, fallback `ItemStack` supplier and `Data::writeToStack` callback.
-- Produces: a new ordered mutable result list containing at least one serialized tombstone item for filled tombstones.
+- Consumes: evaluated drops, self-item predicate, fallback supplier and serialization callback.
+- Produces: a new ordered list with one serialized tombstone target.
 
-- [ ] **Step 1: Implement the pure policy**
+- [x] Validate collaborators with `Objects.requireNonNull`.
+- [x] Copy the input list into `ArrayList`.
+- [x] Reuse the first matching tombstone or append one fallback.
+- [x] Invoke the serialization callback exactly once.
 
-```java
-public static <T> List<T> ensurePreservedDrop(
-        List<T> drops,
-        Predicate<T> isTombstone,
-        Supplier<T> fallback,
-        Consumer<T> preserve
-) {
-    List<T> result = new ArrayList<>(drops);
-    T target = result.stream().filter(isTombstone).findFirst().orElseGet(() -> {
-        T created = fallback.get();
-        result.add(created);
-        return created;
-    });
-    preserve.accept(target);
-    return result;
-}
-```
-
-Reject null collaborators with `Objects.requireNonNull` so malformed internal calls fail at the source.
-
-- [ ] **Step 2: Integrate only for filled tombstones**
-
-After existing remains-name decoration, replace the conditional stream mutation with:
-
-```java
-if (data.isPresent()) {
-    stacks = TombstoneDropPolicy.ensurePreservedDrop(
-            stacks,
-            stack -> stack.getItem() == asItem(),
-            () -> new ItemStack(asItem()),
-            data.get()::writeToStack
-    );
-}
-```
-
-Do not invoke the policy when no stored entity exists.
-
-- [ ] **Step 3: Run focused and loader builds**
-
-```bash
-./gradlew :common:test --tests net.conczin.mca.block.TombstoneDropPolicyTest :fabric:build :neoforge:build --no-daemon
-```
-
-Expected: all tasks succeed.
-
-- [ ] **Step 4: Commit the GREEN implementation**
-
-```bash
-git add common/src/main/java/net/conczin/mca/block/TombstoneDropPolicy.java common/src/main/java/net/conczin/mca/block/TombstoneBlock.java
-git commit -m "fix: preserve filled tombstone when loot omits block"
-```
-
-### Task 3: Enforce the distributable package boundary
+### Task 3: Narrow runtime integration
 
 **Files:**
-- Modify: `fabric/build.gradle`
+- Create: `common/src/main/java/net/conczin/mca/mixin/MixinTombstoneBlock.java`
+- Modify: `common/src/main/resources/mca.mixins.json`
 
 **Interfaces:**
-- Consumes: remapped Fabric JAR produced by `remapJar`.
-- Produces: a package failure if the tombstone class loses the fallback policy call or the policy class is omitted.
+- Consumes: the return value of MCA-owned `TombstoneBlock.getDrops()`, `LootContextParams.BLOCK_ENTITY`, `TombstoneBlock.Data.hasEntity()` and `Data.writeToStack(ItemStack)`.
+- Produces: unchanged output for empty graves; preserved block item output for filled graves.
 
-- [ ] **Step 1: Extend `verifyFabricRefmap`**
+- [x] Inject at `RETURN`, cancellable, with `remap = false` because the target method is MCA-owned.
+- [x] Filter to a filled `TombstoneBlock.Data`.
+- [x] Reuse `block.asItem()` when present or create `new ItemStack(block.asItem())`.
+- [x] Register `MixinTombstoneBlock` in the common Mixin configuration.
+- [x] Confirm initial GREEN: VillAIgence CI #1266, Java PR CI #712, security #617.
 
-Require both class entries:
+### Task 4: Permanent runtime-wiring contract
 
-```text
-net/conczin/mca/block/TombstoneDropPolicy.class
-net/conczin/mca/block/TombstoneBlock.class
-```
+**Files:**
+- Modify: `common/src/test/java/net/conczin/mca/block/TombstoneDropPolicyTest.java`
 
-Inspect `TombstoneBlock.class` constants and require references to:
+**Interfaces:**
+- Consumes: Mixin source and `mca.mixins.json`.
+- Produces: a test failure if the policy remains present but is no longer registered or applied to filled tombstones.
 
-```text
-net/conczin/mca/block/TombstoneDropPolicy
-ensurePreservedDrop
-```
+- [x] Require `"MixinTombstoneBlock"` in `mca.mixins.json`.
+- [x] Require `TombstoneDropPolicy.ensurePreservedDrop`, the filled-data filter and `data::writeToStack` in the Mixin source.
+- [ ] Confirm exact-head common/Fabric/NeoForge/package/security gates.
 
-- [ ] **Step 2: Run the complete automated gate**
-
-```bash
-./gradlew :common:test :fabric:check :neoforge:build --no-daemon
-python3 scripts/ci/repository_security_policy.py --check
-```
-
-Expected: zero test failures, both loader builds succeed, remapped-JAR verification succeeds and repository security policy succeeds.
-
-- [ ] **Step 3: Commit package enforcement**
-
-```bash
-git add fabric/build.gradle
-git commit -m "build: enforce filled tombstone drop preservation"
-```
-
-### Task 4: Record evidence and installed acceptance
+### Task 5: Validation evidence
 
 **Files:**
 - Create: `docs/livingworld/VALIDATION_0.1.20_FILLED_GRAVE_DROP_FIX.md`
 
 **Interfaces:**
-- Consumes: canonical RED run, final exact-head GREEN runs and installed failure evidence.
-- Produces: authoritative implementation status and focused operator acceptance procedure.
+- Consumes: installed failure, canonical RED and final exact-head GREEN runs.
+- Produces: authoritative repository status and focused installed acceptance procedure.
 
-- [ ] **Step 1: Document root cause and preserved boundaries**
+- [ ] Record the root cause: serialization depended on an already existing self-item drop.
+- [ ] Record preserved schema and subsystem boundaries.
+- [ ] Require exact-JAR SHA-256 and installed tests for Silk Touch, ordinary tool, wrong tool, empty-grave control, break/place/reopen, restart and duplicate prevention.
+- [ ] Keep installed acceptance `PENDING` until the exact candidate passes.
 
-Record that `TombstoneBlock.getDrops()` serialized body data only when `super.getDrops()` already contained `asItem()`, leaving an empty loot result destructive.
+### Task 6: Review and integration
 
-- [ ] **Step 2: Define focused installed scenarios**
-
-Require exact-JAR SHA-256 and test:
-
-```text
-filled grave + Silk Touch pickaxe
-filled grave + ordinary valid tool
-filled grave + wrong tool
-empty grave control
-break/place/reopen round trip
-restart after re-placement
-inventory and deceased identity equality
-no duplicate grave item
-```
-
-- [ ] **Step 3: Run fresh exact-head CI and commit evidence**
-
-Do not mark the live defect fixed. Repository implementation may be `PASS`; installed acceptance remains `PENDING` until the exact candidate succeeds.
-
-```bash
-git add docs/livingworld/VALIDATION_0.1.20_FILLED_GRAVE_DROP_FIX.md
-git commit -m "docs: validate filled tombstone drop fix"
-```
-
-### Task 5: Review and integration
-
-**Files:**
-- Review all changed files against `1.21.1`.
-
-- [ ] **Step 1: Confirm scope**
-
-Expected runtime diff: one pure policy and one narrow `getDrops()` integration. No schema, provider, navigation, version or dependency changes.
-
-- [ ] **Step 2: Confirm exact-head checks**
-
-Require successful VillAIgence CI, Java PR CI, supply-chain verification and repository security policy.
-
-- [ ] **Step 3: Merge the isolated PR**
-
-Merge only after no unresolved review threads remain. Preserve `installed acceptance: PENDING` in the PR and validation document.
+- [ ] Confirm runtime diff is limited to one pure policy, one narrow Mixin and its registration.
+- [ ] Confirm no unresolved review threads.
+- [ ] Require successful VillAIgence CI, Java PR CI, supply-chain verification and repository security policy on the final documented head.
+- [ ] Merge PR only after all automated evidence is fresh; do not claim the installed defect fixed before live acceptance.
