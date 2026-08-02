@@ -2,6 +2,8 @@ package net.conczin.mca.block;
 
 import com.mojang.serialization.MapCodec;
 import net.conczin.mca.entity.Infectable;
+import net.conczin.mca.entity.VillagerEntityMCA;
+import net.conczin.mca.entity.ai.brain.tasks.MourningMemoryLifecycle;
 import net.conczin.mca.entity.ai.relationship.CompassionateEntity;
 import net.conczin.mca.entity.ai.relationship.EntityRelationship;
 import net.conczin.mca.entity.ai.relationship.Gender;
@@ -373,6 +375,10 @@ public class TombstoneBlock extends BaseEntityBlock implements SimpleWaterlogged
                             // spawnEntity is called here, so don't call it twice
                             entity = zombie.convertTo(EntityType.VILLAGER, true);
                             alreadySpawned = true;
+                        }
+
+                        if (entity instanceof VillagerEntityMCA villager) {
+                            MourningMemoryLifecycle.clearAfterResurrection(villager);
                         }
 
                         if (entity instanceof CompassionateEntity<?> compassionateEntity) {
