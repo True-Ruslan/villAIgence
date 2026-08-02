@@ -88,7 +88,8 @@ public final class VillAIgenceGameTests implements FabricGameTest {
                 SILK_TOUCH_FIXTURE_UUID,
                 "Acceptance Casimiro"
         );
-        BlockState tombstoneState = BlocksMCA.UPRIGHT_HEADSTONE.defaultBlockState();
+        TombstoneBlock tombstoneBlock = (TombstoneBlock) BlocksMCA.UPRIGHT_HEADSTONE;
+        BlockState tombstoneState = tombstoneBlock.defaultBlockState();
         TombstoneBlock.Data sourceData = new TombstoneBlock.Data(
                 helper.absolutePos(new BlockPos(2, 1, 4)),
                 tombstoneState
@@ -112,12 +113,9 @@ public final class VillAIgenceGameTests implements FabricGameTest {
                 .withParameter(LootContextParams.TOOL, silkTouchPickaxe)
                 .withOptionalParameter(LootContextParams.BLOCK_ENTITY, sourceData);
 
-        List<ItemStack> drops = BlocksMCA.UPRIGHT_HEADSTONE.getDrops(
-                tombstoneState,
-                lootBuilder
-        );
+        List<ItemStack> drops = tombstoneBlock.getDrops(tombstoneState, lootBuilder);
         List<ItemStack> tombstoneDrops = drops.stream()
-                .filter(stack -> stack.is(BlocksMCA.UPRIGHT_HEADSTONE.asItem()))
+                .filter(stack -> stack.is(tombstoneBlock.asItem()))
                 .toList();
 
         helper.assertTrue(tombstoneDrops.size() == 1,
