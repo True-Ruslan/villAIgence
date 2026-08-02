@@ -2,7 +2,10 @@ package net.conczin.mca.entity.ai.navigation;
 
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -51,6 +54,16 @@ class NavigationFoundationPolicyTest {
         );
 
         assertEquals(57, surfaceY);
+    }
+
+    @Test
+    void waterAwareNavigationPreservesVanillaPathPositionHook() {
+        Set<String> declaredMethods = Arrays.stream(MCAGroundPathNavigation.class.getDeclaredMethods())
+                .map(Method::getName)
+                .collect(Collectors.toSet());
+
+        assertFalse(declaredMethods.contains("getTempMobPos"));
+        assertTrue(declaredMethods.contains("mca$getWaterAwareSurfaceY"));
     }
 
     @Test
