@@ -2,6 +2,9 @@ package net.conczin.mca.block;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -89,6 +92,19 @@ class TombstoneDropPolicyTest {
         assertTrue(firstTombstone.preserved);
         assertFalse(secondTombstone.preserved);
         assertEquals(1, preserveCalls.get());
+    }
+
+    @Test
+    void runtimeMixinRegistersAndAppliesPolicy() throws IOException {
+        String mixinConfig = Files.readString(Path.of("src/main/resources/mca.mixins.json"));
+        String mixinSource = Files.readString(Path.of(
+                "src/main/java/net/conczin/mca/mixin/MixinTombstoneBlock.java"
+        ));
+
+        assertTrue(mixinConfig.contains("\"MixinTombstoneBlock\""));
+        assertTrue(mixinSource.contains("TombstoneDropPolicy.ensurePreservedDrop("));
+        assertTrue(mixinSource.contains("filter(TombstoneBlock.Data::hasEntity)"));
+        assertTrue(mixinSource.contains("data::writeToStack"));
     }
 
     private static final class FakeDrop {
