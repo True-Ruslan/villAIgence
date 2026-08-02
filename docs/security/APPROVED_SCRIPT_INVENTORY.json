@@ -26,6 +26,12 @@
       "ci": true
     },
     {
+      "path": "scripts/ci/test-release-version-contract.sh",
+      "purpose": "Builds temporary local JAR fixtures and verifies exact Gradle and embedded release-version identity without network access.",
+      "network": false,
+      "ci": true
+    },
+    {
       "path": "scripts/ci/test_provider_acceptance_harness.py",
       "purpose": "Standard-library loopback integration tests for the provider acceptance harness; all network activity is confined to ephemeral local ports.",
       "network": true,

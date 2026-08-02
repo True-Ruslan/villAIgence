@@ -73,15 +73,54 @@ tasks.register('dependencyManifest') {
     }
 }
 
+def releaseVersionPattern = ~/^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?[+][0-9]+([.][0-9]+){1,2}$/
+
+def validateReleaseVersion = { String candidate, String source ->
+    def normalized = candidate == null ? '' : candidate.trim()
+    if (normalized.isEmpty() || !(normalized ==~ releaseVersionPattern)) {
+        throw new GradleException(
+                "Invalid ${source}: expected '<mod_version>+<minecraft_version>', found '${normalized}'"
+        )
+    }
+
+    def declaredMinecraftVersion = normalized.substring(normalized.lastIndexOf('+') + 1)
+    def configuredMinecraftVersion = rootProject.property('minecraft_version').toString()
+    if (declaredMinecraftVersion != configuredMinecraftVersion) {
+        throw new GradleException(
+                "Invalid ${source}: declares Minecraft ${declaredMinecraftVersion}, "
+                        + "but gradle.properties declares ${configuredMinecraftVersion}"
+        )
+    }
+
+    return normalized
+}
+
 def getAppVersion = { ->
+    def explicitVersion = providers.gradleProperty('release_version').orNull
+    if (explicitVersion != null && !explicitVersion.trim().isEmpty()) {
+        return validateReleaseVersion(explicitVersion, 'release_version')
+    }
+
     try {
-        def tag = providers.exec {
+        def rawTags = providers.exec {
             commandLine 'git', 'tag', '--points-at', 'HEAD'
-        }.standardOutput.asText.get().trim()
-        if (tag.isEmpty()) {
+        }.standardOutput.asText.get()
+        def tags = rawTags.readLines()
+                .collect { it.trim() }
+                .findAll { !it.isEmpty() }
+                .sort()
+
+        if (tags.isEmpty()) {
             return rootProject.minecraft_version + "-SNAPSHOT"
         }
-        return tag
+        if (tags.size() != 1) {
+            throw new GradleException(
+                    "Ambiguous release version: expected exactly one tag at HEAD, found ${tags}"
+            )
+        }
+        return validateReleaseVersion(tags[0], 'Git tag')
+    } catch (GradleException e) {
+        throw e
     } catch (Exception e) {
         println "Warning: ${e.message}, is git installed?"
         return rootProject.minecraft_version + "-DEV"

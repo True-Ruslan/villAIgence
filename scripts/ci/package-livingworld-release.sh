@@ -51,12 +51,39 @@ require_entry() {
 }
 
 require_entry 'fabric.mod.json'
+require_entry 'META-INF/MANIFEST.MF'
 require_entry 'net/conczin/mca/livingworld/LivingWorldConfig.class'
 require_entry 'net/conczin/mca/fabric/livingworld/voice/VoiceConversationService.class'
 require_entry 'net/conczin/mca/livingworld/ai/AccountVerificationTransport.class'
 require_entry 'net/conczin/mca/livingworld/ai/AccountVerificationAcceptanceProbe.class'
 require_entry 'net/conczin/mca/livingworld/voice/VoicePcmBudgetAcceptanceProbe.class'
 rm "${contents_file}"
+
+embedded_fabric_version="$(
+  unzip -p "${output_jar}" fabric.mod.json \
+    | python3 -c 'import json, sys; value = json.load(sys.stdin).get("version"); print(value if isinstance(value, str) else "")'
+)"
+embedded_manifest_version="$(
+  unzip -p "${output_jar}" META-INF/MANIFEST.MF \
+    | tr -d '\r' \
+    | sed -n 's/^Implementation-Version: //p' \
+    | head -n 1
+)"
+
+if [[ -z "${embedded_fabric_version}" || -z "${embedded_manifest_version}" ]]; then
+  echo "::error title=Embedded version metadata missing::fabric.mod.json='${embedded_fabric_version:-<empty>}', manifest='${embedded_manifest_version:-<empty>}'."
+  exit 1
+fi
+
+if [[ "${embedded_fabric_version}" != "${embedded_manifest_version}" ]]; then
+  echo "::error title=Embedded version metadata mismatch::fabric.mod.json=${embedded_fabric_version}, manifest=${embedded_manifest_version}."
+  exit 1
+fi
+
+if [[ "${is_release}" == "true" && "${embedded_fabric_version}" != "${artifact_label}" ]]; then
+  echo "::error title=Embedded release version mismatch::Expected ${artifact_label}, found ${embedded_fabric_version}."
+  exit 1
+fi
 
 sha256sum "${output_jar}" > "${output_jar}.sha256"
 
@@ -66,5 +93,6 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
 fi
 
 printf 'Verified VillAIgence release package: %s\n' "${output_jar}"
+printf 'Embedded version: %s\n' "${embedded_fabric_version}"
 printf 'Checksum: '
 cat "${output_jar}.sha256"
