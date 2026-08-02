@@ -13,7 +13,7 @@ Use a hybrid test pyramid:
 3. **Production-JAR gates** for remapping, Mixin/refmap, dependency and startup failures that development GameTests cannot prove.
 4. **Restart/persistence scenarios** for state surviving a separate JVM process.
 5. **Mock-provider integration** for deterministic Chat/STT/TTS success and failure paths.
-6. **Manual canaries** only for physical audio, subjective behavior and true multi-client experience until dedicated harnesses exist.
+6. **Manual canaries** only for physical audio, subjective behavior, installed release artifacts and true multi-client experience until dedicated harnesses exist.
 
 No single layer may be used as evidence for another layer.
 
@@ -31,7 +31,19 @@ Every acceptance scenario belongs to exactly one primary domain:
 
 ## Scenario catalog
 
-A machine-readable catalog is the source of truth for coverage. Each entry contains:
+The source of truth is the dependency-free, diff-friendly TSV catalog:
+
+```text
+common/src/test/resources/acceptance/scenarios.tsv
+```
+
+The canonical column order is:
+
+```text
+id	domain	severity	state	layer	gate	invariant	oracle	timeoutSeconds	evidence	manualRationale
+```
+
+Each entry contains:
 
 - stable ID;
 - primary risk domain;
@@ -44,12 +56,14 @@ A machine-readable catalog is the source of truth for coverage. Each entry conta
 - evidence artifact;
 - optional manual-only rationale.
 
+A JUnit validator parses the catalog using only the Java standard library. This avoids changing dependency locks or expanding the trusted build surface for test metadata.
+
 Catalog validation fails when:
 
 - an ID is duplicated;
 - a required field is missing;
-- a domain has no scenario;
-- a `CRITICAL` scenario is not automated and has no explicit accepted manual rationale;
+- a domain has fewer than three scenarios;
+- a `CRITICAL` scenario is neither automated nor an explicit accepted manual canary;
 - an automated scenario has no deterministic oracle or timeout;
 - a scenario is marked automated but names no CI gate.
 
@@ -59,14 +73,14 @@ This turns test completeness into a maintained contract rather than a prose chec
 
 The first executable GameTest suite covers broad primitives rather than only bug reproductions:
 
-1. MCA entity registration and spawn in a real server world.
-2. Filled tombstone data round trip using a real `TombstoneBlock.Data`, item component serialization and entity reconstruction.
-3. Filled tombstone evaluated drops with Silk Touch contain exactly one portable tombstone with stored entity data.
-4. Empty tombstone preserves its normal loot behavior.
-5. Two independent NPCs can leave separate water lanes and remain alive.
-6. An NPC that exits water can subsequently navigate on land.
+1. MCA entity registration and navigation boot in a real Fabric server world.
+2. Tombstone item round trip preserving UUID, name and the complete inventory multiset.
+3. Filled tombstone evaluated drops with Silk Touch containing exactly one portable tombstone with stored entity data.
+4. Empty tombstone negative control: no synthesized NPC data and no duplicate tombstone item.
+5. Two independent NPCs leaving separate bounded water lanes while remaining alive.
+6. The same NPC navigating to a second dry target after water escape.
 
-Tests use fixed geometry, fixed inventory fixtures, bounded tick budgets and objective assertions. No test depends on random dialogue or external providers.
+Tests use fixed geometry, fixed inventory fixtures, bounded tick budgets and objective assertions. No test depends on random dialogue or external providers. Inventory assertions intentionally verify items, totals and duplicate absence rather than sparse slot positions because MCA serializes its container as an item list and does not promise preservation of empty gaps.
 
 ## CI topology
 
@@ -76,20 +90,21 @@ Required and merge-blocking:
 
 - scenario catalog validation;
 - common unit tests;
+- explicit Fabric server GameTest execution;
 - Fabric and NeoForge builds;
-- server GameTests;
-- remapped Fabric package verification.
+- remapped Fabric package verification;
+- rejection of GameTest classes, metadata or entrypoints in the production JAR.
 
-### Canonical branch
+### Canonical branch — Phase B target
 
-Additionally required:
+Additionally required after implementation:
 
 - production-JAR startup smoke;
 - clean shutdown/restart smoke;
 - persistent JSON schema/hash report;
 - deterministic mock-provider integration.
 
-### Nightly
+### Nightly target
 
 Longer parameterized scenarios:
 
@@ -100,9 +115,9 @@ Longer parameterized scenarios:
 - concurrency and stale-revision scenarios;
 - client UI smoke when stable.
 
-### Release
+### Release target
 
-A release asset is promoted only after:
+A future release asset should be promoted only after:
 
 - exact candidate build;
 - GameTests;
@@ -119,17 +134,22 @@ A release asset is promoted only after:
 - Randomness is fixed or eliminated.
 - Tests assert server-owned state, not rendered appearance.
 - Test-only code stays in the `gametest` source set and never enters the production JAR.
-- Failures preserve logs, JUnit XML, GameTest reports and the temporary world when possible.
+- Failures preserve CI logs and available JUnit/GameTest diagnostics.
 - Flaky tests are quarantined from merge gates only with a tracked reason and owner; they are never silently retried until green.
+- Installed release evidence remains distinct from development GameTest evidence.
 
 ## Delivery phases
 
 ### Phase A — foundation and first broad server suite
 
-- scenario catalog and validator;
-- isolated Fabric GameTest source set;
-- entity, tombstone and water-navigation tests;
-- PR CI integration and evidence artifacts.
+Implemented in PR #103:
+
+- TSV scenario catalog and dependency-free validator;
+- isolated Fabric GameTest source set and test mod;
+- real-server boot, tombstone and water-navigation tests;
+- explicit PR CI execution;
+- production-JAR leakage guard;
+- accurate linkage to installed `0.1.22` partial acceptance.
 
 ### Phase B — installed production acceptance
 
