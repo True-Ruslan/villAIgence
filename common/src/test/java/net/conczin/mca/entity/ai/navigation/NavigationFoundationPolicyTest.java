@@ -62,8 +62,8 @@ class NavigationFoundationPolicyTest {
                 "src/main/java/net/conczin/mca/entity/ai/navigation/MCAGroundPathNavigation.java"
         ));
 
-        assertFalse(source.contains("getTempMobPos("));
-        assertTrue(source.contains("mca$getWaterAwareSurfaceY("));
+        assertFalse(source.contains("protected Vec3 getTempMobPos("));
+        assertTrue(source.contains("public int mca$getWaterAwareSurfaceY("));
     }
 
     @Test
