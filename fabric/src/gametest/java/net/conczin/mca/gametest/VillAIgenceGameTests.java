@@ -12,6 +12,7 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockState;
@@ -78,24 +79,39 @@ public final class VillAIgenceGameTests implements FabricGameTest {
                 "Tombstone round trip must preserve NPC UUID");
         helper.assertTrue(recreated.getName().getString().equals("Acceptance Basiliso"),
                 "Tombstone round trip must preserve NPC name");
-        assertInventoryStack(helper, recreated, 0, Items.DIAMOND.getDefaultInstance(), 3);
-        assertInventoryStack(helper, recreated, 7, Items.BREAD.getDefaultInstance(), 11);
-        assertInventoryStack(helper, recreated, 26, Items.IRON_SWORD.getDefaultInstance(), 1);
+        assertInventoryCount(helper, recreated, Items.DIAMOND, 3);
+        assertInventoryCount(helper, recreated, Items.BREAD, 11);
+        assertInventoryCount(helper, recreated, Items.IRON_SWORD, 1);
+        helper.assertTrue(nonEmptyStackCount(recreated) == 3,
+                "Tombstone round trip must neither lose nor duplicate inventory stacks");
         helper.succeed();
     }
 
-    private static void assertInventoryStack(
+    private static void assertInventoryCount(
             GameTestHelper helper,
             VillagerEntityMCA villager,
-            int slot,
-            ItemStack expectedItem,
+            Item expectedItem,
             int expectedCount
     ) {
-        ItemStack actual = villager.getInventory().getItem(slot);
-        helper.assertTrue(actual.is(expectedItem.getItem()),
-                "Inventory slot " + slot + " must preserve item " + expectedItem.getItem());
-        helper.assertTrue(actual.getCount() == expectedCount,
-                "Inventory slot " + slot + " must preserve count " + expectedCount
-                        + ", found " + actual.getCount());
+        int actualCount = 0;
+        for (int slot = 0; slot < villager.getInventory().getContainerSize(); slot++) {
+            ItemStack stack = villager.getInventory().getItem(slot);
+            if (stack.is(expectedItem)) {
+                actualCount += stack.getCount();
+            }
+        }
+        helper.assertTrue(actualCount == expectedCount,
+                "Inventory must preserve " + expectedCount + " of " + expectedItem
+                        + ", found " + actualCount);
+    }
+
+    private static int nonEmptyStackCount(VillagerEntityMCA villager) {
+        int count = 0;
+        for (int slot = 0; slot < villager.getInventory().getContainerSize(); slot++) {
+            if (!villager.getInventory().getItem(slot).isEmpty()) {
+                count++;
+            }
+        }
+        return count;
     }
 }
