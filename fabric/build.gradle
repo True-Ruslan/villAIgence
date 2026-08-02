@@ -68,6 +68,14 @@ loom {
 }
 
 fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = 'mca-acceptance-test'
+        enableGameTests = true
+        enableClientGameTests = false
+        eula = true
+    }
+
     configureDataGeneration {
         addToResources = false
         client = true
