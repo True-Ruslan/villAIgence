@@ -24,6 +24,7 @@
     "MixinScreenHandler",
     "MixinServerGamePacketListenerImpl",
     "MixinServerWorld",
+    "MixinTombstoneBlock",
     "MixinTranslatableContents",
     "MixinVillager",
     "MixinVillagerEntityMCA",
