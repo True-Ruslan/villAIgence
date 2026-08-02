@@ -14,6 +14,7 @@ on:
       - '**/gradle.lockfile'
       - 'docs/RELEASING.md'
       - 'scripts/ci/package-livingworld-release.sh'
+      - 'scripts/ci/test-release-version-contract.sh'
   workflow_dispatch:
 
 permissions:
@@ -79,12 +80,30 @@ jobs:
         with:
           validate-wrappers: true
 
+      - name: Verify exact release identity contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew scripts/ci/test-release-version-contract.sh
+          scripts/ci/test-release-version-contract.sh
+
       - name: Run tests, build Fabric JAR and generate dependency manifest
         shell: bash
         run: |
           set -euo pipefail
           chmod +x gradlew
-          ./gradlew :common:test :fabric:build dependencyManifest --stacktrace --no-daemon --console=plain
+          gradle_args=(
+            :common:test
+            :fabric:build
+            dependencyManifest
+            --stacktrace
+            --no-daemon
+            --console=plain
+          )
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            gradle_args+=("-Prelease_version=${GITHUB_REF_NAME}")
+          fi
+          ./gradlew "${gradle_args[@]}"
           test -s build/reports/dependencies/villaigence-dependencies.txt
 
       - name: Package and smoke-check VillAIgence artifact
