@@ -3,18 +3,61 @@
 ## Status
 
 ```text
-date: 2026-08-02
+date: 2026-08-03
 failed installed release: 0.1.21+1.21.1
 failed installed marker: V0121_STARTUP_GATE_FAIL
 rollback marker: V0121_STARTUP_BLOCKER_ROLLBACK_PASS
 repository fix: PASS
-automated validation: PASS
+automated package validation: PASS
 candidate version: 0.1.22+1.21.1
-installed startup acceptance: PENDING
-water/grave/gameplay acceptance: BLOCKED UNTIL STARTUP PASS
+installed startup acceptance: PASS
+installed two-NPC water escape: PASS
+installed filled-grave round trip: PASS
+installed grave round trip after restart: PASS
+cumulative gameplay acceptance: PENDING
 ```
 
-## Installed failure
+Current installed markers:
+
+```text
+V0122_STARTUP_GATE_PASS
+V0122_WATER_ESCAPE_PASS
+V0122_FILLED_GRAVE_ROUND_TRIP_PASS
+V0122_CORRECTIVE_CUMULATIVE_ACCEPTANCE_PENDING
+```
+
+## Installed 0.1.22 partial acceptance
+
+The operator confirmed the following scenarios against the exact installed `0.1.22+1.21.1` candidate:
+
+```text
+two independent NPCs leave water successfully
+filled grave survives break with the same Silk Touch pickaxe
+portable grave item can be picked up and placed again
+restored NPC preserves name, UUID and inventory
+grave round trip succeeds again after server restart
+```
+
+This is sufficient to promote startup, water escape and the focused filled-grave correction to installed `PASS`.
+
+It is not sufficient for cumulative acceptance. The following release-level scenarios remain unreported for `0.1.22`:
+
+```text
+Text -> DIALOGUE
+Voice -> STT -> Chat -> TTS -> DIALOGUE
+NPC A/B memory isolation
+Operator Lore Editor open/save
+ordinary and ladder navigation
+gifts
+fishing
+mounted archer
+final clean restart with six persistent JSON files validated
+ports and monitor after the final cumulative restart
+```
+
+The M11 automated acceptance work complements this installed evidence with deterministic server GameTests for registry boot, tombstone item serialization, evaluated Silk Touch drops, empty-grave negative control, independent water lanes and post-water land navigation. GameTest success does not replace a production-JAR startup/restart test; that remains a separate Phase B boundary.
+
+## Installed 0.1.21 failure
 
 The exact official `0.1.21+1.21.1` artifact passed filename, checksum and embedded-version verification, but failed before world startup:
 
@@ -74,7 +117,7 @@ MixinTombstoneBlock refmap dependency
 
 No tombstone item schema, block-entity schema, resurrection path, graveyard persistence, navigation, AI, memory, packet or provider behavior changed.
 
-## TDD evidence
+## Corrective TDD evidence
 
 ### RED
 
@@ -91,7 +134,7 @@ Expected failing test:
 TombstoneDropPolicyTest > runtimeWiringUsesOwnedTombstoneSourceWithoutMixinInjection() FAILED
 ```
 
-### GREEN before this document
+### GREEN
 
 ```text
 head: f34c6655e24b7db053e80c608e87d1a4d9bd4cbb
@@ -109,7 +152,7 @@ unit tests and supported loader builds: SUCCESS
 Fabric distributable package verification: SUCCESS
 ```
 
-## New package-level regression boundary
+## Package-level regression boundary
 
 The remapped Fabric JAR is rejected unless all conditions hold:
 
@@ -120,81 +163,16 @@ mca.refmap.json contains no MixinTombstoneBlock mapping
 TombstoneBlock.class exists
 TombstoneBlock.class references TombstoneDropPolicy
 TombstoneBlock.class references ensurePreservedDrop
+production fabric.mod.json retains id mca
+production fabric.mod.json has no fabric-gametest entrypoint
+production JAR contains no net/conczin/mca/gametest classes
 ```
 
-This closes the exact gap that allowed `0.1.21` to pass build/package validation but fail during installed startup.
+This closes the exact gap that allowed `0.1.21` to pass build/package validation but fail during installed startup, while also preventing test-only acceptance code from leaking into release artifacts.
 
-## Exact installed test order for 0.1.22
+## Remaining cumulative installed test order
 
-### Phase 0 — Artifact and backup
-
-1. Stop the server cleanly.
-2. Create a new full backup; do not reuse the `0.1.21` backup as the only copy.
-3. Record SHA-256 values for:
-   - `memory.json`;
-   - `memory2.json`;
-   - `operator-lore.json`;
-   - `relationships.json`;
-   - `semantic-memory.json`;
-   - `voices.json`.
-4. Download only the official `villaigence-fabric-0.1.22+1.21.1.jar`.
-5. Verify the published checksum and embedded version.
-6. Remove `0.1.20` and `0.1.21` from the mods directory; keep exactly one VillAIgence/MCA JAR.
-
-### Phase 1 — Startup-only gate
-
-Start the server without connecting a client.
-
-Required:
-
-```text
-no MixinTombstoneBlock line at all
-no InvalidInjectionException
-no Mixin apply/refmap error
-no MixinGroundPathNavigation error
-no MixinTombstoneData error
-world load completes
-server reaches STARTED
-TCP 25565 available
-UDP 24454 / Voice Chat initialized
-monitor active
-no persistent corruption/recovery warning
-```
-
-Then stop cleanly and compare the six persistent hashes.
-
-Expected marker:
-
-```text
-V0122_STARTUP_GATE_PASS
-```
-
-On any startup failure:
-
-```text
-stop immediately
-preserve full startup log
-restore 0.1.20 and the new backup
-verify all six persistent hashes
-use V0122_STARTUP_GATE_FAIL and V0122_STARTUP_BLOCKER_ROLLBACK_PASS
-```
-
-### Phase 2 — Focused regressions after startup PASS only
-
-1. Water escape with two NPCs.
-2. Filled grave broken with the same Silk Touch pickaxe.
-3. Grave item pickup, placement and NPC/inventory restoration.
-4. Repeat grave round-trip after restart.
-5. Empty-grave and ordinary-tool controls.
-
-Expected markers:
-
-```text
-V0122_WATER_ESCAPE_PASS
-V0122_FILLED_GRAVE_ROUND_TRIP_PASS
-```
-
-### Phase 3 — Cumulative smoke and persistence
+The already accepted water and grave scenarios do not need destructive repetition unless a later change touches those boundaries. Complete the remaining smoke set on `0.1.22`:
 
 ```text
 Text -> DIALOGUE
@@ -212,7 +190,7 @@ ports and monitor restored
 
 Record every Chat duration. A response near the previously observed 272 seconds remains a separate performance defect.
 
-Final marker only after all phases pass:
+Final marker only after every remaining cumulative scenario passes:
 
 ```text
 V0122_CORRECTIVE_CUMULATIVE_ACCEPTANCE_PASS
