@@ -17,6 +17,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
@@ -140,6 +142,72 @@ public final class VillAIgenceGameTests implements FabricGameTest {
         helper.succeed();
     }
 
+    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE, timeoutTicks = 240)
+    public void twoNpcsEscapeIndependentWaterLanes(GameTestHelper helper) {
+        buildWaterLane(helper, 1);
+        buildWaterLane(helper, 5);
+
+        VillagerEntityMCA first = helper.spawn(EntitiesMCA.MALE_VILLAGER, 1, 1, 2);
+        VillagerEntityMCA second = helper.spawn(EntitiesMCA.FEMALE_VILLAGER, 5, 1, 2);
+        first.setPersistenceRequired();
+        second.setPersistenceRequired();
+
+        BlockPos firstTarget = helper.absolutePos(new BlockPos(1, 2, 5));
+        BlockPos secondTarget = helper.absolutePos(new BlockPos(5, 2, 5));
+
+        helper.succeedWhen(() -> {
+            helper.assertTrue(first.isAlive(), "First water-lane NPC must remain alive");
+            helper.assertTrue(second.isAlive(), "Second water-lane NPC must remain alive");
+            moveTo(first, firstTarget);
+            moveTo(second, secondTarget);
+            helper.assertTrue(!first.isInWater(), "First NPC must leave its water lane");
+            helper.assertTrue(!second.isInWater(), "Second NPC must leave its water lane");
+            helper.assertTrue(isNear(first, firstTarget),
+                    "First NPC must reach its own dry target");
+            helper.assertTrue(isNear(second, secondTarget),
+                    "Second NPC must reach its own dry target");
+        });
+    }
+
+    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE, timeoutTicks = 320)
+    public void waterEscapePreservesLandNavigation(GameTestHelper helper) {
+        buildWaterLane(helper, 1);
+        for (int x = 1; x <= 6; x++) {
+            for (int z = 4; z <= 6; z++) {
+                setBlock(helper, new BlockPos(x, 1, z), Blocks.STONE);
+            }
+        }
+
+        VillagerEntityMCA villager = helper.spawn(EntitiesMCA.MALE_VILLAGER, 1, 1, 2);
+        villager.setPersistenceRequired();
+        BlockPos shoreTarget = helper.absolutePos(new BlockPos(1, 2, 5));
+        BlockPos landTarget = helper.absolutePos(new BlockPos(6, 2, 5));
+        int[] phase = {0};
+
+        helper.succeedWhen(() -> {
+            helper.assertTrue(villager.isAlive(),
+                    "Water-to-land navigation NPC must remain alive");
+
+            if (phase[0] == 0) {
+                moveTo(villager, shoreTarget);
+                if (!villager.isInWater() && isNear(villager, shoreTarget)) {
+                    phase[0] = 1;
+                }
+            }
+
+            if (phase[0] == 1) {
+                moveTo(villager, landTarget);
+            }
+
+            helper.assertTrue(phase[0] == 1,
+                    "NPC must complete the water-escape phase before land navigation");
+            helper.assertTrue(!villager.isInWater(),
+                    "NPC must remain dry during the land-navigation phase");
+            helper.assertTrue(isNear(villager, landTarget),
+                    "NPC must reach the second dry-land target after water escape");
+        });
+    }
+
     private static VillagerEntityMCA createTombstoneFixture(
             GameTestHelper helper,
             UUID uuid,
@@ -217,5 +285,49 @@ public final class VillAIgenceGameTests implements FabricGameTest {
             }
         }
         return count;
+    }
+
+    private static void buildWaterLane(GameTestHelper helper, int laneX) {
+        for (int z = 0; z <= 6; z++) {
+            setBlock(helper, new BlockPos(laneX, 0, z), Blocks.STONE);
+        }
+        for (int z = 1; z <= 3; z++) {
+            setBlock(helper, new BlockPos(laneX, 1, z), Blocks.WATER);
+            setBlock(helper, new BlockPos(laneX, 2, z), Blocks.WATER);
+        }
+        for (int z = 0; z <= 3; z++) {
+            setBlock(helper, new BlockPos(laneX - 1, 1, z), Blocks.STONE);
+            setBlock(helper, new BlockPos(laneX - 1, 2, z), Blocks.STONE);
+            setBlock(helper, new BlockPos(laneX + 1, 1, z), Blocks.STONE);
+            setBlock(helper, new BlockPos(laneX + 1, 2, z), Blocks.STONE);
+        }
+        setBlock(helper, new BlockPos(laneX, 1, 0), Blocks.STONE);
+        setBlock(helper, new BlockPos(laneX, 2, 0), Blocks.STONE);
+        for (int z = 4; z <= 6; z++) {
+            setBlock(helper, new BlockPos(laneX, 1, z), Blocks.STONE);
+        }
+    }
+
+    private static void setBlock(GameTestHelper helper, BlockPos relativePos, Block block) {
+        helper.getLevel().setBlockAndUpdate(
+                helper.absolutePos(relativePos),
+                block.defaultBlockState()
+        );
+    }
+
+    private static void moveTo(VillagerEntityMCA villager, BlockPos target) {
+        villager.getNavigation().moveTo(
+                target.getX() + 0.5D,
+                target.getY(),
+                target.getZ() + 0.5D,
+                1.1D
+        );
+    }
+
+    private static boolean isNear(VillagerEntityMCA villager, BlockPos target) {
+        double dx = villager.getX() - (target.getX() + 0.5D);
+        double dy = villager.getY() - target.getY();
+        double dz = villager.getZ() - (target.getZ() + 0.5D);
+        return dx * dx + dy * dy + dz * dz <= 2.25D;
     }
 }
