@@ -42,12 +42,7 @@ public class MCAGroundPathNavigation extends GroundPathNavigation {
         return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
     }
 
-    @Override
-    protected Vec3 getTempMobPos() {
-        return new Vec3(this.mob.getX(), getWaterAwareSurfaceY(), this.mob.getZ());
-    }
-
-    private int getWaterAwareSurfaceY() {
+    public int mca$getWaterAwareSurfaceY() {
         int startY = this.mob.getBlockY();
         int fallbackY = Mth.floor(this.mob.getY() + 0.5D);
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(
