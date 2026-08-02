@@ -8,6 +8,7 @@ import net.conczin.mca.registry.EntitiesMCA;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
@@ -15,14 +16,22 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.Vec3;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public final class VillAIgenceGameTests implements FabricGameTest {
     private static final UUID TOMBSTONE_FIXTURE_UUID = UUID.fromString(
             "5ac86058-2caf-47a0-8f65-bf2f13e35472"
+    );
+    private static final UUID SILK_TOUCH_FIXTURE_UUID = UUID.fromString(
+            "8cb8b2b2-f56f-4f5e-a80c-146827553c3f"
     );
 
     @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
@@ -39,14 +48,11 @@ public final class VillAIgenceGameTests implements FabricGameTest {
 
     @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
     public void tombstoneItemRoundTripPreservesNpcIdentityAndInventory(GameTestHelper helper) {
-        VillagerEntityMCA original = EntitiesMCA.MALE_VILLAGER.create(helper.getLevel());
-        helper.assertTrue(original != null, "MCA villager fixture must be creatable");
-
-        original.setUUID(TOMBSTONE_FIXTURE_UUID);
-        original.setCustomName(Component.literal("Acceptance Basiliso"));
-        original.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 3));
-        original.getInventory().setItem(7, new ItemStack(Items.BREAD, 11));
-        original.getInventory().setItem(26, new ItemStack(Items.IRON_SWORD));
+        VillagerEntityMCA original = createTombstoneFixture(
+                helper,
+                TOMBSTONE_FIXTURE_UUID,
+                "Acceptance Basiliso"
+        );
 
         BlockState tombstoneState = BlocksMCA.UPRIGHT_HEADSTONE.defaultBlockState();
         TombstoneBlock.Data sourceData = new TombstoneBlock.Data(
@@ -60,10 +66,104 @@ public final class VillAIgenceGameTests implements FabricGameTest {
         helper.assertTrue(portableTombstone.has(DataComponents.BLOCK_ENTITY_DATA),
                 "Portable tombstone must contain block-entity data");
 
-        TombstoneBlock.Data restoredData = new TombstoneBlock.Data(
+        VillagerEntityMCA recreated = recreateTombstoneEntity(
+                helper,
+                portableTombstone,
                 helper.absolutePos(new BlockPos(4, 1, 2)),
                 tombstoneState
         );
+        assertFixtureIdentityAndInventory(
+                helper,
+                recreated,
+                TOMBSTONE_FIXTURE_UUID,
+                "Acceptance Basiliso"
+        );
+        helper.succeed();
+    }
+
+    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
+    public void filledTombstoneSilkTouchDropIsPortableAndUnique(GameTestHelper helper) {
+        VillagerEntityMCA original = createTombstoneFixture(
+                helper,
+                SILK_TOUCH_FIXTURE_UUID,
+                "Acceptance Casimiro"
+        );
+        BlockState tombstoneState = BlocksMCA.UPRIGHT_HEADSTONE.defaultBlockState();
+        TombstoneBlock.Data sourceData = new TombstoneBlock.Data(
+                helper.absolutePos(new BlockPos(2, 1, 4)),
+                tombstoneState
+        );
+        sourceData.setEntity(original);
+
+        ItemStack silkTouchPickaxe = new ItemStack(Items.DIAMOND_PICKAXE);
+        silkTouchPickaxe.enchant(
+                helper.getLevel()
+                        .registryAccess()
+                        .registryOrThrow(Registries.ENCHANTMENT)
+                        .getHolderOrThrow(Enchantments.SILK_TOUCH),
+                1
+        );
+
+        LootParams.Builder lootBuilder = new LootParams.Builder(helper.getLevel())
+                .withParameter(
+                        LootContextParams.ORIGIN,
+                        Vec3.atCenterOf(helper.absolutePos(new BlockPos(2, 1, 4)))
+                )
+                .withParameter(LootContextParams.TOOL, silkTouchPickaxe)
+                .withOptionalParameter(LootContextParams.BLOCK_ENTITY, sourceData);
+
+        List<ItemStack> drops = BlocksMCA.UPRIGHT_HEADSTONE.getDrops(
+                tombstoneState,
+                lootBuilder
+        );
+        List<ItemStack> tombstoneDrops = drops.stream()
+                .filter(stack -> stack.is(BlocksMCA.UPRIGHT_HEADSTONE.asItem()))
+                .toList();
+
+        helper.assertTrue(tombstoneDrops.size() == 1,
+                "Filled Silk Touch grave must produce exactly one portable tombstone, found "
+                        + tombstoneDrops.size());
+        ItemStack portableTombstone = tombstoneDrops.getFirst();
+        helper.assertTrue(portableTombstone.has(DataComponents.BLOCK_ENTITY_DATA),
+                "Silk Touch tombstone drop must contain stored NPC data");
+
+        VillagerEntityMCA recreated = recreateTombstoneEntity(
+                helper,
+                portableTombstone,
+                helper.absolutePos(new BlockPos(5, 1, 4)),
+                tombstoneState
+        );
+        assertFixtureIdentityAndInventory(
+                helper,
+                recreated,
+                SILK_TOUCH_FIXTURE_UUID,
+                "Acceptance Casimiro"
+        );
+        helper.succeed();
+    }
+
+    private static VillagerEntityMCA createTombstoneFixture(
+            GameTestHelper helper,
+            UUID uuid,
+            String name
+    ) {
+        VillagerEntityMCA villager = EntitiesMCA.MALE_VILLAGER.create(helper.getLevel());
+        helper.assertTrue(villager != null, "MCA villager fixture must be creatable");
+        villager.setUUID(uuid);
+        villager.setCustomName(Component.literal(name));
+        villager.getInventory().setItem(0, new ItemStack(Items.DIAMOND, 3));
+        villager.getInventory().setItem(7, new ItemStack(Items.BREAD, 11));
+        villager.getInventory().setItem(26, new ItemStack(Items.IRON_SWORD));
+        return villager;
+    }
+
+    private static VillagerEntityMCA recreateTombstoneEntity(
+            GameTestHelper helper,
+            ItemStack portableTombstone,
+            BlockPos restoredPos,
+            BlockState tombstoneState
+    ) {
+        TombstoneBlock.Data restoredData = new TombstoneBlock.Data(restoredPos, tombstoneState);
         restoredData.readFromStack(portableTombstone);
         helper.assertTrue(restoredData.hasEntity(),
                 "Placed tombstone data must recover a stored entity");
@@ -73,18 +173,24 @@ public final class VillAIgenceGameTests implements FabricGameTest {
                 "Stored tombstone entity must be reconstructable");
         helper.assertTrue(recreatedEntity.get() instanceof VillagerEntityMCA,
                 "Reconstructed entity must remain an MCA villager");
+        return (VillagerEntityMCA) recreatedEntity.get();
+    }
 
-        VillagerEntityMCA recreated = (VillagerEntityMCA) recreatedEntity.get();
-        helper.assertTrue(recreated.getUUID().equals(TOMBSTONE_FIXTURE_UUID),
+    private static void assertFixtureIdentityAndInventory(
+            GameTestHelper helper,
+            VillagerEntityMCA recreated,
+            UUID expectedUuid,
+            String expectedName
+    ) {
+        helper.assertTrue(recreated.getUUID().equals(expectedUuid),
                 "Tombstone round trip must preserve NPC UUID");
-        helper.assertTrue(recreated.getName().getString().equals("Acceptance Basiliso"),
+        helper.assertTrue(recreated.getName().getString().equals(expectedName),
                 "Tombstone round trip must preserve NPC name");
         assertInventoryCount(helper, recreated, Items.DIAMOND, 3);
         assertInventoryCount(helper, recreated, Items.BREAD, 11);
         assertInventoryCount(helper, recreated, Items.IRON_SWORD, 1);
         helper.assertTrue(nonEmptyStackCount(recreated) == 3,
                 "Tombstone round trip must neither lose nor duplicate inventory stacks");
-        helper.succeed();
     }
 
     private static void assertInventoryCount(
