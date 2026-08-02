@@ -6,7 +6,8 @@
   "environment": "*",
   "entrypoints": {
     "fabric-gametest": [
-      "net.conczin.mca.gametest.VillAIgenceGameTests"
+      "net.conczin.mca.gametest.VillAIgenceGameTests",
+      "net.conczin.mca.gametest.TombstoneControlGameTests"
     ]
   },
   "depends": {
