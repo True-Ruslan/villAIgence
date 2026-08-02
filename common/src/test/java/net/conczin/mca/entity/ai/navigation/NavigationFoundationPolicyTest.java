@@ -2,10 +2,10 @@ package net.conczin.mca.entity.ai.navigation;
 
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Method;
-import java.util.Arrays;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -57,13 +57,13 @@ class NavigationFoundationPolicyTest {
     }
 
     @Test
-    void waterAwareNavigationPreservesVanillaPathPositionHook() {
-        Set<String> declaredMethods = Arrays.stream(MCAGroundPathNavigation.class.getDeclaredMethods())
-                .map(Method::getName)
-                .collect(Collectors.toSet());
+    void waterAwareNavigationPreservesVanillaPathPositionHook() throws IOException {
+        String source = Files.readString(Path.of(
+                "src/main/java/net/conczin/mca/entity/ai/navigation/MCAGroundPathNavigation.java"
+        ));
 
-        assertFalse(declaredMethods.contains("getTempMobPos"));
-        assertTrue(declaredMethods.contains("mca$getWaterAwareSurfaceY"));
+        assertFalse(source.contains("getTempMobPos("));
+        assertTrue(source.contains("mca$getWaterAwareSurfaceY("));
     }
 
     @Test
