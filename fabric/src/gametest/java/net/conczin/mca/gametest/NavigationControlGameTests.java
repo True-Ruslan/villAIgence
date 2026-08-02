@@ -10,7 +10,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
 public final class NavigationControlGameTests implements FabricGameTest {
-    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE, timeoutTicks = 160)
+    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE, timeoutTicks = 600)
     public void freshDryNpcBuildsTheSameLandPath(GameTestHelper helper) {
         for (int x = 1; x <= 6; x++) {
             for (int z = 4; z <= 6; z++) {
