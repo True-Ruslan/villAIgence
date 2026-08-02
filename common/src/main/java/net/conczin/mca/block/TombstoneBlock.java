@@ -290,20 +290,25 @@ public class TombstoneBlock extends BaseEntityBlock implements SimpleWaterlogged
     public List<ItemStack> getDrops(BlockState state, LootParams.Builder builder) {
         List<ItemStack> stacks = super.getDrops(state, builder);
 
-        Optional<Data> data = Data.of(builder.getOptionalParameter(LootContextParams.BLOCK_ENTITY)).filter(Data::hasEntity);
+        Optional<Data> storedData = Data.of(builder.getOptionalParameter(LootContextParams.BLOCK_ENTITY))
+                .filter(Data::hasEntity);
 
-        data.flatMap(Data::getEntityName)
+        storedData.flatMap(Data::getEntityName)
                 .ifPresent(name -> {
                     stacks.stream().filter(TombstoneBlock::isRemains).forEach(stack -> {
                         stack.set(DataComponents.CUSTOM_NAME, Component.translatable("block.mca.tombstone.remains", stack.getHoverName(), name));
                     });
 
                 });
-        data.ifPresent(be -> {
-            stacks.stream().filter(s -> s.getItem() == asItem()).findFirst().ifPresent(be::writeToStack);
-        });
 
-        return stacks;
+        return storedData
+                .map(data -> TombstoneDropPolicy.ensurePreservedDrop(
+                        stacks,
+                        stack -> stack.getItem() == asItem(),
+                        () -> new ItemStack(asItem()),
+                        data::writeToStack
+                ))
+                .orElse(stacks);
     }
 
     public static class Data extends BlockEntity {

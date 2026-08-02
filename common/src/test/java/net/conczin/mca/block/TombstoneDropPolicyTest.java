@@ -95,16 +95,21 @@ class TombstoneDropPolicyTest {
     }
 
     @Test
-    void runtimeMixinRegistersAndAppliesPolicy() throws IOException {
-        String mixinConfig = Files.readString(Path.of("src/main/resources/mca.mixins.json"));
-        String mixinSource = Files.readString(Path.of(
-                "src/main/java/net/conczin/mca/mixin/MixinTombstoneBlock.java"
-        ));
+    void runtimeWiringUsesOwnedTombstoneSourceWithoutMixinInjection() throws IOException {
+        Path root = Path.of("src/main");
+        String mixinConfig = Files.readString(root.resolve("resources/mca.mixins.json"));
+        Path obsoleteMixin = root.resolve("java/net/conczin/mca/mixin/MixinTombstoneBlock.java");
+        String tombstoneSource = Files.readString(
+                root.resolve("java/net/conczin/mca/block/TombstoneBlock.java")
+        );
 
-        assertTrue(mixinConfig.contains("\"MixinTombstoneBlock\""));
-        assertTrue(mixinSource.contains("TombstoneDropPolicy.ensurePreservedDrop("));
-        assertTrue(mixinSource.contains("filter(TombstoneBlock.Data::hasEntity)"));
-        assertTrue(mixinSource.contains("data::writeToStack"));
+        assertFalse(mixinConfig.contains("\"MixinTombstoneBlock\""),
+                "Owned TombstoneBlock behavior must not depend on a runtime Mixin target");
+        assertFalse(Files.exists(obsoleteMixin),
+                "Obsolete MixinTombstoneBlock source must be removed");
+        assertTrue(tombstoneSource.contains("TombstoneDropPolicy.ensurePreservedDrop("));
+        assertTrue(tombstoneSource.contains("filter(Data::hasEntity)"));
+        assertTrue(tombstoneSource.contains("data::writeToStack"));
     }
 
     private static final class FakeDrop {
