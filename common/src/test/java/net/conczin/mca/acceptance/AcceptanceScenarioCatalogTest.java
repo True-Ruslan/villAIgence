@@ -1,17 +1,17 @@
 package net.conczin.mca.acceptance;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -21,6 +21,20 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AcceptanceScenarioCatalogTest {
+    private static final List<String> EXPECTED_COLUMNS = List.of(
+            "id",
+            "domain",
+            "severity",
+            "state",
+            "layer",
+            "gate",
+            "invariant",
+            "oracle",
+            "timeoutSeconds",
+            "evidence",
+            "manualRationale"
+    );
+
     private static final Set<String> REQUIRED_DOMAINS = Set.of(
             "BOOT_PACKAGE",
             "IDENTITY_LIFECYCLE",
@@ -41,58 +55,55 @@ class AcceptanceScenarioCatalogTest {
 
     @Test
     void catalogCoversEveryRiskDomainWithDeterministicEvidence() throws IOException {
-        JsonArray scenarios = loadCatalog();
+        List<Map<String, String>> scenarios = loadCatalog();
         assertTrue(scenarios.size() >= REQUIRED_DOMAINS.size() * 3,
                 "The initial catalog must include at least three scenarios per risk domain");
 
         Set<String> ids = new HashSet<>();
         Map<String, Integer> domainCounts = new HashMap<>();
 
-        for (JsonElement element : scenarios) {
-            assertTrue(element.isJsonObject(), "Every scenario entry must be a JSON object");
-            JsonObject scenario = element.getAsJsonObject();
-
-            String id = requiredString(scenario, "id");
+        for (Map<String, String> scenario : scenarios) {
+            String id = required(scenario, "id");
             assertTrue(id.matches("VAI-[A-Z]+-[0-9]{3}"),
                     () -> "Scenario ID must be stable and machine-readable: " + id);
             assertTrue(ids.add(id), () -> "Duplicate scenario ID: " + id);
 
-            String domain = requiredString(scenario, "domain");
+            String domain = required(scenario, "domain");
             assertTrue(REQUIRED_DOMAINS.contains(domain),
                     () -> "Unknown risk domain for " + id + ": " + domain);
             domainCounts.merge(domain, 1, Integer::sum);
 
-            String severity = requiredString(scenario, "severity");
+            String severity = required(scenario, "severity");
             assertTrue(VALID_SEVERITIES.contains(severity),
                     () -> "Unknown severity for " + id + ": " + severity);
 
-            String state = requiredString(scenario, "state");
+            String state = required(scenario, "state");
             assertTrue(VALID_STATES.contains(state),
                     () -> "Unknown automation state for " + id + ": " + state);
 
-            requiredString(scenario, "layer");
-            requiredString(scenario, "invariant");
-            requiredString(scenario, "oracle");
-            requiredString(scenario, "evidence");
+            required(scenario, "layer");
+            required(scenario, "invariant");
+            String oracle = required(scenario, "oracle");
+            required(scenario, "evidence");
 
-            int timeoutSeconds = requiredPositiveInt(scenario, "timeoutSeconds");
+            int timeoutSeconds = positiveInt(scenario, "timeoutSeconds");
             assertTrue(timeoutSeconds <= 1_800,
                     () -> "Scenario timeout exceeds the 30-minute safety ceiling: " + id);
 
             if (state.equals("AUTOMATED")) {
-                requiredString(scenario, "gate");
-                assertFalse(requiredString(scenario, "oracle").equalsIgnoreCase("manual observation"),
+                required(scenario, "gate");
+                assertFalse(oracle.equalsIgnoreCase("manual observation"),
                         () -> "Automated scenario must have a machine-verifiable oracle: " + id);
             }
 
             if (state.equals("MANUAL_CANARY")) {
-                requiredString(scenario, "manualRationale");
+                required(scenario, "manualRationale");
             }
 
             if (severity.equals("CRITICAL") && !state.equals("AUTOMATED")) {
                 assertTrue(state.equals("MANUAL_CANARY"),
                         () -> "Critical scenario must be automated or an explicit manual canary: " + id);
-                requiredString(scenario, "manualRationale");
+                required(scenario, "manualRationale");
             }
         }
 
@@ -102,35 +113,63 @@ class AcceptanceScenarioCatalogTest {
                 () -> "Risk domain requires at least three scenarios: " + domain));
     }
 
-    private static JsonArray loadCatalog() throws IOException {
+    private static List<Map<String, String>> loadCatalog() throws IOException {
         try (InputStream stream = AcceptanceScenarioCatalogTest.class
-                .getResourceAsStream("/acceptance/scenarios.json")) {
+                .getResourceAsStream("/acceptance/scenarios.tsv")) {
             assertNotNull(stream,
-                    "Missing /acceptance/scenarios.json risk-based acceptance catalog");
-            try (InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-                JsonElement root = JsonParser.parseReader(reader);
-                assertTrue(root.isJsonArray(), "Acceptance catalog root must be a JSON array");
-                return root.getAsJsonArray();
+                    "Missing /acceptance/scenarios.tsv risk-based acceptance catalog");
+
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+                String headerLine = reader.readLine();
+                assertNotNull(headerLine, "Acceptance catalog must contain a header");
+                List<String> columns = split(headerLine);
+                assertEquals(EXPECTED_COLUMNS, columns,
+                        "Acceptance catalog header must use the canonical column order");
+
+                List<Map<String, String>> rows = new ArrayList<>();
+                String line;
+                int lineNumber = 1;
+                while ((line = reader.readLine()) != null) {
+                    lineNumber++;
+                    if (line.isBlank() || line.startsWith("#")) {
+                        continue;
+                    }
+
+                    List<String> values = split(line);
+                    assertEquals(EXPECTED_COLUMNS.size(), values.size(),
+                            "Acceptance catalog line " + lineNumber + " has the wrong column count");
+
+                    Map<String, String> row = new HashMap<>();
+                    for (int index = 0; index < EXPECTED_COLUMNS.size(); index++) {
+                        row.put(EXPECTED_COLUMNS.get(index), values.get(index).trim());
+                    }
+                    rows.add(Map.copyOf(row));
+                }
+                return List.copyOf(rows);
             }
         }
     }
 
-    private static String requiredString(JsonObject object, String field) {
-        assertTrue(object.has(field), () -> "Missing required field: " + field);
-        JsonElement value = object.get(field);
-        assertTrue(value.isJsonPrimitive() && value.getAsJsonPrimitive().isString(),
-                () -> "Field must be a string: " + field);
-        String text = value.getAsString().trim();
-        assertFalse(text.isEmpty(), () -> "Field must not be blank: " + field);
-        return text;
+    private static List<String> split(String line) {
+        return Arrays.asList(line.split("\\t", -1));
     }
 
-    private static int requiredPositiveInt(JsonObject object, String field) {
-        assertTrue(object.has(field), () -> "Missing required field: " + field);
-        JsonElement value = object.get(field);
-        assertTrue(value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber(),
-                () -> "Field must be a number: " + field);
-        int number = value.getAsInt();
+    private static String required(Map<String, String> row, String field) {
+        String value = row.get(field);
+        assertNotNull(value, () -> "Missing required field: " + field);
+        assertFalse(value.isBlank(), () -> "Field must not be blank: " + field);
+        return value;
+    }
+
+    private static int positiveInt(Map<String, String> row, String field) {
+        String value = required(row, field);
+        int number;
+        try {
+            number = Integer.parseInt(value);
+        } catch (NumberFormatException exception) {
+            throw new AssertionError("Field must be an integer: " + field, exception);
+        }
         assertTrue(number > 0, () -> "Field must be positive: " + field);
         return number;
     }
