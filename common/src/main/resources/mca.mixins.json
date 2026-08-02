@@ -10,6 +10,7 @@
     "MixinAdvancementRewards",
     "MixinArcherMovementTask",
     "MixinEntityType",
+    "MixinGroundPathNavigation",
     "MixinItemStack",
     "MixinGoat",
     "MixinInventory",
