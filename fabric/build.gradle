@@ -84,7 +84,7 @@ def refmapEntryName = "${project.property('mod_id')}.refmap.json"
 
 def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
     group = 'verification'
-    description = 'Requires the distributable Fabric JAR to contain the correct Mixin refmap for controlled climbing.'
+    description = 'Requires the distributable Fabric JAR to contain valid startup-safe Mixin and resurrection hooks.'
     dependsOn tasks.named('remapJar')
     inputs.file(remappedFabricJar)
 
@@ -135,6 +135,27 @@ def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
             if (mobMappings instanceof Map && mobMappings.containsKey('setJumping')) {
                 throw new GradleException(
                         "${refmapEntryName} must not map setJumping through MixinMob: ${jarFile}"
+                )
+            }
+
+            def commonMixins = mixinConfig.mixins instanceof List ? mixinConfig.mixins : []
+            if (commonMixins.contains('MixinTombstoneData')) {
+                throw new GradleException(
+                        "mca.mixins.json must not inject into TombstoneBlock.Data synthetic resurrection lambda: ${jarFile}"
+                )
+            }
+
+            def tombstoneDataEntry = zip.getEntry('net/conczin/mca/block/TombstoneBlock$Data.class')
+            if (tombstoneDataEntry == null) {
+                throw new GradleException("Distributable Fabric JAR is missing TombstoneBlock$Data.class: ${jarFile}")
+            }
+
+            def tombstoneDataBytes = zip.getInputStream(tombstoneDataEntry).bytes
+            def tombstoneDataConstants = new String(tombstoneDataBytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+            if (!tombstoneDataConstants.contains('net/conczin/mca/entity/ai/brain/tasks/MourningMemoryLifecycle')
+                    || !tombstoneDataConstants.contains('clearAfterResurrection')) {
+                throw new GradleException(
+                        "TombstoneBlock.Data must call MourningMemoryLifecycle.clearAfterResurrection directly: ${jarFile}"
                 )
             }
         } finally {
