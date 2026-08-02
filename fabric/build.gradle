@@ -84,7 +84,7 @@ def refmapEntryName = "${project.property('mod_id')}.refmap.json"
 
 def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
     group = 'verification'
-    description = 'Requires the distributable Fabric JAR to contain valid startup-safe Mixin, navigation and resurrection hooks.'
+    description = 'Requires the distributable Fabric JAR to contain valid startup-safe Mixin, navigation, tombstone and resurrection hooks.'
     dependsOn tasks.named('remapJar')
     inputs.file(remappedFabricJar)
 
@@ -139,6 +139,37 @@ def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
             }
 
             def commonMixins = mixinConfig.mixins instanceof List ? mixinConfig.mixins : []
+            if (commonMixins.contains('MixinTombstoneBlock')) {
+                throw new GradleException(
+                        "mca.mixins.json must not register MixinTombstoneBlock for owned TombstoneBlock behavior: ${jarFile}"
+                )
+            }
+            if (zip.getEntry('net/conczin/mca/mixin/MixinTombstoneBlock.class') != null) {
+                throw new GradleException(
+                        "Distributable Fabric JAR must not contain obsolete MixinTombstoneBlock.class: ${jarFile}"
+                )
+            }
+            if (refmap.mappings['net/conczin/mca/mixin/MixinTombstoneBlock'] != null) {
+                throw new GradleException(
+                        "${refmapEntryName} must not contain obsolete MixinTombstoneBlock mappings: ${jarFile}"
+                )
+            }
+
+            def tombstoneBlockEntry = zip.getEntry('net/conczin/mca/block/TombstoneBlock.class')
+            if (tombstoneBlockEntry == null) {
+                throw new GradleException("Distributable Fabric JAR is missing TombstoneBlock.class: ${jarFile}")
+            }
+            def tombstoneBlockConstants = new String(
+                    zip.getInputStream(tombstoneBlockEntry).bytes,
+                    java.nio.charset.StandardCharsets.ISO_8859_1
+            )
+            if (!tombstoneBlockConstants.contains('net/conczin/mca/block/TombstoneDropPolicy')
+                    || !tombstoneBlockConstants.contains('ensurePreservedDrop')) {
+                throw new GradleException(
+                        "TombstoneBlock must wire TombstoneDropPolicy.ensurePreservedDrop directly: ${jarFile}"
+                )
+            }
+
             if (!commonMixins.contains('MixinGroundPathNavigation')) {
                 throw new GradleException(
                         "mca.mixins.json must register MixinGroundPathNavigation: ${jarFile}"
