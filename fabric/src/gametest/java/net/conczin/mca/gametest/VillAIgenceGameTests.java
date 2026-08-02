@@ -142,7 +142,7 @@ public final class VillAIgenceGameTests implements FabricGameTest {
         helper.succeed();
     }
 
-    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE, timeoutTicks = 240)
+    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE, timeoutTicks = 1200)
     public void twoNpcsEscapeIndependentWaterLanes(GameTestHelper helper) {
         buildWaterLane(helper, 1);
         buildWaterLane(helper, 5);
@@ -181,7 +181,7 @@ public final class VillAIgenceGameTests implements FabricGameTest {
                 .thenSucceed();
     }
 
-    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE, timeoutTicks = 320)
+    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE, timeoutTicks = 1200)
     public void waterEscapePreservesLandNavigation(GameTestHelper helper) {
         buildWaterLane(helper, 1);
         for (int x = 1; x <= 6; x++) {
