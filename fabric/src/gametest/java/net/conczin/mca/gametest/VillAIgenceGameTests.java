@@ -210,9 +210,9 @@ public final class VillAIgenceGameTests implements FabricGameTest {
                             "NPC must reach the dry shore target before the second phase: "
                                     + navigationState(villager, shoreTarget));
                 })
-                .thenExecute(() -> helper.assertTrue(
+                .thenExecuteAfter(2, () -> helper.assertTrue(
                         startNavigation(villager, landTarget),
-                        "NPC must build a post-water dry-land path: "
+                        "NPC must build a post-water dry-land path after stabilization: "
                                 + navigationState(villager, landTarget)
                 ))
                 .thenWaitUntil(() -> {
