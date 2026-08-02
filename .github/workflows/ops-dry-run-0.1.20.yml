@@ -1,0 +1,147 @@
+name: Isolated 0.1.20 release dry-run
+
+on:
+  pull_request:
+    branches:
+      - '1.21.1'
+    paths:
+      - '.github/workflows/ops-dry-run-0.1.20.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dry-run-villaigence-0.1.20
+  cancel-in-progress: false
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RELEASE_VERSION: 0.1.20+1.21.1
+      EXPECTED_CANONICAL_SHA: 3244bc98fb6d2f8e1b7a3c7715ca0c35970a58f9
+    steps:
+      - name: Checkout operation branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v5
+        with:
+          cache-read-only: true
+          validate-wrappers: true
+
+      - name: Verify branch ancestry and build candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin refs/heads/1.21.1:refs/remotes/origin/1.21.1
+          canonical_sha="$(git rev-parse refs/remotes/origin/1.21.1)"
+          test "${canonical_sha}" = "${EXPECTED_CANONICAL_SHA}"
+          test "$(git merge-base HEAD "${EXPECTED_CANONICAL_SHA}")" = "${EXPECTED_CANONICAL_SHA}"
+
+          chmod +x gradlew
+          ./gradlew \
+            :common:test \
+            :fabric:build \
+            :neoforge:build \
+            dependencyManifest \
+            --console=plain \
+            --non-interactive
+
+      - name: Stage and inspect exact candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-candidate
+
+          mapfile -t jars < <(
+            find fabric/build/libs -maxdepth 1 -type f -name '*.jar' \
+              ! -name '*-sources.jar' \
+              ! -name '*-javadoc.jar' \
+              | sort
+          )
+          if [[ "${#jars[@]}" -ne 1 ]]; then
+            printf 'Expected exactly one distributable Fabric JAR, found %s:\n%s\n' \
+              "${#jars[@]}" "${jars[*]:-<none>}"
+            exit 1
+          fi
+
+          candidate="release-candidate/villaigence-fabric-${RELEASE_VERSION}.jar"
+          cp "${jars[0]}" "${candidate}"
+          sha256sum "${candidate}" > "${candidate}.sha256"
+
+          dependency_source='build/reports/dependencies/villaigence-dependencies.txt'
+          test -s "${dependency_source}"
+          cp "${dependency_source}" \
+            "release-candidate/villaigence-dependencies-${RELEASE_VERSION}.txt"
+
+          python - "${candidate}" <<'PY'
+          import hashlib
+          import json
+          import sys
+          import zipfile
+
+          jar_path = sys.argv[1]
+          expected_jump = "Lnet/minecraft/class_1309;method_6100(Z)V"
+          tombstone_class = "net/conczin/mca/block/TombstoneBlock$Data.class"
+          removed_mixin_class = "net/conczin/mca/mixin/MixinTombstoneData.class"
+
+          with zipfile.ZipFile(jar_path) as jar:
+              names = set(jar.namelist())
+              required = {"mca.mixins.json", "mca.refmap.json", tombstone_class}
+              missing = sorted(required - names)
+              if missing:
+                  raise SystemExit(f"missing required JAR entries: {missing}")
+
+              mixin_config = json.loads(jar.read("mca.mixins.json"))
+              if mixin_config.get("refmap") != "mca.refmap.json":
+                  raise SystemExit(f"unexpected refmap declaration: {mixin_config.get('refmap')!r}")
+              if "MixinTombstoneData" in mixin_config.get("mixins", []):
+                  raise SystemExit("MixinTombstoneData is still registered")
+              if removed_mixin_class in names:
+                  raise SystemExit("MixinTombstoneData.class is still packaged")
+
+              refmap_bytes = jar.read("mca.refmap.json")
+              refmap = json.loads(refmap_bytes)
+              mappings = refmap.get("mappings", {})
+              living = mappings.get("net/conczin/mca/mixin/MixinLivingEntity", {})
+              mob = mappings.get("net/conczin/mca/mixin/MixinMob", {})
+              if living.get("setJumping") != expected_jump:
+                  raise SystemExit(f"unexpected LivingEntity setJumping mapping: {living.get('setJumping')!r}")
+              if "setJumping" in mob:
+                  raise SystemExit(f"MixinMob still maps setJumping: {mob['setJumping']!r}")
+
+              tombstone_bytes = jar.read(tombstone_class)
+              for marker in (
+                  b"net/conczin/mca/entity/ai/brain/tasks/MourningMemoryLifecycle",
+                  b"clearAfterResurrection",
+              ):
+                  if marker not in tombstone_bytes:
+                      raise SystemExit(f"missing direct tombstone cleanup marker: {marker!r}")
+
+              jar_sha = hashlib.sha256(open(jar_path, "rb").read()).hexdigest()
+              refmap_sha = hashlib.sha256(refmap_bytes).hexdigest()
+              print(f"candidate={jar_path}")
+              print(f"candidate_sha256={jar_sha}")
+              print(f"embedded_refmap_sha256={refmap_sha}")
+              print(f"setJumping={living['setJumping']}")
+              print("MixinTombstoneData=absent")
+              print("directMourningCleanup=present")
+          PY
+
+      - name: Upload exact release candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
+        with:
+          name: villaigence-fabric-0.1.20-candidate
+          path: release-candidate/*
+          if-no-files-found: error
+          retention-days: 30
