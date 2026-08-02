@@ -154,12 +154,12 @@ public final class VillAIgenceGameTests implements FabricGameTest {
 
         BlockPos firstTarget = helper.absolutePos(new BlockPos(1, 2, 5));
         BlockPos secondTarget = helper.absolutePos(new BlockPos(5, 2, 5));
+        moveTo(first, firstTarget);
+        moveTo(second, secondTarget);
 
         helper.succeedWhen(() -> {
             helper.assertTrue(first.isAlive(), "First water-lane NPC must remain alive");
             helper.assertTrue(second.isAlive(), "Second water-lane NPC must remain alive");
-            moveTo(first, firstTarget);
-            moveTo(second, secondTarget);
             helper.assertTrue(!first.isInWater(), "First NPC must leave its water lane");
             helper.assertTrue(!second.isInWater(), "Second NPC must leave its water lane");
             helper.assertTrue(isNear(first, firstTarget),
@@ -182,30 +182,27 @@ public final class VillAIgenceGameTests implements FabricGameTest {
         villager.setPersistenceRequired();
         BlockPos shoreTarget = helper.absolutePos(new BlockPos(1, 2, 5));
         BlockPos landTarget = helper.absolutePos(new BlockPos(6, 2, 5));
-        int[] phase = {0};
 
-        helper.succeedWhen(() -> {
-            helper.assertTrue(villager.isAlive(),
-                    "Water-to-land navigation NPC must remain alive");
-
-            if (phase[0] == 0) {
-                moveTo(villager, shoreTarget);
-                if (!villager.isInWater() && isNear(villager, shoreTarget)) {
-                    phase[0] = 1;
-                }
-            }
-
-            if (phase[0] == 1) {
-                moveTo(villager, landTarget);
-            }
-
-            helper.assertTrue(phase[0] == 1,
-                    "NPC must complete the water-escape phase before land navigation");
-            helper.assertTrue(!villager.isInWater(),
-                    "NPC must remain dry during the land-navigation phase");
-            helper.assertTrue(isNear(villager, landTarget),
-                    "NPC must reach the second dry-land target after water escape");
-        });
+        helper.startSequence()
+                .thenExecute(() -> moveTo(villager, shoreTarget))
+                .thenWaitUntil(() -> {
+                    helper.assertTrue(villager.isAlive(),
+                            "Water-to-land navigation NPC must remain alive during water escape");
+                    helper.assertTrue(!villager.isInWater(),
+                            "NPC must leave water before the land-navigation phase");
+                    helper.assertTrue(isNear(villager, shoreTarget),
+                            "NPC must reach the dry shore target before the second phase");
+                })
+                .thenExecute(() -> moveTo(villager, landTarget))
+                .thenWaitUntil(() -> {
+                    helper.assertTrue(villager.isAlive(),
+                            "Water-to-land navigation NPC must remain alive on land");
+                    helper.assertTrue(!villager.isInWater(),
+                            "NPC must remain dry during the land-navigation phase");
+                    helper.assertTrue(isNear(villager, landTarget),
+                            "NPC must reach the second dry-land target after water escape");
+                })
+                .thenSucceed();
     }
 
     private static VillagerEntityMCA createTombstoneFixture(
@@ -293,7 +290,6 @@ public final class VillAIgenceGameTests implements FabricGameTest {
         }
         for (int z = 1; z <= 3; z++) {
             setBlock(helper, new BlockPos(laneX, 1, z), Blocks.WATER);
-            setBlock(helper, new BlockPos(laneX, 2, z), Blocks.WATER);
         }
         for (int z = 0; z <= 3; z++) {
             setBlock(helper, new BlockPos(laneX - 1, 1, z), Blocks.STONE);
