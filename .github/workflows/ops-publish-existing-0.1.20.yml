@@ -1,0 +1,103 @@
+name: Publish exact verified 0.1.20 candidate
+
+on:
+  pull_request:
+    branches:
+      - '1.21.1'
+    paths:
+      - '.github/workflows/ops-publish-existing-0.1.20.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: publish-exact-villaigence-0.1.20
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: 0.1.20+1.21.1
+      EXPECTED_SHA: 3244bc98fb6d2f8e1b7a3c7715ca0c35970a58f9
+      CANDIDATE_RUN_ID: '30742146200'
+      CANDIDATE_ARTIFACT: villaigence-fabric-0.1.20-candidate
+      EXPECTED_JAR_SHA256: 3d00e5b7e5f5ace0f10b9455038d45f1aaf55546b634673f1cbae7d8c677a1ac
+    steps:
+      - name: Checkout operation branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Verify exact tag and canonical branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin refs/heads/1.21.1:refs/remotes/origin/1.21.1 --tags
+          tag_sha="$(git rev-list -n 1 "${RELEASE_TAG}")"
+          canonical_sha="$(git rev-parse refs/remotes/origin/1.21.1)"
+          test "${tag_sha}" = "${EXPECTED_SHA}"
+          test "${canonical_sha}" = "${EXPECTED_SHA}"
+
+      - name: Download and reverify exact dry-run candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          gh run download "${CANDIDATE_RUN_ID}" \
+            --name "${CANDIDATE_ARTIFACT}" \
+            --dir release-assets
+
+          mapfile -t jars < <(find release-assets -maxdepth 1 -type f -name '*.jar' | sort)
+          test "${#jars[@]}" -eq 1
+          jar_file="${jars[0]}"
+          checksum_file="${jar_file}.sha256"
+          test -s "${checksum_file}"
+
+          actual_sha="$(sha256sum "${jar_file}" | awk '{print $1}')"
+          declared_sha="$(awk '{print $1}' "${checksum_file}")"
+          test "${actual_sha}" = "${EXPECTED_JAR_SHA256}"
+          test "${declared_sha}" = "${EXPECTED_JAR_SHA256}"
+
+          mapfile -t dependency_files < <(
+            find release-assets -maxdepth 1 -type f -name 'villaigence-dependencies-*.txt' | sort
+          )
+          test "${#dependency_files[@]}" -eq 1
+          test -s "${dependency_files[0]}"
+
+      - name: Publish official GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Release ${RELEASE_TAG} already exists; independent verifier will validate it."
+            exit 0
+          fi
+
+          cat > release-notes.md <<'EOF'
+          ## Startup hotfix
+
+          This corrective release replaces the failed `MixinTombstoneData` synthetic-lambda redirect with a direct resurrection cleanup call in project-owned `TombstoneBlock.Data`.
+
+          ### Corrected
+
+          - removes the startup-failing `MixinTombstoneData` registration and class;
+          - preserves mourning cleanup after resurrection through a direct call;
+          - retains the valid `mca.refmap.json` and controlled-climb mapping introduced in `0.1.19`;
+          - adds a permanent distributable-JAR contract for both startup fixes.
+
+          ### Acceptance boundary
+
+          `0.1.18` and `0.1.19` failed before world load and remain unsuitable for acceptance. This exact `0.1.20` JAR still requires installed-server startup validation before gameplay acceptance resumes.
+          EOF
+
+          gh release create "${RELEASE_TAG}" \
+            release-assets/* \
+            --verify-tag \
+            --title "VillAIgence ${RELEASE_TAG}" \
+            --notes-file release-notes.md
