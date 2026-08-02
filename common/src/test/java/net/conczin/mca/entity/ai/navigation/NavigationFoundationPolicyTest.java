@@ -2,6 +2,9 @@ package net.conczin.mca.entity.ai.navigation;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -51,6 +54,16 @@ class NavigationFoundationPolicyTest {
         );
 
         assertEquals(57, surfaceY);
+    }
+
+    @Test
+    void waterAwareNavigationPreservesVanillaPathPositionHook() throws IOException {
+        String source = Files.readString(Path.of(
+                "src/main/java/net/conczin/mca/entity/ai/navigation/MCAGroundPathNavigation.java"
+        ));
+
+        assertFalse(source.contains("protected Vec3 getTempMobPos("));
+        assertTrue(source.contains("public int mca$getWaterAwareSurfaceY("));
     }
 
     @Test
