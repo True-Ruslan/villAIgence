@@ -80,6 +80,22 @@ jobs:
             --shutdown-timeout-seconds 60 \
             --max-heap-mib 768
 
+          grep -Fq 'VILLAIGENCE_PRODUCTION_FIXTURE_READY' \
+            build/production-server-acceptance/evidence/server-run-1.log
+          grep -Fq 'VILLAIGENCE_PRODUCTION_FIXTURE_READY' \
+            build/production-server-acceptance/evidence/server-run-2.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path('build/production-server-acceptance/evidence/acceptance-report.json')
+              .read_text(encoding='utf-8')
+          )
+          if report.get('status') != 'PASS':
+              raise SystemExit('production acceptance report is not PASS')
+          PY
+
       - name: Upload production acceptance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
