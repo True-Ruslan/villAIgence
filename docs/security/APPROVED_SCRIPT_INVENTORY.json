@@ -26,6 +26,12 @@
       "ci": true
     },
     {
+      "path": "scripts/ci/test-production-server-acceptance.py",
+      "purpose": "Standard-library unit tests for production-server staging confinement, startup log oracles and persistent JSON comparison; performs no network requests.",
+      "network": false,
+      "ci": true
+    },
+    {
       "path": "scripts/ci/test-release-version-contract.sh",
       "purpose": "Builds temporary local JAR fixtures and verifies exact Gradle and embedded release-version identity without network access.",
       "network": false,
