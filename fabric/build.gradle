@@ -400,7 +400,7 @@ def stageProductionAcceptanceRuntime = tasks.register('stageProductionAcceptance
 
         def stagedInstaller = new File(installerDir, 'fabric-installer.jar')
         java.nio.file.Files.copy(
-                installerFiles.single().toPath(),
+                installerFiles[0].toPath(),
                 stagedInstaller.toPath(),
                 java.nio.file.StandardCopyOption.REPLACE_EXISTING
         )
