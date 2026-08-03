@@ -39,7 +39,10 @@ class LegacyToolClosurePolicyTest {
             "gradlew",
             "gradlew.bat",
             "scripts/ci/package-livingworld-release.sh",
+            "scripts/ci/production_server_acceptance.py",
             "scripts/ci/repository_security_policy.py",
+            "scripts/ci/test_production_server_acceptance.py",
+            "scripts/ci/test_production_server_process.py",
             "scripts/ci/test-release-version-contract.sh",
             "scripts/ci/test_provider_acceptance_harness.py",
             "scripts/ci/test_repository_security_policy.py",
@@ -120,8 +123,19 @@ class LegacyToolClosurePolicyTest {
     private static void collectFiles(Path directory, List<Path> output) throws IOException {
         if (!Files.isDirectory(directory)) return;
         try (Stream<Path> paths = Files.walk(directory)) {
-            output.addAll(paths.filter(Files::isRegularFile).sorted().toList());
+            output.addAll(paths
+                    .filter(Files::isRegularFile)
+                    .filter(LegacyToolClosurePolicyTest::isTrackedTextSurface)
+                    .sorted()
+                    .toList());
         }
+    }
+
+    private static boolean isTrackedTextSurface(Path path) {
+        for (Path part : path) {
+            if (part.toString().equals("__pycache__")) return false;
+        }
+        return !path.getFileName().toString().endsWith(".pyc");
     }
 
     private static Path repositoryRoot() {

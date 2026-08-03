@@ -13,6 +13,19 @@ repositories {
     }
 }
 
+configurations {
+    productionAcceptanceInstaller {
+        canBeConsumed = false
+        canBeResolved = true
+        transitive = false
+    }
+    productionAcceptanceRuntimeMods {
+        canBeConsumed = false
+        canBeResolved = true
+        transitive = false
+    }
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
     mappings loom.layered {
@@ -29,6 +42,10 @@ dependencies {
     //modLocalRuntime "maven.modrinth:iris:${iris_version}"
     modLocalRuntime "maven.modrinth:ferrite-core:${ferritecore_version}"
     modLocalRuntime "maven.modrinth:packet-fixer:${packetfixer_version}"
+
+    productionAcceptanceInstaller "net.fabricmc:fabric-installer:${fabric_installer_version}"
+    productionAcceptanceRuntimeMods "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    productionAcceptanceRuntimeMods "maven.modrinth:simple-voice-chat:fabric-${voicechat_version}"
 }
 
 def devUsername = providers.gradleProperty('mca_dev_username').orElse('Dev').get()
@@ -305,6 +322,165 @@ def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
     }
 }
 
+def productionAcceptanceStageDir = layout.buildDirectory.dir('production-acceptance/stage')
+
+def sha256Of = { File file ->
+    def digest = java.security.MessageDigest.getInstance('SHA-256')
+    file.withInputStream { stream ->
+        byte[] buffer = new byte[128 * 1024]
+        int read
+        while ((read = stream.read(buffer)) != -1) {
+            digest.update(buffer, 0, read)
+        }
+    }
+    return digest.digest().encodeHex().toString()
+}
+
+def readFabricModMetadata = { File jarFile ->
+    def zip = new java.util.zip.ZipFile(jarFile)
+    try {
+        def entry = zip.getEntry('fabric.mod.json')
+        if (entry == null) {
+            throw new GradleException("Fabric mod JAR is missing fabric.mod.json: ${jarFile}")
+        }
+        def metadata = new groovy.json.JsonSlurper().parse(
+                zip.getInputStream(entry),
+                'UTF-8'
+        )
+        if (!(metadata instanceof Map)
+                || !(metadata.id instanceof String)
+                || metadata.id.trim().isEmpty()
+                || !(metadata.version instanceof String)
+                || metadata.version.trim().isEmpty()) {
+            throw new GradleException("Fabric mod metadata must contain non-empty id and version: ${jarFile}")
+        }
+        return [id: metadata.id.trim(), version: metadata.version.trim()]
+    } finally {
+        zip.close()
+    }
+}
+
+def stageProductionAcceptanceRuntime = tasks.register('stageProductionAcceptanceRuntime') {
+    group = 'verification'
+    description = 'Stages the exact remapped VillAIgence candidate, pinned Fabric installer and mandatory production runtime mods.'
+    dependsOn verifyFabricRefmap
+    inputs.file(remappedFabricJar)
+    inputs.files(configurations.productionAcceptanceInstaller)
+    inputs.files(configurations.productionAcceptanceRuntimeMods)
+    inputs.property('minecraftVersion', project.property('minecraft_version'))
+    inputs.property('loaderVersion', project.property('fabric_loader_version'))
+    inputs.property('installerVersion', project.property('fabric_installer_version'))
+    outputs.dir(productionAcceptanceStageDir)
+
+    doLast {
+        def installerFiles = configurations.productionAcceptanceInstaller.files
+                .toList()
+                .sort { left, right -> left.name <=> right.name }
+        if (installerFiles.size() != 1) {
+            throw new GradleException(
+                    "Production acceptance requires exactly one Fabric Installer JAR, found ${installerFiles.size()}: ${installerFiles}"
+            )
+        }
+
+        def runtimeFiles = configurations.productionAcceptanceRuntimeMods.files
+                .toList()
+                .sort { left, right -> left.name <=> right.name }
+        if (runtimeFiles.size() != 2) {
+            throw new GradleException(
+                    "Production acceptance requires exactly two runtime mod JARs, found ${runtimeFiles.size()}: ${runtimeFiles}"
+            )
+        }
+
+        def stageDir = productionAcceptanceStageDir.get().asFile
+        project.delete(stageDir)
+        def installerDir = new File(stageDir, 'installer')
+        def modsDir = new File(stageDir, 'mods')
+        installerDir.mkdirs()
+        modsDir.mkdirs()
+
+        def stagedInstaller = new File(installerDir, 'fabric-installer.jar')
+        java.nio.file.Files.copy(
+                installerFiles[0].toPath(),
+                stagedInstaller.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING
+        )
+
+        def candidateSource = remappedFabricJar.get().asFile
+        def candidateMetadata = readFabricModMetadata(candidateSource)
+        if (candidateMetadata.id != project.property('mod_id').toString()) {
+            throw new GradleException(
+                    "Production acceptance candidate must declare id ${project.property('mod_id')}, found ${candidateMetadata.id}"
+            )
+        }
+        def stagedCandidate = new File(modsDir, 'villaigence-under-test.jar')
+        java.nio.file.Files.copy(
+                candidateSource.toPath(),
+                stagedCandidate.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING
+        )
+
+        def expectedRuntimeIds = ['fabric-api', 'voicechat'] as Set
+        def runtimeMetadata = runtimeFiles.collect { runtimeFile ->
+            def metadata = readFabricModMetadata(runtimeFile)
+            [source: runtimeFile, id: metadata.id, version: metadata.version]
+        }.sort { left, right -> left.id <=> right.id }
+        def actualRuntimeIds = runtimeMetadata.collect { it.id } as Set
+        if (actualRuntimeIds != expectedRuntimeIds || runtimeMetadata.size() != expectedRuntimeIds.size()) {
+            throw new GradleException(
+                    "Production acceptance runtime mods must be exactly ${expectedRuntimeIds}, found ${runtimeMetadata.collect { it.id }}"
+            )
+        }
+
+        def stagedRuntime = runtimeMetadata.collect { metadata ->
+            def safeVersion = metadata.version.replaceAll('[^0-9A-Za-z.+_-]', '_')
+            def target = new File(modsDir, "${metadata.id}-${safeVersion}.jar")
+            java.nio.file.Files.copy(
+                    metadata.source.toPath(),
+                    target.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
+            )
+            [
+                    id: metadata.id,
+                    version: metadata.version,
+                    path: stageDir.toPath().relativize(target.toPath()).toString().replace(File.separatorChar, '/' as char),
+                    sha256: sha256Of(target),
+                    size: target.length()
+            ]
+        }
+
+        def artifact = { File file ->
+            [
+                    path: stageDir.toPath().relativize(file.toPath()).toString().replace(File.separatorChar, '/' as char),
+                    sha256: sha256Of(file),
+                    size: file.length()
+            ]
+        }
+
+        def manifest = [
+                schema: 1,
+                minecraftVersion: project.property('minecraft_version').toString(),
+                loaderVersion: project.property('fabric_loader_version').toString(),
+                installerVersion: project.property('fabric_installer_version').toString(),
+                installer: artifact(stagedInstaller),
+                candidate: artifact(stagedCandidate) + [
+                        id: candidateMetadata.id,
+                        version: candidateMetadata.version
+                ],
+                runtimeMods: stagedRuntime
+        ]
+
+        def manifestFile = new File(stageDir, 'manifest.json')
+        manifestFile.setText(
+                groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(manifest)) + '\n',
+                'UTF-8'
+        )
+        logger.lifecycle("Staged production acceptance runtime: ${stageDir}")
+        logger.lifecycle("Candidate ${candidateMetadata.id} ${candidateMetadata.version}: ${sha256Of(stagedCandidate)}")
+    }
+}
+
 tasks.named('check') {
     dependsOn verifyFabricRefmap
 }
+
+apply from: 'production-acceptance-fixture.gradle'

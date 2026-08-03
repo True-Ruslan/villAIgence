@@ -53,6 +53,58 @@ jobs:
           python3 scripts/ci/repository_security_policy.py --check
           test -s build/security/script-inventory.json
 
+      - name: Run production acceptance contract tests
+        run: |
+          python3 scripts/ci/test_production_server_acceptance.py
+          python3 scripts/ci/test_production_server_process.py
+
+      - name: Stage and execute production server acceptance
+        run: |
+          chmod +x gradlew
+          ./gradlew \
+            :fabric:stageProductionAcceptanceRuntime \
+            --stacktrace \
+            --no-daemon \
+            --console=plain
+
+          rm -rf build/production-server-acceptance
+          mkdir -p build/production-server-acceptance/evidence
+          python3 scripts/ci/production_server_acceptance.py \
+            --stage-dir fabric/build/production-acceptance/stage \
+            --execute \
+            --work-dir build/production-server-acceptance/work \
+            --report-dir build/production-server-acceptance/evidence \
+            --java "${JAVA_HOME}/bin/java" \
+            --installer-timeout-seconds 300 \
+            --startup-timeout-seconds 240 \
+            --shutdown-timeout-seconds 60 \
+            --max-heap-mib 768
+
+          grep -Fq 'VILLAIGENCE_PRODUCTION_FIXTURE_READY' \
+            build/production-server-acceptance/evidence/server-run-1.log
+          grep -Fq 'VILLAIGENCE_PRODUCTION_FIXTURE_READY' \
+            build/production-server-acceptance/evidence/server-run-2.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path('build/production-server-acceptance/evidence/acceptance-report.json')
+              .read_text(encoding='utf-8')
+          )
+          if report.get('status') != 'PASS':
+              raise SystemExit('production acceptance report is not PASS')
+          PY
+
+      - name: Upload production acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-server-acceptance-${{ github.run_number }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: build/production-server-acceptance/evidence
+
       - name: Run risk catalog, server GameTests and supported loader builds
         run: |
           chmod +x gradlew

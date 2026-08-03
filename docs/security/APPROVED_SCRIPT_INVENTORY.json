@@ -20,9 +20,27 @@
       "ci": true
     },
     {
+      "path": "scripts/ci/production_server_acceptance.py",
+      "purpose": "Validates and later executes the isolated production Fabric server acceptance bundle; process orchestration may cause the pinned Fabric installer to download official Minecraft runtime files.",
+      "network": true,
+      "ci": true
+    },
+    {
       "path": "scripts/ci/repository_security_policy.py",
       "purpose": "Runs deterministic secret, source-policy, workflow-permission and script-inventory checks; its source contains detector signatures but performs no network requests.",
       "network": true,
+      "ci": true
+    },
+    {
+      "path": "scripts/ci/test_production_server_acceptance.py",
+      "purpose": "Standard-library unit tests for production-server staging confinement, process argv, startup log oracles and persistent JSON comparison; performs no network requests.",
+      "network": false,
+      "ci": true
+    },
+    {
+      "path": "scripts/ci/test_production_server_process.py",
+      "purpose": "Standard-library subprocess lifecycle tests using local Python child processes; performs no network requests.",
+      "network": false,
       "ci": true
     },
     {
