@@ -482,3 +482,5 @@ def stageProductionAcceptanceRuntime = tasks.register('stageProductionAcceptance
 tasks.named('check') {
     dependsOn verifyFabricRefmap
 }
+
+apply from: 'production-acceptance-fixture.gradle'
