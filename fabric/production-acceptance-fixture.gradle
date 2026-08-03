@@ -1,7 +1,5 @@
 sourceSets {
     productionAcceptanceFixture {
-        java.srcDir('src/productionAcceptanceFixture/java')
-        resources.srcDir('src/productionAcceptanceFixture/resources')
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
         runtimeClasspath += output + compileClasspath + sourceSets.main.runtimeClasspath
     }
