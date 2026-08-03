@@ -68,6 +68,14 @@ loom {
 }
 
 fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = 'mca-acceptance-test'
+        enableGameTests = true
+        enableClientGameTests = false
+        eula = true
+    }
+
     configureDataGeneration {
         addToResources = false
         client = true
@@ -84,7 +92,7 @@ def refmapEntryName = "${project.property('mod_id')}.refmap.json"
 
 def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
     group = 'verification'
-    description = 'Requires the distributable Fabric JAR to contain valid startup-safe Mixin, navigation, tombstone and resurrection hooks.'
+    description = 'Requires the distributable Fabric JAR to contain valid startup-safe production metadata, Mixins, navigation, tombstone and resurrection hooks without GameTest leakage.'
     dependsOn tasks.named('remapJar')
     inputs.file(remappedFabricJar)
 
@@ -92,6 +100,45 @@ def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
         def jarFile = remappedFabricJar.get().asFile
         def zip = new java.util.zip.ZipFile(jarFile)
         try {
+            def fabricMetadataEntry = zip.getEntry('fabric.mod.json')
+            if (fabricMetadataEntry == null) {
+                throw new GradleException("Distributable Fabric JAR is missing fabric.mod.json: ${jarFile}")
+            }
+            def fabricMetadataText = zip.getInputStream(fabricMetadataEntry).getText('UTF-8')
+            def fabricMetadata = new groovy.json.JsonSlurper().parseText(fabricMetadataText)
+            def productionModId = project.property('mod_id').toString()
+            if (fabricMetadata.id != productionModId) {
+                throw new GradleException(
+                        "Production fabric.mod.json must declare id ${productionModId}, found ${fabricMetadata.id}: ${jarFile}"
+                )
+            }
+            if (fabricMetadataText.contains('mca-acceptance-test')) {
+                throw new GradleException(
+                        "Production fabric.mod.json must not contain the GameTest mod id mca-acceptance-test: ${jarFile}"
+                )
+            }
+            if (fabricMetadata.entrypoints instanceof Map
+                    && fabricMetadata.entrypoints.containsKey('fabric-gametest')) {
+                throw new GradleException(
+                        "Production fabric.mod.json must not declare a fabric-gametest entrypoint: ${jarFile}"
+                )
+            }
+
+            String leakedGameTestEntry = null
+            def jarEntries = zip.entries()
+            while (jarEntries.hasMoreElements()) {
+                def entry = jarEntries.nextElement()
+                if (entry.name.startsWith('net/conczin/mca/gametest/')) {
+                    leakedGameTestEntry = entry.name
+                    break
+                }
+            }
+            if (leakedGameTestEntry != null) {
+                throw new GradleException(
+                        "Distributable Fabric JAR must not contain GameTest classes, found ${leakedGameTestEntry}: ${jarFile}"
+                )
+            }
+
             def mixinConfigEntry = zip.getEntry('mca.mixins.json')
             if (mixinConfigEntry == null) {
                 throw new GradleException("Distributable Fabric JAR is missing mca.mixins.json: ${jarFile}")
