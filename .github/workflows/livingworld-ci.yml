@@ -69,9 +69,15 @@ jobs:
           set -e
 
           if [ "$status" -ne 0 ]; then
-            echo "Gradle or GameTest failed; extracted diagnostics:"
+            echo "Gradle or GameTest failed; extracted Gradle diagnostics:"
             grep -En "error:|FAILURE:|What went wrong:|Execution failed|Could not|Caused by:|FAILED|GameTest|test failed" gradle-build.log | tail -n 160 || true
-            echo "--- final 120 log lines ---"
+
+            echo "--- extracted Minecraft/GameTest diagnostics ---"
+            while IFS= read -r log_file; do
+              grep -HEn "VillAIgenceGameTests|TombstoneControlGameTests|ControlledNavigationMob|test failed|required test|Failed required test|GameTest|Exception" "$log_file" | tail -n 200 || true
+            done < <(find fabric -type f \( -name '*.log' -o -name '*.txt' \) -print | sort)
+
+            echo "--- final 120 Gradle log lines ---"
             tail -n 120 gradle-build.log
             exit "$status"
           fi
