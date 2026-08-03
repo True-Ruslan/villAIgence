@@ -73,12 +73,20 @@ This turns test completeness into a maintained contract rather than a prose chec
 
 The first executable GameTest suite covers broad primitives rather than only bug reproductions:
 
-1. MCA entity registration and navigation boot in a real Fabric server world.
+1. MCA entity registration and production navigation wiring in a real Fabric server world.
 2. Tombstone item round trip preserving UUID, name and the complete inventory multiset.
 3. Filled tombstone evaluated drops with Silk Touch containing exactly one portable tombstone with stored entity data.
 4. Empty tombstone negative control: no synthesized NPC data and no duplicate tombstone item.
-5. Two independent NPCs leaving separate bounded water lanes while remaining alive.
-6. The same NPC navigating to a second dry target after water escape.
+5. Two isolated `MCAGroundPathNavigation` instances leaving separate bounded water lanes without shared-state interference.
+6. The same production navigation implementation reaching a second dry target after deterministic water escape.
+7. Direct water-surface hook validation against actual Minecraft water fluid tags in the GameTest world.
+
+The suite deliberately separates two navigation questions:
+
+- **real MCA integration wiring** is proved by spawning a registered MCA villager and asserting that it uses `MCAGroundPathNavigation`;
+- **algorithmic water movement properties** are proved with a test-only no-brain `PathfinderMob` using the same production navigation class.
+
+The controlled navigation fixture has no autonomous goals that can replace the assigned path. It supplies only deterministic buoyancy while a path is active, replacing the random timing of vanilla `FloatGoal`. That buoyancy does not construct, replace or advance paths. Full MCA brain/goal integration remains covered by the installed release canary and must not be inferred from the controlled fixture.
 
 Tests use fixed geometry, fixed inventory fixtures, bounded tick budgets and objective assertions. No test depends on random dialogue or external providers. Inventory assertions intentionally verify items, totals and duplicate absence rather than sparse slot positions because MCA serializes its container as an item list and does not promise preservation of empty gaps.
 
@@ -133,6 +141,8 @@ A future release asset should be promoted only after:
 - Every asynchronous scenario has a hard timeout.
 - Randomness is fixed or eliminated.
 - Tests assert server-owned state, not rendered appearance.
+- Test fixtures isolate the subsystem under test instead of mixing production navigation with unrelated autonomous brain scheduling.
+- Controlled fixtures may supply deterministic physical prerequisites, but may not construct, replace or repeatedly refresh the production path under test.
 - Test-only code stays in the `gametest` source set and never enters the production JAR.
 - Failures preserve CI logs and available JUnit/GameTest diagnostics.
 - Flaky tests are quarantined from merge gates only with a tracked reason and owner; they are never silently retried until green.
@@ -146,7 +156,8 @@ Implemented in PR #103:
 
 - TSV scenario catalog and dependency-free validator;
 - isolated Fabric GameTest source set and test mod;
-- real-server boot, tombstone and water-navigation tests;
+- real-server MCA wiring, tombstone lifecycle/drop/control tests;
+- deterministic production-navigation water movement and surface-hook tests;
 - explicit PR CI execution;
 - production-JAR leakage guard;
 - accurate linkage to installed `0.1.22` partial acceptance.
