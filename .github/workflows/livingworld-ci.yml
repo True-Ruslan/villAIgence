@@ -56,6 +56,7 @@ jobs:
       - name: Run production acceptance contract tests
         run: |
           python3 scripts/ci/test_production_server_acceptance.py
+          python3 scripts/ci/test_production_server_process.py
 
       - name: Stage and verify production acceptance runtime
         run: |
