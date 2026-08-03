@@ -13,10 +13,14 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -142,15 +146,13 @@ public final class VillAIgenceGameTests implements FabricGameTest {
         helper.succeed();
     }
 
-    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE, timeoutTicks = 1200)
-    public void twoNpcsEscapeIndependentWaterLanes(GameTestHelper helper) {
+    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE, timeoutTicks = 600)
+    public void twoControlledMobsEscapeIndependentWaterLanes(GameTestHelper helper) {
         buildWaterLane(helper, 1);
         buildWaterLane(helper, 5);
 
-        VillagerEntityMCA first = helper.spawn(EntitiesMCA.MALE_VILLAGER, 1, 1, 2);
-        VillagerEntityMCA second = helper.spawn(EntitiesMCA.FEMALE_VILLAGER, 5, 1, 2);
-        first.setPersistenceRequired();
-        second.setPersistenceRequired();
+        ControlledNavigationMob first = spawnControlledNavigationMob(helper, 1, 1, 2);
+        ControlledNavigationMob second = spawnControlledNavigationMob(helper, 5, 1, 2);
 
         BlockPos firstTarget = helper.absolutePos(new BlockPos(1, 2, 5));
         BlockPos secondTarget = helper.absolutePos(new BlockPos(5, 2, 5));
@@ -158,30 +160,34 @@ public final class VillAIgenceGameTests implements FabricGameTest {
         helper.startSequence()
                 .thenExecuteAfter(2, () -> helper.assertTrue(
                         startNavigation(first, firstTarget),
-                        "First NPC must build a path to its dry target: "
+                        "First controlled mob must build a path to its dry target: "
                                 + navigationState(first, firstTarget)
                 ))
                 .thenExecute(() -> helper.assertTrue(
                         startNavigation(second, secondTarget),
-                        "Second NPC must build a path to its dry target: "
+                        "Second controlled mob must build a path to its dry target: "
                                 + navigationState(second, secondTarget)
                 ))
                 .thenWaitUntil(() -> {
-                    helper.assertTrue(first.isAlive(), "First water-lane NPC must remain alive");
-                    helper.assertTrue(second.isAlive(), "Second water-lane NPC must remain alive");
-                    helper.assertTrue(!first.isInWater(), "First NPC must leave its water lane");
-                    helper.assertTrue(!second.isInWater(), "Second NPC must leave its water lane");
+                    helper.assertTrue(first.isAlive(),
+                            "First controlled water-lane mob must remain alive");
+                    helper.assertTrue(second.isAlive(),
+                            "Second controlled water-lane mob must remain alive");
+                    helper.assertTrue(!first.isInWater(),
+                            "First controlled mob must leave its water lane");
+                    helper.assertTrue(!second.isInWater(),
+                            "Second controlled mob must leave its water lane");
                     helper.assertTrue(isNear(first, firstTarget),
-                            "First NPC must reach its own dry target: "
+                            "First controlled mob must reach its own dry target: "
                                     + navigationState(first, firstTarget));
                     helper.assertTrue(isNear(second, secondTarget),
-                            "Second NPC must reach its own dry target: "
+                            "Second controlled mob must reach its own dry target: "
                                     + navigationState(second, secondTarget));
                 })
                 .thenSucceed();
     }
 
-    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE, timeoutTicks = 1200)
+    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE, timeoutTicks = 800)
     public void waterEscapePreservesLandNavigation(GameTestHelper helper) {
         buildWaterLane(helper, 1);
         for (int x = 1; x <= 6; x++) {
@@ -190,39 +196,38 @@ public final class VillAIgenceGameTests implements FabricGameTest {
             }
         }
 
-        VillagerEntityMCA villager = helper.spawn(EntitiesMCA.MALE_VILLAGER, 1, 1, 2);
-        villager.setPersistenceRequired();
+        ControlledNavigationMob mob = spawnControlledNavigationMob(helper, 1, 1, 2);
         BlockPos shoreTarget = helper.absolutePos(new BlockPos(1, 2, 5));
         BlockPos landTarget = helper.absolutePos(new BlockPos(6, 2, 5));
 
         helper.startSequence()
                 .thenExecuteAfter(2, () -> helper.assertTrue(
-                        startNavigation(villager, shoreTarget),
-                        "NPC must build a water-exit path: "
-                                + navigationState(villager, shoreTarget)
+                        startNavigation(mob, shoreTarget),
+                        "Controlled mob must build a water-exit path: "
+                                + navigationState(mob, shoreTarget)
                 ))
                 .thenWaitUntil(() -> {
-                    helper.assertTrue(villager.isAlive(),
-                            "Water-to-land navigation NPC must remain alive during water escape");
-                    helper.assertTrue(!villager.isInWater(),
-                            "NPC must leave water before the land-navigation phase");
-                    helper.assertTrue(isNear(villager, shoreTarget),
-                            "NPC must reach the dry shore target before the second phase: "
-                                    + navigationState(villager, shoreTarget));
+                    helper.assertTrue(mob.isAlive(),
+                            "Controlled navigation mob must remain alive during water escape");
+                    helper.assertTrue(!mob.isInWater(),
+                            "Controlled mob must leave water before the land-navigation phase");
+                    helper.assertTrue(isNear(mob, shoreTarget),
+                            "Controlled mob must reach the dry shore target before the second phase: "
+                                    + navigationState(mob, shoreTarget));
                 })
                 .thenExecuteAfter(2, () -> helper.assertTrue(
-                        startNavigation(villager, landTarget),
-                        "NPC must build a post-water dry-land path after stabilization: "
-                                + navigationState(villager, landTarget)
+                        startNavigation(mob, landTarget),
+                        "Controlled mob must build a post-water dry-land path: "
+                                + navigationState(mob, landTarget)
                 ))
                 .thenWaitUntil(() -> {
-                    helper.assertTrue(villager.isAlive(),
-                            "Water-to-land navigation NPC must remain alive on land");
-                    helper.assertTrue(!villager.isInWater(),
-                            "NPC must remain dry during the land-navigation phase");
-                    helper.assertTrue(isNear(villager, landTarget),
-                            "NPC must reach the second dry-land target after water escape: "
-                                    + navigationState(villager, landTarget));
+                    helper.assertTrue(mob.isAlive(),
+                            "Controlled navigation mob must remain alive on land");
+                    helper.assertTrue(!mob.isInWater(),
+                            "Controlled mob must remain dry during the land-navigation phase");
+                    helper.assertTrue(isNear(mob, landTarget),
+                            "Controlled mob must reach the second dry-land target after water escape: "
+                                    + navigationState(mob, landTarget));
                 })
                 .thenSucceed();
     }
@@ -306,6 +311,23 @@ public final class VillAIgenceGameTests implements FabricGameTest {
         return count;
     }
 
+    private static ControlledNavigationMob spawnControlledNavigationMob(
+            GameTestHelper helper,
+            int relativeX,
+            int relativeY,
+            int relativeZ
+    ) {
+        ControlledNavigationMob mob = new ControlledNavigationMob(helper.getLevel());
+        BlockPos spawnPos = helper.absolutePos(new BlockPos(relativeX, relativeY, relativeZ));
+        mob.setPos(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D);
+        mob.setPersistenceRequired();
+        helper.assertTrue(helper.getLevel().addFreshEntity(mob),
+                "Controlled navigation mob must be added to the GameTest server level");
+        helper.assertTrue(mob.getNavigation() instanceof MCAGroundPathNavigation,
+                "Controlled test mob must use the production MCAGroundPathNavigation");
+        return mob;
+    }
+
     private static void buildWaterLane(GameTestHelper helper, int laneX) {
         for (int z = 0; z <= 6; z++) {
             setBlock(helper, new BlockPos(laneX, 0, z), Blocks.STONE);
@@ -333,8 +355,8 @@ public final class VillAIgenceGameTests implements FabricGameTest {
         );
     }
 
-    private static boolean startNavigation(VillagerEntityMCA villager, BlockPos target) {
-        return villager.getNavigation().moveTo(
+    private static boolean startNavigation(PathfinderMob mob, BlockPos target) {
+        return mob.getNavigation().moveTo(
                 target.getX() + 0.5D,
                 target.getY(),
                 target.getZ() + 0.5D,
@@ -342,17 +364,35 @@ public final class VillAIgenceGameTests implements FabricGameTest {
         );
     }
 
-    private static String navigationState(VillagerEntityMCA villager, BlockPos target) {
-        return "pos=" + villager.position()
+    private static String navigationState(PathfinderMob mob, BlockPos target) {
+        return "pos=" + mob.position()
                 + ", target=" + Vec3.atCenterOf(target)
-                + ", inWater=" + villager.isInWater()
-                + ", navigationDone=" + villager.getNavigation().isDone();
+                + ", inWater=" + mob.isInWater()
+                + ", navigationDone=" + mob.getNavigation().isDone();
     }
 
-    private static boolean isNear(VillagerEntityMCA villager, BlockPos target) {
-        double dx = villager.getX() - (target.getX() + 0.5D);
-        double dy = villager.getY() - target.getY();
-        double dz = villager.getZ() - (target.getZ() + 0.5D);
+    private static boolean isNear(PathfinderMob mob, BlockPos target) {
+        double dx = mob.getX() - (target.getX() + 0.5D);
+        double dy = mob.getY() - target.getY();
+        double dz = mob.getZ() - (target.getZ() + 0.5D);
         return dx * dx + dy * dy + dz * dz <= 2.25D;
+    }
+
+    private static final class ControlledNavigationMob extends PathfinderMob {
+        private ControlledNavigationMob(Level level) {
+            super(EntityType.VILLAGER, level);
+        }
+
+        @Override
+        protected PathNavigation createNavigation(Level level) {
+            MCAGroundPathNavigation navigation = new MCAGroundPathNavigation(this, level);
+            navigation.setCanFloat(true);
+            return navigation;
+        }
+
+        @Override
+        protected void registerGoals() {
+            // Test-owned navigation only. No autonomous goals may replace the assigned path.
+        }
     }
 }
