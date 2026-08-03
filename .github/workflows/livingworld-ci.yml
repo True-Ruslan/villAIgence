@@ -57,6 +57,17 @@ jobs:
         run: |
           python3 scripts/ci/test_production_server_acceptance.py
 
+      - name: Stage and verify production acceptance runtime
+        run: |
+          chmod +x gradlew
+          ./gradlew \
+            :fabric:stageProductionAcceptanceRuntime \
+            --stacktrace \
+            --no-daemon \
+            --console=plain
+          python3 scripts/ci/production_server_acceptance.py \
+            --stage-dir fabric/build/production-acceptance/stage
+
       - name: Run risk catalog, server GameTests and supported loader builds
         run: |
           chmod +x gradlew
