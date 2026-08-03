@@ -43,7 +43,7 @@
 - [x] Generate lock and verification metadata through Gradle and commit only the approved supply-chain delta.
 - [x] Verify the clean staging bundle in permanent CI.
 - [x] Add a separate source set and remap task for `mca-production-acceptance-fixture`.
-- [ ] Verify custom fixture compilation, remapping, manifest inclusion and candidate exclusion in permanent CI.
+- [x] Verify custom fixture compilation, remapping, manifest inclusion and candidate exclusion in permanent CI.
 
 ## Task 3 — First production startup
 
@@ -55,23 +55,35 @@
 - [x] Send `stop`, require clean save and exit code `0`.
 - [x] Preserve bounded first-run logs and machine-readable evidence.
 - [x] Capture canonical integration RED: production startup/shutdown passed, but an empty server created no application stores.
-- [ ] Require the application-owned fixture ready marker after all six store APIs succeed.
+- [x] Require the application-owned fixture ready marker after all six store APIs succeed.
 
 ## Task 4 — Restart and persistence
 
 - [x] Discover exactly one of each canonical persistent basename.
 - [x] Parse every store as UTF-8 JSON and record root type, size and SHA-256.
 - [x] Add an idempotent fixture using only public `append`, `applyDelta`, `resolve` and `put` APIs with fixed IDs/timestamps.
-- [ ] Verify first run creates all stores through product code.
-- [ ] Start the same world in a second JVM with the same candidate and fixture.
-- [ ] Require second clean startup/shutdown and fixture marker.
-- [ ] Require stable relative paths and unchanged hashes.
+- [x] Verify first run creates all stores through product code.
+- [x] Start the same world in a second JVM with the same candidate and fixture.
+- [x] Require second clean startup/shutdown and fixture marker.
+- [x] Require stable relative paths and unchanged hashes.
 
 ## Task 5 — CI and merge boundary
 
 - [x] Upload acceptance JSON and bounded logs on success/failure.
 - [x] Keep existing unit, GameTest, package, security and supply-chain gates mandatory.
-- [ ] Record exact-head RED/GREEN evidence in the PR.
-- [ ] Confirm no provider credentials or external AI calls are used.
+- [x] Record exact-head RED/GREEN evidence in the PR.
+- [x] Confirm no provider credentials or external AI calls are used.
 - [ ] Require repeated independent GREEN before merge.
-- [ ] Update the scenario catalog only after real production evidence passes.
+- [x] Update the scenario catalog only after real production evidence passes.
+
+## Verified production evidence
+
+The first complete production acceptance PASS was recorded by VillAIgence CI #1387 on head `5d5cc2c50778574d60071425353956b9e90acbc6`:
+
+- exact remapped candidate loaded under Minecraft `1.21.1` and Fabric Loader `0.19.3`;
+- both isolated JVM runs reached the ready marker, received `stop`, saved all dimensions and exited with code `0`;
+- the test-only production-namespace fixture created and verified all six canonical stores through public VillAIgence APIs;
+- `memory.json`, `memory2.json`, `semantic-memory.json`, `relationships.json`, `voices.json` and `operator-lore.json` retained stable paths and identical SHA-256 values across restart;
+- the fixture class and mod ID remained excluded from the distributable VillAIgence candidate.
+
+Final merge remains blocked until the completed implementation head receives repeated independent GREEN across VillAIgence CI, Java PR CI, repository security, supply-chain verification and release dry-run.
