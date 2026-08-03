@@ -23,7 +23,7 @@
       "path": "scripts/ci/production_server_acceptance.py",
       "purpose": "Validates and later executes the isolated production Fabric server acceptance bundle; process orchestration may cause the pinned Fabric installer to download official Minecraft runtime files.",
       "network": true,
-      "ci": false
+      "ci": true
     },
     {
       "path": "scripts/ci/repository_security_policy.py",
