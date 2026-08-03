@@ -174,9 +174,11 @@ public final class VillAIgenceGameTests implements FabricGameTest {
                     helper.assertTrue(second.isAlive(),
                             "Second controlled water-lane mob must remain alive");
                     helper.assertTrue(!first.isInWater(),
-                            "First controlled mob must leave its water lane");
+                            "First controlled mob must leave its water lane: "
+                                    + navigationState(first, firstTarget));
                     helper.assertTrue(!second.isInWater(),
-                            "Second controlled mob must leave its water lane");
+                            "Second controlled mob must leave its water lane: "
+                                    + navigationState(second, secondTarget));
                     helper.assertTrue(isNear(first, firstTarget),
                             "First controlled mob must reach its own dry target: "
                                     + navigationState(first, firstTarget));
@@ -210,7 +212,8 @@ public final class VillAIgenceGameTests implements FabricGameTest {
                     helper.assertTrue(mob.isAlive(),
                             "Controlled navigation mob must remain alive during water escape");
                     helper.assertTrue(!mob.isInWater(),
-                            "Controlled mob must leave water before the land-navigation phase");
+                            "Controlled mob must leave water before the land-navigation phase: "
+                                    + navigationState(mob, shoreTarget));
                     helper.assertTrue(isNear(mob, shoreTarget),
                             "Controlled mob must reach the dry shore target before the second phase: "
                                     + navigationState(mob, shoreTarget));
@@ -224,7 +227,8 @@ public final class VillAIgenceGameTests implements FabricGameTest {
                     helper.assertTrue(mob.isAlive(),
                             "Controlled navigation mob must remain alive on land");
                     helper.assertTrue(!mob.isInWater(),
-                            "Controlled mob must remain dry during the land-navigation phase");
+                            "Controlled mob must remain dry during the land-navigation phase: "
+                                    + navigationState(mob, landTarget));
                     helper.assertTrue(isNear(mob, landTarget),
                             "Controlled mob must reach the second dry-land target after water escape: "
                                     + navigationState(mob, landTarget));
@@ -367,6 +371,7 @@ public final class VillAIgenceGameTests implements FabricGameTest {
     private static String navigationState(PathfinderMob mob, BlockPos target) {
         return "pos=" + mob.position()
                 + ", target=" + Vec3.atCenterOf(target)
+                + ", velocity=" + mob.getDeltaMovement()
                 + ", inWater=" + mob.isInWater()
                 + ", navigationDone=" + mob.getNavigation().isDone();
     }
@@ -379,6 +384,8 @@ public final class VillAIgenceGameTests implements FabricGameTest {
     }
 
     private static final class ControlledNavigationMob extends PathfinderMob {
+        private static final double CONTROLLED_BUOYANCY_SPEED = 0.08D;
+
         private ControlledNavigationMob(Level level) {
             super(EntityType.VILLAGER, level);
         }
@@ -393,6 +400,19 @@ public final class VillAIgenceGameTests implements FabricGameTest {
         @Override
         protected void registerGoals() {
             // Test-owned navigation only. No autonomous goals may replace the assigned path.
+        }
+
+        @Override
+        public void aiStep() {
+            super.aiStep();
+            if (isInWater() && !getNavigation().isDone()) {
+                Vec3 velocity = getDeltaMovement();
+                setDeltaMovement(
+                        velocity.x,
+                        Math.max(velocity.y, CONTROLLED_BUOYANCY_SPEED),
+                        velocity.z
+                );
+            }
         }
     }
 }
