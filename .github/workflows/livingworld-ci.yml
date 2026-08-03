@@ -53,6 +53,10 @@ jobs:
           python3 scripts/ci/repository_security_policy.py --check
           test -s build/security/script-inventory.json
 
+      - name: Run production acceptance contract tests
+        run: |
+          python3 scripts/ci/test_production_server_acceptance.py
+
       - name: Run risk catalog, server GameTests and supported loader builds
         run: |
           chmod +x gradlew
