@@ -1,0 +1,370 @@
+#!/usr/bin/env python3
+"""Production-JAR startup/restart acceptance harness for VillAIgence.
+
+The pure manifest, log and persistence helpers are unit tested without starting
+Minecraft. Process orchestration is added incrementally after those contracts are
+stable.
+"""
+
+from __future__ import annotations
+
+import argparse
+from dataclasses import dataclass
+import hashlib
+import json
+from pathlib import Path
+import re
+from typing import Any, Mapping, Sequence
+
+CANONICAL_PERSISTENT_STORES: tuple[str, ...] = (
+    "memory.json",
+    "memory2.json",
+    "semantic-memory.json",
+    "relationships.json",
+    "voices.json",
+    "operator-lore.json",
+)
+
+FORBIDDEN_LOG_SIGNATURES: tuple[str, ...] = (
+    "InvalidInjectionException",
+    "MixinApplyError",
+    "MixinTransformerError",
+    "No refMap loaded",
+    "MixinTombstoneBlock",
+    "MixinTombstoneData",
+    "MixinGroundPathNavigation failed",
+    "Mod resolution encountered an incompatible mod set",
+    "Could not find required mod",
+    "Failed to start the minecraft server",
+    "OutOfMemoryError",
+)
+
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+
+
+class AcceptanceError(RuntimeError):
+    """Raised when acceptance input or evidence violates a hard invariant."""
+
+
+@dataclass(frozen=True)
+class VerifiedArtifact:
+    path: Path
+    sha256: str
+    size: int
+
+
+@dataclass(frozen=True)
+class CandidateArtifact(VerifiedArtifact):
+    version: str
+
+
+@dataclass(frozen=True)
+class StageManifest:
+    root: Path
+    minecraft_version: str
+    loader_version: str
+    installer_version: str
+    installer: VerifiedArtifact
+    candidate: CandidateArtifact
+    runtime_mods: tuple[VerifiedArtifact, ...]
+
+
+@dataclass(frozen=True)
+class ServerLogResult:
+    errors: tuple[str, ...]
+    ready: bool
+    clean_shutdown: bool
+
+
+@dataclass(frozen=True)
+class PersistentFileEvidence:
+    relative_path: str
+    sha256: str
+    size: int
+    root_type: str
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(128 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _required_mapping(value: Any, field: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise AcceptanceError(f"{field} must be a JSON object")
+    return value
+
+
+def _required_string(value: Mapping[str, Any], field: str) -> str:
+    candidate = value.get(field)
+    if not isinstance(candidate, str) or not candidate.strip():
+        raise AcceptanceError(f"{field} must be a non-empty string")
+    return candidate.strip()
+
+
+def _required_positive_int(value: Mapping[str, Any], field: str) -> int:
+    candidate = value.get(field)
+    if not isinstance(candidate, int) or isinstance(candidate, bool) or candidate <= 0:
+        raise AcceptanceError(f"{field} must be a positive integer")
+    return candidate
+
+
+def _confined_path(root: Path, raw: str, field: str) -> Path:
+    relative = Path(raw)
+    if relative.is_absolute():
+        raise AcceptanceError(f"{field} must be relative and confined to the staging root")
+    try:
+        resolved = (root / relative).resolve(strict=True)
+    except OSError as exception:
+        raise AcceptanceError(f"{field} does not resolve to an existing file: {raw}") from exception
+    try:
+        resolved.relative_to(root)
+    except ValueError as exception:
+        raise AcceptanceError(f"{field} must remain confined to the staging root: {raw}") from exception
+    if not resolved.is_file() or resolved.is_symlink():
+        raise AcceptanceError(f"{field} must resolve to a regular non-symlink file: {raw}")
+    return resolved
+
+
+def _load_artifact(root: Path, raw: Any, field: str) -> VerifiedArtifact:
+    value = _required_mapping(raw, field)
+    relative_path = _required_string(value, "path")
+    expected_sha = _required_string(value, "sha256").lower()
+    if not _SHA256.fullmatch(expected_sha):
+        raise AcceptanceError(f"{field}.sha256 must be a lowercase SHA-256 digest")
+    expected_size = _required_positive_int(value, "size")
+    path = _confined_path(root, relative_path, f"{field}.path")
+    actual_size = path.stat().st_size
+    if actual_size != expected_size:
+        raise AcceptanceError(
+            f"{field} size mismatch: expected {expected_size}, found {actual_size}"
+        )
+    actual_sha = _sha256(path)
+    if actual_sha != expected_sha:
+        raise AcceptanceError(
+            f"{field} checksum mismatch: expected {expected_sha}, found {actual_sha}"
+        )
+    return VerifiedArtifact(path=path, sha256=actual_sha, size=actual_size)
+
+
+def load_stage_manifest(stage_dir: Path | str) -> StageManifest:
+    root = Path(stage_dir).resolve(strict=True)
+    if not root.is_dir():
+        raise AcceptanceError(f"staging root is not a directory: {root}")
+    manifest_path = root / "manifest.json"
+    try:
+        raw = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exception:
+        raise AcceptanceError(f"staging manifest is missing: {manifest_path}") from exception
+    except UnicodeDecodeError as exception:
+        raise AcceptanceError("staging manifest must be valid UTF-8") from exception
+    except json.JSONDecodeError as exception:
+        raise AcceptanceError("staging manifest must be valid JSON") from exception
+
+    value = _required_mapping(raw, "manifest")
+    if value.get("schema") != 1:
+        raise AcceptanceError("staging manifest must use schema=1")
+
+    installer = _load_artifact(root, value.get("installer"), "installer")
+    candidate_raw = _required_mapping(value.get("candidate"), "candidate")
+    candidate_base = _load_artifact(root, candidate_raw, "candidate")
+    candidate_version = _required_string(candidate_raw, "version")
+
+    runtime_raw = value.get("runtimeMods")
+    if not isinstance(runtime_raw, list) or not runtime_raw:
+        raise AcceptanceError("runtimeMods must be a non-empty array")
+    runtime_mods = tuple(
+        _load_artifact(root, artifact, f"runtimeMods[{index}]")
+        for index, artifact in enumerate(runtime_raw)
+    )
+
+    all_paths = [installer.path, candidate_base.path, *(item.path for item in runtime_mods)]
+    if len(set(all_paths)) != len(all_paths):
+        raise AcceptanceError("staging manifest contains duplicate artifact paths")
+
+    return StageManifest(
+        root=root,
+        minecraft_version=_required_string(value, "minecraftVersion"),
+        loader_version=_required_string(value, "loaderVersion"),
+        installer_version=_required_string(value, "installerVersion"),
+        installer=installer,
+        candidate=CandidateArtifact(
+            path=candidate_base.path,
+            sha256=candidate_base.sha256,
+            size=candidate_base.size,
+            version=candidate_version,
+        ),
+        runtime_mods=runtime_mods,
+    )
+
+
+def evaluate_server_log(
+    log: str,
+    *,
+    minecraft_version: str,
+    candidate_version: str,
+    require_shutdown: bool,
+) -> ServerLogResult:
+    errors: list[str] = []
+    loader_pattern = re.compile(
+        rf"Loading Minecraft\s+{re.escape(minecraft_version)}\s+with Fabric Loader\b"
+    )
+    candidate_pattern = re.compile(
+        rf"(?m)^\s*-\s+mca\s+{re.escape(candidate_version)}(?:\s|$)"
+    )
+    ready = "Done (" in log and 'For help, type "help"' in log
+    clean_shutdown = (
+        "Stopping server" in log
+        and "Saving worlds" in log
+        and "All dimensions are saved" in log
+    )
+
+    if loader_pattern.search(log) is None:
+        errors.append(
+            f"server log does not prove Minecraft {minecraft_version} production Fabric startup"
+        )
+    if candidate_pattern.search(log) is None:
+        errors.append(
+            f"server log does not contain the expected mca candidate version {candidate_version}"
+        )
+    if not ready:
+        errors.append("server log does not contain the Minecraft ready marker")
+    if require_shutdown and not clean_shutdown:
+        errors.append("server log does not contain a complete clean-shutdown/save marker")
+
+    for signature in FORBIDDEN_LOG_SIGNATURES:
+        if signature in log:
+            errors.append(f"forbidden startup signature detected: {signature}")
+
+    return ServerLogResult(
+        errors=tuple(errors),
+        ready=ready,
+        clean_shutdown=clean_shutdown,
+    )
+
+
+def _json_root_type(value: Any) -> str:
+    if isinstance(value, dict):
+        return "object"
+    if isinstance(value, list):
+        return "array"
+    raise AcceptanceError("persistent store JSON root must be an object or array")
+
+
+def collect_persistent_state(
+    server_root: Path | str,
+    stores: Sequence[str] = CANONICAL_PERSISTENT_STORES,
+) -> dict[str, PersistentFileEvidence]:
+    root = Path(server_root).resolve(strict=True)
+    if not root.is_dir():
+        raise AcceptanceError(f"server root is not a directory: {root}")
+
+    evidence: dict[str, PersistentFileEvidence] = {}
+    for basename in stores:
+        candidates = sorted(
+            path
+            for path in root.rglob(basename)
+            if path.is_file() and not path.is_symlink()
+        )
+        if not candidates:
+            raise AcceptanceError(f"missing canonical persistent store: {basename}")
+        if len(candidates) != 1:
+            relative = ", ".join(path.relative_to(root).as_posix() for path in candidates)
+            raise AcceptanceError(
+                f"duplicate canonical persistent store {basename}: {relative}"
+            )
+
+        path = candidates[0].resolve(strict=True)
+        try:
+            path.relative_to(root)
+        except ValueError as exception:
+            raise AcceptanceError(
+                f"persistent store escaped the server root: {basename}"
+            ) from exception
+        raw = path.read_bytes()
+        try:
+            parsed = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exception:
+            raise AcceptanceError(
+                f"persistent store must contain valid JSON: {basename}"
+            ) from exception
+        try:
+            root_type = _json_root_type(parsed)
+        except AcceptanceError as exception:
+            raise AcceptanceError(
+                f"persistent store must contain valid JSON object or array: {basename}"
+            ) from exception
+
+        evidence[basename] = PersistentFileEvidence(
+            relative_path=path.relative_to(root).as_posix(),
+            sha256=hashlib.sha256(raw).hexdigest(),
+            size=len(raw),
+            root_type=root_type,
+        )
+
+    return evidence
+
+
+def compare_persistent_states(
+    first: Mapping[str, PersistentFileEvidence],
+    second: Mapping[str, PersistentFileEvidence],
+) -> tuple[str, ...]:
+    errors: list[str] = []
+    if set(first) != set(second):
+        missing_after = sorted(set(first) - set(second))
+        added_after = sorted(set(second) - set(first))
+        errors.append(
+            f"persistent store set changed across restart: missing={missing_after}, added={added_after}"
+        )
+
+    for basename in sorted(set(first) & set(second)):
+        before = first[basename]
+        after = second[basename]
+        if before.relative_path != after.relative_path:
+            errors.append(
+                f"{basename} moved across restart: {before.relative_path} -> {after.relative_path}"
+            )
+        if before.sha256 != after.sha256:
+            errors.append(
+                f"{basename} changed across no-op restart: {before.sha256} -> {after.sha256}"
+            )
+        if before.root_type != after.root_type:
+            errors.append(
+                f"{basename} JSON root type changed: {before.root_type} -> {after.root_type}"
+            )
+
+    return tuple(errors)
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--stage-dir", type=Path, required=True)
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = _parse_args()
+    manifest = load_stage_manifest(args.stage_dir)
+    print(
+        json.dumps(
+            {
+                "schema": 1,
+                "minecraftVersion": manifest.minecraft_version,
+                "loaderVersion": manifest.loader_version,
+                "candidateVersion": manifest.candidate.version,
+                "candidateSha256": manifest.candidate.sha256,
+                "runtimeModCount": len(manifest.runtime_mods),
+                "status": "STAGING_VERIFIED",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
