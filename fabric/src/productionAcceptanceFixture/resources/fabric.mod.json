@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "mca-production-acceptance-fixture",
+  "version": "1.0.0",
+  "name": "VillAIgence Production Acceptance Fixture",
+  "description": "Test-only deterministic persistence fixture for isolated production-JAR startup and restart acceptance.",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "net.conczin.mca.acceptancefixture.ProductionAcceptanceFixture"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "fabric-api": "*",
+    "minecraft": "1.21.1",
+    "mca": "*"
+  }
+}
