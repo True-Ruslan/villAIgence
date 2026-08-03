@@ -13,13 +13,13 @@
 - `.github/workflows/livingworld-ci.yml`
 - `docs/security/APPROVED_SCRIPT_INVENTORY.json`
 
-- [ ] Add unit tests for staging-manifest schema and path confinement.
-- [ ] Add unit tests for required/forbidden startup signatures.
-- [ ] Add unit tests for duplicate/missing persistent stores and invalid JSON.
-- [ ] Add unit tests for unchanged and mutated restart hashes.
-- [ ] Add the unit command to CI and capture canonical RED before implementation.
-- [ ] Implement the standard-library helpers and CLI.
-- [ ] Verify unit GREEN and repository security policy.
+- [x] Add unit tests for staging-manifest schema and path confinement.
+- [x] Add unit tests for required/forbidden startup signatures.
+- [x] Add unit tests for duplicate/missing persistent stores and invalid JSON.
+- [x] Add unit tests for unchanged and mutated restart hashes.
+- [x] Add the unit command to CI and capture canonical RED before implementation (`ModuleNotFoundError` on head `a45da15d1416d8e077ea671b13396cffae57fc20`).
+- [x] Implement the standard-library helpers and staging-verification CLI.
+- [x] Verify 11-test unit GREEN and repository security policy on the staging RED run.
 
 ## Task 2 — Deterministic runtime staging
 
@@ -30,13 +30,15 @@
 - `fabric/gradle.lockfile`
 - `gradle/verification-metadata.xml`
 
-- [ ] Pin an explicit Fabric Installer version.
-- [ ] Add isolated resolvable configurations for the installer and mandatory runtime mods.
-- [ ] Stage only installer, remapped VillAIgence, Fabric API and Simple Voice Chat.
-- [ ] Write a deterministic manifest with versions, relative paths, sizes and hashes.
-- [ ] Reject duplicate/unexpected artifacts and any GameTest class leakage.
-- [ ] Capture lock/verification RED and update generated supply-chain metadata.
-- [ ] Verify the staging bundle in CI.
+- [x] Pin Fabric Installer `1.1.1`.
+- [x] Add isolated resolvable configurations for the installer and mandatory runtime mods.
+- [x] Stage only installer, remapped VillAIgence, Fabric API and Simple Voice Chat.
+- [x] Write a deterministic manifest with versions, relative paths, sizes and hashes.
+- [x] Reject duplicate/unexpected artifacts and any GameTest class leakage.
+- [x] Capture the canonical dependency-verification RED for `fabric-installer-1.1.1.jar/.pom` on CI #1362.
+- [x] Generate lock and verification metadata through Gradle and commit only the approved supply-chain delta.
+- [x] Remove all one-shot metadata workflows from the branch.
+- [ ] Verify the clean staging bundle in permanent CI on an ordinary API-authored head.
 
 ## Task 3 — First production startup
 
