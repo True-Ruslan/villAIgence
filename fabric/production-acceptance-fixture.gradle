@@ -1,5 +1,3 @@
-import net.fabricmc.loom.task.RemapJarTask
-
 sourceSets {
     productionAcceptanceFixture {
         java.srcDir('src/productionAcceptanceFixture/java')
@@ -28,9 +26,10 @@ def productionAcceptanceFixtureJar = tasks.register('productionAcceptanceFixture
     reproducibleFileOrder = true
 }
 
+def remapJarTaskType = tasks.named('remapJar').get().getClass()
 def remapProductionAcceptanceFixtureJar = tasks.register(
         'remapProductionAcceptanceFixtureJar',
-        RemapJarTask
+        remapJarTaskType
 ) {
     group = 'verification'
     description = 'Remaps the production acceptance fixture to the production Minecraft namespace.'
