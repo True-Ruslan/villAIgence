@@ -58,7 +58,7 @@ jobs:
           python3 scripts/ci/test_production_server_acceptance.py
           python3 scripts/ci/test_production_server_process.py
 
-      - name: Stage and verify production acceptance runtime
+      - name: Stage and execute production server acceptance
         run: |
           chmod +x gradlew
           ./gradlew \
@@ -66,8 +66,28 @@ jobs:
             --stacktrace \
             --no-daemon \
             --console=plain
+
+          rm -rf build/production-server-acceptance
+          mkdir -p build/production-server-acceptance/evidence
           python3 scripts/ci/production_server_acceptance.py \
-            --stage-dir fabric/build/production-acceptance/stage
+            --stage-dir fabric/build/production-acceptance/stage \
+            --execute \
+            --work-dir build/production-server-acceptance/work \
+            --report-dir build/production-server-acceptance/evidence \
+            --java "${JAVA_HOME}/bin/java" \
+            --installer-timeout-seconds 300 \
+            --startup-timeout-seconds 240 \
+            --shutdown-timeout-seconds 60 \
+            --max-heap-mib 768
+
+      - name: Upload production acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-server-acceptance-${{ github.run_number }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: build/production-server-acceptance/evidence
 
       - name: Run risk catalog, server GameTests and supported loader builds
         run: |
