@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Production-JAR startup/restart acceptance harness for VillAIgence.
 
-The pure manifest, process-boundary, log and persistence helpers are unit tested
-without starting Minecraft. Production process orchestration is deliberately
-bounded and uses explicit argument vectors without shell interpolation.
+The exact remapped candidate is installed into an isolated production Fabric
+server, started in a separate JVM, stopped through stdin, restarted against the
+same world, and evaluated with deterministic log and persistence oracles.
 """
 
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import hashlib
 import json
 from pathlib import Path
@@ -352,7 +352,6 @@ def run_server_process(
 
     started_at = time.monotonic()
     ready_event = threading.Event()
-    lines: list[str] = []
     reader_failure: list[BaseException] = []
 
     with output_path.open("w", encoding="utf-8", newline="") as log_handle:
@@ -375,12 +374,11 @@ def run_server_process(
         def read_output() -> None:
             try:
                 for line in process.stdout:
-                    lines.append(line)
                     log_handle.write(line)
                     log_handle.flush()
                     if "Done (" in line and 'For help, type "help"' in line:
                         ready_event.set()
-            except BaseException as exception:  # pragma: no cover - defensive thread path
+            except BaseException as exception:  # pragma: no cover
                 reader_failure.append(exception)
 
         reader = threading.Thread(
@@ -447,6 +445,44 @@ def run_server_process(
         stop_sent=True,
         log_path=output_path,
     )
+
+
+def run_bounded_command(
+    command: Sequence[str],
+    *,
+    cwd: Path | str,
+    log_path: Path | str,
+    timeout_seconds: float,
+) -> int:
+    if timeout_seconds <= 0:
+        raise AcceptanceError("command timeout must be positive")
+    working_directory = Path(cwd).resolve(strict=True)
+    output_path = Path(log_path).resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8", newline="") as log_handle:
+        try:
+            completed = subprocess.run(
+                list(command),
+                cwd=working_directory,
+                stdin=subprocess.DEVNULL,
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                shell=False,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exception:
+            raise AcceptanceError(
+                f"bounded command timeout after {timeout_seconds:.3f}s"
+            ) from exception
+    if completed.returncode != 0:
+        raise AcceptanceError(
+            f"bounded command exited with non-zero code {completed.returncode}"
+        )
+    return completed.returncode
 
 
 def evaluate_server_log(
@@ -595,30 +631,206 @@ def compare_persistent_states(
     return tuple(errors)
 
 
+def _persistent_json(
+    evidence: Mapping[str, PersistentFileEvidence],
+) -> dict[str, dict[str, Any]]:
+    return {name: asdict(value) for name, value in sorted(evidence.items())}
+
+
+def _write_json(path: Path, value: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(value, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(path)
+
+
+def execute_production_acceptance(
+    manifest: StageManifest,
+    *,
+    work_dir: Path | str,
+    report_dir: Path | str,
+    java_command: str,
+    installer_timeout_seconds: float,
+    startup_timeout_seconds: float,
+    shutdown_timeout_seconds: float,
+    max_heap_mib: int,
+) -> dict[str, Any]:
+    work = Path(work_dir).resolve()
+    reports = Path(report_dir).resolve()
+    if work.exists() and any(work.iterdir()):
+        raise AcceptanceError("production acceptance work directory must be empty")
+    work.mkdir(parents=True, exist_ok=True)
+    reports.mkdir(parents=True, exist_ok=True)
+    server = work / "server"
+    server.mkdir()
+
+    installer_log = reports / "installer.log"
+    run_bounded_command(
+        build_installer_command(manifest, server, java_command),
+        cwd=server,
+        log_path=installer_log,
+        timeout_seconds=installer_timeout_seconds,
+    )
+    launcher = server / "fabric-server-launch.jar"
+    if not launcher.is_file() or launcher.is_symlink():
+        raise AcceptanceError(
+            "Fabric Installer did not create a regular fabric-server-launch.jar"
+        )
+
+    prepare_server_directory(manifest, server)
+    server_command = build_server_command(
+        server,
+        java_command,
+        max_heap_mib=max_heap_mib,
+    )
+
+    first_run = run_server_process(
+        server_command,
+        cwd=server,
+        log_path=reports / "server-run-1.log",
+        startup_timeout_seconds=startup_timeout_seconds,
+        shutdown_timeout_seconds=shutdown_timeout_seconds,
+    )
+    first_log = first_run.log_path.read_text(encoding="utf-8")
+    first_oracle = evaluate_server_log(
+        first_log,
+        minecraft_version=manifest.minecraft_version,
+        candidate_version=manifest.candidate.version,
+        require_shutdown=True,
+    )
+    if first_oracle.errors:
+        raise AcceptanceError("first production startup failed: " + "; ".join(first_oracle.errors))
+    first_state = collect_persistent_state(server)
+
+    second_run = run_server_process(
+        server_command,
+        cwd=server,
+        log_path=reports / "server-run-2.log",
+        startup_timeout_seconds=startup_timeout_seconds,
+        shutdown_timeout_seconds=shutdown_timeout_seconds,
+    )
+    second_log = second_run.log_path.read_text(encoding="utf-8")
+    second_oracle = evaluate_server_log(
+        second_log,
+        minecraft_version=manifest.minecraft_version,
+        candidate_version=manifest.candidate.version,
+        require_shutdown=True,
+    )
+    if second_oracle.errors:
+        raise AcceptanceError(
+            "second production startup failed: " + "; ".join(second_oracle.errors)
+        )
+    second_state = collect_persistent_state(server)
+    persistence_errors = compare_persistent_states(first_state, second_state)
+    if persistence_errors:
+        raise AcceptanceError("restart persistence failed: " + "; ".join(persistence_errors))
+
+    result: dict[str, Any] = {
+        "schema": 1,
+        "status": "PASS",
+        "minecraftVersion": manifest.minecraft_version,
+        "loaderVersion": manifest.loader_version,
+        "installerVersion": manifest.installer_version,
+        "candidateVersion": manifest.candidate.version,
+        "candidateSha256": manifest.candidate.sha256,
+        "runtimeMods": [
+            {
+                "filename": artifact.path.name,
+                "sha256": artifact.sha256,
+                "size": artifact.size,
+            }
+            for artifact in manifest.runtime_mods
+        ],
+        "firstRun": {
+            "exitCode": first_run.exit_code,
+            "durationMillis": first_run.duration_millis,
+            "ready": first_run.ready,
+            "stopSent": first_run.stop_sent,
+            "log": first_run.log_path.name,
+        },
+        "secondRun": {
+            "exitCode": second_run.exit_code,
+            "durationMillis": second_run.duration_millis,
+            "ready": second_run.ready,
+            "stopSent": second_run.stop_sent,
+            "log": second_run.log_path.name,
+        },
+        "persistentStateBeforeRestart": _persistent_json(first_state),
+        "persistentStateAfterRestart": _persistent_json(second_state),
+    }
+    _write_json(reports / "acceptance-report.json", result)
+    return result
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stage-dir", type=Path, required=True)
+    parser.add_argument("--execute", action="store_true")
+    parser.add_argument("--work-dir", type=Path)
+    parser.add_argument("--report-dir", type=Path)
+    parser.add_argument("--java", default="java")
+    parser.add_argument("--installer-timeout-seconds", type=float, default=300.0)
+    parser.add_argument("--startup-timeout-seconds", type=float, default=240.0)
+    parser.add_argument("--shutdown-timeout-seconds", type=float, default=60.0)
+    parser.add_argument("--max-heap-mib", type=int, default=768)
     return parser.parse_args()
 
 
 def main() -> int:
     args = _parse_args()
     manifest = load_stage_manifest(args.stage_dir)
-    print(
-        json.dumps(
-            {
-                "schema": 1,
-                "minecraftVersion": manifest.minecraft_version,
-                "loaderVersion": manifest.loader_version,
-                "candidateVersion": manifest.candidate.version,
-                "candidateSha256": manifest.candidate.sha256,
-                "runtimeModCount": len(manifest.runtime_mods),
-                "status": "STAGING_VERIFIED",
-            },
-            indent=2,
-            sort_keys=True,
+    if not args.execute:
+        print(
+            json.dumps(
+                {
+                    "schema": 1,
+                    "minecraftVersion": manifest.minecraft_version,
+                    "loaderVersion": manifest.loader_version,
+                    "candidateVersion": manifest.candidate.version,
+                    "candidateSha256": manifest.candidate.sha256,
+                    "runtimeModCount": len(manifest.runtime_mods),
+                    "status": "STAGING_VERIFIED",
+                },
+                indent=2,
+                sort_keys=True,
+            )
         )
-    )
+        return 0
+
+    if args.work_dir is None or args.report_dir is None:
+        raise SystemExit("--execute requires --work-dir and --report-dir")
+
+    report_path = args.report_dir.resolve() / "acceptance-report.json"
+    try:
+        result = execute_production_acceptance(
+            manifest,
+            work_dir=args.work_dir,
+            report_dir=args.report_dir,
+            java_command=args.java,
+            installer_timeout_seconds=args.installer_timeout_seconds,
+            startup_timeout_seconds=args.startup_timeout_seconds,
+            shutdown_timeout_seconds=args.shutdown_timeout_seconds,
+            max_heap_mib=args.max_heap_mib,
+        )
+    except AcceptanceError as exception:
+        failure = {
+            "schema": 1,
+            "status": "FAIL",
+            "minecraftVersion": manifest.minecraft_version,
+            "loaderVersion": manifest.loader_version,
+            "installerVersion": manifest.installer_version,
+            "candidateVersion": manifest.candidate.version,
+            "candidateSha256": manifest.candidate.sha256,
+            "error": str(exception),
+        }
+        _write_json(report_path, failure)
+        print(json.dumps(failure, indent=2, sort_keys=True))
+        return 1
+
+    print(json.dumps(result, indent=2, sort_keys=True))
     return 0
 
 
