@@ -1,0 +1,146 @@
+sourceSets {
+    productionAcceptanceFixture {
+        java.srcDir('src/productionAcceptanceFixture/java')
+        resources.srcDir('src/productionAcceptanceFixture/resources')
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += output + compileClasspath + sourceSets.main.runtimeClasspath
+    }
+}
+
+loom {
+    mods {
+        'mca-production-acceptance-fixture' {
+            sourceSet sourceSets.productionAcceptanceFixture
+        }
+    }
+}
+
+def productionAcceptanceFixtureJar = tasks.register('productionAcceptanceFixtureJar', Jar) {
+    group = 'verification'
+    description = 'Builds the development-mapped production acceptance fixture mod.'
+    dependsOn tasks.named(sourceSets.productionAcceptanceFixture.classesTaskName)
+    from sourceSets.productionAcceptanceFixture.output
+    archiveFileName.set('mca-production-acceptance-fixture-1.0.0-dev.jar')
+    destinationDirectory.set(layout.buildDirectory.dir('production-acceptance/fixture-dev'))
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
+def remapProductionAcceptanceFixtureJar = tasks.register(
+        'remapProductionAcceptanceFixtureJar',
+        net.fabricmc.loom.task.RemapJarTask
+) {
+    group = 'verification'
+    description = 'Remaps the production acceptance fixture to the production Minecraft namespace.'
+    dependsOn productionAcceptanceFixtureJar
+    inputFile.set(productionAcceptanceFixtureJar.flatMap { it.archiveFile })
+    archiveFileName.set('mca-production-acceptance-fixture-1.0.0.jar')
+    destinationDirectory.set(layout.buildDirectory.dir('production-acceptance/fixture-remapped'))
+    addNestedDependencies.set(false)
+}
+
+def fixtureSha256 = { File file ->
+    def digest = java.security.MessageDigest.getInstance('SHA-256')
+    file.withInputStream { stream ->
+        byte[] buffer = new byte[128 * 1024]
+        int read
+        while ((read = stream.read(buffer)) != -1) {
+            digest.update(buffer, 0, read)
+        }
+    }
+    digest.digest().encodeHex().toString()
+}
+
+def fixtureMetadata = { File jarFile ->
+    def zip = new java.util.zip.ZipFile(jarFile)
+    try {
+        def entry = zip.getEntry('fabric.mod.json')
+        if (entry == null) {
+            throw new GradleException("Acceptance fixture is missing fabric.mod.json: ${jarFile}")
+        }
+        def metadata = new groovy.json.JsonSlurper().parse(
+                zip.getInputStream(entry),
+                'UTF-8'
+        )
+        if (metadata.id != 'mca-production-acceptance-fixture'
+                || metadata.version != '1.0.0') {
+            throw new GradleException(
+                    "Acceptance fixture metadata must be mca-production-acceptance-fixture 1.0.0, found ${metadata.id} ${metadata.version}"
+            )
+        }
+        metadata
+    } finally {
+        zip.close()
+    }
+}
+
+tasks.named('verifyFabricRefmap') {
+    doLast {
+        def jarFile = remappedFabricJar.get().asFile
+        def zip = new java.util.zip.ZipFile(jarFile)
+        try {
+            if (zip.getEntry('net/conczin/mca/acceptancefixture/ProductionAcceptanceFixture.class') != null) {
+                throw new GradleException(
+                        "Production VillAIgence JAR must not contain the production acceptance fixture: ${jarFile}"
+                )
+            }
+            def metadataEntry = zip.getEntry('fabric.mod.json')
+            def metadataText = metadataEntry == null
+                    ? ''
+                    : zip.getInputStream(metadataEntry).getText('UTF-8')
+            if (metadataText.contains('mca-production-acceptance-fixture')) {
+                throw new GradleException(
+                        "Production VillAIgence metadata must not contain the production acceptance fixture ID: ${jarFile}"
+                )
+            }
+        } finally {
+            zip.close()
+        }
+    }
+}
+
+tasks.named('stageProductionAcceptanceRuntime') {
+    dependsOn remapProductionAcceptanceFixtureJar
+    inputs.file(remapProductionAcceptanceFixtureJar.flatMap { it.archiveFile })
+
+    doLast {
+        def fixtureJar = remapProductionAcceptanceFixtureJar.get().archiveFile.get().asFile
+        fixtureMetadata(fixtureJar)
+
+        def stageDir = productionAcceptanceStageDir.get().asFile
+        def modsDir = new File(stageDir, 'mods')
+        def stagedFixture = new File(modsDir, fixtureJar.name)
+        java.nio.file.Files.copy(
+                fixtureJar.toPath(),
+                stagedFixture.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING
+        )
+
+        def manifestFile = new File(stageDir, 'manifest.json')
+        def manifest = new groovy.json.JsonSlurper().parse(manifestFile, 'UTF-8')
+        if (!(manifest.runtimeMods instanceof List)) {
+            throw new GradleException("Production acceptance manifest runtimeMods must be a list")
+        }
+        if (manifest.runtimeMods.any { it.id == 'mca-production-acceptance-fixture' }) {
+            throw new GradleException("Production acceptance manifest already contains the fixture")
+        }
+        manifest.runtimeMods.add([
+                id: 'mca-production-acceptance-fixture',
+                version: '1.0.0',
+                path: stageDir.toPath()
+                        .relativize(stagedFixture.toPath())
+                        .toString()
+                        .replace(File.separatorChar, '/' as char),
+                sha256: fixtureSha256(stagedFixture),
+                size: stagedFixture.length()
+        ])
+        manifest.runtimeMods.sort { left, right -> left.id <=> right.id }
+        manifestFile.setText(
+                groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(manifest)) + '\n',
+                'UTF-8'
+        )
+        logger.lifecycle(
+                "Staged production acceptance fixture: ${stagedFixture.name} ${fixtureSha256(stagedFixture)}"
+        )
+    }
+}
