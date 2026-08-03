@@ -13,6 +13,9 @@ loom {
     }
 }
 
+def productionCandidateJar = tasks.named('remapJar').flatMap { it.archiveFile }
+def productionAcceptanceFixtureStageDir = layout.buildDirectory.dir('production-acceptance/stage')
+
 def productionAcceptanceFixtureJar = tasks.register('productionAcceptanceFixtureJar', Jar) {
     group = 'verification'
     description = 'Builds the development-mapped production acceptance fixture mod.'
@@ -75,7 +78,7 @@ def fixtureMetadata = { File jarFile ->
 
 tasks.named('verifyFabricRefmap') {
     doLast {
-        def jarFile = remappedFabricJar.get().asFile
+        def jarFile = productionCandidateJar.get().asFile
         def zip = new java.util.zip.ZipFile(jarFile)
         try {
             if (zip.getEntry('net/conczin/mca/acceptancefixture/ProductionAcceptanceFixture.class') != null) {
@@ -106,7 +109,7 @@ tasks.named('stageProductionAcceptanceRuntime') {
         def fixtureJar = remapProductionAcceptanceFixtureJar.get().archiveFile.get().asFile
         fixtureMetadata(fixtureJar)
 
-        def stageDir = productionAcceptanceStageDir.get().asFile
+        def stageDir = productionAcceptanceFixtureStageDir.get().asFile
         def modsDir = new File(stageDir, 'mods')
         def stagedFixture = new File(modsDir, fixtureJar.name)
         java.nio.file.Files.copy(
