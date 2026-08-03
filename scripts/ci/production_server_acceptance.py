@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Production-JAR startup/restart acceptance harness for VillAIgence.
 
-The pure manifest, log and persistence helpers are unit tested without starting
-Minecraft. Process orchestration is added incrementally after those contracts are
-stable.
+The pure manifest, process-boundary, log and persistence helpers are unit tested
+without starting Minecraft. Process orchestration is added incrementally after
+those contracts are stable.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import shutil
 from typing import Any, Mapping, Sequence
 
 CANONICAL_PERSISTENT_STORES: tuple[str, ...] = (
@@ -37,6 +38,32 @@ FORBIDDEN_LOG_SIGNATURES: tuple[str, ...] = (
     "Could not find required mod",
     "Failed to start the minecraft server",
     "OutOfMemoryError",
+)
+
+SERVER_PROPERTIES: tuple[tuple[str, str], ...] = (
+    ("allow-flight", "true"),
+    ("difficulty", "peaceful"),
+    ("enable-command-block", "false"),
+    ("enable-query", "false"),
+    ("enable-rcon", "false"),
+    ("enforce-secure-profile", "false"),
+    ("force-gamemode", "true"),
+    ("gamemode", "creative"),
+    ("generate-structures", "false"),
+    ("level-name", "world"),
+    ("max-players", "1"),
+    ("motd", "VillAIgence production acceptance"),
+    ("network-compression-threshold", "-1"),
+    ("online-mode", "false"),
+    ("prevent-proxy-connections", "false"),
+    ("server-port", "0"),
+    ("simulation-distance", "2"),
+    ("spawn-animals", "false"),
+    ("spawn-monsters", "false"),
+    ("spawn-npcs", "true"),
+    ("spawn-protection", "0"),
+    ("sync-chunk-writes", "true"),
+    ("view-distance", "2"),
 )
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -119,13 +146,19 @@ def _confined_path(root: Path, raw: str, field: str) -> Path:
     try:
         resolved = (root / relative).resolve(strict=True)
     except OSError as exception:
-        raise AcceptanceError(f"{field} does not resolve to an existing file: {raw}") from exception
+        raise AcceptanceError(
+            f"{field} does not resolve to an existing file: {raw}"
+        ) from exception
     try:
         resolved.relative_to(root)
     except ValueError as exception:
-        raise AcceptanceError(f"{field} must remain confined to the staging root: {raw}") from exception
+        raise AcceptanceError(
+            f"{field} must remain confined to the staging root: {raw}"
+        ) from exception
     if not resolved.is_file() or resolved.is_symlink():
-        raise AcceptanceError(f"{field} must resolve to a regular non-symlink file: {raw}")
+        raise AcceptanceError(
+            f"{field} must resolve to a regular non-symlink file: {raw}"
+        )
     return resolved
 
 
@@ -181,7 +214,11 @@ def load_stage_manifest(stage_dir: Path | str) -> StageManifest:
         for index, artifact in enumerate(runtime_raw)
     )
 
-    all_paths = [installer.path, candidate_base.path, *(item.path for item in runtime_mods)]
+    all_paths = [
+        installer.path,
+        candidate_base.path,
+        *(item.path for item in runtime_mods),
+    ]
     if len(set(all_paths)) != len(all_paths):
         raise AcceptanceError("staging manifest contains duplicate artifact paths")
 
@@ -199,6 +236,76 @@ def load_stage_manifest(stage_dir: Path | str) -> StageManifest:
         ),
         runtime_mods=runtime_mods,
     )
+
+
+def build_installer_command(
+    manifest: StageManifest,
+    server_dir: Path | str,
+    java_command: str,
+) -> list[str]:
+    server = Path(server_dir).resolve()
+    return [
+        java_command,
+        "-jar",
+        str(manifest.installer.path),
+        "server",
+        "-dir",
+        str(server),
+        "-mcversion",
+        manifest.minecraft_version,
+        "-loader",
+        manifest.loader_version,
+        "-downloadMinecraft",
+    ]
+
+
+def build_server_command(
+    server_dir: Path | str,
+    java_command: str,
+    *,
+    max_heap_mib: int,
+) -> list[str]:
+    if max_heap_mib < 256:
+        raise AcceptanceError("server max heap must be at least 256 MiB")
+    server = Path(server_dir).resolve()
+    return [
+        java_command,
+        "-Xms256M",
+        f"-Xmx{max_heap_mib}M",
+        "-Djava.awt.headless=true",
+        "-jar",
+        str(server / "fabric-server-launch.jar"),
+        "nogui",
+    ]
+
+
+def prepare_server_directory(
+    manifest: StageManifest,
+    server_dir: Path | str,
+) -> None:
+    server = Path(server_dir).resolve()
+    server.mkdir(parents=True, exist_ok=True)
+    mods_dir = server / "mods"
+    if mods_dir.exists() and any(mods_dir.iterdir()):
+        raise AcceptanceError("server mods directory must be empty before staging")
+    mods_dir.mkdir(parents=True, exist_ok=True)
+
+    artifacts = (manifest.candidate, *manifest.runtime_mods)
+    target_names = [artifact.path.name for artifact in artifacts]
+    if len(set(target_names)) != len(target_names):
+        raise AcceptanceError("staged production mods must have unique filenames")
+
+    for artifact in artifacts:
+        target = mods_dir / artifact.path.name
+        shutil.copy2(artifact.path, target)
+        if _sha256(target) != artifact.sha256:
+            raise AcceptanceError(
+                f"copied production mod checksum mismatch: {target.name}"
+            )
+
+    (server / "eula.txt").write_text("eula=true\n", encoding="utf-8")
+    properties = "".join(f"{key}={value}\n" for key, value in SERVER_PROPERTIES)
+    (server / "server.properties").write_text(properties, encoding="utf-8")
 
 
 def evaluate_server_log(
@@ -224,11 +331,13 @@ def evaluate_server_log(
 
     if loader_pattern.search(log) is None:
         errors.append(
-            f"server log does not prove Minecraft {minecraft_version} production Fabric startup"
+            f"server log does not prove Minecraft {minecraft_version} "
+            "production Fabric startup"
         )
     if candidate_pattern.search(log) is None:
         errors.append(
-            f"server log does not contain the expected mca candidate version {candidate_version}"
+            "server log does not contain the expected mca candidate version "
+            f"{candidate_version}"
         )
     if not ready:
         errors.append("server log does not contain the Minecraft ready marker")
@@ -272,7 +381,9 @@ def collect_persistent_state(
         if not candidates:
             raise AcceptanceError(f"missing canonical persistent store: {basename}")
         if len(candidates) != 1:
-            relative = ", ".join(path.relative_to(root).as_posix() for path in candidates)
+            relative = ", ".join(
+                path.relative_to(root).as_posix() for path in candidates
+            )
             raise AcceptanceError(
                 f"duplicate canonical persistent store {basename}: {relative}"
             )
@@ -317,7 +428,8 @@ def compare_persistent_states(
         missing_after = sorted(set(first) - set(second))
         added_after = sorted(set(second) - set(first))
         errors.append(
-            f"persistent store set changed across restart: missing={missing_after}, added={added_after}"
+            "persistent store set changed across restart: "
+            f"missing={missing_after}, added={added_after}"
         )
 
     for basename in sorted(set(first) & set(second)):
@@ -325,15 +437,18 @@ def compare_persistent_states(
         after = second[basename]
         if before.relative_path != after.relative_path:
             errors.append(
-                f"{basename} moved across restart: {before.relative_path} -> {after.relative_path}"
+                f"{basename} moved across restart: "
+                f"{before.relative_path} -> {after.relative_path}"
             )
         if before.sha256 != after.sha256:
             errors.append(
-                f"{basename} changed across no-op restart: {before.sha256} -> {after.sha256}"
+                f"{basename} changed across no-op restart: "
+                f"{before.sha256} -> {after.sha256}"
             )
         if before.root_type != after.root_type:
             errors.append(
-                f"{basename} JSON root type changed: {before.root_type} -> {after.root_type}"
+                f"{basename} JSON root type changed: "
+                f"{before.root_type} -> {after.root_type}"
             )
 
     return tuple(errors)
