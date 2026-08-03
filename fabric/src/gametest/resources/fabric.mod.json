@@ -7,8 +7,7 @@
   "entrypoints": {
     "fabric-gametest": [
       "net.conczin.mca.gametest.VillAIgenceGameTests",
-      "net.conczin.mca.gametest.TombstoneControlGameTests",
-      "net.conczin.mca.gametest.NavigationControlGameTests"
+      "net.conczin.mca.gametest.TombstoneControlGameTests"
     ]
   },
   "depends": {
