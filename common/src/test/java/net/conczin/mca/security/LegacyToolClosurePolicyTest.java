@@ -123,8 +123,19 @@ class LegacyToolClosurePolicyTest {
     private static void collectFiles(Path directory, List<Path> output) throws IOException {
         if (!Files.isDirectory(directory)) return;
         try (Stream<Path> paths = Files.walk(directory)) {
-            output.addAll(paths.filter(Files::isRegularFile).sorted().toList());
+            output.addAll(paths
+                    .filter(Files::isRegularFile)
+                    .filter(LegacyToolClosurePolicyTest::isTrackedTextSurface)
+                    .sorted()
+                    .toList());
         }
+    }
+
+    private static boolean isTrackedTextSurface(Path path) {
+        for (Path part : path) {
+            if (part.toString().equals("__pycache__")) return false;
+        }
+        return !path.getFileName().toString().endsWith(".pyc");
     }
 
     private static Path repositoryRoot() {
