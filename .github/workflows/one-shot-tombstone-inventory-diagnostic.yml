@@ -1,16 +1,15 @@
 name: One-shot apply tombstone inventory fix
 
 on:
-  push:
+  pull_request:
     branches:
-      - 'fix/tombstone-inventory-preservation'
+      - '1.21.1'
 
 permissions:
   contents: write
 
 jobs:
   apply-and-verify:
-    if: github.event.head_commit.message == 'ci: apply tombstone inventory ownership fix'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -40,10 +39,13 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          from textwrap import dedent
 
           def replace_exact(path: str, old: str, new: str) -> None:
               target = Path(path)
               text = target.read_text(encoding='utf-8')
+              old = dedent(old)
+              new = dedent(new)
               count = text.count(old)
               if count != 1:
                   raise SystemExit(f'{path}: expected one replacement target, found {count}')
@@ -51,7 +53,8 @@ jobs:
 
           replace_exact(
               'common/src/main/java/net/conczin/mca/entity/ai/Relationship.java',
-              '''    public void onDeath(DamageSource cause) {
+              '''\
+              public void onDeath(DamageSource cause) {
                   boolean beRemembered = getFamilyEntry().willBeRemembered();
                   boolean beLoved = entity.getVillagerBrain().getMemories().values().stream().anyMatch(m -> m.getHearts() > Config.getInstance().heartsRequiredToAutoSpawnGravestone);
 
@@ -82,8 +85,9 @@ jobs:
                       getFamilyTree().remove(entity.getUUID());
                   }
               }
-          ''',
-              '''    public boolean onDeath(DamageSource cause) {
+              ''',
+              '''\
+              public boolean onDeath(DamageSource cause) {
                   boolean beRemembered = getFamilyEntry().willBeRemembered();
                   boolean beLoved = entity.getVillagerBrain().getMemories().values().stream().anyMatch(m -> m.getHearts() > Config.getInstance().heartsRequiredToAutoSpawnGravestone);
                   boolean capturedInTombstone = false;
@@ -121,38 +125,42 @@ jobs:
 
                   return capturedInTombstone;
               }
-          ''')
+              ''')
 
           replace_exact(
               'common/src/main/java/net/conczin/mca/entity/VillagerEntityMCA.java',
-              '''        //drop stuff
-                  InventoryUtils.dropAllItems(this, inventory);
+              '''\
+              //drop stuff
+              InventoryUtils.dropAllItems(this, inventory);
 
-                  //alert family and nearby villagers
-                  relations.onDeath(cause);
-          ''',
-              '''        // Transfer inventory ownership before any loose death drops are emitted.
-                  boolean capturedInTombstone = relations.onDeath(cause);
-                  if (capturedInTombstone) {
-                      inventory.clearContent();
-                  } else {
-                      InventoryUtils.dropAllItems(this, inventory);
-                  }
-          ''')
+              //alert family and nearby villagers
+              relations.onDeath(cause);
+              ''',
+              '''\
+              // Transfer inventory ownership before any loose death drops are emitted.
+              boolean capturedInTombstone = relations.onDeath(cause);
+              if (capturedInTombstone) {
+                  inventory.clearContent();
+              } else {
+                  InventoryUtils.dropAllItems(this, inventory);
+              }
+              ''')
 
           replace_exact(
               'common/src/main/java/net/conczin/mca/entity/ZombieVillagerEntityMCA.java',
-              '''        InventoryUtils.dropAllItems(this, inventory);
+              '''\
+              InventoryUtils.dropAllItems(this, inventory);
 
-                  relations.onDeath(cause);
-          ''',
-              '''        boolean capturedInTombstone = relations.onDeath(cause);
-                  if (capturedInTombstone) {
-                      inventory.clearContent();
-                  } else {
-                      InventoryUtils.dropAllItems(this, inventory);
-                  }
-          ''')
+              relations.onDeath(cause);
+              ''',
+              '''\
+              boolean capturedInTombstone = relations.onDeath(cause);
+              if (capturedInTombstone) {
+                  inventory.clearContent();
+              } else {
+                  InventoryUtils.dropAllItems(this, inventory);
+              }
+              ''')
           PY
 
       - name: Verify focused and full server boundaries
@@ -168,18 +176,20 @@ jobs:
             --no-daemon \
             --console=plain
 
-      - name: Commit verified fix and remove one-shot workflow
+      - name: Commit verified fix and remove one-shot artifacts
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           rm .github/workflows/one-shot-tombstone-inventory-diagnostic.yml
+          rm .tombstone-inventory-fix-trigger
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
             common/src/main/java/net/conczin/mca/entity/ai/Relationship.java \
             common/src/main/java/net/conczin/mca/entity/VillagerEntityMCA.java \
             common/src/main/java/net/conczin/mca/entity/ZombieVillagerEntityMCA.java \
-            .github/workflows/one-shot-tombstone-inventory-diagnostic.yml
+            .github/workflows/one-shot-tombstone-inventory-diagnostic.yml \
+            .tombstone-inventory-fix-trigger
           git commit -m "fix: preserve inventory through tombstone capture"
           git push origin HEAD:fix/tombstone-inventory-preservation
