@@ -1,6 +1,9 @@
 name: One-shot tombstone inventory diagnostic
 
 on:
+  pull_request:
+    branches:
+      - '1.21.1'
   push:
     branches:
       - 'fix/tombstone-inventory-preservation'
@@ -40,5 +43,5 @@ jobs:
           set -euo pipefail
           while IFS= read -r file; do
             echo "===== ${file} ====="
-            sed -n '1,360p' "${file}"
+            sed -n '1,420p' "${file}"
           done < <(grep -RIl --include='*.java' -E 'void onDeath|onDeath\(|\.setEntity\(' common/src/main/java | sort -u)
