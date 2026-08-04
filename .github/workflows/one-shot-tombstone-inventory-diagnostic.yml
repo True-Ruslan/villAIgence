@@ -39,128 +39,98 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          from textwrap import dedent
+          from textwrap import dedent, indent
 
-          def replace_exact(path: str, old: str, new: str) -> None:
+          def replace_once(path: str, old: str, new: str) -> None:
               target = Path(path)
               text = target.read_text(encoding='utf-8')
-              old = dedent(old)
-              new = dedent(new)
               count = text.count(old)
               if count != 1:
                   raise SystemExit(f'{path}: expected one replacement target, found {count}')
               target.write_text(text.replace(old, new), encoding='utf-8')
 
-          replace_exact(
-              'common/src/main/java/net/conczin/mca/entity/ai/Relationship.java',
-              '''\
-              public void onDeath(DamageSource cause) {
-                  boolean beRemembered = getFamilyEntry().willBeRemembered();
-                  boolean beLoved = entity.getVillagerBrain().getMemories().values().stream().anyMatch(m -> m.getHearts() > Config.getInstance().heartsRequiredToAutoSpawnGravestone);
+          relationship_path = Path(
+              'common/src/main/java/net/conczin/mca/entity/ai/Relationship.java'
+          )
+          relationship = relationship_path.read_text(encoding='utf-8')
+          start_marker = '    public void onDeath(DamageSource cause) {'
+          end_marker = '    public void onTragedy(DamageSource cause, @Nullable BlockPos burialSite) {'
+          start = relationship.find(start_marker)
+          end = relationship.find(end_marker, start)
+          if start < 0 or end < 0:
+              raise SystemExit('Relationship.onDeath method boundaries were not found')
 
-                  if (beRemembered || beLoved || !entity.isHostile()) {
-                      getFamilyEntry().setDeceased(true);
+          new_method = indent(dedent('''\
+          public boolean onDeath(DamageSource cause) {
+              boolean beRemembered = getFamilyEntry().willBeRemembered();
+              boolean beLoved = entity.getVillagerBrain().getMemories().values().stream().anyMatch(m -> m.getHearts() > Config.getInstance().heartsRequiredToAutoSpawnGravestone);
+              boolean capturedInTombstone = false;
 
-                      ServerLevel world = (ServerLevel) entity.level();
-                      Optional<BlockPos> nearest = GraveyardManager.get(world).findNearest(entity.blockPosition(), GraveyardManager.TombstoneState.EMPTY, 10);
+              if (beRemembered || beLoved || !entity.isHostile()) {
+                  getFamilyEntry().setDeceased(true);
 
-                      if ((beRemembered || beLoved) && nearest.isEmpty()) {
-                          nearest = placeTombstone(world, entity.blockPosition());
-                      }
+                  ServerLevel world = (ServerLevel) entity.level();
+                  Optional<BlockPos> nearest = GraveyardManager.get(world).findNearest(entity.blockPosition(), GraveyardManager.TombstoneState.EMPTY, 10);
 
-                      nearest.ifPresentOrElse(pos -> {
-                          if (entity.level().getBlockState(pos).is(TagsMCA.Blocks.TOMBSTONES) && entity.level().getBlockEntity(pos) instanceof TombstoneBlock.Data tombstone) {
-                              onTragedy(cause, pos);
-                              tombstone.setEntity(entity);
-                          } else {
-                              onTragedy(cause, null);
-                          }
-                      }, () -> onTragedy(cause, null));
-                  } else {
-                      onTragedy(cause, null);
+                  if ((beRemembered || beLoved) && nearest.isEmpty()) {
+                      nearest = placeTombstone(world, entity.blockPosition());
                   }
 
-                  if (!beRemembered) {
-                      getFamilyEntry().streamParents().forEach(uuid -> getFamilyTree().remove(uuid));
-                      getFamilyTree().remove(entity.getUUID());
-                  }
-              }
-              ''',
-              '''\
-              public boolean onDeath(DamageSource cause) {
-                  boolean beRemembered = getFamilyEntry().willBeRemembered();
-                  boolean beLoved = entity.getVillagerBrain().getMemories().values().stream().anyMatch(m -> m.getHearts() > Config.getInstance().heartsRequiredToAutoSpawnGravestone);
-                  boolean capturedInTombstone = false;
-
-                  if (beRemembered || beLoved || !entity.isHostile()) {
-                      getFamilyEntry().setDeceased(true);
-
-                      ServerLevel world = (ServerLevel) entity.level();
-                      Optional<BlockPos> nearest = GraveyardManager.get(world).findNearest(entity.blockPosition(), GraveyardManager.TombstoneState.EMPTY, 10);
-
-                      if ((beRemembered || beLoved) && nearest.isEmpty()) {
-                          nearest = placeTombstone(world, entity.blockPosition());
-                      }
-
-                      if (nearest.isPresent()) {
-                          BlockPos pos = nearest.get();
-                          if (entity.level().getBlockState(pos).is(TagsMCA.Blocks.TOMBSTONES) && entity.level().getBlockEntity(pos) instanceof TombstoneBlock.Data tombstone) {
-                              onTragedy(cause, pos);
-                              tombstone.setEntity(entity);
-                              capturedInTombstone = tombstone.hasEntity();
-                          } else {
-                              onTragedy(cause, null);
-                          }
+                  if (nearest.isPresent()) {
+                      BlockPos pos = nearest.get();
+                      if (entity.level().getBlockState(pos).is(TagsMCA.Blocks.TOMBSTONES) && entity.level().getBlockEntity(pos) instanceof TombstoneBlock.Data tombstone) {
+                          onTragedy(cause, pos);
+                          tombstone.setEntity(entity);
+                          capturedInTombstone = tombstone.hasEntity();
                       } else {
                           onTragedy(cause, null);
                       }
                   } else {
                       onTragedy(cause, null);
                   }
-
-                  if (!beRemembered) {
-                      getFamilyEntry().streamParents().forEach(uuid -> getFamilyTree().remove(uuid));
-                      getFamilyTree().remove(entity.getUUID());
-                  }
-
-                  return capturedInTombstone;
+              } else {
+                  onTragedy(cause, null);
               }
-              ''')
 
-          replace_exact(
+              if (!beRemembered) {
+                  getFamilyEntry().streamParents().forEach(uuid -> getFamilyTree().remove(uuid));
+                  getFamilyTree().remove(entity.getUUID());
+              }
+
+              return capturedInTombstone;
+          }
+          '''), '    ')
+          relationship_path.write_text(
+              relationship[:start] + new_method + '\n' + relationship[end:],
+              encoding='utf-8'
+          )
+
+          replace_once(
               'common/src/main/java/net/conczin/mca/entity/VillagerEntityMCA.java',
-              '''\
-              //drop stuff
-              InventoryUtils.dropAllItems(this, inventory);
+              '        //drop stuff\n'
+              '        InventoryUtils.dropAllItems(this, inventory);\n\n'
+              '        //alert family and nearby villagers\n'
+              '        relations.onDeath(cause);\n',
+              '        // Transfer inventory ownership before any loose death drops are emitted.\n'
+              '        boolean capturedInTombstone = relations.onDeath(cause);\n'
+              '        if (capturedInTombstone) {\n'
+              '            inventory.clearContent();\n'
+              '        } else {\n'
+              '            InventoryUtils.dropAllItems(this, inventory);\n'
+              '        }\n'
+          )
 
-              //alert family and nearby villagers
-              relations.onDeath(cause);
-              ''',
-              '''\
-              // Transfer inventory ownership before any loose death drops are emitted.
-              boolean capturedInTombstone = relations.onDeath(cause);
-              if (capturedInTombstone) {
-                  inventory.clearContent();
-              } else {
-                  InventoryUtils.dropAllItems(this, inventory);
-              }
-              ''')
-
-          replace_exact(
+          replace_once(
               'common/src/main/java/net/conczin/mca/entity/ZombieVillagerEntityMCA.java',
-              '''\
-              InventoryUtils.dropAllItems(this, inventory);
-
-              relations.onDeath(cause);
-              ''',
-              '''\
-              boolean capturedInTombstone = relations.onDeath(cause);
-              if (capturedInTombstone) {
-                  inventory.clearContent();
-              } else {
-                  InventoryUtils.dropAllItems(this, inventory);
-              }
-              ''')
+              '        InventoryUtils.dropAllItems(this, inventory);\n\n'
+              '        relations.onDeath(cause);\n',
+              '        boolean capturedInTombstone = relations.onDeath(cause);\n'
+              '        if (capturedInTombstone) {\n'
+              '            inventory.clearContent();\n'
+              '        } else {\n'
+              '            InventoryUtils.dropAllItems(this, inventory);\n'
+              '        }\n'
+          )
           PY
 
       - name: Verify focused and full server boundaries
