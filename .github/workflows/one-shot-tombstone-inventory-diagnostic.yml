@@ -1,30 +1,28 @@
-name: One-shot tombstone inventory TDD
+name: One-shot apply tombstone inventory fix
 
 on:
-  pull_request:
-    branches:
-      - '1.21.1'
   push:
     branches:
       - 'fix/tombstone-inventory-preservation'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  gametest:
+  apply-and-verify:
+    if: github.event.head_commit.message == 'ci: apply tombstone inventory ownership fix'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - name: Checkout exact source head
+      - name: Checkout exact branch head
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git init .
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
+          git fetch --no-tags --depth=1 origin fix/tombstone-inventory-preservation
+          git checkout -B fix/tombstone-inventory-preservation FETCH_HEAD
 
       - name: Use Java 21 from runner image
         run: |
@@ -37,11 +35,151 @@ jobs:
           fi
           java -version
 
-      - name: Run focused server GameTest boundary
+      - name: Apply minimal ownership transfer fix
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one replacement target, found {count}')
+              target.write_text(text.replace(old, new), encoding='utf-8')
+
+          replace_exact(
+              'common/src/main/java/net/conczin/mca/entity/ai/Relationship.java',
+              '''    public void onDeath(DamageSource cause) {
+                  boolean beRemembered = getFamilyEntry().willBeRemembered();
+                  boolean beLoved = entity.getVillagerBrain().getMemories().values().stream().anyMatch(m -> m.getHearts() > Config.getInstance().heartsRequiredToAutoSpawnGravestone);
+
+                  if (beRemembered || beLoved || !entity.isHostile()) {
+                      getFamilyEntry().setDeceased(true);
+
+                      ServerLevel world = (ServerLevel) entity.level();
+                      Optional<BlockPos> nearest = GraveyardManager.get(world).findNearest(entity.blockPosition(), GraveyardManager.TombstoneState.EMPTY, 10);
+
+                      if ((beRemembered || beLoved) && nearest.isEmpty()) {
+                          nearest = placeTombstone(world, entity.blockPosition());
+                      }
+
+                      nearest.ifPresentOrElse(pos -> {
+                          if (entity.level().getBlockState(pos).is(TagsMCA.Blocks.TOMBSTONES) && entity.level().getBlockEntity(pos) instanceof TombstoneBlock.Data tombstone) {
+                              onTragedy(cause, pos);
+                              tombstone.setEntity(entity);
+                          } else {
+                              onTragedy(cause, null);
+                          }
+                      }, () -> onTragedy(cause, null));
+                  } else {
+                      onTragedy(cause, null);
+                  }
+
+                  if (!beRemembered) {
+                      getFamilyEntry().streamParents().forEach(uuid -> getFamilyTree().remove(uuid));
+                      getFamilyTree().remove(entity.getUUID());
+                  }
+              }
+          ''',
+              '''    public boolean onDeath(DamageSource cause) {
+                  boolean beRemembered = getFamilyEntry().willBeRemembered();
+                  boolean beLoved = entity.getVillagerBrain().getMemories().values().stream().anyMatch(m -> m.getHearts() > Config.getInstance().heartsRequiredToAutoSpawnGravestone);
+                  boolean capturedInTombstone = false;
+
+                  if (beRemembered || beLoved || !entity.isHostile()) {
+                      getFamilyEntry().setDeceased(true);
+
+                      ServerLevel world = (ServerLevel) entity.level();
+                      Optional<BlockPos> nearest = GraveyardManager.get(world).findNearest(entity.blockPosition(), GraveyardManager.TombstoneState.EMPTY, 10);
+
+                      if ((beRemembered || beLoved) && nearest.isEmpty()) {
+                          nearest = placeTombstone(world, entity.blockPosition());
+                      }
+
+                      if (nearest.isPresent()) {
+                          BlockPos pos = nearest.get();
+                          if (entity.level().getBlockState(pos).is(TagsMCA.Blocks.TOMBSTONES) && entity.level().getBlockEntity(pos) instanceof TombstoneBlock.Data tombstone) {
+                              onTragedy(cause, pos);
+                              tombstone.setEntity(entity);
+                              capturedInTombstone = tombstone.hasEntity();
+                          } else {
+                              onTragedy(cause, null);
+                          }
+                      } else {
+                          onTragedy(cause, null);
+                      }
+                  } else {
+                      onTragedy(cause, null);
+                  }
+
+                  if (!beRemembered) {
+                      getFamilyEntry().streamParents().forEach(uuid -> getFamilyTree().remove(uuid));
+                      getFamilyTree().remove(entity.getUUID());
+                  }
+
+                  return capturedInTombstone;
+              }
+          ''')
+
+          replace_exact(
+              'common/src/main/java/net/conczin/mca/entity/VillagerEntityMCA.java',
+              '''        //drop stuff
+                  InventoryUtils.dropAllItems(this, inventory);
+
+                  //alert family and nearby villagers
+                  relations.onDeath(cause);
+          ''',
+              '''        // Transfer inventory ownership before any loose death drops are emitted.
+                  boolean capturedInTombstone = relations.onDeath(cause);
+                  if (capturedInTombstone) {
+                      inventory.clearContent();
+                  } else {
+                      InventoryUtils.dropAllItems(this, inventory);
+                  }
+          ''')
+
+          replace_exact(
+              'common/src/main/java/net/conczin/mca/entity/ZombieVillagerEntityMCA.java',
+              '''        InventoryUtils.dropAllItems(this, inventory);
+
+                  relations.onDeath(cause);
+          ''',
+              '''        boolean capturedInTombstone = relations.onDeath(cause);
+                  if (capturedInTombstone) {
+                      inventory.clearContent();
+                  } else {
+                      InventoryUtils.dropAllItems(this, inventory);
+                  }
+          ''')
+          PY
+
+      - name: Verify focused and full server boundaries
         run: |
           set -euo pipefail
           chmod +x gradlew
-          ./gradlew :fabric:runGameTest \
+          ./gradlew \
+            :common:test \
+            :fabric:runGameTest \
+            :fabric:build \
+            :neoforge:build \
             --stacktrace \
             --no-daemon \
             --console=plain
+
+      - name: Commit verified fix and remove one-shot workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm .github/workflows/one-shot-tombstone-inventory-diagnostic.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            common/src/main/java/net/conczin/mca/entity/ai/Relationship.java \
+            common/src/main/java/net/conczin/mca/entity/VillagerEntityMCA.java \
+            common/src/main/java/net/conczin/mca/entity/ZombieVillagerEntityMCA.java \
+            .github/workflows/one-shot-tombstone-inventory-diagnostic.yml
+          git commit -m "fix: preserve inventory through tombstone capture"
+          git push origin HEAD:fix/tombstone-inventory-preservation
