@@ -1106,11 +1106,13 @@ public class VillagerEntityMCA extends Villager implements VillagerLike<Villager
             return;
         }
 
-        //drop stuff
-        InventoryUtils.dropAllItems(this, inventory);
-
-        //alert family and nearby villagers
-        relations.onDeath(cause);
+        // Transfer inventory ownership before any loose death drops are emitted.
+        boolean capturedInTombstone = relations.onDeath(cause);
+        if (capturedInTombstone) {
+            inventory.clearContent();
+        } else {
+            InventoryUtils.dropAllItems(this, inventory);
+        }
 
         Optional<Village> village = residency.getHomeVillage();
         if (village.isPresent() && cause.getEntity() != null && level() instanceof ServerLevel serverLevel) {

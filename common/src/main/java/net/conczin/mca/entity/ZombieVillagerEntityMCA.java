@@ -203,9 +203,12 @@ public class ZombieVillagerEntityMCA extends ZombieVillager implements VillagerL
             return;
         }
 
-        InventoryUtils.dropAllItems(this, inventory);
-
-        relations.onDeath(cause);
+        boolean capturedInTombstone = relations.onDeath(cause);
+        if (capturedInTombstone) {
+            inventory.clearContent();
+        } else {
+            InventoryUtils.dropAllItems(this, inventory);
+        }
     }
 
     public void setInventory(UpdatableInventory inventory) {

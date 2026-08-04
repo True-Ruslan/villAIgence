@@ -126,9 +126,10 @@ public class Relationship<T extends Mob & VillagerLike<T>> implements EntityRela
         return Optional.empty();
     }
 
-    public void onDeath(DamageSource cause) {
+    public boolean onDeath(DamageSource cause) {
         boolean beRemembered = getFamilyEntry().willBeRemembered();
         boolean beLoved = entity.getVillagerBrain().getMemories().values().stream().anyMatch(m -> m.getHearts() > Config.getInstance().heartsRequiredToAutoSpawnGravestone);
+        boolean capturedInTombstone = false;
 
         if (beRemembered || beLoved || !entity.isHostile()) {
             getFamilyEntry().setDeceased(true);
@@ -140,14 +141,18 @@ public class Relationship<T extends Mob & VillagerLike<T>> implements EntityRela
                 nearest = placeTombstone(world, entity.blockPosition());
             }
 
-            nearest.ifPresentOrElse(pos -> {
+            if (nearest.isPresent()) {
+                BlockPos pos = nearest.get();
                 if (entity.level().getBlockState(pos).is(TagsMCA.Blocks.TOMBSTONES) && entity.level().getBlockEntity(pos) instanceof TombstoneBlock.Data tombstone) {
                     onTragedy(cause, pos);
                     tombstone.setEntity(entity);
+                    capturedInTombstone = tombstone.hasEntity();
                 } else {
                     onTragedy(cause, null);
                 }
-            }, () -> onTragedy(cause, null));
+            } else {
+                onTragedy(cause, null);
+            }
         } else {
             onTragedy(cause, null);
         }
@@ -156,6 +161,8 @@ public class Relationship<T extends Mob & VillagerLike<T>> implements EntityRela
             getFamilyEntry().streamParents().forEach(uuid -> getFamilyTree().remove(uuid));
             getFamilyTree().remove(entity.getUUID());
         }
+
+        return capturedInTombstone;
     }
 
     public void onTragedy(DamageSource cause, @Nullable BlockPos burialSite) {
