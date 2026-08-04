@@ -2,6 +2,7 @@ package net.conczin.mca.gametest;
 
 import net.conczin.mca.block.TombstoneBlock;
 import net.conczin.mca.entity.VillagerEntityMCA;
+import net.conczin.mca.entity.ZombieVillagerEntityMCA;
 import net.conczin.mca.registry.BlocksMCA;
 import net.conczin.mca.registry.EntitiesMCA;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
@@ -76,6 +77,34 @@ public final class TombstoneInventoryDeathGameTests implements FabricGameTest {
         assertLooseItemCount(helper, deathArea, Items.EMERALD, 0);
         assertLooseItemCount(helper, deathArea, Items.BREAD, 0);
         assertLooseItemCount(helper, deathArea, Items.IRON_SWORD, 0);
+        helper.succeed();
+    }
+
+    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
+    public void deathWithoutEligibleTombstoneRetainsLegacyLooseDrops(
+            GameTestHelper helper
+    ) {
+        ZombieVillagerEntityMCA zombie = helper.spawn(
+                EntitiesMCA.MALE_ZOMBIE_VILLAGER,
+                3,
+                1,
+                2
+        );
+        zombie.setCustomName(Component.literal("Inventory Drop Fallback Zombie"));
+        zombie.getInventory().setItem(0, new ItemStack(Items.EMERALD, 4));
+        zombie.getInventory().setItem(12, new ItemStack(Items.BREAD, 6));
+
+        AABB deathArea = zombie.getBoundingBox().inflate(8.0D);
+        boolean damaged = zombie.hurt(
+                helper.getLevel().damageSources().genericKill(),
+                Float.MAX_VALUE
+        );
+        helper.assertTrue(damaged, "Fallback zombie must accept lethal damage");
+        helper.assertTrue(!zombie.isAlive(), "Fallback zombie must die");
+        helper.assertTrue(zombie.getInventory().isEmpty(),
+                "Loose-drop fallback must clear the dead NPC inventory");
+        assertLooseItemCount(helper, deathArea, Items.EMERALD, 4);
+        assertLooseItemCount(helper, deathArea, Items.BREAD, 6);
         helper.succeed();
     }
 
