@@ -1,6 +1,7 @@
 package net.conczin.mca.gametest;
 
 import net.conczin.mca.block.TombstoneBlock;
+import net.conczin.mca.entity.UpdatableInventory;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.ZombieVillagerEntityMCA;
 import net.conczin.mca.registry.BlocksMCA;
@@ -9,6 +10,8 @@ import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -91,8 +94,11 @@ public final class TombstoneInventoryDeathGameTests implements FabricGameTest {
                 2
         );
         zombie.setCustomName(Component.literal("Inventory Drop Fallback Zombie"));
-        zombie.getInventory().setItem(0, new ItemStack(Items.EMERALD, 4));
-        zombie.getInventory().setItem(12, new ItemStack(Items.BREAD, 6));
+
+        UpdatableInventory fixtureInventory = new UpdatableInventory(27);
+        fixtureInventory.setItem(0, new ItemStack(Items.EMERALD, 4));
+        fixtureInventory.setItem(12, new ItemStack(Items.BREAD, 6));
+        zombie.setInventory(fixtureInventory);
 
         AABB deathArea = zombie.getBoundingBox().inflate(8.0D);
         boolean damaged = zombie.hurt(
@@ -101,8 +107,13 @@ public final class TombstoneInventoryDeathGameTests implements FabricGameTest {
         );
         helper.assertTrue(damaged, "Fallback zombie must accept lethal damage");
         helper.assertTrue(!zombie.isAlive(), "Fallback zombie must die");
-        helper.assertTrue(zombie.getInventory().isEmpty(),
-                "Loose-drop fallback must clear the dead NPC inventory");
+
+        CompoundTag savedZombie = new CompoundTag();
+        zombie.saveWithoutId(savedZombie);
+        helper.assertTrue(
+                savedZombie.getList("Inventory", Tag.TAG_COMPOUND).isEmpty(),
+                "Loose-drop fallback must clear the serialized dead NPC inventory"
+        );
         assertLooseItemCount(helper, deathArea, Items.EMERALD, 4);
         assertLooseItemCount(helper, deathArea, Items.BREAD, 6);
         helper.succeed();
