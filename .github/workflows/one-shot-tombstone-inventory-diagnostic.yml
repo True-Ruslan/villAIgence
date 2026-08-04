@@ -1,0 +1,44 @@
+name: One-shot tombstone inventory diagnostic
+
+on:
+  push:
+    branches:
+      - 'fix/tombstone-inventory-preservation'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact source head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+
+      - name: Inspect death and tombstone ownership flow
+        run: |
+          set -euo pipefail
+          echo '=== relation onDeath declarations and calls ==='
+          grep -RIn --include='*.java' -E 'void onDeath|onDeath\(' common/src/main/java | head -n 240 || true
+          echo '=== tombstone setEntity calls ==='
+          grep -RIn --include='*.java' -E '\.setEntity\(|setEntity\(' common/src/main/java | head -n 240 || true
+          echo '=== inventory death drops ==='
+          grep -RIn --include='*.java' -E 'dropAllItems|drop.*inventory|InventoryUtils' common/src/main/java/net/conczin/mca | head -n 300 || true
+          echo '=== relationship source files ==='
+          find common/src/main/java/net/conczin/mca -type f -name '*.java' | grep -E 'relationship|Relation' | sort | head -n 300 || true
+
+      - name: Show relevant source bodies
+        run: |
+          set -euo pipefail
+          while IFS= read -r file; do
+            echo "===== ${file} ====="
+            sed -n '1,360p' "${file}"
+          done < <(grep -RIl --include='*.java' -E 'void onDeath|onDeath\(|\.setEntity\(' common/src/main/java | sort -u)
