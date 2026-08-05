@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.conczin.mca.livingworld.LivingWorldConfig;
+import net.conczin.mca.livingworld.ai.AiRequestDeadline;
 import net.conczin.mca.livingworld.ai.BoundedResponseReader;
 import net.conczin.mca.livingworld.ai.ProviderCredentialBinding;
 import net.conczin.mca.livingworld.ai.ProviderEndpoint;
@@ -17,9 +18,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.UUID;
 
 /** OpenAI-compatible Audio API implementation used by LivingWorld voice input/output. */
@@ -33,6 +36,11 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
 
     @Override
     public String transcribe(PcmAudio audio) throws IOException {
+        return transcribe(audio, newRequestDeadline());
+    }
+
+    public String transcribe(PcmAudio audio, AiRequestDeadline deadline) throws IOException {
+        Objects.requireNonNull(deadline, "deadline");
         ProviderCredentialBinding.BoundEndpoint binding = config.resolvedSttEndpoint();
         byte[] wav = WavCodec.encodePcm16Mono(audio.samples(), audio.sampleRate());
         SttRequestFormat format = SttRequestFormat.parse(config.sttRequestFormat).resolve(binding.endpoint());
@@ -57,10 +65,11 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
         }
 
         AudioHttpResponse response = execute(
-                open(binding, contentType),
+                open(binding, contentType, deadline),
                 requestBody,
                 "speech-to-text",
-                ProviderResponseLimits.STT_JSON_BYTES
+                ProviderResponseLimits.STT_JSON_BYTES,
+                deadline
         );
         JsonObject json = JsonParser.parseString(new String(response.body(), StandardCharsets.UTF_8)).getAsJsonObject();
         if (!json.has("text") || json.get("text").isJsonNull()) throw new IOException("STT response did not contain text");
@@ -86,13 +95,18 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
 
     @Override
     public PcmAudio synthesize(TtsRequest request) throws IOException {
+        return synthesize(request, newRequestDeadline());
+    }
+
+    public PcmAudio synthesize(TtsRequest request, AiRequestDeadline deadline) throws IOException {
+        Objects.requireNonNull(deadline, "deadline");
         ProviderCredentialBinding.BoundEndpoint binding = config.resolvedTtsEndpoint();
         String voice = request.voiceId().isBlank() ? config.ttsVoice : request.voiceId();
         TtsRequest resolved = new TtsRequest(request.text(), voice, request.style());
         TtsResponseFormat format = TtsResponseFormat.parse(config.ttsResponseFormat).resolve(binding.endpoint());
         try {
             AudioHttpResponse response = execute(
-                    open(binding, "application/json"),
+                    open(binding, "application/json", deadline),
                     createSpeechBody(
                             resolved,
                             config.ttsModel,
@@ -100,7 +114,8 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
                             binding.endpoint().externalForm()
                     ).getBytes(StandardCharsets.UTF_8),
                     "text-to-speech",
-                    ProviderResponseLimits.TTS_AUDIO_BYTES
+                    ProviderResponseLimits.TTS_AUDIO_BYTES,
+                    deadline
             );
 
             return switch (format) {
@@ -221,10 +236,12 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
 
     private HttpURLConnection open(
             ProviderCredentialBinding.BoundEndpoint binding,
-            String contentType
+            String contentType,
+            AiRequestDeadline deadline
     ) throws IOException {
         ProviderEndpoint endpoint = binding.endpoint();
         if (binding.apiKey().isBlank()) throw new IOException("AI audio API key is not configured");
+        deadline.throwIfExpired();
         HttpURLConnection connection = (HttpURLConnection) endpoint.uri().toURL().openConnection();
         connection.setInstanceFollowRedirects(false);
         connection.setRequestMethod("POST");
@@ -234,8 +251,8 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
         if (endpoint.family() == ProviderEndpoint.Family.OPENROUTER) {
             connection.setRequestProperty("X-OpenRouter-Title", "LivingWorld");
         }
-        connection.setConnectTimeout(secondsToMillis(config.connectTimeoutSeconds));
-        connection.setReadTimeout(secondsToMillis(config.readTimeoutSeconds));
+        connection.setConnectTimeout(deadline.boundedTimeoutMillis(secondsToMillis(config.connectTimeoutSeconds)));
+        connection.setReadTimeout(deadline.boundedTimeoutMillis(secondsToMillis(config.readTimeoutSeconds)));
         connection.setDoOutput(true);
         return connection;
     }
@@ -244,38 +261,60 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
             HttpURLConnection connection,
             byte[] requestBody,
             String operation,
-            int successLimitBytes
+            int successLimitBytes,
+            AiRequestDeadline deadline
     ) throws IOException {
-        try (OutputStream output = connection.getOutputStream()) {
-            output.write(requestBody);
-        }
-        int status = connection.getResponseCode();
-        boolean success = status >= 200 && status < 300;
-        InputStream stream = success ? connection.getInputStream() : connection.getErrorStream();
-        int limitBytes = success ? successLimitBytes : ProviderResponseLimits.ERROR_BODY_BYTES;
-        byte[] response;
-        if (stream == null) {
-            response = new byte[0];
-        } else {
-            try (stream) {
-                response = BoundedResponseReader.readBytes(
-                        stream,
-                        connection.getContentLengthLong(),
-                        limitBytes
-                );
+        try {
+            deadline.throwIfExpired();
+            try (OutputStream output = connection.getOutputStream()) {
+                output.write(requestBody);
             }
-        }
-        String contentType = safeValue(connection.getHeaderField("Content-Type"));
-        String generationId = safeValue(connection.getHeaderField("X-Generation-Id"));
-        if (!success) {
-            String detail = extractError(response);
-            String metadata = " [contentType=" + contentType + ", generationId=" + generationId + "]";
-            if (status == 402 && SttRequestFormat.isOpenRouterEndpoint(connection.getURL().toString())) {
-                throw new IOException("OpenRouter " + operation + " failed (HTTP 402 Payment Required): add credits to the OpenRouter account. Provider response: " + detail + metadata);
+            connection.setReadTimeout(deadline.boundedTimeoutMillis(secondsToMillis(config.readTimeoutSeconds)));
+            int status = connection.getResponseCode();
+            boolean success = status >= 200 && status < 300;
+            InputStream stream = success ? connection.getInputStream() : connection.getErrorStream();
+            int limitBytes = success ? successLimitBytes : ProviderResponseLimits.ERROR_BODY_BYTES;
+            byte[] response;
+            if (stream == null) {
+                response = new byte[0];
+            } else {
+                connection.setReadTimeout(deadline.boundedTimeoutMillis(secondsToMillis(config.readTimeoutSeconds)));
+                try (stream) {
+                    response = BoundedResponseReader.readBytes(
+                            stream,
+                            connection.getContentLengthLong(),
+                            limitBytes,
+                            deadline
+                    );
+                }
             }
-            throw new IOException("AI audio " + operation + " failed (HTTP " + status + "): " + detail + metadata);
+            String contentType = safeValue(connection.getHeaderField("Content-Type"));
+            String generationId = safeValue(connection.getHeaderField("X-Generation-Id"));
+            if (!success) {
+                String detail = extractError(response);
+                String metadata = " [contentType=" + contentType + ", generationId=" + generationId + "]";
+                if (status == 402 && SttRequestFormat.isOpenRouterEndpoint(connection.getURL().toString())) {
+                    throw new IOException("OpenRouter " + operation + " failed (HTTP 402 Payment Required): add credits to the OpenRouter account. Provider response: " + detail + metadata);
+                }
+                throw new IOException("AI audio " + operation + " failed (HTTP " + status + "): " + detail + metadata);
+            }
+            return new AudioHttpResponse(response, contentType, generationId);
+        } catch (SocketTimeoutException e) {
+            if (deadline.isExpired()) throw new AiRequestDeadline.DeadlineExceededException();
+            throw e;
+        } catch (BoundedResponseReader.ResponseDeadlineExceededException e) {
+            if (deadline.isExpired()) throw new AiRequestDeadline.DeadlineExceededException();
+            throw e;
+        } finally {
+            connection.disconnect();
         }
-        return new AudioHttpResponse(response, contentType, generationId);
+    }
+
+    private AiRequestDeadline newRequestDeadline() {
+        return AiRequestDeadline.start(
+                secondsToMillis(config.connectTimeoutSeconds),
+                secondsToMillis(config.readTimeoutSeconds)
+        );
     }
 
     private static String extractError(byte[] response) {
