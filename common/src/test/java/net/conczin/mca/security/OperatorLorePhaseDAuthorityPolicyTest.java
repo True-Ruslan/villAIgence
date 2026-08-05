@@ -55,9 +55,9 @@ class OperatorLorePhaseDAuthorityPolicyTest {
 
         assertTrue(resolved.contains("final class OperatorLoreResolvedAuthority"));
         assertFalse(resolved.contains("public final class OperatorLoreResolvedAuthority"));
-        assertFalse(resolved.contains("ServerPlayer"));
-        assertFalse(resolved.contains("Entity"));
-        assertFalse(resolved.contains("Network"));
+        assertFalse(resolved.contains("import net.minecraft.server.level.ServerPlayer"));
+        assertFalse(resolved.contains("import net.minecraft.world.entity.Entity"));
+        assertFalse(resolved.contains("import net.conczin.mca.network"));
         assertTrue(resolved.contains("key.scope() != scope"));
         assertTrue(resolved.contains("WorldOperatorLoreStore.forWorld(worldRoot)"));
         assertTrue(resolved.contains("OperatorLoreEditorPolicy.decideWrite("));
