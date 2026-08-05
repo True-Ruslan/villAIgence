@@ -113,7 +113,7 @@ jobs:
 
           rm -rf build/production-server-acceptance
           mkdir -p build/production-server-acceptance/evidence
-          python3 scripts/ci/production_server_acceptance.py \
+          python3 scripts/ci/production_server_acceptance_strict.py \
             --stage-dir fabric/build/production-acceptance/stage \
             --execute \
             --work-dir build/production-server-acceptance/work \
