@@ -2,97 +2,92 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md` when resuming work.
 >
-> Last major state update: **2026-08-01**, after selective synchronization packages S1–S10b were merged and the server-authoritative operator-lore API passed all automated gates.
+> Last reconciled: **2026-08-05**, after M11 Phase C was merged and all post-merge required workflows passed on the canonical `1.21.1` head.
 >
-> Always reconcile this document with newer PRs, tags/releases, CI and live-server evidence before starting development.
-
-## Repository visibility update — 2026-08-01
-
-The public README now exposes the canonical author and engineering-portfolio origin `https://trueruslan.ru/`.
-
-```text
-feature PR:                  #90
-accepted head:               19e397ea3250384d7063e5df46ea3f05f66c9514
-VillAIgence CI:              30714996167 / #1154 — SUCCESS
-Java Pull Request CI:        30714996171 / #654 — SUCCESS
-Repository security policy:  30714996231 / #505 — SUCCESS
-squash merge:                62091309f61667ce38a6c60aa9477309093392c5
-changed file:                README.md only
-```
-
-This is repository-discovery maintenance only. It changes no gameplay, provider, memory, persistence, packet, security, compatibility, release or live-validation claim. **S10c operator-lore client editor UI remains the next development step.**
-
+> Always distinguish repository/unit evidence, production-candidate evidence, and installed operator-server/client evidence.
 
 ## Executive snapshot
 
 VillAIgence is a Minecraft 1.21.1 MCA-derived mod evolving from AI-assisted villager dialogue into a persistent living-society simulation layer.
 
 ```text
-repository: True-Ruslan/villAIgence
-primary branch: 1.21.1
-current canonical HEAD: 3cc3137b09629ab348cf0d3e79c821a524259d56
-Java: 21
-primary package: Fabric
-NeoForge: compile compatibility required
+repository:              True-Ruslan/villAIgence
+primary branch:          1.21.1
+canonical HEAD:          66f5372f10914bcd9daec894962b0383084726fa
+Java:                    21
+primary distribution:    Fabric
+NeoForge:                compile compatibility required
+open pull requests:      none
+latest official release: 0.1.25+1.21.1
+release commit:          588cc676d356271c4cf74eb21131f6d071476e48
 ```
 
-Current engineering state:
+Current delivery state:
 
 ```text
-Step 1 Security and supply-chain hardening     complete
-Memory 2.0 foundation                         implemented and substantially advanced
-MCA 7.7.32 selective core synchronization     S1–S8 complete, automated PASS
-operator-authored lore foundation             S9 complete, automated PASS
-immutable AI-context integration               S10a complete, automated PASS
-server-authoritative editor API                S10b complete, automated PASS
-client editor UI                               S10c next
-cumulative installed-server acceptance         pending
-new synchronized release promotion             not yet claimed
+0.1.x reliability and security baseline             complete
+Memory 2.0 foundation                               substantially implemented
+MCA selective synchronization S1-S8                 implemented and validated
+Operator Lore S9-S10c                               implemented
+M11 Phase A risk catalog and GameTests              complete
+M11 Phase B exact production-JAR restart harness    complete
+M11 Phase C provider and voice orchestration        complete
+M11 Phase D concurrency and client acceptance       next
+0.1.25 installed inventory canary                   pending
+next release containing post-0.1.25 work            not yet requested
 ```
 
-Latest installed/live server checkpoint:
+Post-merge workflows for the canonical head:
 
 ```text
-release: 0.1.16+1.21.1
-commit: 521568f903078b91dd5817cdc9a551bd2392e663
-JAR SHA-256: 036cbacc657ceb676813f41ee293024690b981e971e7c6037fc5d3ecbe3ee062
-status: hostile-provider, PCM, production restoration and restart acceptance PASS
+VillAIgence CI:              run 31011153246 / #1517 — SUCCESS
+Repository security policy: run 31011152237 / #942  — SUCCESS
+build-commit-artifacts:      run 31011153249 / #1353 — SUCCESS
 ```
 
-Latest exact-artifact security checkpoint:
-
-```text
-release: 0.1.17+1.21.1
-commit: 88a20d86e8b08e4b5eaf60da943a63e750f2b545
-JAR SHA-256: b33af40f7a2696dc679c49e0fc544f6b5df99e0aa600ea5c767bc5a9747da1ab
-marker: V0117_SEC004_ARTIFACT_AND_EVIDENCE_PASS
-status: focused SEC-004 exact-release-JAR acceptance PASS
-```
-
-**Validation boundary:** S1–S10b are implemented and automated-validated, but have not yet been promoted as an installed-server or official-release checkpoint. Do not describe them as live-proven until the cumulative acceptance procedure passes on an exact candidate JAR.
+No current open PR is waiting for review or merge.
 
 ---
 
-# Architecture laws
+# Product and architecture
 
-1. **LLM is never authoritative.** Minecraft/server-owned state is truth.
-2. Mutable state used by asynchronous AI is captured into immutable bounded context first.
-3. The LLM may propose dialogue, actions and relationship deltas; server policy validates, revalidates and executes mutations.
-4. Provider/model changes must not redefine persistent NPC identity.
-5. External AI and auxiliary persistence failures fail soft whenever safe.
+VillAIgence is not merely MCA with an LLM call. The target product is:
+
+```text
+NPC Identity
++ Personality
++ Memory
++ Relationships
++ Knowledge
++ Voice
++ Goals
++ Server-authoritative Actions
++ Settlements
++ Factions
++ Emergent History
+= Persistent Living Society
+```
+
+## Architecture laws
+
+1. **The LLM is never authoritative.** Minecraft/server-owned state is truth.
+2. Mutable game state used by asynchronous AI is captured into immutable bounded context first.
+3. The LLM may propose dialogue, actions and relationship deltas; server policy validates and executes mutations.
+4. Provider/model changes must not redefine persistent NPC identity, memory, relationships or voice.
+5. External-provider and auxiliary persistence failures fail soft whenever safe.
 6. Credentials remain server-side and endpoint-bound.
-7. Persistent formats remain explicit, inspectable, world-local and backup-safe.
-8. Retry/replay paths must not duplicate persistent or gameplay effects.
-9. FACT requires server-owned evidence; dialogue does not automatically become FACT.
+7. Important persistent formats remain explicit, bounded, inspectable and world-local.
+8. Retry and replay paths must not duplicate dialogue, memory, relationship or gameplay effects.
+9. FACT requires server-owned evidence; dialogue is episodic by default.
 10. Confidence never upgrades BELIEF into FACT.
 11. Consolidation preserves provenance and independent source-event IDs.
-12. Forgetting is deterministic storage policy, never an LLM decision.
-13. Time alone does not remove semantic knowledge while the NPC remains under capacity.
-14. Retention pressure remains isolated per NPC owner.
-15. Operator-authored lore is background context, not an observed current-world fact.
-16. Current observed world facts override conflicting operator lore and recalled memory.
-17. Client tools never receive file-system or authority ownership; all writes are server-authoritative.
-18. Migration remains additive, deterministic, idempotent and reversible until explicit cutover evidence exists.
+12. Forgetting is deterministic storage policy, not an LLM decision.
+13. Operator Lore is explicit background context, not an observed current-world fact.
+14. Current observed world facts override conflicting lore or recalled memory.
+15. Clients never own permissions, target identity, file access, revisions or persistence mutations.
+16. Migration remains additive, deterministic, idempotent and reversible until cutover evidence exists.
+17. Exact release identity must match the tag, filename, `fabric.mod.json` and manifest.
+18. Published artifacts must be byte-identical to the exact artifact accepted by the release gate.
 
 Canonical AI flow:
 
@@ -106,164 +101,117 @@ Minecraft/server state
 → persistent authoritative evidence
 ```
 
-Operator editor flow:
-
-```text
-client selects scope/nearby NPC
-→ bounded C2S request
-→ server permission check
-→ server resolves trusted identity/scope
-→ SHA-256 revision check
-→ atomic operator-lore store mutation
-→ canonical S2C value/status/revision
-```
-
 ---
 
 # Identity and compatibility
 
 ```text
-public name: VillAIgence
-short name: VAI
-tagline: Giving villagers a mind of their own.
-Minecraft: 1.21.1
-Java: 21
+public name:      VillAIgence
+short name:       VAI
+Minecraft:        1.21.1
+Java:             21
+internal mod id:  mca
+package root:     net.conczin.mca
+config:           config/livingworld.json
+world data root:  <world>/livingworld/
 ```
 
-Compatibility-sensitive identifiers:
-
-```text
-mod id: mca
-Java package root: net.conczin.mca
-config: config/livingworld.json
-world data root: <world>/livingworld/
-internal engine/data naming: LivingWorld / livingworld
-```
-
-Do not rename these without a dedicated migration design.
+Compatibility-sensitive `mca`, `LivingWorld` and `livingworld` identifiers must not be renamed without a dedicated migration design.
 
 ---
 
 # Persistent world-local data
 
 ```text
-<world>/livingworld/memory.json          bounded rolling legacy dialogue history
-<world>/livingworld/memory2.json         episodic MemoryEvent store
-<world>/livingworld/semantic-memory.json typed Semantic FACT/BELIEF store
-<world>/livingworld/events.json          server-owned world events
-<world>/livingworld/relationships.json   player↔NPC relationship state
-<world>/livingworld/voices.json          persistent NPC voice identity
-<world>/livingworld/operator-lore.json   explicit server/operator-authored lore
+<world>/livingworld/memory.json
+<world>/livingworld/memory2.json
+<world>/livingworld/semantic-memory.json
+<world>/livingworld/events.json
+<world>/livingworld/relationships.json
+<world>/livingworld/voices.json
+<world>/livingworld/operator-lore.json
 ```
 
-All files belong with world backup/restore procedures.
+`memory.json` remains active. Memory 2.0 is additive and the legacy migration has not started. Unrelated release, editor or synchronization work must not delete or destructively rewrite it.
 
-`memory.json` remains active. Memory 2.0 is additive; legacy migration has not started. Do not delete or rewrite `memory.json` during unrelated synchronization, editor or release work.
-
-## Operator lore schema
-
-`operator-lore.json` schema version 1 supports:
-
-```text
-WORLD
-VILLAGER by persistent NPC UUID
-PLAYER by authenticated player UUID
-VILLAGE by dimension + stable MCA village ID
-```
-
-Guarantees:
-
-- maximum 4096 Unicode code points per stored value;
-- normalized line endings and forbidden-control rejection;
-- deterministic inspectable JSON;
-- exact replay does not rewrite the file;
-- temporary file plus atomic replace where supported;
-- malformed-file fail-open recovery with `.corrupt` backup;
-- explicit provenance labels in prompt context;
-- no automatic semantic-memory ingestion.
+Implemented persistence guarantees include deterministic JSON, bounded stores, temporary-file writes, atomic replacement where supported, fail-open auxiliary recovery, corrupt-file preservation, explicit provenance and restart-safe restoration.
 
 ---
 
-# Reliability and security baseline
+# Implemented systems
 
-Step 1 Security and supply-chain hardening is complete. `SEC-001` through `SEC-009` are Closed.
+## AI provider, parsing and security
 
 Implemented and retained:
 
-- normalized provider endpoint validation and credential-family binding;
+- OpenAI-compatible Chat, STT and TTS endpoints;
+- OpenRouter-compatible Chat operation;
+- endpoint normalization and credential-family binding;
 - remote plaintext rejection except explicit literal-loopback development mode;
-- authenticated redirects blocked;
-- bounded Chat/STT/TTS/error/verification bodies;
-- ten-minute total response-body deadline;
-- voice capture clamped to `1..120` seconds;
-- aggregate active PCM bounded to 128 MiB;
-- safe `content:null`, empty-response and malformed-response handling;
-- retry without duplicate memory/actions/relationship effects;
-- stable Fabric Loom, verified Gradle wrapper and dependency verification;
-- pinned GitHub Actions;
-- required common, Fabric and NeoForge CI;
-- deterministic repository security policy;
+- authenticated redirect blocking;
+- bounded Chat, STT, TTS, error and verification bodies;
+- controlled `content:null`, empty, malformed and provider-error handling;
+- retry without duplicate persistent/gameplay effects;
+- voice-duration and aggregate PCM limits;
+- verified dependencies, pinned Actions and repository security policy;
 - diagnostics without secrets, prompts, transcripts or hidden reasoning.
 
-Canonical security evidence:
+Step 1 security findings `SEC-001` through `SEC-009` are closed.
+
+## Voice orchestration
+
+M11 Phase C now proves one monotonic total deadline across one captured voice turn:
 
 ```text
-docs/security/README.md
-docs/security/STEP_1_TRACKER.md
-docs/livingworld/VALIDATION_0.1.16.md
-docs/livingworld/VALIDATION_0.1.17.md
+capture accepted
+→ queue handoff
+→ STT
+→ Chat including retries
+→ authoritative text/relationship commit
+→ optional TTS
 ```
 
----
+`VoiceConversationService` creates one `AiRequestDeadline` before the first queue handoff and passes the same object through STT, Chat and TTS. Streaming response reads are bounded by both byte limits and the remaining deadline.
 
-# Memory 2.0 implemented state
+Configuration:
 
-## Episodic memory
+```text
+voiceConversationTimeoutSeconds default: 120
+normalized minimum:                     10
+normalized maximum:                     300
+```
+
+Deterministic production-client integration proves:
+
+- one STT request;
+- one empty Chat completion followed by one successful retry;
+- one TTS request;
+- exactly one `DIALOGUE` event;
+- exactly one `RELATIONSHIP_CHANGE` event;
+- relationship delta applied once;
+- deterministic returned PCM;
+- blocked TTS cannot obtain a fresh timeout budget;
+- already committed text and relationship effects are not duplicated.
+
+Physical microphone capture, Simple Voice Chat UDP/Opus playback, audible spatial output and subjective response quality remain installed-client canaries.
+
+## Memory 2.0
 
 Implemented:
 
-- immutable NPC-owned `MemoryEvent`;
+- immutable NPC-owned episodic `MemoryEvent`;
 - `DIALOGUE`, `OBSERVATION`, `ACTION`, `RELATIONSHIP_CHANGE`;
-- explicit provenance;
-- bounded per-NPC persistence;
 - deterministic UUID idempotency and ordering;
-- atomic writes and fail-open recovery;
+- bounded per-NPC persistence;
 - deterministic retrieval;
-- text and voice DIALOGUE parity;
-- authoritative ACTION and relationship-transition ingestion.
-
-## Working memory
-
-Turn-local prompt context combines:
-
-```text
-recent dialogue
-+ selected episodic context
-+ selected semantic context
-```
-
-Hard bounds:
-
-```text
-recent dialogue messages: 12
-max dialogue message: 1200 Unicode code points
-episodic entries: 6
-semantic entries: 6
-```
-
-## Semantic memory
-
-Implemented:
-
-- typed FACT/BELIEF entries;
-- provenance and confidence boundaries;
-- deterministic retrieval;
-- controlled FACT ingestion from server-observed events;
-- deterministic consolidation and source union;
-- pressure-based forgetting/decay;
-- source-evidence durability;
-- existing weak-entry eviction;
-- per-NPC isolation;
+- text/voice DIALOGUE parity;
+- authoritative ACTION and relationship-transition ingestion;
+- bounded Working Memory;
+- typed semantic FACT/BELIEF entries;
+- controlled server-observed FACT ingestion;
+- consolidation and source union;
+- deterministic pressure-based forgetting/decay;
+- source durability and NPC isolation;
 - restart-safe persistence.
 
 Truth boundary:
@@ -274,162 +222,229 @@ BELIEF → PLAYER_TOLD / NPC_TOLD / INFERRED only
 DIALOGUE → episodic only by default
 ```
 
-Prompt layers now remain explicitly separate:
-
-```text
-worldFacts                 authoritative current state
-operatorAuthoredContext    operator background lore
-memoryContext              episodic memory
-semanticMemoryContext      semantic FACT/BELIEF memory
-```
-
-Still pending for Memory 2.0 completion:
+Remaining Memory 2.0 work:
 
 - additive legacy `memory.json` migration;
-- controlled automatic BELIEF producers;
-- trustworthy causal relationship reasons;
-- long-horizon and multi-day soak validation;
-- NPC-to-NPC knowledge and rumor propagation.
+- controlled BELIEF producers;
+- trustworthy relationship-change reasons;
+- long-horizon and multi-day soak;
+- NPC-to-NPC knowledge transfer;
+- rumor propagation with uncertainty and provenance.
+
+## Operator Lore S9-S10c
+
+Implemented:
+
+- world-local `operator-lore.json` schema version 1;
+- WORLD, PLAYER, VILLAGER and VILLAGE scopes;
+- immutable prompt-context capture with explicit provenance;
+- permission-level-2 server-authoritative read/write API;
+- server-resolved player, villager, dimension and village identity;
+- SHA-256 optimistic revisions;
+- bounded code-point and UTF-8 validation;
+- explicit `OK`, `UNCHANGED`, `CONFLICT`, `INVALID`, `FORBIDDEN`, `NOT_FOUND`, `ERROR` statuses;
+- dedicated responsive client editor;
+- multiline editing and budget counters;
+- Save, Clear, Reload and close confirmations;
+- request-generation correlation and stale-response rejection;
+- conflict review without blind overwrite.
+
+The client contains no arbitrary UUID/dimension/village ID path and has no direct persistence access.
+
+## Selective MCA synchronization and runtime corrections
+
+Implemented and retained:
+
+- tombstone item/entity-data integrity;
+- UUID-preserving villager/zombie conversion;
+- occupied HOME-bed rejection;
+- water-aware navigation without replacing vanilla path-position semantics;
+- climbable and ladder navigation;
+- staggered pathfinding and progress watchdog;
+- graveyard mourning lifecycle;
+- relationship-gift `InteractionResult` contract;
+- fishing and AquaCulture compatibility;
+- stable mounted archer movement control;
+- filled Silk Touch grave fallback with exactly one data-bearing item;
+- direct source-level tombstone wiring instead of fragile project-owned mixins;
+- inventory ownership transfer before tombstone serialization;
+- exact fallback loose drops when no tombstone captures the NPC.
+
+The installed `0.1.23` acceptance exposed inventory loss before tombstone serialization. PR #105 fixed the real MCA death path and added captured/fallback GameTests.
 
 ---
 
-# Selective MCA synchronization state
+# M11 automated acceptance
 
-Whole-upstream merge and blind sequential cherry-pick remain prohibited. Changes were adopted as isolated final-state packages while protecting VillAIgence AI/security/persistence boundaries.
+## Phase A — risk catalog and server GameTests
 
-## Core correctness and navigation
+Complete:
 
-```text
-S1  PR #72  tombstone item/entity-data integrity
-S2  PR #73  UUID-preserving villager↔zombie conversion
-S3  PR #74  occupied HOME-bed rejection and ticket correctness
-S4  PR #75  water-tag and entity-AABB collision navigation
-S5  PR #76  stable climbable/ladder navigation
-S6  PR #77  staggered pathfinding plus retained progress watchdog
-S1–S6 checkpoint  PR #78
-```
+- validated risk catalog across seven domains;
+- exact entity/registry boot;
+- production navigation wiring;
+- NPC → tombstone item → NPC identity/inventory lifecycle;
+- real Silk Touch `getDrops` round trip;
+- empty-grave negative control;
+- two isolated water lanes;
+- post-water dry-land route;
+- direct water-tag surface hook;
+- production-JAR rejection of test metadata/classes.
 
-## Server behavior and compatibility
+## Phase B — exact production-JAR startup/restart
 
-```text
-S7   PR #79  graveyard mourning, reservations, retry and cleanup
-S8a  PR #80  InteractionResult relationship-gift contract
-S8b  PR #81  fishing loot/rod/AquaCulture compatibility
-S8c  PR #82  stable archer movement control while mounted
-```
+Complete:
 
-## Operator-authored context train
+- exact remapped Fabric candidate staged outside Loom/dev runtime;
+- pinned Fabric installer, Fabric API and Simple Voice Chat inputs;
+- deterministic artifact manifest and SHA-256 recording;
+- real Fabric server startup in JVM 1;
+- controlled `stop`, full save and exit code 0;
+- same-world restart in JVM 2;
+- forbidden Mixin/refmap/mod-resolution/JVM signature scan;
+- six canonical JSON stores discovered exactly once;
+- stable paths and SHA-256 values across restart;
+- fixture/test code excluded from the public JAR.
 
-```text
-S9   PR #83  world-local operator-lore store
-     merge: f4a0d369c6e787d9ed91501fc87323aded9b4cbc
+## Phase C — deterministic provider and voice integration
 
-S10a PR #84  immutable context capture and prompt provenance
-     merge: b700e14636e3370774173978b0b2519941dafed0
+Complete through PRs #108 and #110:
 
-S10b PR #85  server-authoritative editor API
-     merge: 3cc3137b09629ab348cf0d3e79c821a524259d56
-```
+- production Chat/STT/TTS HTTP clients against literal-loopback providers;
+- no external provider or real credential in CI;
+- shared Chat retry deadline;
+- one complete STT → Chat retries → TTS orchestration deadline;
+- bounded response reads;
+- explicit deadline exhaustion classification;
+- exactly-once dialogue and relationship persistence.
 
-S10b authority guarantees:
+`VAI-AI-003` and `VAI-AI-004` are automated VillAIgence CI scenarios.
 
-- permission level 2 required for READ and WRITE;
-- PLAYER always resolves to the authenticated sender;
-- VILLAGER/VILLAGE resolve from a live nearby same-level MCA villager;
-- arbitrary UUID, dimension and village ID are absent from the C2S format;
-- stale revisions return `CONFLICT` with current canonical state;
-- exact replay returns `UNCHANGED`;
-- payloads are bounded by code points and UTF-8 bytes;
-- transport-oversized existing lore cannot cause packet encoding failure;
-- no client screen is included yet.
+## Phase D — next
 
-Canonical package evidence:
+Phase D must automate the remaining concurrency/client contract:
 
 ```text
-docs/livingworld/VALIDATION_UPSTREAM_S1_TOMBSTONE.md
-...
-docs/livingworld/VALIDATION_UPSTREAM_S8C_ARCHER_MOUNTED.md
-docs/livingworld/VALIDATION_UPSTREAM_S9_OPERATOR_LORE.md
-docs/livingworld/VALIDATION_UPSTREAM_S10A_OPERATOR_LORE_CONTEXT.md
-docs/livingworld/VALIDATION_UPSTREAM_S10B_OPERATOR_LORE_AUTHORITY.md
+two logical clients read the same canonical revision
+→ first client saves successfully
+→ second client submits stale revision
+→ server returns CONFLICT with canonical value/revision
+→ no update is silently lost
+→ second client reloads/reviews
+→ later save uses the current revision
 ```
+
+Required additional coverage:
+
+- editor open/edit/save/reopen;
+- scope switch and dirty-state confirmation;
+- stale response ignored after request-generation change;
+- Save response retained while a modal is open;
+- FORBIDDEN and target-not-found states;
+- no arbitrary UUID/dimension/village ID in C2S;
+- deterministic client-state or headless client harness where full rendering is impractical;
+- true two-client installed canary retained as a separate evidence layer.
+
+Canonical plan: `docs/livingworld/VALIDATION_M11_PHASE_D_PLAN.md`.
 
 ---
 
-# Validation status
+# Releases and validation boundaries
 
-Automated validation for every S1–S10b package includes:
-
-- focused unit tests;
-- Fabric build;
-- NeoForge build compatibility;
-- Fabric distributable-package verification;
-- repository security policy;
-- exact RED/GREEN evidence in package validation documents.
-
-Latest exact automated head before merge:
+## Latest official release
 
 ```text
-S10b head: de2ab0ad38e6b88999cfb397a8dd42ba88c6b1bb
-VillAIgence CI #1116 / 30705048055              SUCCESS
-Java Pull Request CI #623 / 30705048075       SUCCESS
-Repository security policy #438 / 30705048038 SUCCESS
+tag:          0.1.25+1.21.1
+commit:       588cc676d356271c4cf74eb21131f6d071476e48
+release run:  30989597246 / #138 — SUCCESS
+assets:       Fabric JAR, SHA-256 file, dependency manifest
 ```
 
-Not yet live-proven:
+`0.1.25` is the first release published through the complete exact-production release gate. The published JAR is byte-identical to the production-accepted JAR.
 
-- S1–S8 gameplay/runtime scenarios;
-- S9 persistence through an installed candidate lifecycle;
-- S10a prompt behavior against a real provider;
-- S10b permission, packet and concurrency behavior on a multiplayer server;
-- cumulative restart durability after the complete synchronization train.
+The release contains the tombstone inventory-ownership correction. Its focused installed inventory/grave/resurrection canary is still required before the release is called fully operator-accepted.
 
-No official release after `0.1.17+1.21.1` has been promoted for this train.
+## Code ahead of the release
+
+Current `1.21.1` includes post-`0.1.25` work:
+
+- PR #108 deterministic provider acceptance and shared Chat retry deadline;
+- PR #109 configuration-cache-safe refmap verification and release-request scoping;
+- PR #110 complete voice-turn orchestration deadline and exactly-once persistence proof.
+
+These changes are not part of `0.1.25`. The next official release must use the next free version and the established exact-production gate.
+
+## Evidence layers
+
+Never collapse these into one claim:
+
+```text
+UNIT / SOURCE POLICY
+SERVER GAMETEST
+PRODUCTION CANDIDATE STARTUP/RESTART
+EXACT RELEASE WORKFLOW
+INSTALLED OPERATOR SERVER/CLIENT
+REAL MULTI-CLIENT CANARY
+```
+
+Known installed evidence includes broad `0.1.20` partial acceptance, focused corrected water/grave checks on later candidates, and the `0.1.23` inventory defect reproduction. Exact `0.1.25` installed inventory acceptance remains pending.
+
+---
+
+# Known gaps and technical debt
+
+1. M11 Phase D is not implemented.
+2. A true simultaneous two-client Operator Lore conflict remains unverified.
+3. Exact official `0.1.25` inventory/grave/resurrection canary remains pending.
+4. Physical microphone, UDP/Opus playback, spatial audible TTS and subjective LLM quality remain manual canaries.
+5. `memory.json` migration has not started.
+6. Controlled BELIEF producers and causal relationship reasons remain incomplete.
+7. NPC-to-NPC knowledge and rumor propagation remain future work.
+8. Long-horizon, multiplayer and multi-day soak coverage remains incomplete.
+9. Broader automated gameplay matrix for ladders, doors, gifts, fishing and mounted combat remains planned.
 
 ---
 
 # Next optimal development step
 
-Implement **S10c — operator lore client editor UI** as a separate client-focused package.
+Implement **M11 Phase D — concurrency and client acceptance** as an isolated package.
 
-Required behavior:
-
-```text
-entry point available only to permitted operators
-scope selector: WORLD / VILLAGER / PLAYER / VILLAGE
-nearby target selection for VILLAGER/VILLAGE
-read current canonical state before editing
-multiline bounded text editor
-code-point and UTF-8 budget indicators
-save with server-provided SHA-256 revision
-clear through the same revision-protected write path
-visible OK / UNCHANGED / CONFLICT / INVALID / FORBIDDEN / NOT_FOUND / ERROR states
-conflict requires reload/review; never blind overwrite
-```
-
-S10c must not:
-
-- read or write `operator-lore.json` directly;
-- trust client-entered UUID, dimension or village ID;
-- duplicate server permission or target authority;
-- silently overwrite on conflict;
-- ingest lore into semantic memory;
-- change provider transport/parser/retry behavior;
-- add unbounded payloads;
-- mix unrelated gameplay synchronization.
-
-After S10c:
+Required sequence:
 
 ```text
-build one exact release candidate
-→ execute cumulative backed-up-world acceptance for S1–S10c
-→ verify persistent-file hashes and restart
-→ verify Text/STT/Chat/TTS regression surface
-→ record exact JAR SHA-256 and live evidence
-→ promote a release only if the full gate passes
+Phase D design and deterministic harness boundary
+→ RED stale-writer/client-state test
+→ minimal server/client test seam
+→ logical two-client conflict acceptance
+→ editor state acceptance
+→ Fabric + NeoForge builds
+→ production package and security gates
+→ exact-head review
+→ canonical state update
 ```
 
-Only after the synchronized candidate is accepted should development return to additive legacy `memory.json` migration and the remaining Memory 2.0 exit criteria.
+Phase D must not:
+
+- weaken the S10b server-authority contract;
+- add client-owned permissions or identity;
+- accept arbitrary UUID, dimension or village ID;
+- bypass revision checks;
+- silently overwrite conflicts;
+- read or write `operator-lore.json` from the client;
+- ingest Operator Lore into Semantic Memory;
+- modify provider credentials or endpoint policy;
+- require a public network provider in CI.
+
+After Phase D:
+
+```text
+run exact candidate/release gates
+→ execute focused installed 0.1.25 or successor inventory canary
+→ publish the next sequential release only on PASS
+→ begin additive legacy memory.json migration
+→ close remaining Memory 2.0 exit criteria
+→ proceed to personality and NPC↔NPC social graph
+```
 
 ---
 
@@ -437,21 +452,15 @@ Only after the synchronized candidate is accepted should development return to a
 
 Preferred resume prompt:
 
-> **Open `docs/PROJECT_STATE.md`, `docs/CHANGELOG.md`, `docs/ROADMAP.md` and the S9/S10a/S10b validation documents in `True-Ruslan/villAIgence`. Check current `1.21.1` HEAD, recent PRs, releases and CI. Tell me what is automated-validated versus live-validated, then continue with S10c operator-lore client editor UI without weakening the S10b server-authority contract.**
+> Open `docs/PROJECT_STATE.md`, `docs/ROADMAP.md`, `common/src/test/resources/acceptance/scenarios.tsv`, and the M11 Phase C/Phase D validation documents. Check current `1.21.1` HEAD, open PRs, releases and CI. Continue with M11 Phase D without weakening the Operator Lore server-authority or revision contracts.
 
 A new session must:
 
 1. read this file;
-2. read `docs/CHANGELOG.md` and `docs/ROADMAP.md`;
+2. read `docs/ROADMAP.md`;
 3. inspect current `1.21.1` HEAD;
-4. inspect recent merged/open PRs and CI;
+4. inspect recent/open PRs and exact-head CI;
 5. inspect latest tag/release;
-6. distinguish automated package validation from installed-server evidence;
-7. continue from S10c unless newer evidence changes priority;
+6. distinguish automated, production-candidate and installed evidence;
+7. continue from M11 Phase D unless newer evidence changes priority;
 8. update canonical documents after material progress.
-
-```text
-docs/ROADMAP.md       → long-term direction and milestone sequence
-docs/PROJECT_STATE.md → what exists, what is proven, and what comes next
-docs/CHANGELOG.md     → material implementation and validation history
-```
