@@ -1,7 +1,6 @@
 package net.conczin.mca.entity.ai.brain.tasks.chore;
 
 import net.conczin.mca.entity.VillagerEntityMCA;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.FishingRodItem;
 import net.minecraft.world.item.ItemStack;
 
@@ -27,6 +26,6 @@ final class FishingCatchApplication {
         }
 
         entity.getInventory().addItem(caught);
-        heldRod.hurtAndBreak(1, entity, EquipmentSlot.MAINHAND);
+        heldRod.hurtAndBreak(1, entity, entity.getDominantSlot());
     }
 }
