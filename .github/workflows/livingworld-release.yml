@@ -10,10 +10,18 @@ on:
     paths:
       - '.github/workflows/livingworld-release.yml'
       - 'build.gradle'
+      - 'gradle.properties'
       - 'gradle/verification-metadata.xml'
       - '**/gradle.lockfile'
       - 'docs/RELEASING.md'
+      - 'docs/livingworld/VALIDATION_0.1.24_RELEASE_GATE.md'
+      - 'fabric/build.gradle'
+      - 'fabric/production-acceptance-fixture.gradle'
+      - 'fabric/src/productionAcceptanceFixture/**'
       - 'scripts/ci/package-livingworld-release.sh'
+      - 'scripts/ci/production_server_acceptance.py'
+      - 'scripts/ci/test_production_server_acceptance.py'
+      - 'scripts/ci/test_production_server_process.py'
       - 'scripts/ci/test-release-version-contract.sh'
   workflow_dispatch:
 
@@ -27,7 +35,7 @@ concurrency:
 jobs:
   build-and-package:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 55
     env:
       GRADLE_OPTS: --enable-native-access=ALL-UNNAMED
       NO_COLOR: "1"
@@ -46,7 +54,7 @@ jobs:
           tag="${GITHUB_REF_NAME}"
           tag_pattern='^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?[+][0-9]+([.][0-9]+){1,2}$'
           if [[ ! "${tag}" =~ ${tag_pattern} ]]; then
-            echo "::error title=Invalid release tag::Expected '<mod_version>+<minecraft_version>', for example '0.1.5+1.21.1'."
+            echo "::error title=Invalid release tag::Expected '<mod_version>+<minecraft_version>', for example '0.1.24+1.21.1'."
             exit 1
           fi
           minecraft_version="${tag#*+}"
@@ -87,14 +95,84 @@ jobs:
           chmod +x gradlew scripts/ci/test-release-version-contract.sh
           scripts/ci/test-release-version-contract.sh
 
-      - name: Run tests, build Fabric JAR and generate dependency manifest
+      - name: Run repository security policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/repository_security_policy.py --check
+          test -s build/security/script-inventory.json
+
+      - name: Run production acceptance contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/test_production_server_acceptance.py
+          python3 scripts/ci/test_production_server_process.py
+
+      - name: Stage and execute exact production server acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          gradle_args=(
+            :fabric:stageProductionAcceptanceRuntime
+            --stacktrace
+            --no-daemon
+            --console=plain
+          )
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            gradle_args+=("-Prelease_version=${GITHUB_REF_NAME}")
+          fi
+          ./gradlew "${gradle_args[@]}"
+
+          rm -rf build/production-server-acceptance
+          mkdir -p build/production-server-acceptance/evidence
+          python3 scripts/ci/production_server_acceptance.py \
+            --stage-dir fabric/build/production-acceptance/stage \
+            --execute \
+            --work-dir build/production-server-acceptance/work \
+            --report-dir build/production-server-acceptance/evidence \
+            --java "${JAVA_HOME}/bin/java" \
+            --installer-timeout-seconds 300 \
+            --startup-timeout-seconds 240 \
+            --shutdown-timeout-seconds 60 \
+            --max-heap-mib 768
+
+          grep -Fq 'VILLAIGENCE_PRODUCTION_FIXTURE_READY' \
+            build/production-server-acceptance/evidence/server-run-1.log
+          grep -Fq 'VILLAIGENCE_PRODUCTION_FIXTURE_READY' \
+            build/production-server-acceptance/evidence/server-run-2.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path('build/production-server-acceptance/evidence/acceptance-report.json')
+              .read_text(encoding='utf-8')
+          )
+          if report.get('status') != 'PASS':
+              raise SystemExit('production acceptance report is not PASS')
+          PY
+
+      - name: Upload production acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-server-acceptance-${{ github.run_number }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: build/production-server-acceptance/evidence
+
+      - name: Run risk catalog, server GameTests and supported loader builds
         shell: bash
         run: |
           set -euo pipefail
           chmod +x gradlew
           gradle_args=(
             :common:test
+            :fabric:runGameTest
             :fabric:build
+            :neoforge:build
             dependencyManifest
             --stacktrace
             --no-daemon
@@ -123,6 +201,21 @@ jobs:
           manifest_file="dist/villaigence-dependencies-${artifact_label}.txt"
           cp build/reports/dependencies/villaigence-dependencies.txt "${manifest_file}"
           echo "manifest=${manifest_file}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the production-accepted JAR is the packaged JAR
+        shell: bash
+        run: |
+          set -euo pipefail
+          accepted_jar="fabric/build/production-acceptance/stage/mods/villaigence-under-test.jar"
+          packaged_jar="${{ steps.package.outputs.jar }}"
+          test -s "${accepted_jar}"
+          test -s "${packaged_jar}"
+          if ! cmp -s "${accepted_jar}" "${packaged_jar}"; then
+            echo "::error title=Release artifact identity mismatch::The JAR exercised by production acceptance differs from the packaged release JAR."
+            sha256sum "${accepted_jar}" "${packaged_jar}"
+            exit 1
+          fi
+          sha256sum "${accepted_jar}" "${packaged_jar}"
 
       - name: Upload verified VillAIgence Fabric package
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
