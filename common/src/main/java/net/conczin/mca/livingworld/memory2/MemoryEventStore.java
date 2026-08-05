@@ -2,15 +2,10 @@ package net.conczin.mca.livingworld.memory2;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import net.conczin.mca.livingworld.persistence.GsonJsonStoreCodec;
+import net.conczin.mca.livingworld.persistence.JsonStoreRecovery;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -24,6 +19,8 @@ import java.util.concurrent.ConcurrentMap;
 public final class MemoryEventStore {
     private static final int FORMAT_VERSION = 1;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final JsonStoreRecovery.Codec<MemoryFile> CODEC =
+            new GsonJsonStoreCodec<>(GSON, MemoryFile.class);
     private static final ConcurrentMap<Path, MemoryEventStore> STORES = new ConcurrentHashMap<>();
     private static final Comparator<MemoryEvent> OLDEST_FIRST = Comparator
             .comparingLong(MemoryEvent::gameTime)
@@ -70,49 +67,31 @@ public final class MemoryEventStore {
     }
 
     private MemoryFile load() {
-        if (!Files.exists(file)) return new MemoryFile();
-        try {
-            MemoryFile loaded = GSON.fromJson(Files.readString(file, StandardCharsets.UTF_8), MemoryFile.class);
-            if (loaded == null || loaded.version != FORMAT_VERSION) return new MemoryFile();
-            if (loaded.eventsByNpc == null) loaded.eventsByNpc = new HashMap<>();
+        MemoryFile loaded = JsonStoreRecovery.loadOrRecover(
+                file,
+                CODEC,
+                value -> value != null
+                        && value.version == FORMAT_VERSION
+                        && value.eventsByNpc != null,
+                MemoryFile::new
+        );
 
-            Map<String, List<MemoryEvent>> sanitized = new HashMap<>();
-            for (Map.Entry<String, List<MemoryEvent>> entry : loaded.eventsByNpc.entrySet()) {
-                UUID owner = parseUuid(entry.getKey());
-                if (owner == null || entry.getValue() == null) continue;
-                List<MemoryEvent> events = entry.getValue().stream()
-                        .filter(event -> isValidForOwner(event, owner))
-                        .sorted(OLDEST_FIRST)
-                        .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
-                if (!events.isEmpty()) sanitized.put(owner.toString(), events);
-            }
-            loaded.eventsByNpc = sanitized;
-            return loaded;
-        } catch (IOException | RuntimeException ignored) {
-            return new MemoryFile();
+        Map<String, List<MemoryEvent>> sanitized = new HashMap<>();
+        for (Map.Entry<String, List<MemoryEvent>> entry : loaded.eventsByNpc.entrySet()) {
+            UUID owner = parseUuid(entry.getKey());
+            if (owner == null || entry.getValue() == null) continue;
+            List<MemoryEvent> events = entry.getValue().stream()
+                    .filter(event -> isValidForOwner(event, owner))
+                    .sorted(OLDEST_FIRST)
+                    .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+            if (!events.isEmpty()) sanitized.put(owner.toString(), events);
         }
+        loaded.eventsByNpc = sanitized;
+        return loaded;
     }
 
     private void save() {
-        try {
-            Files.createDirectories(file.getParent());
-            Path temp = file.resolveSibling(file.getFileName() + ".tmp");
-            Files.writeString(
-                    temp,
-                    GSON.toJson(data),
-                    StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE
-            );
-            try {
-                Files.move(temp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException("Unable to persist VillAIgence Memory 2.0 events to " + file, e);
-        }
+        JsonStoreRecovery.writeAtomic(file, CODEC, data);
     }
 
     private static UUID parseUuid(String value) {
