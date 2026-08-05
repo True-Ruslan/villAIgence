@@ -8,7 +8,8 @@
   "entrypoints": {
     "main": [
       "net.conczin.mca.acceptancefixture.ProductionAcceptanceChunkForcing",
-      "net.conczin.mca.acceptancefixture.ProductionAcceptanceFixture"
+      "net.conczin.mca.acceptancefixture.ProductionAcceptanceFixture",
+      "net.conczin.mca.acceptancefixture.ProductionAcceptanceRecoveryMode"
     ]
   },
   "depends": {
