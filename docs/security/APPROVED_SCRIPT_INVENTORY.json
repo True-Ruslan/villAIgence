@@ -45,9 +45,9 @@
     },
     {
       "path": "scripts/ci/recovery_fixture_stage.py",
-      "purpose": "Derives a recovery-only test fixture JAR inside an isolated staged runtime and updates only that fixture's manifest evidence; performs no network requests and never changes the candidate JAR.",
+      "purpose": "Imported helper that derives a recovery-only test fixture JAR inside an isolated staged runtime and updates only that fixture's manifest evidence; performs no network requests and never changes the candidate JAR.",
       "network": false,
-      "ci": true
+      "ci": false
     },
     {
       "path": "scripts/ci/repository_security_policy.py",
