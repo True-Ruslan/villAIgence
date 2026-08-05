@@ -1,10 +1,7 @@
-package net.conczin.mca.entity.ai.chatAI;
+package net.conczin.mca.livingworld.ai;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
-import net.conczin.mca.livingworld.ai.ChatCompletionHttpClient;
-import net.conczin.mca.livingworld.ai.ProviderEndpoint;
-import net.conczin.mca.livingworld.ai.ProviderEndpointPolicy;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -27,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Exercises the real Chat HTTP transport against a deterministic loopback provider. */
-class OpenAIChatAIHttpIntegrationTest {
+class ChatCompletionHttpClientIntegrationTest {
     @Test
     void retriesOneEmptyCompletionAndReturnsOneUsableAnswer() throws Exception {
         try (ScriptedChatServer server = ScriptedChatServer.retryThenSuccess()) {
@@ -67,7 +64,7 @@ class OpenAIChatAIHttpIntegrationTest {
 
             long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
             assertNotNull(result.get());
-            assertNotNull(result.get().error());
+            assertEquals(ChatCompletionHttpClient.REQUEST_DEADLINE_ERROR, result.get().error());
             assertEquals(2, server.requestCount());
             assertTrue(
                     elapsedMillis < 3_000,

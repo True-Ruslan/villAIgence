@@ -103,6 +103,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
         }
         return new ParsedProviderAnswer(new Answer(reply, null), completion);
     }
+
     private static String parseError(@Nullable JsonElement element) {
         if (element == null || element.isJsonNull()) return null;
         if (element.isJsonObject()) {
@@ -188,6 +189,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
         }
         return parseCompletion(result.completion()).answer();
     }
+
     private static void logProviderFailure(
             String model,
             int attempt,

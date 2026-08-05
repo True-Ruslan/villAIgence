@@ -12,7 +12,7 @@ import java.util.Objects;
  * Minecraft-independent HTTP transport for OpenAI-compatible chat completions.
  *
  * <p>The caller owns gameplay mutation and diagnostics. This class owns endpoint-safe HTTP,
- * bounded response reads, completion parsing, bounded retry count and one end-to-end deadline
+ * bounded response reads, completion parsing, bounded retry count and one connect/read deadline
  * shared by every attempt.</p>
  */
 public final class ChatCompletionHttpClient {
