@@ -4,7 +4,6 @@ import net.conczin.mca.MCA;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.livingworld.lore.OperatorLoreKey;
 import net.conczin.mca.livingworld.lore.OperatorLoreScope;
-import net.conczin.mca.livingworld.lore.WorldOperatorLoreStore;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.storage.LevelResource;
@@ -34,7 +33,7 @@ public final class OperatorLoreServerAuthority {
 
         Optional<OperatorLoreScope> parsedScope = parseScope(scopeName);
         if (parsedScope.isEmpty()) {
-            return result(
+            return OperatorLoreResolvedAuthority.result(
                     OperatorLoreScope.WORLD,
                     villagerEntityId,
                     OperatorLoreEditorResult.Status.INVALID,
@@ -44,7 +43,7 @@ public final class OperatorLoreServerAuthority {
 
         Optional<ResolvedTarget> target = resolve(player, parsedScope.get(), villagerEntityId);
         if (target.isEmpty()) {
-            return result(
+            return OperatorLoreResolvedAuthority.result(
                     parsedScope.get(),
                     villagerEntityId,
                     OperatorLoreEditorResult.Status.NOT_FOUND,
@@ -53,16 +52,16 @@ public final class OperatorLoreServerAuthority {
         }
 
         try {
-            String value = store(player).get(target.get().key());
-            return result(
+            return OperatorLoreResolvedAuthority.read(
+                    true,
+                    worldRoot(player),
                     parsedScope.get(),
                     target.get().canonicalEntityId(),
-                    OperatorLoreEditorResult.Status.OK,
-                    value
+                    target.get().key()
             );
         } catch (RuntimeException failure) {
             MCA.LOGGER.warn("Unable to read operator lore for player {} scope {}", player.getUUID(), parsedScope.get(), failure);
-            return result(
+            return OperatorLoreResolvedAuthority.result(
                     parsedScope.get(),
                     target.get().canonicalEntityId(),
                     OperatorLoreEditorResult.Status.ERROR,
@@ -84,7 +83,7 @@ public final class OperatorLoreServerAuthority {
 
         Optional<OperatorLoreScope> parsedScope = parseScope(scopeName);
         if (parsedScope.isEmpty()) {
-            return result(
+            return OperatorLoreResolvedAuthority.result(
                     OperatorLoreScope.WORLD,
                     villagerEntityId,
                     OperatorLoreEditorResult.Status.INVALID,
@@ -94,7 +93,7 @@ public final class OperatorLoreServerAuthority {
 
         Optional<ResolvedTarget> target = resolve(player, parsedScope.get(), villagerEntityId);
         if (target.isEmpty()) {
-            return result(
+            return OperatorLoreResolvedAuthority.result(
                     parsedScope.get(),
                     villagerEntityId,
                     OperatorLoreEditorResult.Status.NOT_FOUND,
@@ -103,54 +102,18 @@ public final class OperatorLoreServerAuthority {
         }
 
         try {
-            WorldOperatorLoreStore store = store(player);
-            String current = store.get(target.get().key());
-            OperatorLoreEditorPolicy.Decision decision = OperatorLoreEditorPolicy.decideWrite(
+            return OperatorLoreResolvedAuthority.write(
                     true,
+                    worldRoot(player),
+                    parsedScope.get(),
+                    target.get().canonicalEntityId(),
+                    target.get().key(),
                     expectedRevision,
-                    current,
                     requestedValue
             );
-
-            return switch (decision) {
-                case APPLY -> {
-                    store.put(target.get().key(), OperatorLoreEditorPolicy.canonicalize(requestedValue));
-                    String canonical = store.get(target.get().key());
-                    yield result(
-                            parsedScope.get(),
-                            target.get().canonicalEntityId(),
-                            OperatorLoreEditorResult.Status.OK,
-                            canonical
-                    );
-                }
-                case UNCHANGED -> result(
-                        parsedScope.get(),
-                        target.get().canonicalEntityId(),
-                        OperatorLoreEditorResult.Status.UNCHANGED,
-                        current
-                );
-                case CONFLICT -> result(
-                        parsedScope.get(),
-                        target.get().canonicalEntityId(),
-                        OperatorLoreEditorResult.Status.CONFLICT,
-                        current
-                );
-                case INVALID -> result(
-                        parsedScope.get(),
-                        target.get().canonicalEntityId(),
-                        OperatorLoreEditorResult.Status.INVALID,
-                        current
-                );
-                case FORBIDDEN -> result(
-                        parsedScope.get(),
-                        target.get().canonicalEntityId(),
-                        OperatorLoreEditorResult.Status.FORBIDDEN,
-                        ""
-                );
-            };
         } catch (RuntimeException failure) {
             MCA.LOGGER.warn("Unable to write operator lore for player {} scope {}", player.getUUID(), parsedScope.get(), failure);
-            return result(
+            return OperatorLoreResolvedAuthority.result(
                     parsedScope.get(),
                     target.get().canonicalEntityId(),
                     OperatorLoreEditorResult.Status.ERROR,
@@ -218,28 +181,8 @@ public final class OperatorLoreServerAuthority {
         }
     }
 
-    private static WorldOperatorLoreStore store(ServerPlayer player) {
-        Path worldRoot = player.serverLevel().getServer().getWorldPath(LevelResource.ROOT);
-        return WorldOperatorLoreStore.forWorld(worldRoot);
-    }
-
-    private static OperatorLoreEditorResult result(
-            OperatorLoreScope scope,
-            int entityId,
-            OperatorLoreEditorResult.Status status,
-            String value
-    ) {
-        OperatorLoreEditorPolicy.NetworkView view = OperatorLoreEditorPolicy.networkView(value);
-        OperatorLoreEditorResult.Status safeStatus = view.representable()
-                ? status
-                : OperatorLoreEditorResult.Status.INVALID;
-        return new OperatorLoreEditorResult(
-                scope,
-                entityId,
-                safeStatus,
-                view.value(),
-                view.revision()
-        );
+    private static Path worldRoot(ServerPlayer player) {
+        return player.serverLevel().getServer().getWorldPath(LevelResource.ROOT);
     }
 
     private record ResolvedTarget(OperatorLoreKey key, int canonicalEntityId) {
