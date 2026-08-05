@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate exact NPC grave/resurrection lifecycle evidence across two JVM runs."""
+"""Validate exact NPC lifecycle and real voice transport evidence across production JVM runs."""
 
 from __future__ import annotations
 
@@ -11,6 +11,9 @@ from typing import Any, Mapping
 from uuid import UUID
 
 LIFECYCLE_RELATIVE_PATH = Path("world/livingworld/acceptance-lifecycle.json")
+VOICE_TRANSPORT_RELATIVE_PATH = Path(
+    "world/livingworld/acceptance-voice-transport.json"
+)
 EXPECTED_UUID = "5cf53206-ec2c-4c88-ad11-a8bbc56f514e"
 EXPECTED_NAME = "Production Lifecycle Acceptance"
 EXPECTED_INVENTORY: dict[str, int] = {
@@ -21,10 +24,20 @@ EXPECTED_INVENTORY: dict[str, int] = {
 EXPECTED_NON_EMPTY_STACKS = 3
 EXPECTED_LIVE_ENTITY_COUNT = 1
 ALLOWED_PHASES = ("CREATED", "RESTART_VERIFIED")
+VOICE_SCENARIO = "VAI-AI-005"
+VOICE_SAMPLE_RATE = 48_000
+VOICE_FRAME_SAMPLES = 960
+VOICE_ENCODED_FRAMES = 4
+VOICE_ACCEPTED_PACKETS = 3
+VOICE_DECODED_FRAMES = 4
+VOICE_DECODED_SAMPLES = VOICE_FRAME_SAMPLES * VOICE_DECODED_FRAMES
+VOICE_LOST_PACKETS = 1
+VOICE_PLC_SAMPLES = VOICE_FRAME_SAMPLES
+VOICE_PCM_BYTES = VOICE_DECODED_SAMPLES * 2
 
 
 class AcceptanceError(RuntimeError):
-    """Raised when lifecycle evidence violates a hard acceptance invariant."""
+    """Raised when production evidence violates a hard acceptance invariant."""
 
 
 def _required_mapping(value: Any, field: str) -> Mapping[str, Any]:
@@ -47,24 +60,49 @@ def _required_positive_int(value: Mapping[str, Any], field: str) -> int:
     return candidate
 
 
-def _load_evidence(server_root: Path | str) -> Mapping[str, Any]:
+def _required_non_negative_int(value: Mapping[str, Any], field: str) -> int:
+    candidate = value.get(field)
+    if not isinstance(candidate, int) or isinstance(candidate, bool) or candidate < 0:
+        raise AcceptanceError(f"{field} must be a non-negative integer")
+    return candidate
+
+
+def _required_true(value: Mapping[str, Any], field: str) -> bool:
+    if value.get(field) is not True:
+        raise AcceptanceError(f"{field} must be true")
+    return True
+
+
+def _load_json_evidence(
+    server_root: Path | str,
+    relative_path: Path,
+    label: str,
+) -> Mapping[str, Any]:
     root = Path(server_root).resolve(strict=True)
     if not root.is_dir():
         raise AcceptanceError(f"server root is not a directory: {root}")
-    path = (root / LIFECYCLE_RELATIVE_PATH).resolve()
+    path = (root / relative_path).resolve()
     try:
         path.relative_to(root)
     except ValueError as exception:
-        raise AcceptanceError("lifecycle evidence escaped the server root") from exception
+        raise AcceptanceError(f"{label} escaped the server root") from exception
     if not path.is_file() or path.is_symlink():
-        raise AcceptanceError(f"lifecycle evidence is missing: {LIFECYCLE_RELATIVE_PATH}")
+        raise AcceptanceError(f"{label} is missing: {relative_path}")
     try:
         parsed = json.loads(path.read_text(encoding="utf-8"))
     except UnicodeDecodeError as exception:
-        raise AcceptanceError("lifecycle evidence must be valid UTF-8") from exception
+        raise AcceptanceError(f"{label} must be valid UTF-8") from exception
     except json.JSONDecodeError as exception:
-        raise AcceptanceError("lifecycle evidence must be valid JSON") from exception
-    return _required_mapping(parsed, "lifecycle evidence")
+        raise AcceptanceError(f"{label} must be valid JSON") from exception
+    return _required_mapping(parsed, label)
+
+
+def _load_lifecycle_evidence(server_root: Path | str) -> Mapping[str, Any]:
+    return _load_json_evidence(
+        server_root,
+        LIFECYCLE_RELATIVE_PATH,
+        "lifecycle evidence",
+    )
 
 
 def _normalize_state(value: Mapping[str, Any], field: str) -> dict[str, Any]:
@@ -139,7 +177,7 @@ def _normalize_state(value: Mapping[str, Any], field: str) -> dict[str, Any]:
 
 def collect_lifecycle_state(server_root: Path | str) -> dict[str, Any]:
     """Read and validate the current lifecycle state from an isolated server root."""
-    return _normalize_state(_load_evidence(server_root), "lifecycle evidence")
+    return _normalize_state(_load_lifecycle_evidence(server_root), "lifecycle evidence")
 
 
 def compare_lifecycle_states(
@@ -173,7 +211,7 @@ def compare_lifecycle_states(
 
 def collect_lifecycle_history(server_root: Path | str) -> tuple[dict[str, Any], dict[str, Any]]:
     """Validate the durable two-snapshot history emitted by the production fixture."""
-    evidence = _load_evidence(server_root)
+    evidence = _load_lifecycle_evidence(server_root)
     history = evidence.get("history")
     if not isinstance(history, list) or len(history) != 2:
         raise AcceptanceError("lifecycle history must contain exactly two snapshots")
@@ -186,6 +224,86 @@ def collect_lifecycle_history(server_root: Path | str) -> tuple[dict[str, Any], 
     if errors:
         raise AcceptanceError("restart lifecycle failed: " + "; ".join(errors))
     return first, second
+
+
+def collect_voice_transport_state(server_root: Path | str) -> dict[str, Any]:
+    """Validate real Simple Voice Chat Opus loopback evidence from the fixture."""
+    value = _load_json_evidence(
+        server_root,
+        VOICE_TRANSPORT_RELATIVE_PATH,
+        "voice transport evidence",
+    )
+    if value.get("schema") != 1:
+        raise AcceptanceError("voice transport evidence schema must equal 1")
+    scenario = _required_string(value, "scenario")
+    if scenario != VOICE_SCENARIO:
+        raise AcceptanceError(
+            f"voice transport scenario must equal {VOICE_SCENARIO}, found {scenario}"
+        )
+    status = _required_string(value, "status")
+    if status != "PASS":
+        raise AcceptanceError(f"voice transport status must equal PASS, found {status}")
+
+    exact_values = {
+        "sampleRate": VOICE_SAMPLE_RATE,
+        "frameSamples": VOICE_FRAME_SAMPLES,
+        "encodedFrames": VOICE_ENCODED_FRAMES,
+        "acceptedPackets": VOICE_ACCEPTED_PACKETS,
+        "decodedFrames": VOICE_DECODED_FRAMES,
+        "decodedSamples": VOICE_DECODED_SAMPLES,
+        "lostPackets": VOICE_LOST_PACKETS,
+        "plcSamples": VOICE_PLC_SAMPLES,
+        "pcmBudgetMaxBytes": VOICE_PCM_BYTES,
+    }
+    normalized: dict[str, Any] = {
+        "schema": 1,
+        "scenario": scenario,
+        "status": status,
+    }
+    for field, expected in exact_values.items():
+        actual = _required_positive_int(value, field)
+        if actual != expected:
+            raise AcceptanceError(
+                f"voice transport {field} mismatch: expected {expected}, found {actual}"
+            )
+        normalized[field] = actual
+
+    encoded_bytes = _required_positive_int(value, "encodedBytes")
+    normalized["encodedBytes"] = encoded_bytes
+
+    peak_pcm = _required_positive_int(value, "peakPcmBytes")
+    max_pcm = normalized["pcmBudgetMaxBytes"]
+    if peak_pcm > max_pcm:
+        raise AcceptanceError(
+            f"voice transport peak PCM exceeds budget: {peak_pcm} > {max_pcm}"
+        )
+    if peak_pcm != VOICE_PCM_BYTES:
+        raise AcceptanceError(
+            f"voice transport peakPcmBytes mismatch: expected {VOICE_PCM_BYTES}, "
+            f"found {peak_pcm}"
+        )
+    normalized["peakPcmBytes"] = peak_pcm
+
+    for field in ("pcmBytesAfterCancel", "pcmBytesAfterDisconnect"):
+        actual = _required_non_negative_int(value, field)
+        if actual != 0:
+            raise AcceptanceError(f"voice transport {field} must equal 0, found {actual}")
+        normalized[field] = actual
+
+    required_true_fields = (
+        "duplicateRejected",
+        "outOfOrderRejected",
+        "budgetExhaustionRejected",
+        "postCancelRejected",
+        "postDisconnectRejected",
+        "encoderClosed",
+        "primaryDecoderClosed",
+        "disconnectDecoderClosed",
+    )
+    for field in required_true_fields:
+        normalized[field] = _required_true(value, field)
+
+    return normalized
 
 
 def _write_json(path: Path, value: Mapping[str, Any]) -> None:
@@ -210,12 +328,14 @@ def main() -> int:
     report_path = args.report.resolve()
     try:
         first, second = collect_lifecycle_history(args.server_root)
+        voice_transport = collect_voice_transport_state(args.server_root)
         result: dict[str, Any] = {
             "schema": 1,
             "status": "PASS",
             "scenario": "VAI-LIFE-002",
             "firstRun": first,
             "secondRun": second,
+            "voiceTransport": voice_transport,
         }
     except (AcceptanceError, OSError) as exception:
         result = {
