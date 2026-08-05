@@ -4,6 +4,10 @@ on:
   push:
     tags:
       - '**'
+    branches:
+      - '1.21.1'
+    paths:
+      - 'docs/releases/NEXT_RELEASE.txt'
   pull_request:
     branches:
       - '1.21.1'
@@ -14,7 +18,9 @@ on:
       - 'gradle/verification-metadata.xml'
       - '**/gradle.lockfile'
       - 'docs/RELEASING.md'
+      - 'docs/releases/**'
       - 'docs/livingworld/VALIDATION_0.1.24_RELEASE_GATE.md'
+      - 'docs/livingworld/VALIDATION_0.1.25_RELEASE_GATE.md'
       - 'fabric/build.gradle'
       - 'fabric/production-acceptance-fixture.gradle'
       - 'fabric/src/productionAcceptanceFixture/**'
@@ -36,6 +42,10 @@ jobs:
   build-and-package:
     runs-on: ubuntu-latest
     timeout-minutes: 55
+    outputs:
+      release_tag: ${{ steps.release-meta.outputs.release_tag }}
+      release_mode: ${{ steps.release-meta.outputs.release_mode }}
+      publish_release: ${{ steps.release-meta.outputs.publish_release }}
     env:
       GRADLE_OPTS: --enable-native-access=ALL-UNNAMED
       NO_COLOR: "1"
@@ -47,35 +57,101 @@ jobs:
           fetch-tags: true
 
       - name: Resolve and verify release metadata
-        if: github.event_name == 'push'
+        id: release-meta
         shell: bash
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME}"
-          tag_pattern='^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?[+][0-9]+([.][0-9]+){1,2}$'
-          if [[ ! "${tag}" =~ ${tag_pattern} ]]; then
-            echo "::error title=Invalid release tag::Expected '<mod_version>+<minecraft_version>', for example '0.1.24+1.21.1'."
+
+          request_file='docs/releases/NEXT_RELEASE.txt'
+          release_tag=''
+          release_mode='dry-run'
+          publish_release='false'
+
+          if [[ "${GITHUB_EVENT_NAME}" == 'push' && "${GITHUB_REF_TYPE}" == 'tag' ]]; then
+            release_tag="${GITHUB_REF_NAME}"
+            release_mode='tag'
+            publish_release='true'
+          elif [[ "${GITHUB_EVENT_NAME}" == 'push' && "${GITHUB_REF_TYPE}" == 'branch' ]]; then
+            if [[ "${GITHUB_REF_NAME}" != '1.21.1' ]]; then
+              echo "::error title=Invalid release branch::Release requests may run only from 1.21.1."
+              exit 1
+            fi
+            test -s "${request_file}"
+            release_tag="$(sed -e 's/\r$//' -e '/^[[:space:]]*$/d' "${request_file}")"
+            release_mode='request'
+            publish_release='true'
+          elif [[ "${GITHUB_EVENT_NAME}" == 'pull_request' && -s "${request_file}" ]]; then
+            release_tag="$(sed -e 's/\r$//' -e '/^[[:space:]]*$/d' "${request_file}")"
+            release_mode='request-validation'
+          fi
+
+          if [[ "${release_tag}" == *$'\n'* || "${release_tag}" =~ [[:space:]] ]]; then
+            echo "::error title=Invalid release request::NEXT_RELEASE.txt must contain exactly one tag and no whitespace."
             exit 1
           fi
-          minecraft_version="${tag#*+}"
-          configured_minecraft_version="$(grep '^minecraft_version=' gradle.properties | head -n 1 | cut -d= -f2-)"
-          if [[ "${minecraft_version}" != "${configured_minecraft_version}" ]]; then
-            echo "::error title=Minecraft version mismatch::Tag declares ${minecraft_version}, but gradle.properties declares ${configured_minecraft_version}."
-            exit 1
+
+          if [[ -n "${release_tag}" ]]; then
+            tag_pattern='^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?[+][0-9]+([.][0-9]+){1,2}$'
+            if [[ ! "${release_tag}" =~ ${tag_pattern} ]]; then
+              echo "::error title=Invalid release tag::Expected '<mod_version>+<minecraft_version>', for example '0.1.25+1.21.1'."
+              exit 1
+            fi
+
+            minecraft_version="${release_tag#*+}"
+            configured_minecraft_version="$(grep '^minecraft_version=' gradle.properties | head -n 1 | cut -d= -f2-)"
+            if [[ "${minecraft_version}" != "${configured_minecraft_version}" ]]; then
+              echo "::error title=Minecraft version mismatch::Tag declares ${minecraft_version}, but gradle.properties declares ${configured_minecraft_version}."
+              exit 1
+            fi
+
+            git fetch origin refs/heads/1.21.1:refs/remotes/origin/1.21.1
+            git fetch --tags origin
+            current_sha="$(git rev-parse HEAD)"
+            branch_sha="$(git rev-parse refs/remotes/origin/1.21.1)"
+
+            remote_tag_sha="$(git ls-remote --tags origin "refs/tags/${release_tag}^{}" | awk 'NR == 1 {print $1}')"
+            if [[ -z "${remote_tag_sha}" ]]; then
+              remote_tag_sha="$(git ls-remote --tags origin "refs/tags/${release_tag}" | awk 'NR == 1 {print $1}')"
+            fi
+
+            case "${release_mode}" in
+              tag)
+                if [[ "${current_sha}" != "${branch_sha}" ]]; then
+                  echo "::error title=Release tag is not on current 1.21.1 head::Tag commit ${current_sha} differs from 1.21.1 ${branch_sha}."
+                  exit 1
+                fi
+                mapfile -t head_tags < <(git tag --points-at HEAD | sort)
+                if [[ "${#head_tags[@]}" -ne 1 || "${head_tags[0]}" != "${release_tag}" ]]; then
+                  echo "::error title=Ambiguous release version::Exactly one tag must point at the release commit and it must be ${release_tag}."
+                  printf 'Tags at HEAD:\n%s\n' "${head_tags[*]:-<none>}"
+                  exit 1
+                fi
+                ;;
+              request)
+                if [[ "${current_sha}" != "${branch_sha}" ]]; then
+                  echo "::error title=Release request is not current 1.21.1 head::Request commit ${current_sha} differs from 1.21.1 ${branch_sha}."
+                  exit 1
+                fi
+                if [[ -n "${remote_tag_sha}" && "${remote_tag_sha}" != "${current_sha}" ]]; then
+                  echo "::error title=Release tag already consumed::${release_tag} points to ${remote_tag_sha}, not ${current_sha}."
+                  exit 1
+                fi
+                ;;
+              request-validation)
+                if [[ -n "${remote_tag_sha}" ]]; then
+                  echo "::error title=Release tag already exists::${release_tag} is already published or reserved at ${remote_tag_sha}."
+                  exit 1
+                fi
+                ;;
+            esac
+
+            echo "RELEASE_VERSION=${release_tag}" >> "${GITHUB_ENV}"
           fi
-          git fetch origin refs/heads/1.21.1:refs/remotes/origin/1.21.1
-          tagged_sha="$(git rev-parse HEAD)"
-          branch_sha="$(git rev-parse refs/remotes/origin/1.21.1)"
-          if [[ "${tagged_sha}" != "${branch_sha}" ]]; then
-            echo "::error title=Release tag is not on current 1.21.1 head::Tag commit ${tagged_sha} differs from 1.21.1 ${branch_sha}."
-            exit 1
-          fi
-          mapfile -t head_tags < <(git tag --points-at HEAD | sort)
-          if [[ "${#head_tags[@]}" -ne 1 || "${head_tags[0]}" != "${tag}" ]]; then
-            echo "::error title=Ambiguous release version::Exactly one tag must point at the release commit and it must be ${tag}."
-            printf 'Tags at HEAD:\n%s\n' "${head_tags[*]:-<none>}"
-            exit 1
-          fi
+
+          echo "PUBLISH_RELEASE=${publish_release}" >> "${GITHUB_ENV}"
+          echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+          echo "release_mode=${release_mode}" >> "${GITHUB_OUTPUT}"
+          echo "publish_release=${publish_release}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up JDK 21
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
@@ -120,8 +196,8 @@ jobs:
             --no-daemon
             --console=plain
           )
-          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-            gradle_args+=("-Prelease_version=${GITHUB_REF_NAME}")
+          if [[ -n "${RELEASE_VERSION:-}" ]]; then
+            gradle_args+=("-Prelease_version=${RELEASE_VERSION}")
           fi
           ./gradlew "${gradle_args[@]}"
 
@@ -178,8 +254,8 @@ jobs:
             --no-daemon
             --console=plain
           )
-          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-            gradle_args+=("-Prelease_version=${GITHUB_REF_NAME}")
+          if [[ -n "${RELEASE_VERSION:-}" ]]; then
+            gradle_args+=("-Prelease_version=${RELEASE_VERSION}")
           fi
           ./gradlew "${gradle_args[@]}"
           test -s build/reports/dependencies/villaigence-dependencies.txt
@@ -190,8 +266,8 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x scripts/ci/package-livingworld-release.sh
-          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-            artifact_label="${GITHUB_REF_NAME}"
+          if [[ "${PUBLISH_RELEASE}" == 'true' ]]; then
+            artifact_label="${RELEASE_VERSION}"
             is_release=true
           else
             artifact_label="dry-run-${GITHUB_RUN_NUMBER}"
@@ -230,62 +306,113 @@ jobs:
 
   github-release:
     needs: build-and-package
-    if: github.event_name == 'push'
+    if: needs.build-and-package.outputs.publish_release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: ${{ github.sha }}
+
       - name: Download verified VillAIgence release package
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: villaigence-fabric-package
           path: dist
 
+      - name: Ensure immutable release tag
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.build-and-package.outputs.release_tag }}
+          RELEASE_MODE: ${{ needs.build-and-package.outputs.release_mode }}
+        run: |
+          set -euo pipefail
+          test -n "${RELEASE_TAG}"
+          git fetch --tags origin
+
+          existing_sha=''
+          if git rev-parse -q --verify "refs/tags/${RELEASE_TAG}" >/dev/null; then
+            existing_sha="$(git rev-list -n 1 "refs/tags/${RELEASE_TAG}")"
+          fi
+
+          if [[ -n "${existing_sha}" ]]; then
+            if [[ "${existing_sha}" != "${GITHUB_SHA}" ]]; then
+              echo "::error title=Release tag points elsewhere::${RELEASE_TAG} points to ${existing_sha}, not ${GITHUB_SHA}."
+              exit 1
+            fi
+          elif [[ "${RELEASE_MODE}" == 'request' ]]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git tag -a "${RELEASE_TAG}" "${GITHUB_SHA}" \
+              -m "VillAIgence ${RELEASE_TAG%%+*} for Minecraft ${RELEASE_TAG#*+}"
+            git push origin "refs/tags/${RELEASE_TAG}"
+          else
+            echo "::error title=Missing release tag::Tag-triggered release ${RELEASE_TAG} is not available locally."
+            exit 1
+          fi
+
       - name: Create or update VillAIgence GitHub release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build-and-package.outputs.release_tag }}
         run: |
           set -euo pipefail
 
-          release_tag="${GITHUB_REF_NAME}"
+          release_tag="${RELEASE_TAG}"
           mod_version="${release_tag%%+*}"
           minecraft_version="${release_tag#*+}"
           jar_file="dist/villaigence-fabric-${release_tag}.jar"
           checksum_file="${jar_file}.sha256"
           manifest_file="dist/villaigence-dependencies-${release_tag}.txt"
+          notes_source="docs/releases/${release_tag}.md"
           test -f "${jar_file}"
           test -f "${checksum_file}"
           test -f "${manifest_file}"
 
           checksum="$(cat "${checksum_file}")"
           notes_file="release-notes.md"
-          printf '%s\n' \
-            "# VillAIgence ${mod_version}" \
-            "" \
-            "Vill-AI-gence — Giving villagers a mind of their own." \
-            "" \
-            "VillAIgence is an experimental AI-driven evolution of Minecraft Comes Alive Reborn. LivingWorld remains the internal engine name for compatibility-sensitive classes, config and world-data paths." \
-            "" \
-            "Runtime:" \
-            "- Minecraft ${minecraft_version}" \
-            "- Fabric Loader" \
-            "- Java 21" \
-            "- Fabric API for Minecraft ${minecraft_version}" \
-            "- Simple Voice Chat 2.6.20 or newer" \
-            "" \
-            "Important: this JAR intentionally keeps MCA's internal mod id mca. Remove the original MCA Reborn JAR before installing VillAIgence; do not install both at the same time." \
-            "" \
-            "Server configuration remains config/livingworld.json. API credentials stay server-side." \
-            "" \
-            "Back up the world before installing or updating experimental builds." \
-            "" \
-            "SHA-256:" \
-            "${checksum}" \
-            "" \
-            "The attached dependency manifest records the sorted resolved build coordinates used by this release." \
-            > "${notes_file}"
+          if [[ -s "${notes_source}" ]]; then
+            cp "${notes_source}" "${notes_file}"
+            printf '%s\n' \
+              "" \
+              "SHA-256:" \
+              "${checksum}" \
+              "" \
+              "The attached dependency manifest records the sorted resolved build coordinates used by this release." \
+              >> "${notes_file}"
+          else
+            printf '%s\n' \
+              "# VillAIgence ${mod_version}" \
+              "" \
+              "Vill-AI-gence — Giving villagers a mind of their own." \
+              "" \
+              "VillAIgence is an experimental AI-driven evolution of Minecraft Comes Alive Reborn. LivingWorld remains the internal engine name for compatibility-sensitive classes, config and world-data paths." \
+              "" \
+              "Runtime:" \
+              "- Minecraft ${minecraft_version}" \
+              "- Fabric Loader" \
+              "- Java 21" \
+              "- Fabric API for Minecraft ${minecraft_version}" \
+              "- Simple Voice Chat 2.6.20 or newer" \
+              "" \
+              "Important: this JAR intentionally keeps MCA's internal mod id mca. Remove the original MCA Reborn JAR before installing VillAIgence; do not install both at the same time." \
+              "" \
+              "Server configuration remains config/livingworld.json. API credentials stay server-side." \
+              "" \
+              "Back up the world before installing or updating experimental builds." \
+              "" \
+              "SHA-256:" \
+              "${checksum}" \
+              "" \
+              "The attached dependency manifest records the sorted resolved build coordinates used by this release." \
+              > "${notes_file}"
+          fi
 
           title="VillAIgence ${mod_version} for Minecraft ${minecraft_version}"
 
