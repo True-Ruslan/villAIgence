@@ -12,8 +12,8 @@ import java.util.Objects;
  * Minecraft-independent HTTP transport for OpenAI-compatible chat completions.
  *
  * <p>The caller owns gameplay mutation and diagnostics. This class owns endpoint-safe HTTP,
- * bounded response reads, completion parsing, bounded retry count and one connect/read deadline
- * shared by every attempt.</p>
+ * bounded response reads, completion parsing and bounded retry count. Callers may provide one
+ * deadline shared with surrounding STT/TTS stages.</p>
  */
 public final class ChatCompletionHttpClient {
     public static final String EMPTY_RESPONSE_ERROR = "empty_response";
@@ -32,11 +32,31 @@ public final class ChatCompletionHttpClient {
             int readTimeoutMillis,
             AttemptObserver observer
     ) {
+        return post(
+                endpoint,
+                requestBody,
+                token,
+                connectTimeoutMillis,
+                readTimeoutMillis,
+                AiRequestDeadline.start(connectTimeoutMillis, readTimeoutMillis),
+                observer
+        );
+    }
+
+    public static Result post(
+            ProviderEndpoint endpoint,
+            String requestBody,
+            String token,
+            int connectTimeoutMillis,
+            int readTimeoutMillis,
+            AiRequestDeadline deadline,
+            AttemptObserver observer
+    ) {
         Objects.requireNonNull(endpoint, "endpoint");
         Objects.requireNonNull(requestBody, "requestBody");
         Objects.requireNonNull(token, "token");
+        Objects.requireNonNull(deadline, "deadline");
         AttemptObserver safeObserver = observer == null ? AttemptObserver.NOOP : observer;
-        AiRequestDeadline deadline = AiRequestDeadline.start(connectTimeoutMillis, readTimeoutMillis);
 
         for (int attempt = 1; attempt <= ChatCompletionRetryPolicy.MAX_ATTEMPTS; attempt++) {
             AttemptResult result = postOnce(
@@ -78,6 +98,7 @@ public final class ChatCompletionHttpClient {
     ) {
         HttpURLConnection connection = null;
         try {
+            deadline.throwIfExpired();
             connection = openConnection(
                     endpoint,
                     token,
@@ -105,7 +126,8 @@ public final class ChatCompletionHttpClient {
                 body = BoundedResponseReader.readUtf8(
                         response,
                         connection.getContentLengthLong(),
-                        limitBytes
+                        limitBytes,
+                        deadline
                 );
             }
 
@@ -125,6 +147,9 @@ public final class ChatCompletionHttpClient {
             return new AttemptResult(null, RESPONSE_TOO_LARGE_ERROR, exception);
         } catch (AiRequestDeadline.DeadlineExceededException exception) {
             return new AttemptResult(null, REQUEST_DEADLINE_ERROR, exception);
+        } catch (BoundedResponseReader.ResponseDeadlineExceededException exception) {
+            String error = deadline.isExpired() ? REQUEST_DEADLINE_ERROR : REQUEST_FAILED_ERROR;
+            return new AttemptResult(null, error, exception);
         } catch (SocketTimeoutException exception) {
             String error = deadline.isExpired() ? REQUEST_DEADLINE_ERROR : REQUEST_FAILED_ERROR;
             return new AttemptResult(null, error, exception);
