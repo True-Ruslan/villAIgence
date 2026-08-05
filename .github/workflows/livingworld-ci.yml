@@ -91,6 +91,8 @@ jobs:
             exit "$status"
           fi
 
+          grep -Fq 'VAI-LIFE-005-AUTOMATED-PASS' \
+            fabric/build/run/gameTest/logs/latest.log
           echo "Risk catalog, server GameTests and loader builds succeeded; final 20 log lines:"
           tail -n 20 gradle-build.log
 
