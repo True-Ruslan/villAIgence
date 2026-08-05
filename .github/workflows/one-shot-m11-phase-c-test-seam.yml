@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   patch:
-    if: github.actor == 'True-Ruslan'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -48,7 +47,7 @@ jobs:
           if source.count('invokePost(') != 3:
               raise SystemExit(f'expected helper declaration plus two calls, found {source.count("invokePost(")}')
           source = source.replace('invokePost(', 'OpenAIChatAI.post(', 2)
-          start = source.index('    private static OpenAIChatAI.Answer OpenAIChatAI.post(')
+          start = source.index('    private static OpenAIChatAI.Answer invokePost(')
           end = source.index('    private static final class ScriptedChatServer', start)
           source = source[:start] + source[end:]
           if 'setAccessible' in source or 'java.lang.reflect' in source:
