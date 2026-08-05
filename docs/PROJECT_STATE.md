@@ -2,24 +2,23 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md` when resuming work.
 >
-> Last reconciled: **2026-08-05**, after M11 Phase C was merged and all post-merge required workflows passed on the canonical `1.21.1` head.
+> Last reconciled: **2026-08-05**, after M11 Phase D was merged through PR #112.
 >
-> Always distinguish repository/unit evidence, production-candidate evidence, and installed operator-server/client evidence.
+> Always distinguish repository/unit evidence, production-candidate evidence, exact-release evidence and installed operator-server/client evidence.
 
 ## Executive snapshot
 
 VillAIgence is a Minecraft 1.21.1 MCA-derived mod evolving from AI-assisted villager dialogue into a persistent living-society simulation layer.
 
 ```text
-repository:              True-Ruslan/villAIgence
-primary branch:          1.21.1
-canonical HEAD:          66f5372f10914bcd9daec894962b0383084726fa
-Java:                    21
-primary distribution:    Fabric
-NeoForge:                compile compatibility required
-open pull requests:      none
-latest official release: 0.1.25+1.21.1
-release commit:          588cc676d356271c4cf74eb21131f6d071476e48
+repository:                         True-Ruslan/villAIgence
+primary branch:                     1.21.1
+latest runtime implementation head: 67e0644b355708c06747e3ec4659a337bc4189b3
+Java:                               21
+primary distribution:               Fabric
+NeoForge:                           compile compatibility required
+latest official release:            0.1.25+1.21.1
+release commit:                     588cc676d356271c4cf74eb21131f6d071476e48
 ```
 
 Current delivery state:
@@ -32,20 +31,23 @@ Operator Lore S9-S10c                               implemented
 M11 Phase A risk catalog and GameTests              complete
 M11 Phase B exact production-JAR restart harness    complete
 M11 Phase C provider and voice orchestration        complete
-M11 Phase D concurrency and client acceptance       next
-0.1.25 installed inventory canary                   pending
+M11 Phase D concurrency and client acceptance       automated and merged
+real installed two-client Operator Lore canary      pending
+0.1.25 inventory/grave/resurrection canary          pending
 next release containing post-0.1.25 work            not yet requested
 ```
 
-Post-merge workflows for the canonical head:
+PR #112 exact-head evidence before merge:
 
 ```text
-VillAIgence CI:              run 31011153246 / #1517 — SUCCESS
-Repository security policy: run 31011152237 / #942  — SUCCESS
-build-commit-artifacts:      run 31011153249 / #1353 — SUCCESS
+reviewed head:                da0ddd0a463f29cdf211a14a749c4872e66d0e30
+VillAIgence CI:               run 31017438938 / #1527 — SUCCESS
+Java Pull Request CI:         run 31017438567 / #915  — SUCCESS
+Repository security policy:  run 31017438672 / #961  — SUCCESS
+review verdict:               no unresolved P0/P1/P2 finding
 ```
 
-No current open PR is waiting for review or merge.
+The squash merge is `67e0644b355708c06747e3ec4659a337bc4189b3`. Post-merge and documentation-head workflows must still be checked when resuming.
 
 ---
 
@@ -88,6 +90,7 @@ NPC Identity
 16. Migration remains additive, deterministic, idempotent and reversible until cutover evidence exists.
 17. Exact release identity must match the tag, filename, `fabric.mod.json` and manifest.
 18. Published artifacts must be byte-identical to the exact artifact accepted by the release gate.
+19. Automated logical-client evidence never silently becomes a real installed multi-client claim.
 
 Canonical AI flow:
 
@@ -160,7 +163,7 @@ Step 1 security findings `SEC-001` through `SEC-009` are closed.
 
 ## Voice orchestration
 
-M11 Phase C now proves one monotonic total deadline across one captured voice turn:
+M11 Phase C proves one monotonic total deadline across one captured voice turn:
 
 ```text
 capture accepted
@@ -217,8 +220,8 @@ Implemented:
 Truth boundary:
 
 ```text
-FACT   → SYSTEM_OBSERVED only
-BELIEF → PLAYER_TOLD / NPC_TOLD / INFERRED only
+FACT     → SYSTEM_OBSERVED only
+BELIEF   → PLAYER_TOLD / NPC_TOLD / INFERRED only
 DIALOGUE → episodic only by default
 ```
 
@@ -320,32 +323,60 @@ Complete through PRs #108 and #110:
 
 `VAI-AI-003` and `VAI-AI-004` are automated VillAIgence CI scenarios.
 
-## Phase D — next
+## Phase D — concurrency and client acceptance
 
-Phase D must automate the remaining concurrency/client contract:
+Complete through PR #112.
+
+Production structure:
 
 ```text
-two logical clients read the same canonical revision
-→ first client saves successfully
-→ second client submits stale revision
-→ server returns CONFLICT with canonical value/revision
-→ no update is silently lost
-→ second client reloads/reviews
-→ later save uses the current revision
+trusted Minecraft authority
+→ permission and target resolution
+→ package-private resolved authority seam
+→ SHA-256 revision decision
+→ world-local Operator Lore store
+→ canonical result
 ```
 
-Required additional coverage:
+Automated logical-client scenario:
 
-- editor open/edit/save/reopen;
-- scope switch and dirty-state confirmation;
-- stale response ignored after request-generation change;
-- Save response retained while a modal is open;
-- FORBIDDEN and target-not-found states;
-- no arbitrary UUID/dimension/village ID in C2S;
-- deterministic client-state or headless client harness where full rendering is impractical;
-- true two-client installed canary retained as a separate evidence layer.
+```text
+client A reads V0/R0
+client B reads V0/R0
+client A writes V1/R0 → OK/R1
+client B writes V2/R0 → CONFLICT with V1/R1
+store remains V1/R1
+client B keeps its draft and adopts R1
+client B writes V2/R1 → OK/R2
+final store is V2/R2 exactly once
+```
 
-Canonical plan: `docs/livingworld/VALIDATION_M11_PHASE_D_PLAN.md`.
+Additional automated guarantees:
+
+- exact replay returns `UNCHANGED` and does not rewrite the file;
+- unauthorized logical read/write returns `FORBIDDEN`, discloses no canonical value/revision and performs no mutation;
+- Clear uses the same revision-protected conflict/retry path;
+- stale request-generation responses cannot modify the active editor state;
+- conflict preserves the user draft and exposes explicit review choices;
+- modal response forwarding remains owned by the active editor;
+- C2S contains no arbitrary player/villager UUID, dimension ID or village ID;
+- client code has no Operator Lore file/store access or global response mailbox;
+- Phase D fixtures do not enter the distributable JAR.
+
+Acceptance catalog:
+
+```text
+VAI-CONCUR-003 → automated logical-client/common-integration evidence
+VAI-CONCUR-004 → real installed two-client UI/network canary
+```
+
+Canonical implementation evidence:
+
+```text
+docs/livingworld/VALIDATION_M11_PHASE_D_IMPLEMENTATION.md
+```
+
+Phase D does **not** claim two physical Minecraft clients, real network timing or visual/OS-specific UI behavior.
 
 ---
 
@@ -366,13 +397,15 @@ The release contains the tombstone inventory-ownership correction. Its focused i
 
 ## Code ahead of the release
 
-Current `1.21.1` includes post-`0.1.25` work:
+Current `1.21.1` contains post-`0.1.25` work:
 
 - PR #108 deterministic provider acceptance and shared Chat retry deadline;
 - PR #109 configuration-cache-safe refmap verification and release-request scoping;
-- PR #110 complete voice-turn orchestration deadline and exactly-once persistence proof.
+- PR #110 complete voice-turn orchestration deadline and exactly-once persistence proof;
+- PR #111 canonical state reconciliation and Phase D plan;
+- PR #112 deterministic logical-client concurrency/client acceptance.
 
-These changes are not part of `0.1.25`. The next official release must use the next free version and the established exact-production gate.
+These changes are not part of `0.1.25`. The next official release must use the next free sequential version and the established exact-production gate.
 
 ## Evidence layers
 
@@ -380,6 +413,7 @@ Never collapse these into one claim:
 
 ```text
 UNIT / SOURCE POLICY
+COMMON INTEGRATION
 SERVER GAMETEST
 PRODUCTION CANDIDATE STARTUP/RESTART
 EXACT RELEASE WORKFLOW
@@ -387,63 +421,57 @@ INSTALLED OPERATOR SERVER/CLIENT
 REAL MULTI-CLIENT CANARY
 ```
 
-Known installed evidence includes broad `0.1.20` partial acceptance, focused corrected water/grave checks on later candidates, and the `0.1.23` inventory defect reproduction. Exact `0.1.25` installed inventory acceptance remains pending.
+Known installed evidence includes broad `0.1.20` partial acceptance, focused corrected water/grave checks on later candidates and the `0.1.23` inventory defect reproduction. Exact `0.1.25` installed inventory acceptance remains pending. The Phase D real multi-client canary also remains pending on a candidate containing PR #112.
 
 ---
 
 # Known gaps and technical debt
 
-1. M11 Phase D is not implemented.
-2. A true simultaneous two-client Operator Lore conflict remains unverified.
-3. Exact official `0.1.25` inventory/grave/resurrection canary remains pending.
-4. Physical microphone, UDP/Opus playback, spatial audible TTS and subjective LLM quality remain manual canaries.
-5. `memory.json` migration has not started.
-6. Controlled BELIEF producers and causal relationship reasons remain incomplete.
-7. NPC-to-NPC knowledge and rumor propagation remain future work.
-8. Long-horizon, multiplayer and multi-day soak coverage remains incomplete.
-9. Broader automated gameplay matrix for ladders, doors, gifts, fishing and mounted combat remains planned.
+1. A true simultaneous installed two-client Operator Lore conflict remains unverified.
+2. Exact official `0.1.25` inventory/grave/resurrection canary remains pending.
+3. Physical microphone, UDP/Opus playback, spatial audible TTS and subjective LLM quality remain manual canaries.
+4. `memory.json` migration has not started.
+5. Controlled BELIEF producers and causal relationship reasons remain incomplete.
+6. NPC-to-NPC knowledge and rumor propagation remain future work.
+7. Long-horizon, multiplayer and multi-day soak coverage remains incomplete.
+8. Broader automated gameplay matrix for ladders, doors, gifts, fishing and mounted combat remains planned.
 
 ---
 
-# Next optimal development step
+# Next optimal delivery step
 
-Implement **M11 Phase D — concurrency and client acceptance** as an isolated package.
+Prepare the next sequential exact candidate containing PRs #108–#112, but do not publish it until the focused installed acceptance boundary is satisfied.
 
-Required sequence:
+Recommended sequence:
 
 ```text
-Phase D design and deterministic harness boundary
-→ RED stale-writer/client-state test
-→ minimal server/client test seam
-→ logical two-client conflict acceptance
-→ editor state acceptance
-→ Fabric + NeoForge builds
-→ production package and security gates
-→ exact-head review
-→ canonical state update
+confirm post-merge and documentation-head CI
+→ choose the next free version (expected 0.1.26+1.21.1 unless repository evidence differs)
+→ open a release-request PR and build the exact versioned dry-run candidate
+→ install that exact candidate on the operator server/client
+→ run inventory/grave/resurrection canary
+→ run real two-client Operator Lore stale-revision canary
+→ run short physical voice smoke
+→ merge/publish only on PASS
+→ verify published JAR identity and one restart
+→ begin additive legacy memory.json migration
 ```
 
-Phase D must not:
+The release/canary package must not:
 
-- weaken the S10b server-authority contract;
-- add client-owned permissions or identity;
-- accept arbitrary UUID, dimension or village ID;
-- bypass revision checks;
-- silently overwrite conflicts;
-- read or write `operator-lore.json` from the client;
-- ingest Operator Lore into Semantic Memory;
-- modify provider credentials or endpoint policy;
-- require a public network provider in CI.
+- use a snapshot JAR as release evidence;
+- claim logical-client automation as installed multi-client evidence;
+- overwrite or migrate `memory.json`;
+- weaken revision, authority, provider or credential policies;
+- combine unrelated personality/social-graph implementation into the release boundary.
 
-After Phase D:
+After the release boundary:
 
 ```text
-run exact candidate/release gates
-→ execute focused installed 0.1.25 or successor inventory canary
-→ publish the next sequential release only on PASS
-→ begin additive legacy memory.json migration
-→ close remaining Memory 2.0 exit criteria
-→ proceed to personality and NPC↔NPC social graph
+additive memory.json migration
+→ remaining Memory 2.0 exit criteria
+→ personality and NPC↔NPC social graph
+→ knowledge propagation and rumors
 ```
 
 ---
@@ -452,7 +480,7 @@ run exact candidate/release gates
 
 Preferred resume prompt:
 
-> Open `docs/PROJECT_STATE.md`, `docs/ROADMAP.md`, `common/src/test/resources/acceptance/scenarios.tsv`, and the M11 Phase C/Phase D validation documents. Check current `1.21.1` HEAD, open PRs, releases and CI. Continue with M11 Phase D without weakening the Operator Lore server-authority or revision contracts.
+> Open `docs/PROJECT_STATE.md`, `docs/ROADMAP.md`, `common/src/test/resources/acceptance/scenarios.tsv`, and the M11 Phase D implementation document. Check current `1.21.1` HEAD, open PRs, releases and CI. Continue from the exact next-release candidate and installed canary boundary without weakening Operator Lore authority or revision contracts.
 
 A new session must:
 
@@ -460,7 +488,7 @@ A new session must:
 2. read `docs/ROADMAP.md`;
 3. inspect current `1.21.1` HEAD;
 4. inspect recent/open PRs and exact-head CI;
-5. inspect latest tag/release;
-6. distinguish automated, production-candidate and installed evidence;
-7. continue from M11 Phase D unless newer evidence changes priority;
+5. inspect latest tag/release and confirm the next free version;
+6. distinguish automated, production-candidate, exact-release and installed evidence;
+7. complete the candidate/canary/release boundary before beginning `memory.json` migration;
 8. update canonical documents after material progress.
