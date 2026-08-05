@@ -6,9 +6,11 @@ import sys
 import tempfile
 import unittest
 
+import production_server_acceptance as base
 from production_server_acceptance_strict import (
     AcceptanceError,
     evaluate_server_log,
+    install_strict_oracles,
     run_server_process,
 )
 
@@ -156,6 +158,28 @@ ThreadedAnvilChunkStorage: All dimensions are saved
             any('Encountered an unexpected exception' in error for error in result.errors)
         )
         self.assertTrue(any('crash report' in error.lower() for error in result.errors))
+
+    def test_installed_override_uses_captured_base_oracle_without_recursion(self) -> None:
+        install_strict_oracles()
+        log = '''
+Loading Minecraft 1.21.1 with Fabric Loader 0.19.3
+\t- mca 1.21.1-SNAPSHOT
+Done (1.000s)! For help, type "help"
+VILLAIGENCE_PRODUCTION_FIXTURE_READY
+Stopping server
+Saving worlds
+ThreadedAnvilChunkStorage: All dimensions are saved
+'''
+
+        result = base.evaluate_server_log(
+            log,
+            minecraft_version='1.21.1',
+            candidate_version='1.21.1-SNAPSHOT',
+            require_shutdown=True,
+        )
+
+        self.assertEqual((), result.errors)
+        self.assertTrue(result.ready)
 
 
 if __name__ == '__main__':
