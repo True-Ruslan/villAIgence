@@ -10,6 +10,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
@@ -20,7 +21,10 @@ public final class GameplayInteractionGameTests implements FabricGameTest {
     @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
     public void specialGiftDispatchPreservesInteractionResultConsumption(GameTestHelper helper) {
         VillagerEntityMCA villager = helper.spawn(EntitiesMCA.MALE_VILLAGER, 2, 1, 2);
-        ServerPlayer player = helper.makeMockPlayer(GameType.SURVIVAL);
+        Player mockPlayer = helper.makeMockPlayer(GameType.SURVIVAL);
+        helper.assertTrue(mockPlayer instanceof ServerPlayer,
+                "Server GameTest mock player must be a ServerPlayer");
+        ServerPlayer player = (ServerPlayer) mockPlayer;
         Memories memories = new Memories(
                 villager.getVillagerBrain(),
                 helper.getLevel().getGameTime(),
