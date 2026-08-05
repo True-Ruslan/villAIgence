@@ -24,7 +24,7 @@ class PersistenceRecoveryGatePolicyTest {
                 MATRIX,
                 CONTRACT,
                 REPORT,
-                "VAI-PERSIST-003",
+                "report.get('status') != 'PASS'",
                 "len(cases) != 6"
         }) {
             assertTrue(
