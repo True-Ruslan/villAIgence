@@ -140,6 +140,21 @@ jobs:
               raise SystemExit('production acceptance report is not PASS')
           PY
 
+          python3 scripts/ci/production_lifecycle_acceptance.py \
+            --server-root build/production-server-acceptance/work/server \
+            --report build/production-server-acceptance/evidence/lifecycle-report.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path('build/production-server-acceptance/evidence/lifecycle-report.json')
+              .read_text(encoding='utf-8')
+          )
+          if report.get('status') != 'PASS':
+              raise SystemExit('production lifecycle report is not PASS')
+          PY
+
       - name: Upload production acceptance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
