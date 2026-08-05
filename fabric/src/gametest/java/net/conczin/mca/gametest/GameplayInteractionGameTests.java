@@ -2,18 +2,13 @@ package net.conczin.mca.gametest;
 
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.ai.Memories;
-import net.conczin.mca.item.SpecialCaseGift;
 import net.conczin.mca.registry.EntitiesMCA;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-
-import java.util.concurrent.atomic.AtomicInteger;
 
 public final class GameplayInteractionGameTests implements FabricGameTest {
     @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
@@ -26,9 +21,9 @@ public final class GameplayInteractionGameTests implements FabricGameTest {
                 player.getUUID()
         );
 
-        assertGiftDecision(helper, villager, player, memories, InteractionResult.PASS, 3);
-        assertGiftDecision(helper, villager, player, memories, InteractionResult.FAIL, 3);
-        assertGiftDecision(helper, villager, player, memories, InteractionResult.CONSUME, 2);
+        assertGiftDecision(helper, villager, player, memories, GameplayTestItems.PASS_GIFT, 3);
+        assertGiftDecision(helper, villager, player, memories, GameplayTestItems.FAIL_GIFT, 3);
+        assertGiftDecision(helper, villager, player, memories, GameplayTestItems.CONSUME_GIFT, 2);
 
         helper.succeed();
     }
@@ -38,37 +33,20 @@ public final class GameplayInteractionGameTests implements FabricGameTest {
             VillagerEntityMCA villager,
             ServerPlayer player,
             Memories memories,
-            InteractionResult result,
+            GameplayTestItems.FixtureSpecialGift gift,
             int expectedCount
     ) {
-        AtomicInteger calls = new AtomicInteger();
-        ItemStack stack = new ItemStack(new FixtureSpecialGift(result, calls), 3);
+        gift.resetAndGetCalls();
+        ItemStack stack = new ItemStack(gift, 3);
         player.setItemInHand(InteractionHand.MAIN_HAND, stack);
 
         villager.getRelationships().giveGift(player, memories);
 
-        helper.assertTrue(calls.get() == 1,
-                "Special gift handler must be invoked exactly once for " + result
-                        + ", found " + calls.get());
+        helper.assertTrue(gift.calls() == 1,
+                "Special gift handler must be invoked exactly once for " + gift.result()
+                        + ", found " + gift.calls());
         helper.assertTrue(stack.getCount() == expectedCount,
-                "Special gift result " + result + " must leave " + expectedCount
+                "Special gift result " + gift.result() + " must leave " + expectedCount
                         + " items, found " + stack.getCount());
-    }
-
-    private static final class FixtureSpecialGift extends Item implements SpecialCaseGift {
-        private final InteractionResult result;
-        private final AtomicInteger calls;
-
-        private FixtureSpecialGift(InteractionResult result, AtomicInteger calls) {
-            super(new Item.Properties());
-            this.result = result;
-            this.calls = calls;
-        }
-
-        @Override
-        public InteractionResult handle(ServerPlayer player, VillagerEntityMCA villager) {
-            calls.incrementAndGet();
-            return result;
-        }
     }
 }
