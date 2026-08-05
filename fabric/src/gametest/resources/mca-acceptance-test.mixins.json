@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.conczin.mca.gametest.accessor",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "MobMoveControlAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
