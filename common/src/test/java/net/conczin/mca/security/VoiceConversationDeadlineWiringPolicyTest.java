@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class VoiceConversationDeadlineWiringPolicyTest {
@@ -18,10 +19,13 @@ class VoiceConversationDeadlineWiringPolicyTest {
         ));
 
         assertEquals(1L, service.lines().filter(line -> line.contains("AiRequestDeadline.startTotalMillis(")).count());
-        assertTrue(service.indexOf("AiRequestDeadline.startTotalMillis(") < service.indexOf("server.execute(() -> validateTargetAndTranscribe"));
+        assertTrue(service.indexOf("AiRequestDeadline.startTotalMillis(")
+                < service.indexOf("server.execute(() -> validateTargetAndTranscribe"));
         assertTrue(service.contains("microphonePcm, deadline"));
         assertTrue(service.contains("ChatAI.answer(server, player, villager, transcript, snapshot, deadline)"));
-        assertTrue(service.contains("audioProvider.synthesize(new TtsRequest(text, profile.voiceId(), style), deadline)"));
+        assertTrue(service.contains(
+                "audioProvider.synthesize(new TtsRequest(text, profile.voiceId(), style), deadline)"
+        ));
     }
 
     @Test
@@ -38,9 +42,23 @@ class VoiceConversationDeadlineWiringPolicyTest {
         ));
 
         assertTrue(transport.contains("AiRequestDeadline deadline"));
-        assertTrue(!transport.contains("Memory2DialogueLifecycle"));
-        assertTrue(!transport.contains("LivingWorldRelationshipStore"));
-        assertEquals(1L, openAi.lines().filter(line -> line.contains("applySnapshotRelationshipDelta(snapshot,")).count());
-        assertEquals(1L, chatAi.lines().filter(line -> line.contains("rememberMemory2Dialogue(") && !line.contains("private static")).count());
+        assertFalse(transport.contains("Memory2DialogueLifecycle"));
+        assertFalse(transport.contains("LivingWorldRelationshipStore"));
+        assertEquals(1L, openAi.lines()
+                .filter(line -> line.contains("applySnapshotRelationshipDelta(snapshot,"))
+                .count());
+
+        String providerCall =
+                "openAIChatAI.answer(server, player, villager, msg, snapshot, deadline)";
+        String snapshotCommit = "new DialogueMemoryCoordinates(\n"
+                + "                        snapshot.worldRoot(),\n"
+                + "                        snapshot.villagerId(),\n"
+                + "                        snapshot.playerId(),\n"
+                + "                        snapshot.gameTime()";
+        int providerCallIndex = chatAi.indexOf(providerCall);
+        int snapshotCommitIndex = chatAi.indexOf(snapshotCommit);
+        assertTrue(providerCallIndex >= 0, "Snapshot Chat path must delegate the shared deadline");
+        assertTrue(snapshotCommitIndex > providerCallIndex,
+                "Snapshot dialogue commit must remain after the final provider result");
     }
 }
