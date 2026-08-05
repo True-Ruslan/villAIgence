@@ -1,0 +1,296 @@
+name: One-shot patch orchestration audio
+
+on:
+  push:
+    branches:
+      - agent/m11-phase-c-orchestration-deadline
+    paths:
+      - .github/workflows/one-shot-patch-orchestration-audio.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: agent/m11-phase-c-orchestration-deadline
+          fetch-depth: 0
+
+      - name: Apply deadline-aware audio transport patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('common/src/main/java/net/conczin/mca/livingworld/voice/OpenAIAudioProvider.java')
+          source = path.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str, label: str) -> None:
+              global source
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one anchor, found {count}')
+              source = source.replace(old, new)
+
+          replace_once(
+              'import net.conczin.mca.livingworld.LivingWorldConfig;\n',
+              'import net.conczin.mca.livingworld.LivingWorldConfig;\nimport net.conczin.mca.livingworld.ai.AiRequestDeadline;\n',
+              'deadline import'
+          )
+          replace_once(
+              'import java.net.HttpURLConnection;\n',
+              'import java.net.HttpURLConnection;\nimport java.net.SocketTimeoutException;\n',
+              'socket timeout import'
+          )
+          replace_once(
+              'import java.util.Locale;\n',
+              'import java.util.Locale;\nimport java.util.Objects;\n',
+              'objects import'
+          )
+
+          replace_once(
+              '''    @Override
+              public String transcribe(PcmAudio audio) throws IOException {
+                  ProviderCredentialBinding.BoundEndpoint binding = config.resolvedSttEndpoint();
+          ''',
+              '''    @Override
+              public String transcribe(PcmAudio audio) throws IOException {
+                  return transcribe(audio, newRequestDeadline());
+              }
+
+              public String transcribe(PcmAudio audio, AiRequestDeadline deadline) throws IOException {
+                  Objects.requireNonNull(deadline, "deadline");
+                  ProviderCredentialBinding.BoundEndpoint binding = config.resolvedSttEndpoint();
+          ''',
+              'transcribe overload'
+          )
+          replace_once(
+              '''        AudioHttpResponse response = execute(
+                          open(binding, contentType),
+                          requestBody,
+                          "speech-to-text",
+                          ProviderResponseLimits.STT_JSON_BYTES
+                  );
+          ''',
+              '''        AudioHttpResponse response = execute(
+                          open(binding, contentType, deadline),
+                          requestBody,
+                          "speech-to-text",
+                          ProviderResponseLimits.STT_JSON_BYTES,
+                          deadline
+                  );
+          ''',
+              'stt execute'
+          )
+          replace_once(
+              '''    @Override
+              public PcmAudio synthesize(TtsRequest request) throws IOException {
+                  ProviderCredentialBinding.BoundEndpoint binding = config.resolvedTtsEndpoint();
+          ''',
+              '''    @Override
+              public PcmAudio synthesize(TtsRequest request) throws IOException {
+                  return synthesize(request, newRequestDeadline());
+              }
+
+              public PcmAudio synthesize(TtsRequest request, AiRequestDeadline deadline) throws IOException {
+                  Objects.requireNonNull(deadline, "deadline");
+                  ProviderCredentialBinding.BoundEndpoint binding = config.resolvedTtsEndpoint();
+          ''',
+              'tts overload'
+          )
+          replace_once(
+              '''            AudioHttpResponse response = execute(
+                              open(binding, "application/json"),
+                              createSpeechBody(
+                                      resolved,
+                                      config.ttsModel,
+                                      format,
+                                      binding.endpoint().externalForm()
+                              ).getBytes(StandardCharsets.UTF_8),
+                              "text-to-speech",
+                              ProviderResponseLimits.TTS_AUDIO_BYTES
+                      );
+          ''',
+              '''            AudioHttpResponse response = execute(
+                              open(binding, "application/json", deadline),
+                              createSpeechBody(
+                                      resolved,
+                                      config.ttsModel,
+                                      format,
+                                      binding.endpoint().externalForm()
+                              ).getBytes(StandardCharsets.UTF_8),
+                              "text-to-speech",
+                              ProviderResponseLimits.TTS_AUDIO_BYTES,
+                              deadline
+                      );
+          ''',
+              'tts execute'
+          )
+
+          old_transport = '''    private HttpURLConnection open(
+                      ProviderCredentialBinding.BoundEndpoint binding,
+                      String contentType
+              ) throws IOException {
+                  ProviderEndpoint endpoint = binding.endpoint();
+                  if (binding.apiKey().isBlank()) throw new IOException("AI audio API key is not configured");
+                  HttpURLConnection connection = (HttpURLConnection) endpoint.uri().toURL().openConnection();
+                  connection.setInstanceFollowRedirects(false);
+                  connection.setRequestMethod("POST");
+                  connection.setRequestProperty("Authorization", "Bearer " + binding.apiKey());
+                  connection.setRequestProperty("Accept", "application/json, audio/wav, audio/pcm");
+                  connection.setRequestProperty("Content-Type", contentType);
+                  if (endpoint.family() == ProviderEndpoint.Family.OPENROUTER) {
+                      connection.setRequestProperty("X-OpenRouter-Title", "LivingWorld");
+                  }
+                  connection.setConnectTimeout(secondsToMillis(config.connectTimeoutSeconds));
+                  connection.setReadTimeout(secondsToMillis(config.readTimeoutSeconds));
+                  connection.setDoOutput(true);
+                  return connection;
+              }
+
+              private AudioHttpResponse execute(
+                      HttpURLConnection connection,
+                      byte[] requestBody,
+                      String operation,
+                      int successLimitBytes
+              ) throws IOException {
+                  try (OutputStream output = connection.getOutputStream()) {
+                      output.write(requestBody);
+                  }
+                  int status = connection.getResponseCode();
+                  boolean success = status >= 200 && status < 300;
+                  InputStream stream = success ? connection.getInputStream() : connection.getErrorStream();
+                  int limitBytes = success ? successLimitBytes : ProviderResponseLimits.ERROR_BODY_BYTES;
+                  byte[] response;
+                  if (stream == null) {
+                      response = new byte[0];
+                  } else {
+                      try (stream) {
+                          response = BoundedResponseReader.readBytes(
+                                  stream,
+                                  connection.getContentLengthLong(),
+                                  limitBytes
+                          );
+                      }
+                  }
+                  String contentType = safeValue(connection.getHeaderField("Content-Type"));
+                  String generationId = safeValue(connection.getHeaderField("X-Generation-Id"));
+                  if (!success) {
+                      String detail = extractError(response);
+                      String metadata = " [contentType=" + contentType + ", generationId=" + generationId + "]";
+                      if (status == 402 && SttRequestFormat.isOpenRouterEndpoint(connection.getURL().toString())) {
+                          throw new IOException("OpenRouter " + operation + " failed (HTTP 402 Payment Required): add credits to the OpenRouter account. Provider response: " + detail + metadata);
+                      }
+                      throw new IOException("AI audio " + operation + " failed (HTTP " + status + "): " + detail + metadata);
+                  }
+                  return new AudioHttpResponse(response, contentType, generationId);
+              }
+          '''
+          new_transport = '''    private HttpURLConnection open(
+                      ProviderCredentialBinding.BoundEndpoint binding,
+                      String contentType,
+                      AiRequestDeadline deadline
+              ) throws IOException {
+                  ProviderEndpoint endpoint = binding.endpoint();
+                  if (binding.apiKey().isBlank()) throw new IOException("AI audio API key is not configured");
+                  deadline.throwIfExpired();
+                  HttpURLConnection connection = (HttpURLConnection) endpoint.uri().toURL().openConnection();
+                  connection.setInstanceFollowRedirects(false);
+                  connection.setRequestMethod("POST");
+                  connection.setRequestProperty("Authorization", "Bearer " + binding.apiKey());
+                  connection.setRequestProperty("Accept", "application/json, audio/wav, audio/pcm");
+                  connection.setRequestProperty("Content-Type", contentType);
+                  if (endpoint.family() == ProviderEndpoint.Family.OPENROUTER) {
+                      connection.setRequestProperty("X-OpenRouter-Title", "LivingWorld");
+                  }
+                  connection.setConnectTimeout(deadline.boundedTimeoutMillis(secondsToMillis(config.connectTimeoutSeconds)));
+                  connection.setReadTimeout(deadline.boundedTimeoutMillis(secondsToMillis(config.readTimeoutSeconds)));
+                  connection.setDoOutput(true);
+                  return connection;
+              }
+
+              private AudioHttpResponse execute(
+                      HttpURLConnection connection,
+                      byte[] requestBody,
+                      String operation,
+                      int successLimitBytes,
+                      AiRequestDeadline deadline
+              ) throws IOException {
+                  try {
+                      deadline.throwIfExpired();
+                      try (OutputStream output = connection.getOutputStream()) {
+                          output.write(requestBody);
+                      }
+                      connection.setReadTimeout(deadline.boundedTimeoutMillis(secondsToMillis(config.readTimeoutSeconds)));
+                      int status = connection.getResponseCode();
+                      boolean success = status >= 200 && status < 300;
+                      InputStream stream = success ? connection.getInputStream() : connection.getErrorStream();
+                      int limitBytes = success ? successLimitBytes : ProviderResponseLimits.ERROR_BODY_BYTES;
+                      byte[] response;
+                      if (stream == null) {
+                          response = new byte[0];
+                      } else {
+                          connection.setReadTimeout(deadline.boundedTimeoutMillis(secondsToMillis(config.readTimeoutSeconds)));
+                          try (stream) {
+                              response = BoundedResponseReader.readBytes(
+                                      stream,
+                                      connection.getContentLengthLong(),
+                                      limitBytes,
+                                      deadline
+                              );
+                          }
+                      }
+                      String contentType = safeValue(connection.getHeaderField("Content-Type"));
+                      String generationId = safeValue(connection.getHeaderField("X-Generation-Id"));
+                      if (!success) {
+                          String detail = extractError(response);
+                          String metadata = " [contentType=" + contentType + ", generationId=" + generationId + "]";
+                          if (status == 402 && SttRequestFormat.isOpenRouterEndpoint(connection.getURL().toString())) {
+                              throw new IOException("OpenRouter " + operation + " failed (HTTP 402 Payment Required): add credits to the OpenRouter account. Provider response: " + detail + metadata);
+                          }
+                          throw new IOException("AI audio " + operation + " failed (HTTP " + status + "): " + detail + metadata);
+                      }
+                      return new AudioHttpResponse(response, contentType, generationId);
+                  } catch (SocketTimeoutException e) {
+                      if (deadline.isExpired()) throw new AiRequestDeadline.DeadlineExceededException();
+                      throw e;
+                  } catch (BoundedResponseReader.ResponseDeadlineExceededException e) {
+                      if (deadline.isExpired()) throw new AiRequestDeadline.DeadlineExceededException();
+                      throw e;
+                  } finally {
+                      connection.disconnect();
+                  }
+              }
+
+              private AiRequestDeadline newRequestDeadline() {
+                  return AiRequestDeadline.start(
+                          secondsToMillis(config.connectTimeoutSeconds),
+                          secondsToMillis(config.readTimeoutSeconds)
+                  );
+              }
+          '''
+          replace_once(old_transport, new_transport, 'audio transport')
+
+          path.write_text(source, encoding='utf-8')
+          PY
+
+          grep -Fq 'transcribe(PcmAudio audio, AiRequestDeadline deadline)' common/src/main/java/net/conczin/mca/livingworld/voice/OpenAIAudioProvider.java
+          grep -Fq 'synthesize(TtsRequest request, AiRequestDeadline deadline)' common/src/main/java/net/conczin/mca/livingworld/voice/OpenAIAudioProvider.java
+          grep -Fq 'connection.disconnect();' common/src/main/java/net/conczin/mca/livingworld/voice/OpenAIAudioProvider.java
+          git diff --check
+
+      - name: Commit audio deadline support
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add common/src/main/java/net/conczin/mca/livingworld/voice/OpenAIAudioProvider.java
+          git commit -m 'feat: share orchestration deadline with audio transport'
+          git push origin HEAD:agent/m11-phase-c-orchestration-deadline
