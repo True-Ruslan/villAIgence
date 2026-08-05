@@ -10,6 +10,7 @@ from production_lifecycle_acceptance import (
     AcceptanceError,
     collect_lifecycle_history,
     collect_lifecycle_state,
+    collect_voice_transport_state,
     compare_lifecycle_states,
 )
 
@@ -105,6 +106,47 @@ class ProductionLifecycleEvidenceTest(unittest.TestCase):
             with self.assertRaisesRegex(AcceptanceError, "npcName|top-level"):
                 collect_lifecycle_history(server)
 
+    def test_accepts_complete_real_codec_transport_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            server = Path(directory)
+            self.write_voice_evidence(server, self.voice_state())
+
+            evidence = collect_voice_transport_state(server)
+
+            self.assertEqual("VAI-AI-005", evidence["scenario"])
+            self.assertEqual(4, evidence["decodedFrames"])
+            self.assertEqual(960, evidence["plcSamples"])
+            self.assertEqual(0, evidence["pcmBytesAfterCancel"])
+            self.assertEqual(0, evidence["pcmBytesAfterDisconnect"])
+
+    def test_rejects_missing_voice_transport_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(AcceptanceError, "voice transport evidence"):
+                collect_voice_transport_state(Path(directory))
+
+    def test_rejects_unbounded_or_unreleased_pcm(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            server = Path(directory)
+            state = self.voice_state()
+            state["peakPcmBytes"] = state["pcmBudgetMaxBytes"] + 2
+            state["pcmBytesAfterCancel"] = 2
+            self.write_voice_evidence(server, state)
+
+            with self.assertRaisesRegex(AcceptanceError, "PCM|pcm"):
+                collect_voice_transport_state(server)
+
+    def test_rejects_missing_loss_ordering_or_resource_closure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            server = Path(directory)
+            state = self.voice_state()
+            state["lostPackets"] = 0
+            state["duplicateRejected"] = False
+            state["primaryDecoderClosed"] = False
+            self.write_voice_evidence(server, state)
+
+            with self.assertRaisesRegex(AcceptanceError, "lostPackets|duplicate|closed"):
+                collect_voice_transport_state(server)
+
     @classmethod
     def state(
         cls,
@@ -127,6 +169,35 @@ class ProductionLifecycleEvidenceTest(unittest.TestCase):
             "portableGraveConsumed": True,
         }
 
+    @staticmethod
+    def voice_state() -> dict[str, object]:
+        return {
+            "schema": 1,
+            "scenario": "VAI-AI-005",
+            "status": "PASS",
+            "sampleRate": 48_000,
+            "frameSamples": 960,
+            "encodedFrames": 4,
+            "encodedBytes": 512,
+            "acceptedPackets": 3,
+            "decodedFrames": 4,
+            "decodedSamples": 3_840,
+            "lostPackets": 1,
+            "plcSamples": 960,
+            "duplicateRejected": True,
+            "outOfOrderRejected": True,
+            "budgetExhaustionRejected": True,
+            "pcmBudgetMaxBytes": 7_680,
+            "peakPcmBytes": 7_680,
+            "pcmBytesAfterCancel": 0,
+            "pcmBytesAfterDisconnect": 0,
+            "postCancelRejected": True,
+            "postDisconnectRejected": True,
+            "encoderClosed": True,
+            "primaryDecoderClosed": True,
+            "disconnectDecoderClosed": True,
+        }
+
     @classmethod
     def write_evidence(
         cls,
@@ -139,6 +210,15 @@ class ProductionLifecycleEvidenceTest(unittest.TestCase):
     @staticmethod
     def write_raw(server: Path, value: dict[str, object]) -> None:
         path = server / "world/livingworld/acceptance-lifecycle.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(value, sort_keys=True),
+            encoding="utf-8",
+        )
+
+    @staticmethod
+    def write_voice_evidence(server: Path, value: dict[str, object]) -> None:
+        path = server / "world/livingworld/acceptance-voice-transport.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
             json.dumps(value, sort_keys=True),
