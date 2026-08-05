@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -38,7 +39,7 @@ class CiSecurityCoveragePolicyTest {
     }
 
     @Test
-    void releaseWritePermissionRemainsIsolatedToReleaseJob() throws IOException {
+    void releaseWritePermissionRemainsIsolatedToValidatedReleaseJob() throws IOException {
         String workflow = Files.readString(
                 repositoryRoot().resolve(".github/workflows/livingworld-release.yml")
         );
@@ -47,17 +48,61 @@ class CiSecurityCoveragePolicyTest {
                 workflow.contains("permissions:\n  contents: read"),
                 "Release workflow must default to read-only contents permission"
         );
+
+        String releaseJobBoundary = "github-release:\n"
+                + "    needs: build-and-package\n"
+                + "    if: needs.build-and-package.outputs.publish_release == 'true'\n"
+                + "    runs-on: ubuntu-latest\n"
+                + "    permissions:\n"
+                + "      contents: write";
         assertTrue(
-                workflow.contains("github-release:\n    needs: build-and-package"),
-                "Dedicated release job is missing"
+                workflow.contains(releaseJobBoundary),
+                "Contents write permission must remain job-scoped behind the validated publish output"
         );
-        assertTrue(
-                workflow.contains("github-release:\n    needs: build-and-package\n    if: github.event_name == 'push'\n    runs-on: ubuntu-latest\n    permissions:\n      contents: write"),
-                "Contents write permission must remain job-scoped to the tag-only release job"
+        assertEquals(
+                1L,
+                workflow.lines().filter(line -> line.trim().equals("contents: write")).count(),
+                "Exactly one release job may receive contents write permission"
         );
         assertFalse(
                 workflow.startsWith("permissions:\n  contents: write"),
                 "Release workflow must never grant top-level contents write"
+        );
+
+        int releaseJobStart = workflow.indexOf("  github-release:");
+        assertTrue(releaseJobStart >= 0, "Dedicated release job is missing");
+        assertFalse(
+                workflow.substring(0, releaseJobStart).contains("contents: write"),
+                "Build and acceptance work must remain read-only"
+        );
+    }
+
+    @Test
+    void pullRequestReleaseValidationCannotPublishOrCreateTag() throws IOException {
+        String workflow = Files.readString(
+                repositoryRoot().resolve(".github/workflows/livingworld-release.yml")
+        );
+
+        String pullRequestCondition = "elif [[ \"${GITHUB_EVENT_NAME}\" == 'pull_request'"
+                + " && -s \"${request_file}\" ]]; then";
+        int pullRequestStart = workflow.indexOf(pullRequestCondition);
+        assertTrue(pullRequestStart >= 0, "Release-request pull-request validation branch is missing");
+
+        int pullRequestEnd = workflow.indexOf("\n          fi", pullRequestStart);
+        assertTrue(pullRequestEnd > pullRequestStart, "Release-request pull-request validation branch is malformed");
+        String pullRequestBlock = workflow.substring(pullRequestStart, pullRequestEnd);
+
+        assertTrue(
+                pullRequestBlock.contains("release_mode='request-validation'"),
+                "Pull requests must use the non-publishing release validation mode"
+        );
+        assertFalse(
+                pullRequestBlock.contains("publish_release='true'"),
+                "Pull requests must never authorize release publication"
+        );
+        assertTrue(
+                workflow.contains("if: needs.build-and-package.outputs.publish_release == 'true'"),
+                "Release job must depend on the validated publish output"
         );
     }
 
