@@ -25,6 +25,7 @@ STRICT_FORBIDDEN_LOG_SIGNATURES: tuple[str, ...] = (
 AcceptanceError = base.AcceptanceError
 ProcessRunEvidence = base.ProcessRunEvidence
 ServerLogResult = base.ServerLogResult
+_BASE_EVALUATE_SERVER_LOG = base.evaluate_server_log
 
 
 def _close_pipe(pipe: object | None) -> None:
@@ -182,7 +183,7 @@ def evaluate_server_log(
     require_shutdown: bool,
 ) -> ServerLogResult:
     """Extend the base log oracle with fixture and crash requirements."""
-    baseline = base.evaluate_server_log(
+    baseline = _BASE_EVALUATE_SERVER_LOG(
         log,
         minecraft_version=minecraft_version,
         candidate_version=candidate_version,
