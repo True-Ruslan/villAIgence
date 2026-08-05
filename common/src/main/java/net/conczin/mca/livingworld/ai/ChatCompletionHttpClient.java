@@ -4,18 +4,21 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
  * Minecraft-independent HTTP transport for OpenAI-compatible chat completions.
  *
- * <p>The caller owns gameplay mutation and diagnostics. This class owns only endpoint-safe HTTP,
- * bounded response reads, completion parsing and the bounded retry count.</p>
+ * <p>The caller owns gameplay mutation and diagnostics. This class owns endpoint-safe HTTP,
+ * bounded response reads, completion parsing, bounded retry count and one end-to-end deadline
+ * shared by every attempt.</p>
  */
 public final class ChatCompletionHttpClient {
     public static final String EMPTY_RESPONSE_ERROR = "empty_response";
     public static final String REQUEST_FAILED_ERROR = "AI provider request failed; check server log";
+    public static final String REQUEST_DEADLINE_ERROR = "AI provider request deadline exceeded";
     public static final String RESPONSE_TOO_LARGE_ERROR = "AI provider response exceeded safe size limit";
 
     private ChatCompletionHttpClient() {
@@ -33,6 +36,7 @@ public final class ChatCompletionHttpClient {
         Objects.requireNonNull(requestBody, "requestBody");
         Objects.requireNonNull(token, "token");
         AttemptObserver safeObserver = observer == null ? AttemptObserver.NOOP : observer;
+        AiRequestDeadline deadline = AiRequestDeadline.start(connectTimeoutMillis, readTimeoutMillis);
 
         for (int attempt = 1; attempt <= ChatCompletionRetryPolicy.MAX_ATTEMPTS; attempt++) {
             AttemptResult result = postOnce(
@@ -40,7 +44,8 @@ public final class ChatCompletionHttpClient {
                     requestBody,
                     token,
                     connectTimeoutMillis,
-                    readTimeoutMillis
+                    readTimeoutMillis,
+                    deadline
             );
             ChatCompletionResponseParser.ParsedCompletion completion = result.completion();
 
@@ -68,15 +73,22 @@ public final class ChatCompletionHttpClient {
             String requestBody,
             String token,
             int connectTimeoutMillis,
-            int readTimeoutMillis
+            int readTimeoutMillis,
+            AiRequestDeadline deadline
     ) {
         HttpURLConnection connection = null;
         try {
-            connection = openConnection(endpoint, token, connectTimeoutMillis, readTimeoutMillis);
+            connection = openConnection(
+                    endpoint,
+                    token,
+                    deadline.boundedTimeoutMillis(connectTimeoutMillis),
+                    deadline.boundedTimeoutMillis(readTimeoutMillis)
+            );
             try (DataOutputStream output = new DataOutputStream(connection.getOutputStream())) {
                 output.write(requestBody.getBytes(StandardCharsets.UTF_8));
             }
 
+            connection.setReadTimeout(deadline.boundedTimeoutMillis(readTimeoutMillis));
             int status = connection.getResponseCode();
             boolean success = status >= 200 && status < 300;
             InputStream response = success ? connection.getInputStream() : connection.getErrorStream();
@@ -84,6 +96,7 @@ public final class ChatCompletionHttpClient {
                 return new AttemptResult(null, "AI provider returned HTTP " + status, null);
             }
 
+            connection.setReadTimeout(deadline.boundedTimeoutMillis(readTimeoutMillis));
             int limitBytes = success
                     ? ProviderResponseLimits.CHAT_JSON_BYTES
                     : ProviderResponseLimits.ERROR_BODY_BYTES;
@@ -110,7 +123,12 @@ public final class ChatCompletionHttpClient {
             return new AttemptResult(completion, null, null);
         } catch (BoundedResponseReader.ResponseTooLargeException exception) {
             return new AttemptResult(null, RESPONSE_TOO_LARGE_ERROR, exception);
+        } catch (AiRequestDeadline.DeadlineExceededException | SocketTimeoutException exception) {
+            return new AttemptResult(null, REQUEST_DEADLINE_ERROR, exception);
         } catch (Exception exception) {
+            if (deadline.isExpired()) {
+                return new AttemptResult(null, REQUEST_DEADLINE_ERROR, exception);
+            }
             return new AttemptResult(null, REQUEST_FAILED_ERROR, exception);
         } finally {
             if (connection != null) {
