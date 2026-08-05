@@ -15,12 +15,14 @@ class FabricRefmapConfigurationCachePolicyTest {
         Path buildFile = Path.of("..", "fabric", "build.gradle").toAbsolutePath().normalize();
         String source = Files.readString(buildFile);
 
-        int taskStart = source.indexOf("def verifyFabricRefmap = tasks.register('verifyFabricRefmap')");
-        int nextTask = source.indexOf("\ntasks.", taskStart + 1);
+        String taskDeclaration = "def verifyFabricRefmap = tasks.register('verifyFabricRefmap')";
+        String nextSection = "\n\ndef productionAcceptanceStageDir =";
+        int taskStart = source.indexOf(taskDeclaration);
+        int taskEnd = source.indexOf(nextSection, taskStart + taskDeclaration.length());
         assertTrue(taskStart >= 0, "verifyFabricRefmap task is missing");
-        assertTrue(nextTask > taskStart, "verifyFabricRefmap task boundary is malformed");
+        assertTrue(taskEnd > taskStart, "verifyFabricRefmap task boundary is malformed");
 
-        String taskBlock = source.substring(taskStart, nextTask);
+        String taskBlock = source.substring(taskStart, taskEnd);
         assertFalse(
                 taskBlock.contains("project.property("),
                 "verifyFabricRefmap must not query Project during execution because build-commit-artifacts uses configuration cache"
