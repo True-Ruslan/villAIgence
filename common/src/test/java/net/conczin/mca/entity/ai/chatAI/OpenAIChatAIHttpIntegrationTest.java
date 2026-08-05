@@ -7,8 +7,6 @@ import net.conczin.mca.livingworld.ai.ProviderEndpointPolicy;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -31,7 +29,7 @@ class OpenAIChatAIHttpIntegrationTest {
     @Test
     void retriesOneEmptyCompletionAndReturnsOneUsableAnswer() throws Exception {
         try (ScriptedChatServer server = ScriptedChatServer.retryThenSuccess()) {
-            OpenAIChatAI.Answer answer = invokePost(
+            OpenAIChatAI.Answer answer = OpenAIChatAI.post(
                     server.endpoint(),
                     "{\"model\":\"test-model\",\"messages\":[]}",
                     "test-secret",
@@ -55,7 +53,7 @@ class OpenAIChatAIHttpIntegrationTest {
             AtomicReference<OpenAIChatAI.Answer> answer = new AtomicReference<>();
             long started = System.nanoTime();
 
-            assertTimeoutPreemptively(Duration.ofSeconds(5), () -> answer.set(invokePost(
+            assertTimeoutPreemptively(Duration.ofSeconds(5), () -> answer.set(OpenAIChatAI.post(
                     server.endpoint(),
                     "{\"model\":\"deadline-model\",\"messages\":[]}",
                     "deadline-secret",
@@ -72,40 +70,6 @@ class OpenAIChatAIHttpIntegrationTest {
                     elapsedMillis < 3_000,
                     "A retry must share one connect+read budget; elapsed=" + elapsedMillis + "ms"
             );
-        }
-    }
-
-    private static OpenAIChatAI.Answer invokePost(
-            ProviderEndpoint endpoint,
-            String body,
-            String token,
-            int connectTimeoutMillis,
-            int readTimeoutMillis,
-            String model
-    ) throws Exception {
-        Method method = OpenAIChatAI.class.getDeclaredMethod(
-                "post",
-                ProviderEndpoint.class,
-                String.class,
-                String.class,
-                int.class,
-                int.class,
-                String.class
-        );
-        method.setAccessible(true);
-        try {
-            return (OpenAIChatAI.Answer) method.invoke(
-                    null,
-                    endpoint,
-                    body,
-                    token,
-                    connectTimeoutMillis,
-                    readTimeoutMillis,
-                    model
-            );
-        } catch (InvocationTargetException e) {
-            if (e.getCause() instanceof Exception exception) throw exception;
-            throw e;
         }
     }
 

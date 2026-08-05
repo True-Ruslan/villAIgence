@@ -146,7 +146,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
         );
     }
 
-    private static Answer post(
+    static Answer post(
             ProviderEndpoint endpoint,
             String requestBody,
             String token,
