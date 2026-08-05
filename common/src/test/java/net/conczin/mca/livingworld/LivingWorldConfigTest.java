@@ -44,6 +44,7 @@ class LivingWorldConfigTest {
         assertEquals(24_000, config.ttsPcmSampleRate);
         assertEquals(800, config.voiceSilenceMillis);
         assertEquals(20, config.voiceMaxSeconds);
+        assertEquals(120, config.voiceConversationTimeoutSeconds);
         assertEquals(10, config.connectTimeoutSeconds);
         assertEquals(60, config.readTimeoutSeconds);
         assertFalse(config.isConfiguredWithKey(""));
@@ -111,6 +112,29 @@ class LivingWorldConfigTest {
                 """);
         assertEquals("auto", invalid.ttsResponseFormat);
         assertEquals(24_000, invalid.ttsPcmSampleRate);
+    }
+
+    @Test
+    void voiceConversationTimeoutDefaultsAndClampsWithoutConfigVersionMigration() {
+        LivingWorldConfig omitted = LivingWorldConfig.parseJson("""
+                {"version":2,"voiceInputEnabled":true}
+                """);
+        assertEquals(120, omitted.voiceConversationTimeoutSeconds);
+
+        LivingWorldConfig tooSmall = LivingWorldConfig.parseJson("""
+                {"version":2,"voiceConversationTimeoutSeconds":3}
+                """);
+        assertEquals(10, tooSmall.voiceConversationTimeoutSeconds);
+
+        LivingWorldConfig tooLarge = LivingWorldConfig.parseJson("""
+                {"version":2,"voiceConversationTimeoutSeconds":999}
+                """);
+        assertEquals(300, tooLarge.voiceConversationTimeoutSeconds);
+
+        LivingWorldConfig invalid = LivingWorldConfig.parseJson("""
+                {"version":2,"voiceConversationTimeoutSeconds":0}
+                """);
+        assertEquals(120, invalid.voiceConversationTimeoutSeconds);
     }
 
     @Test
