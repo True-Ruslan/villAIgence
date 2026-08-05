@@ -63,7 +63,7 @@ class AuthenticatedTextTurnAcceptanceTest {
         MemoryEvent event = events.getFirst();
         assertEquals(NPC_ID, event.ownerNpcId());
         assertEquals(MemoryEvent.Type.DIALOGUE, event.type());
-        assertEquals(List.of(PLAYER_ID), event.participants());
+        assertEquals(List.of(NPC_ID, PLAYER_ID), event.participants());
     }
 
     @Test
