@@ -27,6 +27,23 @@ public final class BoundedResponseReader {
         );
     }
 
+    /** Uses the remaining orchestration budget as the body-read ceiling. */
+    public static byte[] readBytes(
+            InputStream input,
+            long declaredLength,
+            int maxBytes,
+            AiRequestDeadline deadline
+    ) throws IOException {
+        Objects.requireNonNull(deadline, "deadline");
+        return readBytes(
+                input,
+                declaredLength,
+                maxBytes,
+                deadline.remainingNanosOrThrow(),
+                System::nanoTime
+        );
+    }
+
     static byte[] readBytes(
             InputStream input,
             long declaredLength,
@@ -78,6 +95,15 @@ public final class BoundedResponseReader {
 
     public static String readUtf8(InputStream input, long declaredLength, int maxBytes) throws IOException {
         return new String(readBytes(input, declaredLength, maxBytes), StandardCharsets.UTF_8);
+    }
+
+    public static String readUtf8(
+            InputStream input,
+            long declaredLength,
+            int maxBytes,
+            AiRequestDeadline deadline
+    ) throws IOException {
+        return new String(readBytes(input, declaredLength, maxBytes, deadline), StandardCharsets.UTF_8);
     }
 
     private static void checkDeadline(

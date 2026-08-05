@@ -106,6 +106,8 @@ public final class LivingWorldConfig {
     public int voiceMinMillis = 250;
     public int voiceMaxSeconds = 20;
     public float voiceDistance = 32.0f;
+    /** Total monotonic budget for queueing, STT, Chat and optional TTS in one captured turn. */
+    public int voiceConversationTimeoutSeconds = 120;
 
     public int connectTimeoutSeconds = 10;
     public int readTimeoutSeconds = 60;
@@ -433,6 +435,8 @@ public final class LivingWorldConfig {
         if (voiceMinMillis < 100) voiceMinMillis = 250;
         if (voiceMaxSeconds <= 0) voiceMaxSeconds = 20;
         if (voiceDistance <= 0) voiceDistance = 32.0f;
+        if (voiceConversationTimeoutSeconds <= 0) voiceConversationTimeoutSeconds = 120;
+        voiceConversationTimeoutSeconds = Math.max(10, Math.min(300, voiceConversationTimeoutSeconds));
         if (connectTimeoutSeconds <= 0) connectTimeoutSeconds = 10;
         if (readTimeoutSeconds <= 0) readTimeoutSeconds = 60;
     }

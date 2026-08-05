@@ -9,6 +9,7 @@ import net.conczin.mca.MCA;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.ai.chatAI.ChatAI;
 import net.conczin.mca.livingworld.LivingWorldConfig;
+import net.conczin.mca.livingworld.ai.AiRequestDeadline;
 import net.conczin.mca.livingworld.admission.AiAdmissionController;
 import net.conczin.mca.livingworld.admission.AiAdmissionResult;
 import net.conczin.mca.livingworld.admission.AiAdmissionSettings;
@@ -77,10 +78,19 @@ final class VoiceConversationService implements AutoCloseable {
             return;
         }
         MinecraftServer server = optionalServer.get();
-        server.execute(() -> validateTargetAndTranscribe(server, playerId, microphonePcm));
+        LivingWorldConfig config = LivingWorldConfig.getInstance();
+        AiRequestDeadline deadline = AiRequestDeadline.startTotalMillis(
+                secondsToMillis(config.voiceConversationTimeoutSeconds)
+        );
+        server.execute(() -> validateTargetAndTranscribe(server, playerId, microphonePcm, deadline));
     }
 
-    private void validateTargetAndTranscribe(MinecraftServer server, UUID playerId, short[] microphonePcm) {
+    private void validateTargetAndTranscribe(
+            MinecraftServer server,
+            UUID playerId,
+            short[] microphonePcm,
+            AiRequestDeadline deadline
+    ) {
         ServerPlayer player = server.getPlayerList().getPlayer(playerId);
         if (player == null) {
             busyPlayers.remove(playerId);
@@ -97,10 +107,16 @@ final class VoiceConversationService implements AutoCloseable {
             busyPlayers.remove(playerId);
             return;
         }
-        executor.execute(() -> transcribeAndRoute(server, playerId, targetId, microphonePcm));
+        executor.execute(() -> transcribeAndRoute(server, playerId, targetId, microphonePcm, deadline));
     }
 
-    private void transcribeAndRoute(MinecraftServer server, UUID playerId, UUID targetId, short[] microphonePcm) {
+    private void transcribeAndRoute(
+            MinecraftServer server,
+            UUID playerId,
+            UUID targetId,
+            short[] microphonePcm,
+            AiRequestDeadline deadline
+    ) {
         LivingWorldConfig config = LivingWorldConfig.getInstance();
         AiAdmissionResult admission = AiAdmissionController.tryAcquire(
                 AiOperation.STT,
@@ -117,7 +133,10 @@ final class VoiceConversationService implements AutoCloseable {
         String transcript;
         long startedNanos = System.nanoTime();
         try (AiAdmissionController.Permit ignored = admission.permit()) {
-            transcript = audioProvider.transcribe(new PcmAudio(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE, microphonePcm));
+            transcript = audioProvider.transcribe(
+                    new PcmAudio(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE, microphonePcm),
+                    deadline
+            );
             VoiceDiagnosticsRecorder.recordSuccess(
                     AiOperation.STT,
                     config.sttEndpoint,
@@ -167,7 +186,9 @@ final class VoiceConversationService implements AutoCloseable {
                 release(playerId, targetId);
                 return;
             }
-            executor.execute(() -> answerAndRespond(server, player, target.get(), snapshot, voiceSnapshot, transcript));
+            executor.execute(() -> answerAndRespond(
+                    server, player, target.get(), snapshot, voiceSnapshot, transcript, deadline
+            ));
         });
     }
 
@@ -196,12 +217,13 @@ final class VoiceConversationService implements AutoCloseable {
             VillagerEntityMCA villager,
             LivingWorldContextSnapshot snapshot,
             NpcVoiceSnapshot voiceSnapshot,
-            String transcript
+            String transcript,
+            AiRequestDeadline deadline
     ) {
         UUID playerId = snapshot.playerId();
         UUID villagerId = snapshot.villagerId();
         try {
-            Optional<String> answer = ChatAI.answer(server, player, villager, transcript, snapshot);
+            Optional<String> answer = ChatAI.answer(server, player, villager, transcript, snapshot, deadline);
             if (answer.isEmpty() || answer.get().isBlank()) return;
             String text = answer.get().trim();
 
@@ -246,7 +268,7 @@ final class VoiceConversationService implements AutoCloseable {
             PcmAudio speech;
             long startedNanos = System.nanoTime();
             try (AiAdmissionController.Permit ignored = admission.permit()) {
-                speech = audioProvider.synthesize(new TtsRequest(text, profile.voiceId(), style))
+                speech = audioProvider.synthesize(new TtsRequest(text, profile.voiceId(), style), deadline)
                         .resampleTo(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE);
                 VoiceDiagnosticsRecorder.recordSuccess(
                         AiOperation.TTS,
@@ -272,6 +294,11 @@ final class VoiceConversationService implements AutoCloseable {
         } finally {
             release(playerId, villagerId);
         }
+    }
+
+    private static int secondsToMillis(int seconds) {
+        long value = Math.max(1L, seconds) * 1_000L;
+        return (int) Math.min(Integer.MAX_VALUE, value);
     }
 
     private void release(UUID playerId, UUID villagerId) {
