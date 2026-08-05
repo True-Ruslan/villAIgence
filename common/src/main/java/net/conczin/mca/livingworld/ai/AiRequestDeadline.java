@@ -6,13 +6,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 
 /**
- * One monotonic time budget shared by every network phase and retry of an AI request.
+ * One monotonic connect/read budget shared by every retry of an AI request.
  *
  * <p>The deadline is intentionally independent from wall-clock time. Timeout values are rounded up
  * to the nearest millisecond so an operation never receives a zero timeout, which
  * {@link java.net.URLConnection} would interpret as infinite.</p>
  */
-public final class AiRequestDeadline {
+final class AiRequestDeadline {
     private static final long NANOS_PER_MILLISECOND = TimeUnit.MILLISECONDS.toNanos(1L);
 
     private final LongSupplier nanoTime;
@@ -25,7 +25,7 @@ public final class AiRequestDeadline {
         this.budgetNanos = budgetNanos;
     }
 
-    public static AiRequestDeadline start(int connectTimeoutMillis, int readTimeoutMillis) {
+    static AiRequestDeadline start(int connectTimeoutMillis, int readTimeoutMillis) {
         return start(connectTimeoutMillis, readTimeoutMillis, System::nanoTime);
     }
 
@@ -46,7 +46,7 @@ public final class AiRequestDeadline {
      *
      * @throws DeadlineExceededException when the shared deadline is already exhausted
      */
-    public int boundedTimeoutMillis(int configuredTimeoutMillis) throws DeadlineExceededException {
+    int boundedTimeoutMillis(int configuredTimeoutMillis) throws DeadlineExceededException {
         int configured = requirePositive(configuredTimeoutMillis, "configuredTimeoutMillis");
         long remainingNanos = remainingNanos();
         if (remainingNanos <= 0L) {
@@ -57,7 +57,7 @@ public final class AiRequestDeadline {
         return (int) Math.max(1L, Math.min((long) configured, remainingMillis));
     }
 
-    public boolean isExpired() {
+    boolean isExpired() {
         return remainingNanos() <= 0L;
     }
 
@@ -77,8 +77,8 @@ public final class AiRequestDeadline {
         return 1L + ((dividend - 1L) / divisor);
     }
 
-    public static final class DeadlineExceededException extends IOException {
-        public DeadlineExceededException() {
+    static final class DeadlineExceededException extends IOException {
+        DeadlineExceededException() {
             super("AI provider request deadline exceeded");
         }
     }
