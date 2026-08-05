@@ -30,35 +30,37 @@ jobs:
 
           path = Path('.github/workflows/livingworld-release.yml')
           source = path.read_text(encoding='utf-8')
+          lines = source.splitlines()
 
-          step_anchor = '''        id: release-meta
-                shell: bash
-                run: |
-          '''
-          step_replacement = '''        id: release-meta
-                shell: bash
-                env:
-                  PUSH_BEFORE_SHA: ${{ github.event.before }}
-                run: |
-          '''
-          if source.count(step_anchor) != 1 or 'PUSH_BEFORE_SHA:' in source:
-              raise SystemExit('unexpected release metadata step state')
-          source = source.replace(step_anchor, step_replacement)
+          id_line = '        id: release-meta'
+          try:
+              metadata_index = lines.index(id_line)
+          except ValueError as exc:
+              raise SystemExit('release metadata step id is missing') from exc
+          if lines[metadata_index + 1] != '        shell: bash':
+              raise SystemExit('release metadata shell line is unexpected')
+          if lines[metadata_index + 2] != '        run: |':
+              raise SystemExit('release metadata run line is unexpected')
+          if any('PUSH_BEFORE_SHA:' in line for line in lines):
+              raise SystemExit('release metadata push-before env already exists')
 
-          old = '''          elif [[ "${GITHUB_EVENT_NAME}" == 'push' && "${GITHUB_REF_TYPE}" == 'branch' ]]; then
-                      if [[ "${GITHUB_REF_NAME}" != '1.21.1' ]]; then
-                        echo "::error title=Invalid release branch::Release requests may run only from 1.21.1."
-                        exit 1
-                      fi
-                      test -s "${request_file}"
-                      release_tag="$(sed -e 's/\\r$//' -e '/^[[:space:]]*$/d' "${request_file}")"
-                      release_mode='request'
-                      publish_release='true'
-                    elif [[ "${GITHUB_EVENT_NAME}" == 'pull_request' && -s "${request_file}" ]]; then
-                      release_tag="$(sed -e 's/\\r$//' -e '/^[[:space:]]*$/d' "${request_file}")"
-                      release_mode='request-validation'
+          expression = '$' + '{{ github.event.before }}'
+          lines[metadata_index + 2:metadata_index + 2] = [
+              '        env:',
+              f'          PUSH_BEFORE_SHA: {expression}',
+          ]
+          source = '\n'.join(lines) + '\n'
+
+          branch_start_text = '''          elif [[ "${GITHUB_EVENT_NAME}" == 'push' && "${GITHUB_REF_TYPE}" == 'branch' ]]; then
           '''
-          new = '''          elif [[ "${GITHUB_EVENT_NAME}" == 'push' && "${GITHUB_REF_TYPE}" == 'branch' ]]; then
+          metadata_end_text = '''          fi
+
+                    if [[ "${release_tag}" == *$'\\n'* || "${release_tag}" =~ [[:space:]] ]]; then
+          '''
+          branch_start = source.index(branch_start_text)
+          metadata_end = source.index(metadata_end_text, branch_start)
+
+          replacement = '''          elif [[ "${GITHUB_EVENT_NAME}" == 'push' && "${GITHUB_REF_TYPE}" == 'branch' ]]; then
                       if [[ "${GITHUB_REF_NAME}" != '1.21.1' ]]; then
                         echo "::error title=Invalid release branch::Release requests may run only from 1.21.1."
                         exit 1
@@ -84,18 +86,16 @@ jobs:
                         release_mode='request-validation'
                       fi
           '''
-          if source.count(old) != 1:
-              raise SystemExit(f'expected one legacy release-request block, found {source.count(old)}')
-          source = source.replace(old, new)
+          source = source[:branch_start] + replacement + source[metadata_end:]
           path.write_text(source, encoding='utf-8')
 
           Path('.github/workflows/one-shot-scope-release-request.yml').unlink()
           PY
 
-          grep -Fq 'PUSH_BEFORE_SHA: ${{ github.event.before }}' .github/workflows/livingworld-release.yml
+          grep -Fq 'PUSH_BEFORE_SHA:' .github/workflows/livingworld-release.yml
           grep -Fq 'git diff --quiet "${PUSH_BEFORE_SHA}" HEAD -- "${request_file}"' .github/workflows/livingworld-release.yml
           grep -Fq 'refs/remotes/origin/${GITHUB_BASE_REF}' .github/workflows/livingworld-release.yml
-          ! grep -Fq "pull_request' && -s \"${request_file}\"" .github/workflows/livingworld-release.yml
+          ! grep -Fq 'pull_request'\'' && -s "${request_file}"' .github/workflows/livingworld-release.yml
           git diff --check
 
       - name: Commit release-request scoping
