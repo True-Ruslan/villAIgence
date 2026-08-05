@@ -30,12 +30,14 @@ public final class MountedArcherControlGameTests implements FabricGameTest {
         helper.assertTrue(transformedVillager instanceof ArcherMoveControlOwner,
                 "VillagerEntityMCA must expose the injected stable archer controller");
         helper.assertTrue(transformedVillager instanceof MobMoveControlAccessor,
-                "GameTest must expose the real Mob.moveControl field through its test-only accessor");
+                "GameTest must expose the real Mob.moveControl field through its test-only bridge");
         ArcherMoveControlOwner owner = (ArcherMoveControlOwner) transformedVillager;
         MobMoveControlAccessor accessor = (MobMoveControlAccessor) transformedVillager;
         ArcherMoveControl stable = owner.mca$getArcherMoveControl();
+        helper.assertTrue(accessor.mca$getActiveMoveControl() == stable,
+                "Fresh MCA villager field must contain its captured ArcherMoveControl");
         helper.assertTrue(villager.getMoveControl() == stable,
-                "Fresh MCA villager must start with its captured ArcherMoveControl active");
+                "Fresh MCA villager must expose its captured ArcherMoveControl as active");
 
         Horse horse = helper.spawn(EntityType.HORSE, 3, 1, 2);
         helper.assertTrue(villager.startRiding(horse, true),
@@ -56,6 +58,8 @@ public final class MountedArcherControlGameTests implements FabricGameTest {
 
         villager.stopRiding();
         accessor.mca$setActiveMoveControl(stable);
+        helper.assertTrue(accessor.mca$getActiveMoveControl() == stable,
+                "Dismount fixture must restore the stable active controller");
         helper.assertTrue(owner.mca$getArcherMoveControl() == stable,
                 "Dismount must retain the constructor-captured archer controller");
 
@@ -76,6 +80,8 @@ public final class MountedArcherControlGameTests implements FabricGameTest {
         MoveControl vehicleReplacement = new MoveControl(villager);
         accessor.mca$setActiveMoveControl(vehicleReplacement);
 
+        helper.assertTrue(accessor.mca$getActiveMoveControl() == vehicleReplacement,
+                "Test bridge must replace the actual Mob.moveControl field");
         helper.assertTrue(villager.getMoveControl() == vehicleReplacement,
                 "Fixture must reproduce a vehicle-owned active MoveControl replacement");
         helper.assertTrue(owner.mca$getArcherMoveControl() == stable,
