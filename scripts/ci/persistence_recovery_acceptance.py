@@ -14,6 +14,10 @@ from typing import Any, Mapping, Sequence
 
 import production_server_acceptance as base
 import production_server_acceptance_strict as strict
+from recovery_fixture_stage import (
+    RecoveryFixtureStageError,
+    prepare_recovery_fixture_stage,
+)
 
 RECOVERY_MODE_PROPERTY = "-Dvillaigence.acceptance.mode=recovery"
 RECOVERY_READY_MARKER = "VAI-PERSIST-003-RECOVERY-READY"
@@ -474,7 +478,26 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = _parse_args()
-    manifest = base.load_stage_manifest(args.stage_dir)
+    report_path = (
+        args.report_dir.resolve() / "persistence-recovery-report.json"
+        if args.report_dir is not None
+        else None
+    )
+    try:
+        fixture_evidence = prepare_recovery_fixture_stage(args.stage_dir)
+        manifest = base.load_stage_manifest(args.stage_dir)
+    except (RecoveryFixtureStageError, base.AcceptanceError, OSError) as exception:
+        failure = {
+            "schema": 1,
+            "scenario": "VAI-PERSIST-003",
+            "status": "FAIL",
+            "error": str(exception),
+        }
+        if report_path is not None:
+            base._write_json(report_path, failure)
+        print(json.dumps(failure, indent=2, sort_keys=True))
+        return 1
+
     if not args.execute:
         print(
             json.dumps(
@@ -485,6 +508,7 @@ def main() -> int:
                     "candidateVersion": manifest.candidate.version,
                     "candidateSha256": manifest.candidate.sha256,
                     "caseCount": len(RECOVERY_CASES),
+                    "recoveryFixture": fixture_evidence,
                 },
                 indent=2,
                 sort_keys=True,
@@ -494,7 +518,6 @@ def main() -> int:
     if args.work_dir is None or args.report_dir is None:
         raise SystemExit("--execute requires --work-dir and --report-dir")
 
-    report_path = args.report_dir.resolve() / "persistence-recovery-report.json"
     try:
         result = execute_recovery_matrix(
             manifest,
@@ -506,13 +529,21 @@ def main() -> int:
             shutdown_timeout_seconds=args.shutdown_timeout_seconds,
             max_heap_mib=args.max_heap_mib,
         )
-    except (RecoveryAcceptanceError, base.AcceptanceError, OSError) as exception:
+        result["recoveryFixture"] = fixture_evidence
+        base._write_json(report_path, result)
+    except (
+        RecoveryAcceptanceError,
+        RecoveryFixtureStageError,
+        base.AcceptanceError,
+        OSError,
+    ) as exception:
         failure = {
             "schema": 1,
             "scenario": "VAI-PERSIST-003",
             "status": "FAIL",
             "candidateVersion": manifest.candidate.version,
             "candidateSha256": manifest.candidate.sha256,
+            "recoveryFixture": fixture_evidence,
             "error": str(exception),
         }
         base._write_json(report_path, failure)
