@@ -7,6 +7,7 @@
   "environment": "server",
   "entrypoints": {
     "main": [
+      "net.conczin.mca.acceptancefixture.ProductionAcceptanceChunkForcing",
       "net.conczin.mca.acceptancefixture.ProductionAcceptanceFixture"
     ]
   },
