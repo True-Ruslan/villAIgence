@@ -1,0 +1,74 @@
+name: One-shot M11 Phase C test seam
+
+on:
+  push:
+    branches:
+      - agent/m11-phase-c-mock-provider
+    paths:
+      - .github/workflows/one-shot-m11-phase-c-test-seam.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor == 'True-Ruslan'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: agent/m11-phase-c-mock-provider
+          fetch-depth: 0
+
+      - name: Replace reflection with a package-private transport seam
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          production = Path('common/src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java')
+          source = production.read_text(encoding='utf-8')
+          old = '''    private static Answer post(
+                      ProviderEndpoint endpoint,
+          '''
+          new = '''    static Answer post(
+                      ProviderEndpoint endpoint,
+          '''
+          if source.count(old) != 1:
+              raise SystemExit(f'expected one production seam target, found {source.count(old)}')
+          production.write_text(source.replace(old, new), encoding='utf-8')
+
+          test = Path('common/src/test/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAIHttpIntegrationTest.java')
+          source = test.read_text(encoding='utf-8')
+          source = source.replace('import java.lang.reflect.InvocationTargetException;\n', '')
+          source = source.replace('import java.lang.reflect.Method;\n', '')
+          if source.count('invokePost(') != 3:
+              raise SystemExit(f'expected helper declaration plus two calls, found {source.count("invokePost(")}')
+          source = source.replace('invokePost(', 'OpenAIChatAI.post(', 2)
+          start = source.index('    private static OpenAIChatAI.Answer OpenAIChatAI.post(')
+          end = source.index('    private static final class ScriptedChatServer', start)
+          source = source[:start] + source[end:]
+          if 'setAccessible' in source or 'java.lang.reflect' in source:
+              raise SystemExit('reflection remained in integration test')
+          test.write_text(source, encoding='utf-8')
+
+          Path('.github/workflows/one-shot-m11-phase-c-test-seam.yml').unlink()
+          PY
+
+          grep -Fq 'static Answer post(' common/src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java
+          grep -Fq 'OpenAIChatAI.post(' common/src/test/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAIHttpIntegrationTest.java
+          ! grep -Rq 'setAccessible' common/src/test/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAIHttpIntegrationTest.java
+          git diff --check
+
+      - name: Commit exact seam patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'test: expose chat transport seam for deadline RED'
+          git push origin HEAD:agent/m11-phase-c-mock-provider
