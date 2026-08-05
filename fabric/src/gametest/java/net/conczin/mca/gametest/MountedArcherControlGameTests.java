@@ -13,10 +13,16 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.entity.animal.horse.Horse;
+import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
+import java.util.List;
 
 public final class MountedArcherControlGameTests implements FabricGameTest {
     @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
-    public void mountedControllerReplacementRetainsStableArcherController(
+    public void mountedControllerReplacementRetainsStableArcherControllerAndProjectile(
             GameTestHelper helper
     ) {
         ServerLevel level = helper.getLevel();
@@ -42,6 +48,18 @@ public final class MountedArcherControlGameTests implements FabricGameTest {
         helper.assertTrue(villager.startRiding(horse, true),
                 "MCA archer must mount the fixture horse");
         assertReplacementKeepsStable(helper, villager, owner, stable);
+
+        Zombie target = helper.spawn(EntityType.ZOMBIE, 8, 1, 2);
+        villager.setItemInHand(villager.getDominantHand(), new ItemStack(Items.BOW));
+        villager.performRangedAttack(target, 1.0F);
+        List<AbstractArrow> arrows = level.getEntitiesOfClass(
+                AbstractArrow.class,
+                villager.getBoundingBox().inflate(16.0D)
+        );
+        helper.assertTrue(arrows.size() == 1,
+                "Mounted archer must emit exactly one real projectile, found " + arrows.size());
+        helper.assertTrue(arrows.getFirst().getOwner() == villager,
+                "Mounted archer projectile must remain owned by the MCA NPC");
 
         villager.stopRiding();
         villager.replaceActiveMoveControl(stable);
