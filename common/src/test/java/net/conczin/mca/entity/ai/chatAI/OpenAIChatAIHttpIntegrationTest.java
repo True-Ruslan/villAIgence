@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/** Exercises the real Chat HTTP transport against a deterministic loopback provider. */
 class OpenAIChatAIHttpIntegrationTest {
     @Test
     void retriesOneEmptyCompletionAndReturnsOneUsableAnswer() throws Exception {
