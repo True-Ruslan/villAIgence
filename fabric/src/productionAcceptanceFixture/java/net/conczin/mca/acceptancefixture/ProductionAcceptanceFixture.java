@@ -230,7 +230,7 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
         if (!villager.hurt(level.damageSources().genericKill(), Float.MAX_VALUE)) {
             throw new IllegalStateException("lifecycle fixture death path rejected fatal damage");
         }
-        TombstoneBlock.Data captured = TombstoneBlock.readData(level, capturePos);
+        TombstoneBlock.Data captured = requireTombstoneData(level, capturePos);
         if (!captured.hasEntity()) {
             throw new IllegalStateException("lifecycle fixture death was not captured by the tombstone");
         }
@@ -244,7 +244,7 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
         level.setBlockAndUpdate(capturePos, Blocks.AIR.defaultBlockState());
 
         prepareTombstone(level, restorePos);
-        TombstoneBlock.Data portableData = TombstoneBlock.readData(level, restorePos);
+        TombstoneBlock.Data portableData = requireTombstoneData(level, restorePos);
         portableData.readFromStack(portable);
         Optional<Entity> restoredCandidate = portableData.createEntity(level, true);
         if (restoredCandidate.isEmpty()
@@ -327,9 +327,17 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
     private static void prepareTombstone(ServerLevel level, BlockPos position) {
         level.setBlockAndUpdate(position.below(), Blocks.STONE.defaultBlockState());
         level.setBlockAndUpdate(position, BlocksMCA.UPRIGHT_HEADSTONE.defaultBlockState());
-        if (!TombstoneBlock.readData(level, position).isBlockEntity()) {
+        requireTombstoneData(level, position);
+    }
+
+    private static TombstoneBlock.Data requireTombstoneData(
+            ServerLevel level,
+            BlockPos position
+    ) {
+        if (!(level.getBlockEntity(position) instanceof TombstoneBlock.Data data)) {
             throw new IllegalStateException("lifecycle tombstone block entity was not created");
         }
+        return data;
     }
 
     private static int countLooseFixtureInventory(ServerLevel level, BlockPos position) {
