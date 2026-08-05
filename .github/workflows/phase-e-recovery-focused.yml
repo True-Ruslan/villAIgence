@@ -32,12 +32,17 @@ jobs:
           fi
           java -version
 
-      - name: Run focused JSON recovery tests
+      - name: Run focused Python recovery contracts
+        run: python3 scripts/ci/test_persistence_recovery_acceptance.py -v
+
+      - name: Run focused Java recovery contracts
         run: |
           chmod +x gradlew
           ./gradlew \
             :common:test \
             --tests '*JsonStoreRecoveryTest' \
+            --tests '*ConversationMemoryStoreRecoveryTest' \
+            --tests '*PersistentStoreRecoveryIntegrationTest' \
             --stacktrace \
             --no-daemon \
             --console=plain
