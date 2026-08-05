@@ -37,9 +37,10 @@ public final class MountedArcherControlGameTests implements FabricGameTest {
         );
         helper.assertTrue(level.addFreshEntity(villager),
                 "Mounted archer fixture must be added to the server level");
-        helper.assertTrue(villager instanceof ArcherMoveControlOwner,
+        Object transformedVillager = villager;
+        helper.assertTrue(transformedVillager instanceof ArcherMoveControlOwner,
                 "VillagerEntityMCA must expose the injected stable archer controller");
-        ArcherMoveControlOwner owner = (ArcherMoveControlOwner) villager;
+        ArcherMoveControlOwner owner = (ArcherMoveControlOwner) transformedVillager;
         ArcherMoveControl stable = owner.mca$getArcherMoveControl();
         helper.assertTrue(villager.getMoveControl() == stable,
                 "Fresh MCA villager must start with its captured ArcherMoveControl active");
