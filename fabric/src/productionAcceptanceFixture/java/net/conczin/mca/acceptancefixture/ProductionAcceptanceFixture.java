@@ -48,7 +48,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
 
@@ -465,7 +464,7 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
     }
 
     private static final class LifecycleRun {
-        private static final int MAX_TICKS = 200;
+        private static final int MAX_TICKS = 800;
 
         private final MinecraftServer server;
         private final Path worldRoot;
@@ -558,27 +557,22 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
             prepareTombstone(level, restorePos);
             TombstoneBlock.Data portableData = requireTombstoneData(level, restorePos);
             portableData.readFromStack(portableGrave);
-            Optional<Entity> restoredCandidate = portableData.createEntity(level, true);
-            if (restoredCandidate.isEmpty()
-                    || !(restoredCandidate.get() instanceof VillagerEntityMCA restored)) {
-                throw new IllegalStateException("portable lifecycle grave did not restore an MCA villager");
+            if (!portableData.hasEntity()) {
+                throw new IllegalStateException("portable lifecycle grave did not retain the NPC data");
             }
-            if (portableData.hasEntity()) {
-                throw new IllegalStateException("portable lifecycle grave was not consumed exactly once");
-            }
-            restored.setPos(
-                    restorePos.getX() + 0.5D,
-                    restorePos.getY(),
-                    restorePos.getZ() + 1.5D
-            );
-            if (!level.addFreshEntity(restored)) {
-                throw new IllegalStateException("restored lifecycle villager could not enter the level");
-            }
+            portableData.startResurrecting(false);
             phase = Phase.VERIFY_RESTORED;
             return false;
         }
 
         private boolean verifyRestored() {
+            if (!hasRegisteredLifecycleIdentity(server)) {
+                return false;
+            }
+            TombstoneBlock.Data portableData = requireTombstoneData(level, restorePos);
+            if (portableData.hasEntity()) {
+                throw new IllegalStateException("portable lifecycle grave was not consumed exactly once");
+            }
             VillagerEntityMCA restored = requireLifecycleEntity(server);
             verifyLifecycleEntity(server, restored);
             level.setBlockAndUpdate(restorePos, Blocks.AIR.defaultBlockState());
