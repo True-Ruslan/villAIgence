@@ -123,7 +123,7 @@ def verifyFabricRefmap = tasks.register('verifyFabricRefmap') {
             }
             def fabricMetadataText = zip.getInputStream(fabricMetadataEntry).getText('UTF-8')
             def fabricMetadata = new groovy.json.JsonSlurper().parseText(fabricMetadataText)
-            def productionModId = project.property('mod_id').toString()
+            def productionModId = refmapEntryName.substring(0, refmapEntryName.length() - '.refmap.json'.length())
             if (fabricMetadata.id != productionModId) {
                 throw new GradleException(
                         "Production fabric.mod.json must declare id ${productionModId}, found ${fabricMetadata.id}: ${jarFile}"

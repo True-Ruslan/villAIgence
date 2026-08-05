@@ -59,6 +59,8 @@ jobs:
       - name: Resolve and verify release metadata
         id: release-meta
         shell: bash
+        env:
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
 
@@ -76,13 +78,26 @@ jobs:
               echo "::error title=Invalid release branch::Release requests may run only from 1.21.1."
               exit 1
             fi
-            test -s "${request_file}"
-            release_tag="$(sed -e 's/\r$//' -e '/^[[:space:]]*$/d' "${request_file}")"
-            release_mode='request'
-            publish_release='true'
-          elif [[ "${GITHUB_EVENT_NAME}" == 'pull_request' && -s "${request_file}" ]]; then
-            release_tag="$(sed -e 's/\r$//' -e '/^[[:space:]]*$/d' "${request_file}")"
-            release_mode='request-validation'
+            if [[ -n "${PUSH_BEFORE_SHA:-}" \
+                  && "${PUSH_BEFORE_SHA}" != '0000000000000000000000000000000000000000' ]]; then
+              if ! git diff --quiet "${PUSH_BEFORE_SHA}" HEAD -- "${request_file}"; then
+                test -s "${request_file}"
+                release_tag="$(sed -e 's/\r$//' -e '/^[[:space:]]*$/d' "${request_file}")"
+                release_mode='request'
+                publish_release='true'
+              fi
+            fi
+          elif [[ "${GITHUB_EVENT_NAME}" == 'pull_request' ]]; then
+            git fetch origin \
+              "+refs/heads/${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}"
+            if ! git diff --quiet \
+                "refs/remotes/origin/${GITHUB_BASE_REF}" \
+                HEAD \
+                -- "${request_file}"; then
+              test -s "${request_file}"
+              release_tag="$(sed -e 's/\r$//' -e '/^[[:space:]]*$/d' "${request_file}")"
+              release_mode='request-validation'
+            fi
           fi
 
           if [[ "${release_tag}" == *$'\n'* || "${release_tag}" =~ [[:space:]] ]]; then

@@ -103,13 +103,52 @@ class CiSecurityCoveragePolicyTest {
     }
 
     @Test
-    void pullRequestReleaseValidationCannotPublishOrCreateTag() throws IOException {
+    void branchReleasePublicationRequiresCurrentPushToChangeRequestFile() throws IOException {
         String workflow = Files.readString(
                 repositoryRoot().resolve(".github/workflows/livingworld-release.yml")
         );
 
-        String pullRequestCondition = "elif [[ \"${GITHUB_EVENT_NAME}\" == 'pull_request'"
-                + " && -s \"${request_file}\" ]]; then";
+        assertTrue(
+                workflow.contains("PUSH_BEFORE_SHA: ${{ github.event.before }}"),
+                "Release metadata must receive the exact pre-push commit"
+        );
+
+        String condition = "elif [[ \"${GITHUB_EVENT_NAME}\" == 'push'"
+                + " && \"${GITHUB_REF_TYPE}\" == 'branch' ]]; then";
+        int branchStart = workflow.indexOf(condition);
+        int pullRequestStart = workflow.indexOf(
+                "elif [[ \"${GITHUB_EVENT_NAME}\" == 'pull_request' ]]; then",
+                branchStart
+        );
+        assertTrue(branchStart >= 0, "Release-request branch-push block is missing");
+        assertTrue(pullRequestStart > branchStart, "Release-request branch-push boundary is malformed");
+
+        String branchBlock = workflow.substring(branchStart, pullRequestStart);
+        int diffCheck = branchBlock.indexOf(
+                "git diff --quiet \"${PUSH_BEFORE_SHA}\" HEAD -- \"${request_file}\""
+        );
+        int publication = branchBlock.indexOf("publish_release='true'");
+        assertTrue(diffCheck >= 0, "Branch publication must diff NEXT_RELEASE.txt for the current push");
+        assertTrue(publication > diffCheck, "Publication authorization must occur only after the request-file diff");
+        assertTrue(
+                branchBlock.contains("0000000000000000000000000000000000000000"),
+                "Branch creation with no previous commit must fail closed"
+        );
+    }
+
+    @Test
+    void pullRequestReleaseValidationRunsOnlyWhenRequestFileChanges() throws IOException {
+        String workflow = Files.readString(
+                repositoryRoot().resolve(".github/workflows/livingworld-release.yml")
+        );
+
+        assertFalse(
+                workflow.contains("pull_request' && -s \"${request_file}\""),
+                "A historical non-empty release request must not affect every pull request"
+        );
+
+        String pullRequestCondition =
+                "elif [[ \"${GITHUB_EVENT_NAME}\" == 'pull_request' ]]; then";
         int pullRequestStart = workflow.indexOf(pullRequestCondition);
         assertTrue(pullRequestStart >= 0, "Release-request pull-request validation branch is missing");
 
@@ -117,9 +156,23 @@ class CiSecurityCoveragePolicyTest {
         assertTrue(pullRequestEnd > pullRequestStart, "Release-request pull-request validation branch is malformed");
         String pullRequestBlock = workflow.substring(pullRequestStart, pullRequestEnd);
 
+        int diffCheck = pullRequestBlock.indexOf("if ! git diff --quiet");
+        int releaseTagRead = pullRequestBlock.indexOf("release_tag=\"$(sed");
+        assertTrue(
+                pullRequestBlock.contains(
+                        "+refs/heads/${GITHUB_BASE_REF}:refs/remotes/origin/${GITHUB_BASE_REF}"
+                ),
+                "Pull-request validation must fetch the exact current base branch"
+        );
+        assertTrue(diffCheck >= 0, "Pull requests must diff NEXT_RELEASE.txt against their base branch");
+        assertTrue(
+                pullRequestBlock.contains("-- \"${request_file}\"; then"),
+                "Pull-request diff must be scoped to NEXT_RELEASE.txt"
+        );
+        assertTrue(releaseTagRead > diffCheck, "Release metadata may be read only after detecting a request-file change");
         assertTrue(
                 pullRequestBlock.contains("release_mode='request-validation'"),
-                "Pull requests must use the non-publishing release validation mode"
+                "A changed request file must use the non-publishing validation mode"
         );
         assertFalse(
                 pullRequestBlock.contains("publish_release='true'"),
