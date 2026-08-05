@@ -16,6 +16,7 @@ import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.ai.AiProviderSettings;
 import net.conczin.mca.livingworld.ai.BoundedResponseReader;
 import net.conczin.mca.livingworld.ai.ChatCompletionResponseParser;
+import net.conczin.mca.livingworld.ai.ChatCompletionHttpClient;
 import net.conczin.mca.livingworld.ai.ChatCompletionRetryPolicy;
 import net.conczin.mca.livingworld.ai.LivingWorldAI;
 import net.conczin.mca.livingworld.ai.ProviderEndpoint;
@@ -38,9 +39,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Tuple;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -75,39 +74,36 @@ public class OpenAIChatAI implements ChatAIStrategy {
         return con;
     }
 
-    private static HttpURLConnection getHttpURLConnection(
-            ProviderEndpoint endpoint,
-            String token,
-            int connectTimeoutMillis,
-            int readTimeoutMillis
-    ) throws IOException {
-        HttpURLConnection con = getHttpURLConnection(endpoint, connectTimeoutMillis, readTimeoutMillis);
-        con.setRequestProperty("Authorization", "Bearer " + token);
-        return con;
-    }
-
     private static ParsedProviderAnswer parseAnswer(String body) {
-        ChatCompletionResponseParser.ParsedCompletion completion = ChatCompletionResponseParser.parse(body);
-        if (completion.error() != null) {
-            return new ParsedProviderAnswer(new Answer(null, completion.error()), completion);
-        }
+    return parseCompletion(ChatCompletionResponseParser.parse(body));
+}
 
-        String content = completion.content();
-        if (content == null) {
-            return new ParsedProviderAnswer(new Answer(null, null), completion);
-        }
-
-        StructuredAiResponseParser.ParsedResponse parsed = StructuredAiResponseParser.parse(content);
-        StructuredResponse reply = new StructuredResponse(
-                parsed.message(),
-                parsed.optionalCommand(),
-                parsed.relationshipDelta()
-        );
-        if (parsed.message() == null) {
-            MCA.LOGGER.warn("AI answer contained no usable user-visible message after structured response sanitization");
-        }
-        return new ParsedProviderAnswer(new Answer(reply, null), completion);
+private static ParsedProviderAnswer parseCompletion(
+        @Nullable ChatCompletionResponseParser.ParsedCompletion completion
+) {
+    if (completion == null) {
+        return new ParsedProviderAnswer(new Answer(null, null), null);
     }
+    if (completion.error() != null) {
+        return new ParsedProviderAnswer(new Answer(null, completion.error()), completion);
+    }
+
+    String content = completion.content();
+    if (content == null) {
+        return new ParsedProviderAnswer(new Answer(null, null), completion);
+    }
+
+    StructuredAiResponseParser.ParsedResponse parsed = StructuredAiResponseParser.parse(content);
+    StructuredResponse reply = new StructuredResponse(
+            parsed.message(),
+            parsed.optionalCommand(),
+            parsed.relationshipDelta()
+    );
+    if (parsed.message() == null) {
+        MCA.LOGGER.warn("AI answer contained no usable user-visible message after structured response sanitization");
+    }
+    return new ParsedProviderAnswer(new Answer(reply, null), completion);
+}
 
     private static String parseError(@Nullable JsonElement element) {
         if (element == null || element.isJsonNull()) return null;
@@ -146,89 +142,54 @@ public class OpenAIChatAI implements ChatAIStrategy {
         );
     }
 
-    static Answer post(
-            ProviderEndpoint endpoint,
-            String requestBody,
-            String token,
-            int connectTimeoutMillis,
-            int readTimeoutMillis,
-            String model
-    ) {
-        for (int attempt = 1; attempt <= ChatCompletionRetryPolicy.MAX_ATTEMPTS; attempt++) {
-            ParsedProviderAnswer result = postOnce(endpoint, requestBody, token, connectTimeoutMillis, readTimeoutMillis);
-            Answer answer = result.answer();
-            ChatCompletionResponseParser.ParsedCompletion completion = result.completion();
+    private static Answer post(
+        ProviderEndpoint endpoint,
+        String requestBody,
+        String token,
+        int connectTimeoutMillis,
+        int readTimeoutMillis,
+        String model
+) {
+    ChatCompletionHttpClient.Result result = ChatCompletionHttpClient.post(
+            endpoint,
+            requestBody,
+            token,
+            connectTimeoutMillis,
+            readTimeoutMillis,
+            new ChatCompletionHttpClient.AttemptObserver() {
+                @Override
+                public void onProviderFailure(
+                        int attempt,
+                        ChatCompletionResponseParser.ParsedCompletion completion
+                ) {
+                    logProviderFailure(model, attempt, completion);
+                }
 
-            if (answer.error != null) {
-                logProviderFailure(model, attempt, completion);
-                return answer;
+                @Override
+                public void onEmptyCompletion(
+                        int attempt,
+                        ChatCompletionResponseParser.ParsedCompletion completion,
+                        boolean retrying
+                ) {
+                    logEmptyCompletion(model, attempt, completion, retrying);
+                }
             }
-            if (answer.answer != null) {
-                return answer;
-            }
-            if (ChatCompletionRetryPolicy.shouldRetry(completion, attempt)) {
-                logEmptyCompletion(model, attempt, completion, true);
-                continue;
-            }
+    );
 
-            logEmptyCompletion(model, attempt, completion, false);
-            return new Answer(null, "empty_response");
-        }
-        return new Answer(null, "empty_response");
+    if (result.failure() instanceof BoundedResponseReader.ResponseTooLargeException exception) {
+        MCA.LOGGER.warn(
+                "AI provider response exceeded safe byte limit: limit={}, observed={}",
+                exception.limitBytes(),
+                exception.observedBytes()
+        );
+    } else if (result.failure() != null) {
+        MCA.LOGGER.error("AI provider request failed", result.failure());
     }
-
-    private static ParsedProviderAnswer postOnce(
-            ProviderEndpoint endpoint,
-            String requestBody,
-            String token,
-            int connectTimeoutMillis,
-            int readTimeoutMillis
-    ) {
-        try {
-            HttpURLConnection con = getHttpURLConnection(endpoint, token, connectTimeoutMillis, readTimeoutMillis);
-            try (DataOutputStream out = new DataOutputStream(con.getOutputStream())) {
-                out.write(requestBody.getBytes(StandardCharsets.UTF_8));
-            }
-            int status = con.getResponseCode();
-            boolean success = status >= 200 && status < 300;
-            InputStream response = success ? con.getInputStream() : con.getErrorStream();
-            if (response == null) {
-                return new ParsedProviderAnswer(new Answer(null, "AI provider returned HTTP " + status), null);
-            }
-            int limitBytes = success
-                    ? ProviderResponseLimits.CHAT_JSON_BYTES
-                    : ProviderResponseLimits.ERROR_BODY_BYTES;
-            String body;
-            try (response) {
-                body = BoundedResponseReader.readUtf8(
-                        response,
-                        con.getContentLengthLong(),
-                        limitBytes
-                );
-            }
-            ParsedProviderAnswer parsed = parseAnswer(body);
-            if (!success) {
-                String error = parsed.answer().error != null
-                        ? parsed.answer().error
-                        : "AI provider returned HTTP " + status;
-                return new ParsedProviderAnswer(new Answer(null, error), parsed.completion());
-            }
-            return parsed;
-        } catch (BoundedResponseReader.ResponseTooLargeException e) {
-            MCA.LOGGER.warn(
-                    "AI provider response exceeded safe byte limit: limit={}, observed={}",
-                    e.limitBytes(),
-                    e.observedBytes()
-            );
-            return new ParsedProviderAnswer(
-                    new Answer(null, "AI provider response exceeded safe size limit"),
-                    null
-            );
-        } catch (Exception e) {
-            MCA.LOGGER.error("AI provider request failed", e);
-            return new ParsedProviderAnswer(new Answer(null, "AI provider request failed; check server log"), null);
-        }
+    if (result.error() != null) {
+        return new Answer(null, result.error());
     }
+    return parseCompletion(result.completion()).answer();
+}
 
     private static void logProviderFailure(
             String model,
