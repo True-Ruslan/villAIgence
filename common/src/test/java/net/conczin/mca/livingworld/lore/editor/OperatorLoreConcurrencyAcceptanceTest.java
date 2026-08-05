@@ -143,6 +143,9 @@ class OperatorLoreConcurrencyAcceptanceTest {
 
     @Test
     void clearUsesTheSameRevisionProtectedWritePath() {
+        OperatorLoreEditorResult empty = read(true);
+        assertEquals(OK, write(true, empty.revision(), "initial canonical").status());
+
         OperatorLoreEditorModel clientA = loadedClient();
         OperatorLoreEditorModel clientB = loadedClient();
 
