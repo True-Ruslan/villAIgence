@@ -10,7 +10,8 @@
       "net.conczin.mca.gametest.TombstoneControlGameTests",
       "net.conczin.mca.gametest.TombstoneInventoryDeathGameTests",
       "net.conczin.mca.gametest.TombstoneIdentityReplayGameTests",
-      "net.conczin.mca.gametest.NavigationWaterSurfaceGameTests"
+      "net.conczin.mca.gametest.NavigationWaterSurfaceGameTests",
+      "net.conczin.mca.gametest.GameplayInteractionGameTests"
     ]
   },
   "depends": {
