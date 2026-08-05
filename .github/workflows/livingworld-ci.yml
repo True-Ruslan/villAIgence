@@ -62,6 +62,38 @@ jobs:
             --no-daemon \
             --console=plain
 
+      - name: Run risk catalog, server GameTests and supported loader builds
+        run: |
+          chmod +x gradlew
+          set +e
+          ./gradlew \
+            :common:test \
+            :fabric:runGameTest \
+            :fabric:build \
+            :neoforge:build \
+            --stacktrace \
+            --no-daemon \
+            > gradle-build.log 2>&1
+          status=$?
+          set -e
+
+          if [ "$status" -ne 0 ]; then
+            echo "Gradle or GameTest failed; extracted Gradle diagnostics:"
+            grep -En "error:|FAILURE:|What went wrong:|Execution failed|Could not|Caused by:|FAILED|GameTest|test failed" gradle-build.log | tail -n 160 || true
+
+            echo "--- extracted Minecraft/GameTest diagnostics ---"
+            while IFS= read -r log_file; do
+              grep -HEn "VillAIgenceGameTests|TombstoneControlGameTests|TombstoneInventoryDeathGameTests|TombstoneIdentityReplayGameTests|NavigationWaterSurfaceGameTests|ControlledNavigationMob|test failed|required test|Failed required test|GameTest|Exception" "$log_file" | tail -n 200 || true
+            done < <(find fabric -type f \( -name '*.log' -o -name '*.txt' \) -print | sort)
+
+            echo "--- final 120 Gradle log lines ---"
+            tail -n 120 gradle-build.log
+            exit "$status"
+          fi
+
+          echo "Risk catalog, server GameTests and loader builds succeeded; final 20 log lines:"
+          tail -n 20 gradle-build.log
+
       - name: Run production acceptance contract tests
         run: |
           python3 scripts/ci/test_production_server_acceptance.py
@@ -113,38 +145,6 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           path: build/production-server-acceptance/evidence
-
-      - name: Run risk catalog, server GameTests and supported loader builds
-        run: |
-          chmod +x gradlew
-          set +e
-          ./gradlew \
-            :common:test \
-            :fabric:runGameTest \
-            :fabric:build \
-            :neoforge:build \
-            --stacktrace \
-            --no-daemon \
-            > gradle-build.log 2>&1
-          status=$?
-          set -e
-
-          if [ "$status" -ne 0 ]; then
-            echo "Gradle or GameTest failed; extracted Gradle diagnostics:"
-            grep -En "error:|FAILURE:|What went wrong:|Execution failed|Could not|Caused by:|FAILED|GameTest|test failed" gradle-build.log | tail -n 160 || true
-
-            echo "--- extracted Minecraft/GameTest diagnostics ---"
-            while IFS= read -r log_file; do
-              grep -HEn "VillAIgenceGameTests|TombstoneControlGameTests|ControlledNavigationMob|test failed|required test|Failed required test|GameTest|Exception" "$log_file" | tail -n 200 || true
-            done < <(find fabric -type f \( -name '*.log' -o -name '*.txt' \) -print | sort)
-
-            echo "--- final 120 Gradle log lines ---"
-            tail -n 120 gradle-build.log
-            exit "$status"
-          fi
-
-          echo "Risk catalog, server GameTests and loader builds succeeded; final 20 log lines:"
-          tail -n 20 gradle-build.log
 
       - name: Verify distributable VillAIgence Fabric package
         run: |
