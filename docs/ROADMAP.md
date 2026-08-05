@@ -1,15 +1,14 @@
 # VillAIgence Roadmap
 
 > **Canonical product roadmap.** For exact implementation and validation state, read `docs/PROJECT_STATE.md` first.
-
-> **Repository maintenance note (2026-08-01):** README canonical portfolio-link rollout completed through PR #90 (`19e397e` → squash `6209130`). VillAIgence CI #1154 / run `30714996167`, Java PR CI #654 / run `30714996171`, and security policy #505 / run `30714996231` all passed. Roadmap sequencing is unchanged; S10c remains next.
-
+>
+> Last reconciled: **2026-08-05**. S10c and M11 Phases A-C are complete. M11 Phase D is the immediate implementation target.
 
 ## Product vision
 
 VillAIgence is evolving from an MCA-derived AI conversation mod into a **persistent living-society simulation layer for Minecraft**.
 
-The goal is not merely NPCs that call an LLM. The target world contains NPCs that:
+The target world contains NPCs that:
 
 - retain stable identity, memory, personality, voice and relationships;
 - know only what they observed, learned or were explicitly told;
@@ -21,7 +20,7 @@ The goal is not merely NPCs that call an LLM. The target world contains NPCs tha
 
 > **VillAIgence — Giving villagers a mind of their own.**
 
-The compatible internal engine/data namespace remains `LivingWorld` / `livingworld`.
+Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `livingworld` until an explicit migration is designed.
 
 ---
 
@@ -55,7 +54,7 @@ Important data belongs under `<world>/livingworld/`, remains inspectable, bounde
 observed current facts       authoritative for this turn
 operator-authored lore       explicit background setting
 semantic FACT/BELIEF         learned persistent knowledge
- episodic memory             remembered events/dialogue
+episodic memory              remembered events/dialogue
 ```
 
 Current observations win conflicts.
@@ -68,34 +67,128 @@ UI may request operations. The server resolves permissions, identities, targets,
 
 Prefer systems that produce durable behavior and causality over one-off generated text.
 
+## 8. Evidence layers remain explicit
+
+```text
+unit/source policy
+→ server GameTest
+→ production candidate startup/restart
+→ exact release workflow
+→ installed server/client canary
+→ real multi-client canary
+```
+
+Passing one layer never silently upgrades another.
+
 ---
 
 # Current execution track
 
-As of 2026-08-01:
+As of 2026-08-05:
 
 ```text
 0.1.x reliability/security baseline                    COMPLETE
 Memory 2.0 foundation                                  SUBSTANTIALLY IMPLEMENTED
-MCA selective synchronization S1–S8                    AUTOMATED PASS
-operator lore store S9                                 AUTOMATED PASS
-immutable lore context S10a                            AUTOMATED PASS
-server-authoritative lore API S10b                     AUTOMATED PASS
-client editor UI S10c                                  NEXT
-cumulative installed-server acceptance                 AFTER S10c
-legacy memory.json migration                           AFTER RELEASE GATE
+MCA selective synchronization S1-S8                    COMPLETE
+Operator Lore S9-S10c                                  COMPLETE
+M11 Phase A risk catalog and GameTests                 COMPLETE
+M11 Phase B exact production-JAR restart harness       COMPLETE
+M11 Phase C provider/voice orchestration               COMPLETE
+M11 Phase D concurrency and client acceptance          NEXT
+0.1.25 installed inventory canary                      PENDING
+legacy memory.json migration                           AFTER ACCEPTANCE/RELEASE GATE
 ```
 
 Immediate sequence:
 
 ```text
-S10c client editor UI
-→ exact synchronized release candidate
-→ cumulative backed-up-world live acceptance
-→ release promotion only on PASS
+M11 Phase D
+→ exact-head review and all required CI
+→ focused installed inventory/grave/resurrection canary
+→ next sequential release containing post-0.1.25 work
 → additive legacy memory.json migration
 → remaining Memory 2.0 exit criteria
-→ 0.3 personality and NPC↔NPC social graph
+→ personality and NPC↔NPC social graph
+```
+
+---
+
+# Immediate milestone — M11 Phase D
+
+## Goal
+
+Automate the concurrency and client-state boundaries that still require manual confidence, without weakening the S10b/S10c server-authority model.
+
+Primary scenario:
+
+```text
+client A reads revision R
+client B reads revision R
+client A writes value A with R → OK, revision R2
+client B writes value B with stale R → CONFLICT, canonical value A/R2
+client B reloads/reviews
+client B writes with R2 → OK, revision R3
+```
+
+Required assertions:
+
+- exactly one stale writer is rejected;
+- canonical value is never silently overwritten;
+- conflict response includes the current canonical value and revision;
+- no duplicate persistence mutation occurs;
+- exact replay remains `UNCHANGED`;
+- permissions and server target resolution are evaluated independently per logical client;
+- client request generation rejects stale responses after scope or target changes.
+
+## Client acceptance boundary
+
+Automate as much of the following as the supported test runtime permits:
+
+- operator-only editor opening;
+- WORLD, PLAYER, VILLAGER and VILLAGE scopes;
+- read before edit;
+- edit/save/reopen;
+- Clear through the same revision-protected write path;
+- dirty close and scope-switch confirmation;
+- explicit loading, saving, conflict and failure states;
+- Save response retained while a confirmation modal is open;
+- FORBIDDEN and NOT_FOUND handling;
+- keyboard and resize-safe state behavior through deterministic model/controller tests;
+- no global mailbox or unowned response path.
+
+A full visual rendering claim is not required if the harness cannot run a real Minecraft client deterministically. State/model and network authority must still be automated; one real installed two-client UI canary remains separate.
+
+## Security and authority invariants
+
+Phase D must not:
+
+- add arbitrary player/villager UUID fields to C2S;
+- add arbitrary dimension or village identifiers;
+- decide permissions on the client;
+- bypass SHA-256 revision checks;
+- silently overwrite on conflict;
+- access `operator-lore.json` from client code;
+- ingest Operator Lore into semantic memory;
+- add unbounded packet payloads;
+- call a public AI provider from CI;
+- mix unrelated gameplay or Memory 2.0 migration work.
+
+## Exit criteria
+
+Phase D is complete only when:
+
+- deterministic RED demonstrates the missing stale-writer/client-state acceptance;
+- the minimal harness or test seam is implemented;
+- logical two-client conflict acceptance is green;
+- editor state acceptance is green;
+- common tests, Fabric GameTests/build, NeoForge build, package verification and repository security pass;
+- exact-head review finds no unresolved P0/P1/P2 issue;
+- `docs/PROJECT_STATE.md`, this roadmap and the acceptance catalog are synchronized.
+
+Canonical implementation boundary:
+
+```text
+docs/livingworld/VALIDATION_M11_PHASE_D_PLAN.md
 ```
 
 ---
@@ -108,7 +201,7 @@ S10c client editor UI
 
 Make provider, voice, persistence and inherited MCA gameplay behavior safe enough for continued simulation development.
 
-### Implemented baseline
+### Implemented
 
 - hardened OpenAI-compatible response handling;
 - controlled `content:null`, malformed JSON and provider errors;
@@ -116,17 +209,21 @@ Make provider, voice, persistence and inherited MCA gameplay behavior safe enoug
 - endpoint/credential policy and redirect rejection;
 - bounded Chat/STT/TTS/error/verification responses;
 - voice-duration and aggregate PCM limits;
-- verified supply-chain and deterministic security CI;
-- Fabric and NeoForge build gates;
+- one monotonic complete voice-turn deadline;
+- verified supply chain and deterministic security CI;
+- Fabric and NeoForge gates;
 - selective MCA fixes for tombstones, entity conversion, HOME POIs, navigation, mourning, gifts, fishing and mounted archers;
-- world-local operator lore, immutable prompt integration and server-authoritative editor API.
+- Operator Lore store, immutable context, server-authoritative API and client editor;
+- risk-based GameTests;
+- exact production-JAR startup/shutdown/restart;
+- exact-production release publication.
 
 ### Remaining exit gate
 
-- S10c editor UI;
-- one cumulative installed-server acceptance on an exact candidate JAR;
-- restart/hash validation and normal Text/STT/Chat/TTS smoke;
-- release promotion with recorded SHA-256 only after PASS.
+- M11 Phase D;
+- focused installed inventory/grave/resurrection canary;
+- next sequential release containing post-`0.1.25` work;
+- retain short physical voice and real-client canaries.
 
 ---
 
@@ -184,7 +281,7 @@ legacy reads retained until cutover acceptance
 
 ### Exit criteria
 
-NPCs recall important events days later without full raw dialogue history, while provenance, bounds, restart safety and rollback behavior remain proven.
+NPCs recall important events days later without requiring full raw dialogue history, while provenance, bounds, restart safety and rollback behavior remain proven.
 
 ---
 
@@ -273,8 +370,6 @@ perceive event/state
 → remember
 ```
 
-The LLM proposes intent, never arbitrary Minecraft commands.
-
 Candidate behaviors:
 
 - flee danger;
@@ -284,6 +379,8 @@ Candidate behaviors:
 - investigate important events;
 - pursue role-specific tasks;
 - avoid feared or disliked entities.
+
+The LLM proposes intent, never arbitrary Minecraft commands.
 
 ### Exit criteria
 
@@ -379,34 +476,6 @@ NPC Identity
 
 ---
 
-# Immediate S10c specification boundary
-
-S10c is a client experience over the already-complete S10b authority API.
-
-Required UI capabilities:
-
-- operator-only entry point;
-- WORLD / VILLAGER / PLAYER / VILLAGE scope selector;
-- nearby MCA villager selection for entity-bound scopes;
-- canonical server read before editing;
-- multiline text editor;
-- code-point and UTF-8 budget indicators;
-- revision-protected save and clear;
-- explicit status feedback;
-- conflict reload/review without blind overwrite;
-- keyboard, mouse, resize and localization-safe layout.
-
-The UI must never:
-
-- access world files directly;
-- accept arbitrary UUID/dimension/village ID;
-- decide permissions locally;
-- bypass S10b revision checks;
-- send unbounded text;
-- modify AI transport or semantic-memory rules.
-
----
-
 # Milestone governance
 
 A milestone is not complete merely because code compiles.
@@ -417,14 +486,15 @@ Required progression:
 specification
 → RED regression boundary
 → minimal implementation
-→ unit tests
+→ focused tests
+→ relevant regression tests
 → Fabric + NeoForge
 → package verification
 → security policy
 → scope review
 → exact candidate artifact
-→ live acceptance when runtime behavior is involved
+→ live acceptance when runtime behavior requires it
 → canonical state update
 ```
 
-Automated validation and live-server validation must always be reported separately.
+Automated validation, exact-production candidate validation and installed-server/client validation must always be reported separately.
