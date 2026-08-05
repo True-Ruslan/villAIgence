@@ -1,0 +1,43 @@
+name: Phase E recovery focused
+
+on:
+  push:
+    branches:
+      - 'agent/m11-phase-e-automation-completion'
+
+permissions:
+  contents: read
+
+jobs:
+  recovery-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact branch head without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git init .
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+
+      - name: Use Java 21 from runner image
+        run: |
+          if [ -n "${JAVA_HOME_21_X64:-}" ] && [ -d "$JAVA_HOME_21_X64" ]; then
+            export JAVA_HOME="$JAVA_HOME_21_X64"
+            export PATH="$JAVA_HOME/bin:$PATH"
+            echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+            echo "$JAVA_HOME/bin" >> "$GITHUB_PATH"
+          fi
+          java -version
+
+      - name: Run focused JSON recovery tests
+        run: |
+          chmod +x gradlew
+          ./gradlew \
+            :common:test \
+            --tests '*JsonStoreRecoveryTest' \
+            --stacktrace \
+            --no-daemon \
+            --console=plain
