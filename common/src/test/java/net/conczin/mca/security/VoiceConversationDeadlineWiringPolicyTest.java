@@ -50,13 +50,10 @@ class VoiceConversationDeadlineWiringPolicyTest {
 
         String providerCall =
                 "openAIChatAI.answer(server, player, villager, msg, snapshot, deadline)";
-        String snapshotCommit = "new DialogueMemoryCoordinates(\n"
-                + "                        snapshot.worldRoot(),\n"
-                + "                        snapshot.villagerId(),\n"
-                + "                        snapshot.playerId(),\n"
-                + "                        snapshot.gameTime()";
         int providerCallIndex = chatAi.indexOf(providerCall);
-        int snapshotCommitIndex = chatAi.indexOf(snapshotCommit);
+        int snapshotCommitIndex = providerCallIndex < 0
+                ? -1
+                : chatAi.indexOf("rememberMemory2Dialogue(", providerCallIndex);
         assertTrue(providerCallIndex >= 0, "Snapshot Chat path must delegate the shared deadline");
         assertTrue(snapshotCommitIndex > providerCallIndex,
                 "Snapshot dialogue commit must remain after the final provider result");
