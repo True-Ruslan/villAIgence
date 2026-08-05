@@ -44,6 +44,12 @@
       "ci": true
     },
     {
+      "path": "scripts/ci/recovery_fixture_stage.py",
+      "purpose": "Derives a recovery-only test fixture JAR inside an isolated staged runtime and updates only that fixture's manifest evidence; performs no network requests and never changes the candidate JAR.",
+      "network": false,
+      "ci": true
+    },
+    {
       "path": "scripts/ci/repository_security_policy.py",
       "purpose": "Runs deterministic secret, source-policy, workflow-permission and script-inventory checks; its source contains detector signatures but performs no network requests.",
       "network": true,
@@ -51,7 +57,7 @@
     },
     {
       "path": "scripts/ci/test_persistence_recovery_acceptance.py",
-      "purpose": "Standard-library unit tests for corruption-plan confinement, matrix coverage, recovery-mode command construction and sibling-store isolation; performs no network requests.",
+      "purpose": "Standard-library unit tests for corruption-plan confinement, matrix coverage, recovery-only fixture derivation, candidate immutability and sibling-store isolation; performs no network requests.",
       "network": false,
       "ci": true
     },
