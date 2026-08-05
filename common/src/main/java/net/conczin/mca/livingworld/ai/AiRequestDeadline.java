@@ -16,11 +16,13 @@ public final class AiRequestDeadline {
     private static final long NANOS_PER_MILLISECOND = TimeUnit.MILLISECONDS.toNanos(1L);
 
     private final LongSupplier nanoTime;
-    private final long deadlineNanos;
+    private final long startedNanos;
+    private final long budgetNanos;
 
-    private AiRequestDeadline(LongSupplier nanoTime, long deadlineNanos) {
+    private AiRequestDeadline(LongSupplier nanoTime, long startedNanos, long budgetNanos) {
         this.nanoTime = Objects.requireNonNull(nanoTime, "nanoTime");
-        this.deadlineNanos = deadlineNanos;
+        this.startedNanos = startedNanos;
+        this.budgetNanos = budgetNanos;
     }
 
     public static AiRequestDeadline start(int connectTimeoutMillis, int readTimeoutMillis) {
@@ -33,13 +35,10 @@ public final class AiRequestDeadline {
             LongSupplier nanoTime
     ) {
         Objects.requireNonNull(nanoTime, "nanoTime");
-        long budgetMillis = saturatingAdd(
-                requirePositive(connectTimeoutMillis, "connectTimeoutMillis"),
-                requirePositive(readTimeoutMillis, "readTimeoutMillis")
-        );
-        long budgetNanos = saturatingMultiply(budgetMillis, NANOS_PER_MILLISECOND);
-        long startedNanos = nanoTime.getAsLong();
-        return new AiRequestDeadline(nanoTime, saturatingAdd(startedNanos, budgetNanos));
+        long budgetMillis = (long) requirePositive(connectTimeoutMillis, "connectTimeoutMillis")
+                + requirePositive(readTimeoutMillis, "readTimeoutMillis");
+        long budgetNanos = budgetMillis * NANOS_PER_MILLISECOND;
+        return new AiRequestDeadline(nanoTime, nanoTime.getAsLong(), budgetNanos);
     }
 
     /**
@@ -49,18 +48,22 @@ public final class AiRequestDeadline {
      */
     public int boundedTimeoutMillis(int configuredTimeoutMillis) throws DeadlineExceededException {
         int configured = requirePositive(configuredTimeoutMillis, "configuredTimeoutMillis");
-        long remainingNanos = deadlineNanos - nanoTime.getAsLong();
+        long remainingNanos = remainingNanos();
         if (remainingNanos <= 0L) {
             throw new DeadlineExceededException();
         }
 
         long remainingMillis = ceilDivide(remainingNanos, NANOS_PER_MILLISECOND);
-        long bounded = Math.min((long) configured, remainingMillis);
-        return (int) Math.max(1L, Math.min(Integer.MAX_VALUE, bounded));
+        return (int) Math.max(1L, Math.min((long) configured, remainingMillis));
     }
 
     public boolean isExpired() {
-        return deadlineNanos - nanoTime.getAsLong() <= 0L;
+        return remainingNanos() <= 0L;
+    }
+
+    private long remainingNanos() {
+        long elapsedNanos = nanoTime.getAsLong() - startedNanos;
+        return budgetNanos - elapsedNanos;
     }
 
     private static int requirePositive(int value, String name) {
@@ -72,26 +75,6 @@ public final class AiRequestDeadline {
 
     private static long ceilDivide(long dividend, long divisor) {
         return 1L + ((dividend - 1L) / divisor);
-    }
-
-    private static long saturatingAdd(long left, long right) {
-        if (right > 0L && left > Long.MAX_VALUE - right) {
-            return Long.MAX_VALUE;
-        }
-        if (right < 0L && left < Long.MIN_VALUE - right) {
-            return Long.MIN_VALUE;
-        }
-        return left + right;
-    }
-
-    private static long saturatingMultiply(long left, long right) {
-        if (left == 0L || right == 0L) {
-            return 0L;
-        }
-        if (left > 0L && right > 0L && left > Long.MAX_VALUE / right) {
-            return Long.MAX_VALUE;
-        }
-        return left * right;
     }
 
     public static final class DeadlineExceededException extends IOException {
