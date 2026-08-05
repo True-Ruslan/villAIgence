@@ -11,6 +11,7 @@ import net.conczin.mca.util.WorldUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.storage.LevelResource;
+import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
 import java.text.Normalizer;
@@ -91,7 +92,7 @@ public class ChatAI {
             VillagerEntityMCA villager,
             String msg,
             LivingWorldContextSnapshot snapshot,
-            AiRequestDeadline deadline
+            @Nullable AiRequestDeadline deadline
     ) {
         ChatAIStrategy strategy = computeStrategyIfAbsent(snapshot.villagerId());
         currentConversations.put(snapshot.playerId(), new OpenConversation(snapshot.villagerId(), snapshot.gameTime()));

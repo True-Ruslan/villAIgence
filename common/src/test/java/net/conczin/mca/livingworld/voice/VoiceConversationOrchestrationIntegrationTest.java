@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -66,7 +67,7 @@ class VoiceConversationOrchestrationIntegrationTest {
                     ChatCompletionHttpClient.AttemptObserver.NOOP
             );
 
-            assertEquals(null, chat.error());
+            assertNull(chat.error());
             assertEquals(2, chat.attempts());
             StructuredAiResponseParser.ParsedResponse parsed =
                     StructuredAiResponseParser.parse(chat.completion().content());
@@ -107,7 +108,7 @@ class VoiceConversationOrchestrationIntegrationTest {
                         deadline,
                         ChatCompletionHttpClient.AttemptObserver.NOOP
                 );
-                assertEquals(null, chat.error());
+                assertNull(chat.error());
                 StructuredAiResponseParser.ParsedResponse parsed =
                         StructuredAiResponseParser.parse(chat.completion().content());
                 commitSuccessfulChat(npcId, playerId, transcript, parsed, 200L);
