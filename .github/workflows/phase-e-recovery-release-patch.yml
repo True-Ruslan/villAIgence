@@ -1,0 +1,53 @@
+name: Phase E recovery release patch
+
+on:
+  push:
+    branches:
+      - 'agent/m11-phase-e-automation-completion'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-reviewed-patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch head without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git init .
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout -B agent/m11-phase-e-automation-completion FETCH_HEAD
+
+      - name: Apply exact reviewed release workflow patch
+        run: |
+          python3 scripts/ci/apply_phase_e_recovery_release_patch.py
+          git diff --check
+          grep -Fq "python3 scripts/ci/persistence_recovery_acceptance.py" \
+            .github/workflows/livingworld-release.yml
+          grep -Fq "python3 scripts/ci/test_persistence_recovery_acceptance.py" \
+            .github/workflows/livingworld-release.yml
+          grep -Fq "persistence-recovery-report.json" \
+            .github/workflows/livingworld-release.yml
+          git diff -- .github/workflows/livingworld-release.yml
+
+      - name: Verify recovery Python contracts
+        run: |
+          python3 -m py_compile \
+            scripts/ci/persistence_recovery_acceptance.py \
+            scripts/ci/test_persistence_recovery_acceptance.py
+          python3 scripts/ci/test_persistence_recovery_acceptance.py
+
+      - name: Commit reviewed workflow change
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/livingworld-release.yml
+          git commit -m "ci: require persistence recovery before release"
+          git push origin HEAD:agent/m11-phase-e-automation-completion
