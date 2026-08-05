@@ -25,7 +25,10 @@ on:
       - 'fabric/production-acceptance-fixture.gradle'
       - 'fabric/src/productionAcceptanceFixture/**'
       - 'scripts/ci/package-livingworld-release.sh'
+      - 'scripts/ci/production_lifecycle_acceptance.py'
       - 'scripts/ci/production_server_acceptance.py'
+      - 'scripts/ci/production_server_acceptance_strict.py'
+      - 'scripts/ci/test_production_lifecycle_acceptance.py'
       - 'scripts/ci/test_production_server_acceptance.py'
       - 'scripts/ci/test_production_server_process.py'
       - 'scripts/ci/test-release-version-contract.sh'
@@ -199,6 +202,7 @@ jobs:
           set -euo pipefail
           python3 scripts/ci/test_production_server_acceptance.py
           python3 scripts/ci/test_production_server_process.py
+          python3 scripts/ci/test_production_lifecycle_acceptance.py
 
       - name: Stage and execute exact production server acceptance
         shell: bash
@@ -218,7 +222,7 @@ jobs:
 
           rm -rf build/production-server-acceptance
           mkdir -p build/production-server-acceptance/evidence
-          python3 scripts/ci/production_server_acceptance.py \
+          python3 scripts/ci/production_server_acceptance_strict.py \
             --stage-dir fabric/build/production-acceptance/stage \
             --execute \
             --work-dir build/production-server-acceptance/work \
@@ -243,6 +247,21 @@ jobs:
           )
           if report.get('status') != 'PASS':
               raise SystemExit('production acceptance report is not PASS')
+          PY
+
+          python3 scripts/ci/production_lifecycle_acceptance.py \
+            --server-root build/production-server-acceptance/work/server \
+            --report build/production-server-acceptance/evidence/lifecycle-report.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path('build/production-server-acceptance/evidence/lifecycle-report.json')
+              .read_text(encoding='utf-8')
+          )
+          if report.get('status') != 'PASS':
+              raise SystemExit('production lifecycle report is not PASS')
           PY
 
       - name: Upload production acceptance evidence
