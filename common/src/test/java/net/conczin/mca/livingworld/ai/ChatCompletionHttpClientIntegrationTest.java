@@ -53,12 +53,12 @@ class ChatCompletionHttpClientIntegrationTest {
             AtomicReference<ChatCompletionHttpClient.Result> result = new AtomicReference<>();
             long started = System.nanoTime();
 
-            assertTimeoutPreemptively(Duration.ofSeconds(5), () -> result.set(ChatCompletionHttpClient.post(
+            assertTimeoutPreemptively(Duration.ofSeconds(7), () -> result.set(ChatCompletionHttpClient.post(
                     server.endpoint(),
                     "{\"model\":\"deadline-model\",\"messages\":[]}",
                     "deadline-secret",
                     100,
-                    2_000,
+                    3_000,
                     ChatCompletionHttpClient.AttemptObserver.NOOP
             )));
 
@@ -67,7 +67,7 @@ class ChatCompletionHttpClientIntegrationTest {
             assertEquals(ChatCompletionHttpClient.REQUEST_DEADLINE_ERROR, result.get().error());
             assertEquals(2, server.requestCount());
             assertTrue(
-                    elapsedMillis < 3_000,
+                    elapsedMillis < 3_500,
                     "A retry must share one connect+read budget; elapsed=" + elapsedMillis + "ms"
             );
         }
@@ -148,7 +148,7 @@ class ChatCompletionHttpClientIntegrationTest {
 
             if (requestNumber == 1) {
                 try {
-                    Thread.sleep(1_500L);
+                    Thread.sleep(1_000L);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     exchange.close();
