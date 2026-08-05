@@ -39,6 +39,7 @@ class LegacyToolClosurePolicyTest {
             "gradlew",
             "gradlew.bat",
             "scripts/ci/package-livingworld-release.sh",
+            "scripts/ci/production_lifecycle_acceptance.py",
             "scripts/ci/production_server_acceptance.py",
             "scripts/ci/repository_security_policy.py",
             "scripts/ci/test_production_lifecycle_acceptance.py",
