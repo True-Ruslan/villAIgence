@@ -3,6 +3,7 @@ package net.conczin.mca.gametest;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.ai.ArcherMoveControl;
 import net.conczin.mca.entity.ai.ArcherMoveControlOwner;
+import net.conczin.mca.entity.ai.brain.tasks.ArcherMovementTask;
 import net.conczin.mca.gametest.bridge.MobMoveControlBridge;
 import net.conczin.mca.registry.EntitiesMCA;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
@@ -42,7 +43,7 @@ public final class MountedArcherControlGameTests implements FabricGameTest {
         Horse horse = helper.spawn(EntityType.HORSE, 3, 1, 2);
         helper.assertTrue(villager.startRiding(horse, true),
                 "MCA archer must mount the fixture horse");
-        assertReplacementKeepsStable(helper, villager, bridge, owner, stable);
+        assertReplacementKeepsStable(helper, level, villager, bridge, owner, stable);
 
         Zombie target = helper.spawn(EntityType.ZOMBIE, 8, 1, 2);
         villager.setItemInHand(villager.getDominantHand(), new ItemStack(Items.BOW));
@@ -65,13 +66,14 @@ public final class MountedArcherControlGameTests implements FabricGameTest {
 
         helper.assertTrue(villager.startRiding(horse, true),
                 "MCA archer must support a second mount cycle");
-        assertReplacementKeepsStable(helper, villager, bridge, owner, stable);
+        assertReplacementKeepsStable(helper, level, villager, bridge, owner, stable);
 
         helper.succeed();
     }
 
     private static void assertReplacementKeepsStable(
             GameTestHelper helper,
+            ServerLevel level,
             VillagerEntityMCA villager,
             MobMoveControlBridge bridge,
             ArcherMoveControlOwner owner,
@@ -82,11 +84,25 @@ public final class MountedArcherControlGameTests implements FabricGameTest {
 
         helper.assertTrue(bridge.mca$getActiveMoveControl() == vehicleReplacement,
                 "Test bridge must replace the actual Mob.moveControl field");
-        helper.assertTrue(villager.getMoveControl() == vehicleReplacement,
-                "Fixture must reproduce a vehicle-owned active MoveControl replacement");
         helper.assertTrue(owner.mca$getArcherMoveControl() == stable,
                 "Mounted archer control lookup must return the stable controller");
-        helper.assertTrue(owner.mca$getArcherMoveControl() != villager.getMoveControl(),
-                "Archer state control must remain independent from vehicle movement control");
+
+        new ProbeArcherMovementTask().stopForTest(level, villager);
+
+        helper.assertTrue(bridge.mca$getActiveMoveControl() == vehicleReplacement,
+                "Archer movement task must not overwrite the vehicle-owned controller");
+        helper.assertTrue(owner.mca$getArcherMoveControl() == stable,
+                "Production archer task redirect must retain the stable ArcherMoveControl");
+    }
+
+    private static final class ProbeArcherMovementTask
+            extends ArcherMovementTask<VillagerEntityMCA> {
+        private ProbeArcherMovementTask() {
+            super(16);
+        }
+
+        private void stopForTest(ServerLevel level, VillagerEntityMCA villager) {
+            super.stop(level, villager, level.getGameTime());
+        }
     }
 }
