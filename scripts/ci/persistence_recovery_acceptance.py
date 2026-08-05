@@ -108,6 +108,10 @@ def _sha256_file(path: Path) -> str:
     return _sha256_bytes(path.read_bytes())
 
 
+def _sibling(path: Path, suffix: str) -> Path:
+    return path.with_name(path.name + suffix)
+
+
 def recovery_server_command(command: Sequence[str]) -> list[str]:
     result = list(command)
     try:
@@ -130,7 +134,7 @@ def _store_path(server_root: Path, store: str) -> Path:
 
 def _cleanup_recovery_files(canonical: Path) -> None:
     for suffix in (".tmp", ".corrupt", ".tmp.corrupt"):
-        path = canonical.resolveSibling(canonical.name + suffix)
+        path = _sibling(canonical, suffix)
         if path.exists():
             if path.is_dir() or path.is_symlink():
                 raise RecoveryAcceptanceError(
@@ -151,10 +155,10 @@ def apply_corruption(server_root: Path | str, case: RecoveryCase) -> CorruptionE
     if case.mutation_target == "canonical":
         mutation = canonical
     elif case.mutation_target == "temporary":
-        mutation = canonical.resolveSibling(canonical.name + ".tmp")
+        mutation = _sibling(canonical, ".tmp")
     elif case.mutation_target == "orphan-temporary":
         canonical.unlink()
-        mutation = canonical.resolveSibling(canonical.name + ".tmp")
+        mutation = _sibling(canonical, ".tmp")
     else:
         raise RecoveryAcceptanceError(
             f"unsupported mutation target: {case.mutation_target}"
@@ -162,7 +166,7 @@ def apply_corruption(server_root: Path | str, case: RecoveryCase) -> CorruptionE
 
     mutation.write_bytes(case.payload)
     expected_backup = (
-        canonical.resolveSibling(canonical.name + case.expected_backup)
+        _sibling(canonical, case.expected_backup)
         if case.expected_backup is not None
         else None
     )
@@ -243,7 +247,7 @@ def _verify_case_after_first_run(
     recovered: Mapping[str, base.PersistentFileEvidence],
 ) -> dict[str, Any]:
     canonical = _store_path(server, case.store)
-    temporary = canonical.resolveSibling(canonical.name + ".tmp")
+    temporary = _sibling(canonical, ".tmp")
     if temporary.exists():
         raise RecoveryAcceptanceError(
             f"temporary file remains after recovery: {temporary.name}"
@@ -284,7 +288,7 @@ def _verify_case_after_first_run(
         }
     else:
         for suffix in (".corrupt", ".tmp.corrupt"):
-            unexpected = canonical.resolveSibling(canonical.name + suffix)
+            unexpected = _sibling(canonical, suffix)
             if unexpected.exists():
                 raise RecoveryAcceptanceError(
                     f"stale temp case created unexpected backup: {unexpected.name}"
