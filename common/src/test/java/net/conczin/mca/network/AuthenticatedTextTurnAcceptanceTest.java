@@ -25,11 +25,11 @@ class AuthenticatedTextTurnAcceptanceTest {
 
     @Test
     void authenticatedServerResolvedTurnCommitsOneDialogueAndOneOwnedResponse() {
-        AuthenticatedTextTurn.Session session = new AuthenticatedTextTurn.Session(PLAYER_ID, NPC_ID);
+        AuthenticatedTextTurnCore.Session session = new AuthenticatedTextTurnCore.Session(PLAYER_ID, NPC_ID);
         AtomicInteger providerCalls = new AtomicInteger();
         List<Delivery> deliveries = new ArrayList<>();
 
-        AuthenticatedTextTurn.Outcome outcome = AuthenticatedTextTurn.execute(
+        AuthenticatedTextTurnCore.Outcome outcome = AuthenticatedTextTurnCore.execute(
                 session,
                 "  Привет,   житель  ",
                 (actualSession, normalizedMessage) -> {
@@ -53,7 +53,7 @@ class AuthenticatedTextTurnAcceptanceTest {
                 (actualSession, response) -> deliveries.add(new Delivery(actualSession, response))
         );
 
-        assertEquals(AuthenticatedTextTurn.Status.DELIVERED, outcome.status());
+        assertEquals(AuthenticatedTextTurnCore.Status.DELIVERED, outcome.status());
         assertEquals(session, outcome.session());
         assertEquals(1, providerCalls.get());
         assertEquals(List.of(new Delivery(session, "Привет, игрок")), deliveries);
@@ -68,11 +68,11 @@ class AuthenticatedTextTurnAcceptanceTest {
 
     @Test
     void emptyProviderResultProducesNoDialogueAndNoResponse() {
-        AuthenticatedTextTurn.Session session = new AuthenticatedTextTurn.Session(PLAYER_ID, NPC_ID);
+        AuthenticatedTextTurnCore.Session session = new AuthenticatedTextTurnCore.Session(PLAYER_ID, NPC_ID);
         AtomicInteger providerCalls = new AtomicInteger();
         AtomicInteger deliveries = new AtomicInteger();
 
-        AuthenticatedTextTurn.Outcome outcome = AuthenticatedTextTurn.execute(
+        AuthenticatedTextTurnCore.Outcome outcome = AuthenticatedTextTurnCore.execute(
                 session,
                 "Сообщение",
                 (actualSession, normalizedMessage) -> {
@@ -82,7 +82,7 @@ class AuthenticatedTextTurnAcceptanceTest {
                 (actualSession, response) -> deliveries.incrementAndGet()
         );
 
-        assertEquals(AuthenticatedTextTurn.Status.NO_RESPONSE, outcome.status());
+        assertEquals(AuthenticatedTextTurnCore.Status.NO_RESPONSE, outcome.status());
         assertEquals(1, providerCalls.get());
         assertEquals(0, deliveries.get());
         assertEquals(List.of(), MemoryEventStore.forWorld(worldRoot).getRecent(NPC_ID, 10));
@@ -92,14 +92,14 @@ class AuthenticatedTextTurnAcceptanceTest {
     void missingAuthenticatedOrResolvedIdentityIsRejectedBeforeProviderInvocation() {
         assertThrows(
                 NullPointerException.class,
-                () -> new AuthenticatedTextTurn.Session(null, NPC_ID)
+                () -> new AuthenticatedTextTurnCore.Session(null, NPC_ID)
         );
         assertThrows(
                 NullPointerException.class,
-                () -> new AuthenticatedTextTurn.Session(PLAYER_ID, null)
+                () -> new AuthenticatedTextTurnCore.Session(PLAYER_ID, null)
         );
     }
 
-    private record Delivery(AuthenticatedTextTurn.Session session, String response) {
+    private record Delivery(AuthenticatedTextTurnCore.Session session, String response) {
     }
 }
