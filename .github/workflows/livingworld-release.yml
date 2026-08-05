@@ -13,10 +13,13 @@ on:
       - '1.21.1'
     paths:
       - '.github/workflows/livingworld-release.yml'
+      - '.github/workflows/livingworld-nightly.yml'
       - 'build.gradle'
       - 'gradle.properties'
       - 'gradle/verification-metadata.xml'
       - '**/gradle.lockfile'
+      - 'common/src/main/java/net/conczin/mca/livingworld/**'
+      - 'common/src/test/java/net/conczin/mca/livingworld/**'
       - 'docs/RELEASING.md'
       - 'docs/releases/**'
       - 'docs/livingworld/VALIDATION_0.1.24_RELEASE_GATE.md'
@@ -25,9 +28,11 @@ on:
       - 'fabric/production-acceptance-fixture.gradle'
       - 'fabric/src/productionAcceptanceFixture/**'
       - 'scripts/ci/package-livingworld-release.sh'
+      - 'scripts/ci/persistence_recovery_acceptance.py'
       - 'scripts/ci/production_lifecycle_acceptance.py'
       - 'scripts/ci/production_server_acceptance.py'
       - 'scripts/ci/production_server_acceptance_strict.py'
+      - 'scripts/ci/test_persistence_recovery_acceptance.py'
       - 'scripts/ci/test_production_lifecycle_acceptance.py'
       - 'scripts/ci/test_production_server_acceptance.py'
       - 'scripts/ci/test_production_server_process.py'
@@ -203,6 +208,7 @@ jobs:
           python3 scripts/ci/test_production_server_acceptance.py
           python3 scripts/ci/test_production_server_process.py
           python3 scripts/ci/test_production_lifecycle_acceptance.py
+          python3 scripts/ci/test_persistence_recovery_acceptance.py
 
       - name: Stage and execute exact production server acceptance
         shell: bash
@@ -272,6 +278,48 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
           path: build/production-server-acceptance/evidence
+
+      - name: Execute exact persistence recovery matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build/persistence-recovery-acceptance
+          mkdir -p build/persistence-recovery-acceptance/evidence
+          python3 scripts/ci/persistence_recovery_acceptance.py \
+            --stage-dir fabric/build/production-acceptance/stage \
+            --execute \
+            --work-dir build/persistence-recovery-acceptance/work \
+            --report-dir build/persistence-recovery-acceptance/evidence \
+            --java "${JAVA_HOME}/bin/java" \
+            --installer-timeout-seconds 300 \
+            --startup-timeout-seconds 180 \
+            --shutdown-timeout-seconds 60 \
+            --max-heap-mib 768
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path('build/persistence-recovery-acceptance/evidence/persistence-recovery-report.json')
+              .read_text(encoding='utf-8')
+          )
+          if report.get('status') != 'PASS':
+              raise SystemExit('persistence recovery report is not PASS')
+          cases = report.get('cases')
+          if not isinstance(cases, list) or len(cases) != 6:
+              raise SystemExit('persistence recovery report must contain six cases')
+          if any(case.get('status') != 'PASS' for case in cases):
+              raise SystemExit('at least one persistence recovery case is not PASS')
+          PY
+
+      - name: Upload persistence recovery evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: persistence-recovery-${{ github.run_number }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: build/persistence-recovery-acceptance/evidence
 
       - name: Run risk catalog, server GameTests and supported loader builds
         shell: bash
