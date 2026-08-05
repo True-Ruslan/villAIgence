@@ -1,0 +1,268 @@
+name: One-shot wire Chat deadline
+
+on:
+  push:
+    branches:
+      - agent/m11-phase-c-orchestration-deadline
+    paths:
+      - .github/workflows/one-shot-wire-chat-deadline.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: agent/m11-phase-c-orchestration-deadline
+          fetch-depth: 0
+      - name: Wire shared deadline through Chat
+        shell: bash --noprofile --norc -e -o pipefail {0}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: Path, old: str, new: str, label: str) -> None:
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: {label}: expected 1 anchor, found {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          chat = Path('common/src/main/java/net/conczin/mca/entity/ai/chatAI/ChatAI.java')
+          replace_once(
+              chat,
+              'import net.conczin.mca.livingworld.LivingWorldConfig;\n',
+              'import net.conczin.mca.livingworld.LivingWorldConfig;\nimport net.conczin.mca.livingworld.ai.AiRequestDeadline;\n',
+              'ChatAI deadline import'
+          )
+          replace_once(
+              chat,
+              '''    public static Optional<String> answer(
+                  MinecraftServer server,
+                  ServerPlayer player,
+                  VillagerEntityMCA villager,
+                  String msg,
+                  LivingWorldContextSnapshot snapshot
+          ) {
+              ChatAIStrategy strategy = computeStrategyIfAbsent(snapshot.villagerId());
+          ''',
+              '''    public static Optional<String> answer(
+                  MinecraftServer server,
+                  ServerPlayer player,
+                  VillagerEntityMCA villager,
+                  String msg,
+                  LivingWorldContextSnapshot snapshot
+          ) {
+              return answer(server, player, villager, msg, snapshot, null);
+          }
+
+          public static Optional<String> answer(
+                  MinecraftServer server,
+                  ServerPlayer player,
+                  VillagerEntityMCA villager,
+                  String msg,
+                  LivingWorldContextSnapshot snapshot,
+                  AiRequestDeadline deadline
+          ) {
+              ChatAIStrategy strategy = computeStrategyIfAbsent(snapshot.villagerId());
+          ''',
+              'ChatAI snapshot overload'
+          )
+          replace_once(
+              chat,
+              'Optional<String> answer = openAIChatAI.answer(server, player, villager, msg, snapshot);',
+              'Optional<String> answer = openAIChatAI.answer(server, player, villager, msg, snapshot, deadline);',
+              'ChatAI OpenAI delegation'
+          )
+
+          openai = Path('common/src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java')
+          replace_once(
+              openai,
+              'import net.conczin.mca.livingworld.ai.AiProviderSettings;\n',
+              'import net.conczin.mca.livingworld.ai.AiProviderSettings;\nimport net.conczin.mca.livingworld.ai.AiRequestDeadline;\n',
+              'OpenAI deadline import'
+          )
+          replace_once(
+              openai,
+              '''    public Optional<String> answer(
+                  MinecraftServer server,
+                  ServerPlayer player,
+                  VillagerEntityMCA villager,
+                  String msg,
+                  LivingWorldContextSnapshot snapshot
+          ) {
+              try {
+          ''',
+              '''    public Optional<String> answer(
+                  MinecraftServer server,
+                  ServerPlayer player,
+                  VillagerEntityMCA villager,
+                  String msg,
+                  LivingWorldContextSnapshot snapshot
+          ) {
+              return answer(server, player, villager, msg, snapshot, null);
+          }
+
+          public Optional<String> answer(
+                  MinecraftServer server,
+                  ServerPlayer player,
+                  VillagerEntityMCA villager,
+                  String msg,
+                  LivingWorldContextSnapshot snapshot,
+                  @Nullable AiRequestDeadline deadline
+          ) {
+              try {
+          ''',
+              'OpenAI snapshot overload'
+          )
+          replace_once(
+              openai,
+              '''            String token = provider.usePlayerNameAsToken() ? snapshot.playerName() : provider.apiKey();
+              Answer response = post(provider, body.toString(), token);
+          ''',
+              '''            String token = provider.usePlayerNameAsToken() ? snapshot.playerName() : provider.apiKey();
+              Answer response = post(provider, body.toString(), token, deadline);
+          ''',
+              'snapshot shared deadline'
+          )
+          replace_once(
+              openai,
+              '''                DEFAULT_READ_TIMEOUT_MILLIS,
+                  "<unspecified>"
+          ''',
+              '''                DEFAULT_READ_TIMEOUT_MILLIS,
+                  "<unspecified>",
+                  null
+          ''',
+              'legacy post null deadline'
+          )
+          replace_once(
+              openai,
+              '''    private static Answer post(AiProviderSettings settings, String requestBody, String token) {
+              return post(
+                      settings.endpoint(),
+                      requestBody,
+                      token,
+                      settings.connectTimeoutMillis(),
+                      settings.readTimeoutMillis(),
+                      settings.model()
+              );
+          }
+          ''',
+              '''    private static Answer post(AiProviderSettings settings, String requestBody, String token) {
+              return post(settings, requestBody, token, null);
+          }
+
+          private static Answer post(
+                  AiProviderSettings settings,
+                  String requestBody,
+                  String token,
+                  @Nullable AiRequestDeadline deadline
+          ) {
+              return post(
+                      settings.endpoint(),
+                      requestBody,
+                      token,
+                      settings.connectTimeoutMillis(),
+                      settings.readTimeoutMillis(),
+                      settings.model(),
+                      deadline
+              );
+          }
+          ''',
+              'provider settings overload'
+          )
+          replace_once(
+              openai,
+              '''            int readTimeoutMillis,
+              String model
+          ) {
+              ChatCompletionHttpClient.Result result = ChatCompletionHttpClient.post(
+          ''',
+              '''            int readTimeoutMillis,
+              String model,
+              @Nullable AiRequestDeadline deadline
+          ) {
+              ChatCompletionHttpClient.AttemptObserver observer = new ChatCompletionHttpClient.AttemptObserver() {
+                  @Override
+                  public void onProviderFailure(
+                          int attempt,
+                          ChatCompletionResponseParser.ParsedCompletion completion
+                  ) {
+                      logProviderFailure(model, attempt, completion);
+                  }
+
+                  @Override
+                  public void onEmptyCompletion(
+                          int attempt,
+                          ChatCompletionResponseParser.ParsedCompletion completion,
+                          boolean retrying
+                  ) {
+                      logEmptyCompletion(model, attempt, completion, retrying);
+                  }
+              };
+              ChatCompletionHttpClient.Result result = deadline == null
+                      ? ChatCompletionHttpClient.post(
+          ''',
+              'provider post signature and observer'
+          )
+          replace_once(
+              openai,
+              '''                readTimeoutMillis,
+                  new ChatCompletionHttpClient.AttemptObserver() {
+                      @Override
+                      public void onProviderFailure(
+                              int attempt,
+                              ChatCompletionResponseParser.ParsedCompletion completion
+                      ) {
+                          logProviderFailure(model, attempt, completion);
+                      }
+
+                      @Override
+                      public void onEmptyCompletion(
+                              int attempt,
+                              ChatCompletionResponseParser.ParsedCompletion completion,
+                              boolean retrying
+                      ) {
+                          logEmptyCompletion(model, attempt, completion, retrying);
+                      }
+                  }
+          );
+          ''',
+              '''                readTimeoutMillis,
+                          observer
+                  )
+                  : ChatCompletionHttpClient.post(
+                          endpoint,
+                          requestBody,
+                          token,
+                          connectTimeoutMillis,
+                          readTimeoutMillis,
+                          deadline,
+                          observer
+                  );
+          ''',
+              'provider transport selection'
+          )
+
+          for path in (chat, openai):
+              text = path.read_text(encoding='utf-8')
+              if text.count('applySnapshotRelationshipDelta(') != (1 if path == openai else 0):
+                  raise SystemExit(f'{path}: relationship commit-site count changed unexpectedly')
+          PY
+          git diff --check
+          grep -Fq 'openAIChatAI.answer(server, player, villager, msg, snapshot, deadline)' common/src/main/java/net/conczin/mca/entity/ai/chatAI/ChatAI.java
+          grep -Fq 'post(provider, body.toString(), token, deadline)' common/src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java
+      - name: Commit Chat wiring
+        shell: bash --noprofile --norc -e -o pipefail {0}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add common/src/main/java/net/conczin/mca/entity/ai/chatAI/ChatAI.java common/src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java
+          git commit -m 'feat: share voice deadline with Chat retries'
+          git push origin HEAD:agent/m11-phase-c-orchestration-deadline
