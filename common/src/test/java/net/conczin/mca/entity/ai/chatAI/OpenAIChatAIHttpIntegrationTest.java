@@ -2,6 +2,7 @@ package net.conczin.mca.entity.ai.chatAI;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import net.conczin.mca.livingworld.ai.ChatCompletionHttpClient;
 import net.conczin.mca.livingworld.ai.ProviderEndpoint;
 import net.conczin.mca.livingworld.ai.ProviderEndpointPolicy;
 import org.junit.jupiter.api.Test;
@@ -30,18 +31,19 @@ class OpenAIChatAIHttpIntegrationTest {
     @Test
     void retriesOneEmptyCompletionAndReturnsOneUsableAnswer() throws Exception {
         try (ScriptedChatServer server = ScriptedChatServer.retryThenSuccess()) {
-            OpenAIChatAI.Answer answer = OpenAIChatAI.post(
+            ChatCompletionHttpClient.Result result = ChatCompletionHttpClient.post(
                     server.endpoint(),
                     "{\"model\":\"test-model\",\"messages\":[]}",
                     "test-secret",
                     500,
                     2_000,
-                    "test-model"
+                    ChatCompletionHttpClient.AttemptObserver.NOOP
             );
 
-            assertNull(answer.error());
-            assertNotNull(answer.answer());
-            assertEquals("Привет из детерминированного провайдера", answer.answer().message());
+            assertNull(result.error());
+            assertNotNull(result.completion());
+            assertEquals("Привет из детерминированного провайдера", result.completion().content());
+            assertEquals(2, result.attempts());
             assertEquals(2, server.requestCount());
             assertEquals(List.of("Bearer test-secret", "Bearer test-secret"), server.authorizationHeaders());
             assertTrue(server.lastRequestBody().contains("\"model\":\"test-model\""));
@@ -51,21 +53,21 @@ class OpenAIChatAIHttpIntegrationTest {
     @Test
     void retrySharesOneEndToEndBudgetInsteadOfReceivingTwoFullReadTimeouts() throws Exception {
         try (ScriptedChatServer server = ScriptedChatServer.slowEmptyThenBlocked()) {
-            AtomicReference<OpenAIChatAI.Answer> answer = new AtomicReference<>();
+            AtomicReference<ChatCompletionHttpClient.Result> result = new AtomicReference<>();
             long started = System.nanoTime();
 
-            assertTimeoutPreemptively(Duration.ofSeconds(5), () -> answer.set(OpenAIChatAI.post(
+            assertTimeoutPreemptively(Duration.ofSeconds(5), () -> result.set(ChatCompletionHttpClient.post(
                     server.endpoint(),
                     "{\"model\":\"deadline-model\",\"messages\":[]}",
                     "deadline-secret",
                     100,
                     2_000,
-                    "deadline-model"
+                    ChatCompletionHttpClient.AttemptObserver.NOOP
             )));
 
             long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
-            assertNotNull(answer.get());
-            assertNotNull(answer.get().error());
+            assertNotNull(result.get());
+            assertNotNull(result.get().error());
             assertEquals(2, server.requestCount());
             assertTrue(
                     elapsedMillis < 3_000,
