@@ -53,6 +53,15 @@ jobs:
           python3 scripts/ci/repository_security_policy.py --check
           test -s build/security/script-inventory.json
 
+      - name: Run common and deterministic mock-provider tests
+        run: |
+          chmod +x gradlew
+          ./gradlew \
+            :common:test \
+            --stacktrace \
+            --no-daemon \
+            --console=plain
+
       - name: Run production acceptance contract tests
         run: |
           python3 scripts/ci/test_production_server_acceptance.py
