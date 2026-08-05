@@ -1,0 +1,98 @@
+name: One-shot M11 Phase C CI gate
+
+on:
+  push:
+    branches:
+      - agent/m11-phase-c-mock-provider
+    paths:
+      - .github/workflows/one-shot-m11-phase-c-ci-gate.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: agent/m11-phase-c-mock-provider
+          fetch-depth: 0
+
+      - name: Add fail-fast common gate and scenario evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          ci = Path('.github/workflows/livingworld-ci.yml')
+          source = ci.read_text(encoding='utf-8')
+          anchor = '''      - name: Run production acceptance contract tests
+          run: |
+          '''
+          step = '''      - name: Run common and deterministic mock-provider tests
+                run: |
+                  chmod +x gradlew
+                  ./gradlew \\
+                    :common:test \\
+                    --stacktrace \\
+                    --no-daemon \\
+                    --console=plain
+
+          '''
+          if source.count(anchor) != 1 or 'Run common and deterministic mock-provider tests' in source:
+              raise SystemExit('unexpected primary CI insertion state')
+          source = source.replace(anchor, step + anchor)
+          ci.write_text(source, encoding='utf-8')
+
+          release = Path('.github/workflows/livingworld-release.yml')
+          source = release.read_text(encoding='utf-8')
+          anchor = '''      - name: Run production acceptance contract tests
+                shell: bash
+                run: |
+          '''
+          step = '''      - name: Run common and deterministic mock-provider tests
+                shell: bash
+                run: |
+                  set -euo pipefail
+                  chmod +x gradlew
+                  ./gradlew \\
+                    :common:test \\
+                    --stacktrace \\
+                    --no-daemon \\
+                    --console=plain
+
+          '''
+          if source.count(anchor) != 1 or 'Run common and deterministic mock-provider tests' in source:
+              raise SystemExit('unexpected release CI insertion state')
+          source = source.replace(anchor, step + anchor)
+          release.write_text(source, encoding='utf-8')
+
+          catalog = Path('common/src/test/resources/acceptance/scenarios.tsv')
+          source = catalog.read_text(encoding='utf-8')
+          anchor = 'VAI-AI-003\tAI_VOICE_RESILIENCE\tHIGH\tPLANNED\tMOCK_PROVIDER_INTEGRATION\t\tChat STT and TTS obey one bounded end-to-end deadline including retries and body reads\tSynthetic slow provider terminates inside the declared total budget with controlled fallback\t360\tplanned mock-provider integration report\tPhase C addresses the observed 272-second Chat request without using real external providers\n'
+          row = 'VAI-AI-004\tAI_VOICE_RESILIENCE\tHIGH\tAUTOMATED\tMOCK_PROVIDER_INTEGRATION\tVillAIgence CI\tProduction Chat STT and TTS HTTP paths remain deterministic and provider-independent in CI\tOne empty Chat completion retries exactly once within one shared deadline while one multipart STT request and one PCM TTS request produce fixed transcript and samples\t360\tcommon JUnit XML and VillAIgence CI log\t\n'
+          if source.count(anchor) != 1 or 'VAI-AI-004\t' in source:
+              raise SystemExit('unexpected scenario catalog insertion state')
+          catalog.write_text(source.replace(anchor, anchor + row), encoding='utf-8')
+
+          Path('.github/workflows/one-shot-m11-phase-c-ci-gate.yml').unlink()
+          PY
+
+          grep -Fq 'Run common and deterministic mock-provider tests' .github/workflows/livingworld-ci.yml
+          grep -Fq 'Run common and deterministic mock-provider tests' .github/workflows/livingworld-release.yml
+          grep -Fq $'VAI-AI-004\tAI_VOICE_RESILIENCE\tHIGH\tAUTOMATED' common/src/test/resources/acceptance/scenarios.tsv
+          git diff --check
+
+      - name: Commit fail-fast CI gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'ci: fail fast on deterministic provider acceptance'
+          git push origin HEAD:agent/m11-phase-c-mock-provider
