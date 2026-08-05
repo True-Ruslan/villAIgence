@@ -103,9 +103,15 @@ public final class TombstoneIdentityReplayGameTests implements FabricGameTest {
     }
 
     private static void assertLiveIdentityCount(GameTestHelper helper, int expectedCount) {
+        BlockPos minimum = helper.absolutePos(new BlockPos(-16, -8, -16));
+        BlockPos maximum = helper.absolutePos(new BlockPos(16, 16, 16));
         AABB area = new AABB(
-                helper.absolutePos(new BlockPos(-16, -8, -16)),
-                helper.absolutePos(new BlockPos(16, 16, 16))
+                minimum.getX(),
+                minimum.getY(),
+                minimum.getZ(),
+                maximum.getX() + 1.0D,
+                maximum.getY() + 1.0D,
+                maximum.getZ() + 1.0D
         );
         long actualCount = helper.getLevel()
                 .getEntitiesOfClass(VillagerEntityMCA.class, area)
