@@ -215,7 +215,6 @@ public class OpenAIChatAI implements ChatAIStrategy {
     }
 
     private static void logProviderFailure(
-
             String model,
             int attempt,
             @Nullable ChatCompletionResponseParser.ParsedCompletion completion
