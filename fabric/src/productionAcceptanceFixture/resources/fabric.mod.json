@@ -3,19 +3,24 @@
   "id": "mca-production-acceptance-fixture",
   "version": "1.0.0",
   "name": "VillAIgence Production Acceptance Fixture",
-  "description": "Test-only deterministic persistence fixture for isolated production-JAR startup and restart acceptance.",
+  "description": "Test-only deterministic persistence and real voice transport fixture for isolated production-JAR startup and restart acceptance.",
   "environment": "server",
   "entrypoints": {
     "main": [
       "net.conczin.mca.acceptancefixture.ProductionAcceptanceChunkForcing",
       "net.conczin.mca.acceptancefixture.ProductionAcceptanceFixture",
-      "net.conczin.mca.acceptancefixture.ProductionAcceptanceRecoveryMode"
+      "net.conczin.mca.acceptancefixture.ProductionAcceptanceRecoveryMode",
+      "net.conczin.mca.acceptancefixture.ProductionAcceptanceVoiceEvidenceWriter"
+    ],
+    "voicechat": [
+      "net.conczin.mca.acceptancefixture.ProductionAcceptanceVoiceTransportPlugin"
     ]
   },
   "depends": {
     "fabricloader": ">=0.19.3",
     "fabric-api": "*",
     "minecraft": "1.21.1",
-    "mca": "*"
+    "mca": "*",
+    "voicechat_api": ">=2.6.20"
   }
 }
