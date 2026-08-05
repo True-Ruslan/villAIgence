@@ -14,6 +14,7 @@ import sys
 print('[main/INFO]: Loading Minecraft 1.21.1 with Fabric Loader 0.19.3', flush=True)
 print('\t- mca 1.21.1-SNAPSHOT', flush=True)
 print('[Server thread/INFO]: Done (0.100s)! For help, type "help"', flush=True)
+print('[Server thread/INFO]: VILLAIGENCE_PRODUCTION_FIXTURE_READY', flush=True)
 command = sys.stdin.readline().strip()
 if command != 'stop':
     print('unexpected command=' + command, flush=True)
@@ -21,6 +22,13 @@ if command != 'stop':
 print('[Server thread/INFO]: Stopping server', flush=True)
 print('[Server thread/INFO]: Saving worlds', flush=True)
 print('[Server thread/INFO]: ThreadedAnvilChunkStorage: All dimensions are saved', flush=True)
+'''
+
+VANILLA_READY_THEN_CRASH_SCRIPT = r'''
+print('[Server thread/INFO]: Done (0.100s)! For help, type "help"', flush=True)
+print('[Server thread/ERROR]: Encountered an unexpected exception', flush=True)
+print('java.lang.IllegalStateException: fixture failed', flush=True)
+raise SystemExit(0)
 '''
 
 EARLY_EXIT_SCRIPT = r'''
@@ -49,7 +57,27 @@ class ServerProcessTest(unittest.TestCase):
             self.assertGreaterEqual(evidence.duration_millis, 0)
             log = log_path.read_text(encoding='utf-8')
             self.assertIn('Done (0.100s)!', log)
+            self.assertIn('VILLAIGENCE_PRODUCTION_FIXTURE_READY', log)
             self.assertIn('All dimensions are saved', log)
+
+    def test_vanilla_ready_then_fixture_crash_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            log_path = root / 'crash.log'
+
+            with self.assertRaisesRegex(AcceptanceError, 'before ready'):
+                run_server_process(
+                    [sys.executable, '-u', '-c', VANILLA_READY_THEN_CRASH_SCRIPT],
+                    cwd=root,
+                    log_path=log_path,
+                    startup_timeout_seconds=5.0,
+                    shutdown_timeout_seconds=5.0,
+                )
+
+            log = log_path.read_text(encoding='utf-8')
+            self.assertIn('Done (0.100s)!', log)
+            self.assertNotIn('VILLAIGENCE_PRODUCTION_FIXTURE_READY', log)
+            self.assertIn('Encountered an unexpected exception', log)
 
     def test_process_exit_before_ready_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
