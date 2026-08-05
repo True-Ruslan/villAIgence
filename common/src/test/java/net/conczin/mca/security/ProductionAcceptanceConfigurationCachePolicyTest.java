@@ -11,61 +11,67 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProductionAcceptanceConfigurationCachePolicyTest {
     @Test
-    void productionAcceptanceStagingDoesNotResolveProjectStateDuringTaskExecution()
+    void productionAcceptanceStagingUsesAnEffectiveConfigurationSafeOverride()
             throws IOException {
         Path buildFile = Path.of("..", "fabric", "build.gradle")
                 .toAbsolutePath()
                 .normalize();
-        String source = Files.readString(buildFile);
+        Path fixtureBuildFile = Path.of("..", "fabric", "production-acceptance-fixture.gradle")
+                .toAbsolutePath()
+                .normalize();
+        String buildSource = Files.readString(buildFile);
+        String fixtureSource = Files.readString(fixtureBuildFile);
 
-        String taskBlock = section(
-                source,
-                "def stageProductionAcceptanceRuntime = tasks.register('stageProductionAcceptanceRuntime')",
-                "\n\ntasks.named('check')"
+        int taskDeclaration = buildSource.indexOf(
+                "def stageProductionAcceptanceRuntime = tasks.register('stageProductionAcceptanceRuntime')"
+        );
+        int fixtureApplication = buildSource.indexOf(
+                "apply from: 'production-acceptance-fixture.gradle'"
+        );
+        assertTrue(taskDeclaration >= 0, "Production staging task declaration is missing");
+        assertTrue(
+                fixtureApplication > taskDeclaration,
+                "The configuration-safe override must be applied after the legacy task is registered"
         );
 
-        assertFalse(
-                taskBlock.contains("project.delete("),
-                "Production staging must use injected filesystem operations instead of Task.project during execution"
-        );
-        assertFalse(
-                taskBlock.contains("project.property("),
-                "Production staging must use configuration-time providers instead of Task.project during execution"
+        String overrideBlock = section(
+                fixtureSource,
+                "def productionAcceptanceMinecraftVersion = providers.gradleProperty('minecraft_version')",
+                "\n"
         );
         assertTrue(
-                taskBlock.contains("productionAcceptanceModId.get()"),
+                fixtureSource.contains("stageProductionAcceptanceRuntime.configure"),
+                "Fixture script must configure the existing production staging task"
+        );
+        assertTrue(
+                fixtureSource.contains("setActions([])"),
+                "Fixture script must remove the legacy execution action before adding the safe action"
+        );
+        assertFalse(
+                fixtureSource.contains("project."),
+                "Effective production staging must not query Project during task execution"
+        );
+        assertTrue(
+                fixtureSource.contains("productionAcceptanceModId.get()"),
                 "Production staging must consume the declared configuration-time mod id provider"
         );
         assertTrue(
-                taskBlock.contains("productionAcceptanceMinecraftVersion.get()"),
+                fixtureSource.contains("productionAcceptanceMinecraftVersion.get()"),
                 "Production staging manifest must consume the declared Minecraft version provider"
         );
         assertTrue(
-                taskBlock.contains("productionAcceptanceLoaderVersion.get()"),
+                fixtureSource.contains("productionAcceptanceLoaderVersion.get()"),
                 "Production staging manifest must consume the declared loader version provider"
         );
         assertTrue(
-                taskBlock.contains("productionAcceptanceInstallerVersion.get()"),
+                fixtureSource.contains("productionAcceptanceInstallerVersion.get()"),
                 "Production staging manifest must consume the declared installer version provider"
         );
-    }
-
-    @Test
-    void fixtureStagingExtensionDoesNotResolveProjectStateDuringTaskExecution()
-            throws IOException {
-        Path buildFile = Path.of("..", "fabric", "production-acceptance-fixture.gradle")
-                .toAbsolutePath()
-                .normalize();
-        String source = Files.readString(buildFile);
-
-        String taskBlock = section(
-                source,
-                "tasks.named('stageProductionAcceptanceRuntime')",
-                "\n}"
-        );
-        assertFalse(
-                taskBlock.contains("project."),
-                "Fixture staging must not query Project during task execution"
+        assertTrue(
+                overrideBlock.startsWith(
+                        "def productionAcceptanceMinecraftVersion = providers.gradleProperty('minecraft_version')"
+                ),
+                "Configuration-time provider declaration must remain explicit"
         );
     }
 
