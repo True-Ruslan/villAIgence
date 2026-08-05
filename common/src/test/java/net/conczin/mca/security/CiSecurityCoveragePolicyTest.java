@@ -26,6 +26,31 @@ class CiSecurityCoveragePolicyTest {
     }
 
     @Test
+    void deterministicProviderTestsFailBeforeExpensiveProductionAcceptance() throws IOException {
+        String workflow = Files.readString(
+                repositoryRoot().resolve(".github/workflows/livingworld-ci.yml")
+        );
+
+        String providerStep = "- name: Run common and deterministic mock-provider tests";
+        String productionStep = "- name: Stage and execute production server acceptance";
+        int providerStart = workflow.indexOf(providerStep);
+        int productionStart = workflow.indexOf(productionStep);
+
+        assertTrue(providerStart >= 0, "Primary CI must have an explicit deterministic provider gate");
+        assertTrue(productionStart >= 0, "Primary CI production acceptance step is missing");
+        assertTrue(
+                providerStart < productionStart,
+                "Deterministic provider tests must fail before expensive production acceptance"
+        );
+
+        int providerEnd = workflow.indexOf("\n      - name:", providerStart + providerStep.length());
+        assertTrue(providerEnd > providerStart, "Deterministic provider gate is malformed");
+        String providerBlock = workflow.substring(providerStart, providerEnd);
+        assertTrue(providerBlock.contains(":common:test"), "Provider gate must execute common tests");
+        assertTrue(providerBlock.contains("--no-daemon"), "Provider gate must use the bounded CI Gradle mode");
+    }
+
+    @Test
     void repositorySecurityPolicyAndApprovedInventoryAreCommitted() {
         Path root = repositoryRoot();
         assertTrue(
