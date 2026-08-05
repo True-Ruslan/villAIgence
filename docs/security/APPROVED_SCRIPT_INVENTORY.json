@@ -20,6 +20,12 @@
       "ci": true
     },
     {
+      "path": "scripts/ci/production_lifecycle_acceptance.py",
+      "purpose": "Validates deterministic two-JVM NPC death, portable grave, resurrection, identity and inventory evidence in an isolated production server; performs no network requests.",
+      "network": false,
+      "ci": true
+    },
+    {
       "path": "scripts/ci/production_server_acceptance.py",
       "purpose": "Validates and later executes the isolated production Fabric server acceptance bundle; process orchestration may cause the pinned Fabric installer to download official Minecraft runtime files.",
       "network": true,
