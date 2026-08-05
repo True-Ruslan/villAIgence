@@ -164,35 +164,57 @@ private static Answer post(
 ) {
     ChatCompletionHttpClient.AttemptObserver observer = new ChatCompletionHttpClient.AttemptObserver() {
         @Override
-        public void onProviderFailure(int attempt, ChatCompletionResponseParser.ParsedCompletion completion) {
+        public void onProviderFailure(
+                int attempt,
+                ChatCompletionResponseParser.ParsedCompletion completion
+        ) {
             logProviderFailure(model, attempt, completion);
         }
 
         @Override
-        public void onEmptyCompletion(int attempt, ChatCompletionResponseParser.ParsedCompletion completion, boolean retrying) {
+        public void onEmptyCompletion(
+                int attempt,
+                ChatCompletionResponseParser.ParsedCompletion completion,
+                boolean retrying
+        ) {
             logEmptyCompletion(model, attempt, completion, retrying);
         }
     };
     ChatCompletionHttpClient.Result result = deadline == null
-            ? ChatCompletionHttpClient.post(endpoint, requestBody, token, connectTimeoutMillis, readTimeoutMillis, observer)
-            : ChatCompletionHttpClient.post(endpoint, requestBody, token, connectTimeoutMillis, readTimeoutMillis, deadline, observer);
+            ? ChatCompletionHttpClient.post(
+                    endpoint,
+                    requestBody,
+                    token,
+                    connectTimeoutMillis,
+                    readTimeoutMillis,
+                    observer
+            )
+            : ChatCompletionHttpClient.post(
+                    endpoint,
+                    requestBody,
+                    token,
+                    connectTimeoutMillis,
+                    readTimeoutMillis,
+                    deadline,
+                    observer
+            );
 
     if (result.failure() instanceof BoundedResponseReader.ResponseTooLargeException exception) {
-            MCA.LOGGER.warn(
-                    "AI provider response exceeded safe byte limit: limit={}, observed={}",
-                    exception.limitBytes(),
-                    exception.observedBytes()
-            );
-        } else if (result.failure() != null) {
-            MCA.LOGGER.error("AI provider request failed", result.failure());
-        }
-        if (result.error() != null) {
-            return new Answer(null, result.error());
-        }
-        return parseCompletion(result.completion()).answer();
+        MCA.LOGGER.warn(
+                "AI provider response exceeded safe byte limit: limit={}, observed={}",
+                exception.limitBytes(),
+                exception.observedBytes()
+        );
+    } else if (result.failure() != null) {
+        MCA.LOGGER.error("AI provider request failed", result.failure());
     }
+    if (result.error() != null) {
+        return new Answer(null, result.error());
+    }
+    return parseCompletion(result.completion()).answer();
+}
 
-    private static void logProviderFailure(
+private static void logProviderFailure(
             String model,
             int attempt,
             @Nullable ChatCompletionResponseParser.ParsedCompletion completion
