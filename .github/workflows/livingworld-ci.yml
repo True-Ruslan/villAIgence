@@ -101,6 +101,7 @@ jobs:
           python3 scripts/ci/test_production_server_acceptance.py
           python3 scripts/ci/test_production_server_process.py
           python3 scripts/ci/test_production_lifecycle_acceptance.py
+          python3 scripts/ci/test_persistence_recovery_acceptance.py
 
       - name: Stage and execute production server acceptance
         run: |
