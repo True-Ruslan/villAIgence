@@ -1,12 +1,8 @@
 package net.conczin.mca.network.c2s;
 
 import net.conczin.mca.MCA;
-import net.conczin.mca.livingworld.lore.editor.OperatorLoreEditorResult;
-import net.conczin.mca.livingworld.lore.editor.OperatorLoreProtocolPolicy;
-import net.conczin.mca.livingworld.lore.editor.OperatorLoreServerAuthority;
+import net.conczin.mca.livingworld.lore.editor.OperatorLoreNetworkSession;
 import net.conczin.mca.network.HandleablePayload;
-import net.conczin.mca.network.Network;
-import net.conczin.mca.network.s2c.OperatorLoreResponse;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -29,10 +25,11 @@ public record OperatorLoreReadRequest(
 
     @Override
     public void handleServer(ServerPlayer player) {
-        OperatorLoreEditorResult result = OperatorLoreServerAuthority.read(player, scope, villagerEntityId);
-        Network.sendToPlayer(
-                new OperatorLoreResponse(OperatorLoreProtocolPolicy.echo(requestId), result),
-                player
+        OperatorLoreNetworkSession.handleRead(
+                player,
+                requestId,
+                scope,
+                villagerEntityId
         );
     }
 
