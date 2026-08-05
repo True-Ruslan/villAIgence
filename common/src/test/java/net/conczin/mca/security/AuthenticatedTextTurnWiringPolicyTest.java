@@ -29,17 +29,25 @@ class AuthenticatedTextTurnWiringPolicyTest {
     }
 
     @Test
-    void transportCoreIsPackagePrivateAndInvokesProviderAndSinkExactlyOnce() throws IOException {
-        String source = read(
+    void minecraftBridgeBindsTrustedIdentityAndDelegatesToPackagePrivateCore() throws IOException {
+        String bridge = read(
                 "common/src/main/java/net/conczin/mca/network/AuthenticatedTextTurn.java"
         );
+        String core = read(
+                "common/src/main/java/net/conczin/mca/network/AuthenticatedTextTurnCore.java"
+        );
 
-        assertTrue(source.contains("new Session(player.getUUID(), villager.getUUID())"));
-        assertTrue(source.contains("static Outcome execute("));
-        assertFalse(source.contains("public static Outcome execute("));
-        assertEquals(1, occurrences(source, "provider.answer(session, normalizedMessage)"));
-        assertEquals(1, occurrences(source, "responseSink.deliver(session, response)"));
-        assertTrue(source.contains("!value.isBlank() && !value.startsWith(\"/\")"));
+        assertTrue(bridge.contains("player.getUUID()"));
+        assertTrue(bridge.contains("villager.getUUID()"));
+        assertTrue(bridge.contains("AuthenticatedTextTurnCore.execute("));
+        assertTrue(core.contains("final class AuthenticatedTextTurnCore"));
+        assertFalse(core.contains("public final class AuthenticatedTextTurnCore"));
+        assertFalse(core.contains("net.minecraft"));
+        assertFalse(core.contains("VillagerEntityMCA"));
+        assertFalse(core.contains("ServerPlayer"));
+        assertEquals(1, occurrences(core, "provider.answer(session, normalizedMessage)"));
+        assertEquals(1, occurrences(core, "responseSink.deliver(session, response)"));
+        assertTrue(core.contains("!value.isBlank() && !value.startsWith(\"/\")"));
     }
 
     private static String read(String relativePath) throws IOException {
