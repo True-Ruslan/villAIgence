@@ -4,7 +4,7 @@
   "package": "net.conczin.mca.gametest.accessor",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "MobMoveControlAccessor"
+    "MixinMobMoveControlAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
