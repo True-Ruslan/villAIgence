@@ -68,9 +68,9 @@ failure: Inventory must preserve 3 of minecraft:emerald, found 0
 Verified GREEN before merge:
 
 ```text
-VillAIgence CI:             30958208026 — SUCCESS
-Java Pull Request CI:       30958208020 — SUCCESS
-Repository security policy: 30958208021 — SUCCESS
+VillAIgence CI:              30958208026 — SUCCESS
+Java Pull Request CI:        30958208020 — SUCCESS
+Repository security policy:  30958208021 — SUCCESS
 ```
 
 Post-merge PR-head verification:
@@ -91,9 +91,43 @@ The automated scenarios prove:
 - Fabric and NeoForge builds;
 - distributable Fabric package verification.
 
+## Release-gate implementation evidence
+
+Initial exact-head GREEN for PR #106:
+
+```text
+implementation head:          6b28ade12c58f7404d0ed232974b556598b70110
+VillAIgence GitHub Release:    30986571330 / #134 — SUCCESS
+VillAIgence CI:                30986571084 / #1422 — SUCCESS
+Java Pull Request CI:          30986571093 / #825 — SUCCESS
+Repository security policy:    30986571078 / #777 — SUCCESS
+```
+
+The release-workflow dry-run explicitly completed:
+
+```text
+release identity contract                    PASS
+repository security policy                   PASS
+production acceptance contract tests         PASS
+production Fabric startup/shutdown/restart   PASS
+production fixture marker on both JVM runs   PASS
+canonical store restart report               PASS
+risk catalog and common tests                PASS
+Fabric server GameTests                      PASS
+Fabric build                                 PASS
+NeoForge build                               PASS
+release package smoke                        PASS
+production-accepted/package JAR byte match   PASS
+acceptance evidence upload                   PASS
+dry-run package upload                       PASS
+GitHub Release publication                   correctly skipped on pull_request
+```
+
+This evidence validates the workflow implementation, not the future official tag run or installed release canary.
+
 ## Exact release workflow gate
 
-The tag-based workflow must now prove all of the following before GitHub Release publication:
+The tag-based workflow must prove all of the following before GitHub Release publication:
 
 ```text
 valid and unique 0.1.24+1.21.1 tag
