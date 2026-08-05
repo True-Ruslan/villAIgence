@@ -4,6 +4,7 @@ import net.conczin.mca.Config;
 import net.conczin.mca.MCA;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.livingworld.LivingWorldConfig;
+import net.conczin.mca.livingworld.ai.AiRequestDeadline;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
 import net.conczin.mca.livingworld.memory2.Memory2DialogueLifecycle;
 import net.conczin.mca.util.WorldUtils;
@@ -81,10 +82,21 @@ public class ChatAI {
             String msg,
             LivingWorldContextSnapshot snapshot
     ) {
+        return answer(server, player, villager, msg, snapshot, null);
+    }
+
+    public static Optional<String> answer(
+            MinecraftServer server,
+            ServerPlayer player,
+            VillagerEntityMCA villager,
+            String msg,
+            LivingWorldContextSnapshot snapshot,
+            AiRequestDeadline deadline
+    ) {
         ChatAIStrategy strategy = computeStrategyIfAbsent(snapshot.villagerId());
         currentConversations.put(snapshot.playerId(), new OpenConversation(snapshot.villagerId(), snapshot.gameTime()));
         if (strategy instanceof OpenAIChatAI openAIChatAI) {
-            Optional<String> answer = openAIChatAI.answer(server, player, villager, msg, snapshot);
+            Optional<String> answer = openAIChatAI.answer(server, player, villager, msg, snapshot, deadline);
             rememberMemory2Dialogue(
                     new DialogueMemoryCoordinates(
                             snapshot.worldRoot(),

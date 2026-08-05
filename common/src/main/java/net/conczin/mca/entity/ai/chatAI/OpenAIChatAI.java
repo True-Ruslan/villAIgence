@@ -14,6 +14,7 @@ import net.conczin.mca.entity.ai.chatAI.modules.*;
 import net.conczin.mca.entity.ai.relationship.AgeState;
 import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.ai.AiProviderSettings;
+import net.conczin.mca.livingworld.ai.AiRequestDeadline;
 import net.conczin.mca.livingworld.ai.BoundedResponseReader;
 import net.conczin.mca.livingworld.ai.ChatCompletionResponseParser;
 import net.conczin.mca.livingworld.ai.ChatCompletionHttpClient;
@@ -126,56 +127,57 @@ public class OpenAIChatAI implements ChatAIStrategy {
                 token,
                 DEFAULT_CONNECT_TIMEOUT_MILLIS,
                 DEFAULT_READ_TIMEOUT_MILLIS,
-                "<unspecified>"
+                "<unspecified>",
+                null
         );
     }
 
     private static Answer post(AiProviderSettings settings, String requestBody, String token) {
-        return post(
-                settings.endpoint(),
-                requestBody,
-                token,
-                settings.connectTimeoutMillis(),
-                settings.readTimeoutMillis(),
-                settings.model()
-        );
-    }
+    return post(settings, requestBody, token, null);
+}
 
-    private static Answer post(
-            ProviderEndpoint endpoint,
-            String requestBody,
-            String token,
-            int connectTimeoutMillis,
-            int readTimeoutMillis,
-            String model
-    ) {
-        ChatCompletionHttpClient.Result result = ChatCompletionHttpClient.post(
-                endpoint,
-                requestBody,
-                token,
-                connectTimeoutMillis,
-                readTimeoutMillis,
-                new ChatCompletionHttpClient.AttemptObserver() {
-                    @Override
-                    public void onProviderFailure(
-                            int attempt,
-                            ChatCompletionResponseParser.ParsedCompletion completion
-                    ) {
-                        logProviderFailure(model, attempt, completion);
-                    }
+private static Answer post(
+        AiProviderSettings settings,
+        String requestBody,
+        String token,
+        @Nullable AiRequestDeadline deadline
+) {
+    return post(
+            settings.endpoint(),
+            requestBody,
+            token,
+            settings.connectTimeoutMillis(),
+            settings.readTimeoutMillis(),
+            settings.model(),
+            deadline
+    );
+}
 
-                    @Override
-                    public void onEmptyCompletion(
-                            int attempt,
-                            ChatCompletionResponseParser.ParsedCompletion completion,
-                            boolean retrying
-                    ) {
-                        logEmptyCompletion(model, attempt, completion, retrying);
-                    }
-                }
-        );
+private static Answer post(
+        ProviderEndpoint endpoint,
+        String requestBody,
+        String token,
+        int connectTimeoutMillis,
+        int readTimeoutMillis,
+        String model,
+        @Nullable AiRequestDeadline deadline
+) {
+    ChatCompletionHttpClient.AttemptObserver observer = new ChatCompletionHttpClient.AttemptObserver() {
+        @Override
+        public void onProviderFailure(int attempt, ChatCompletionResponseParser.ParsedCompletion completion) {
+            logProviderFailure(model, attempt, completion);
+        }
 
-        if (result.failure() instanceof BoundedResponseReader.ResponseTooLargeException exception) {
+        @Override
+        public void onEmptyCompletion(int attempt, ChatCompletionResponseParser.ParsedCompletion completion, boolean retrying) {
+            logEmptyCompletion(model, attempt, completion, retrying);
+        }
+    };
+    ChatCompletionHttpClient.Result result = deadline == null
+            ? ChatCompletionHttpClient.post(endpoint, requestBody, token, connectTimeoutMillis, readTimeoutMillis, observer)
+            : ChatCompletionHttpClient.post(endpoint, requestBody, token, connectTimeoutMillis, readTimeoutMillis, deadline, observer);
+
+    if (result.failure() instanceof BoundedResponseReader.ResponseTooLargeException exception) {
             MCA.LOGGER.warn(
                     "AI provider response exceeded safe byte limit: limit={}, observed={}",
                     exception.limitBytes(),
@@ -359,6 +361,17 @@ public class OpenAIChatAI implements ChatAIStrategy {
             String msg,
             LivingWorldContextSnapshot snapshot
     ) {
+        return answer(server, player, villager, msg, snapshot, null);
+    }
+
+    public Optional<String> answer(
+            MinecraftServer server,
+            ServerPlayer player,
+            VillagerEntityMCA villager,
+            String msg,
+            LivingWorldContextSnapshot snapshot,
+            @Nullable AiRequestDeadline deadline
+    ) {
         try {
             Config config = Config.getInstance();
             LivingWorldConfig livingWorld = LivingWorldConfig.getInstance();
@@ -385,7 +398,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
             body.append(", \"content\": ").append(jsonStringQuote(userContent)).append("}]}");
 
             String token = provider.usePlayerNameAsToken() ? snapshot.playerName() : provider.apiKey();
-            Answer response = post(provider, body.toString(), token);
+            Answer response = post(provider, body.toString(), token, deadline);
             if (response.error == null) {
                 if (response.answer != null) {
                     String assistantMessage = response.answer.message != null ? response.answer.message : "...";
