@@ -1,7 +1,5 @@
 package net.conczin.mca.livingworld.persistence;
 
-import com.google.gson.Gson;
-
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -20,16 +18,20 @@ public final class JsonStoreRecovery {
     private JsonStoreRecovery() {
     }
 
+    public interface Codec<T> {
+        T decode(String raw);
+
+        String encode(T value);
+    }
+
     public static <T> T loadOrRecover(
             Path file,
-            Gson gson,
-            Class<T> type,
+            Codec<T> codec,
             Predicate<T> validator,
             Supplier<T> emptyFactory
     ) {
         Path canonical = normalized(file);
-        Gson safeGson = Objects.requireNonNull(gson, "gson");
-        Class<T> safeType = Objects.requireNonNull(type, "type");
+        Codec<T> safeCodec = Objects.requireNonNull(codec, "codec");
         Predicate<T> safeValidator = Objects.requireNonNull(validator, "validator");
         Supplier<T> safeEmptyFactory = Objects.requireNonNull(emptyFactory, "emptyFactory");
         Path temporary = temporary(canonical);
@@ -39,8 +41,7 @@ public final class JsonStoreRecovery {
                 deleteStaleTemporary(temporary);
                 Optional<T> loaded = readValid(
                         canonical,
-                        safeGson,
-                        safeType,
+                        safeCodec,
                         safeValidator
                 );
                 if (loaded.isPresent()) {
@@ -48,15 +49,14 @@ public final class JsonStoreRecovery {
                 }
                 moveReplacing(canonical, corruptBackup(canonical));
                 T empty = requireEmpty(safeEmptyFactory);
-                writeAtomic(canonical, safeGson, empty);
+                writeAtomic(canonical, safeCodec, empty);
                 return empty;
             }
 
             if (Files.exists(temporary)) {
                 Optional<T> recovered = readValid(
                         temporary,
-                        safeGson,
-                        safeType,
+                        safeCodec,
                         safeValidator
                 );
                 if (recovered.isPresent()) {
@@ -66,7 +66,7 @@ public final class JsonStoreRecovery {
                 }
                 moveReplacing(temporary, temporaryCorruptBackup(canonical));
                 T empty = requireEmpty(safeEmptyFactory);
-                writeAtomic(canonical, safeGson, empty);
+                writeAtomic(canonical, safeCodec, empty);
                 return empty;
             }
 
@@ -79,17 +79,25 @@ public final class JsonStoreRecovery {
         }
     }
 
-    public static void writeAtomic(Path file, Gson gson, Object value) {
+    public static <T> void writeAtomic(
+            Path file,
+            Codec<T> codec,
+            T value
+    ) {
         Path canonical = normalized(file);
-        Gson safeGson = Objects.requireNonNull(gson, "gson");
-        Object safeValue = Objects.requireNonNull(value, "value");
+        Codec<T> safeCodec = Objects.requireNonNull(codec, "codec");
+        T safeValue = Objects.requireNonNull(value, "value");
         Path temporary = temporary(canonical);
 
         try {
             createParent(canonical);
+            String encoded = Objects.requireNonNull(
+                    safeCodec.encode(safeValue),
+                    "codec returned null"
+            );
             Files.writeString(
                     temporary,
-                    safeGson.toJson(safeValue) + System.lineSeparator(),
+                    encoded + System.lineSeparator(),
                     StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE,
                     StandardOpenOption.TRUNCATE_EXISTING,
@@ -106,8 +114,7 @@ public final class JsonStoreRecovery {
 
     private static <T> Optional<T> readValid(
             Path file,
-            Gson gson,
-            Class<T> type,
+            Codec<T> codec,
             Predicate<T> validator
     ) {
         try {
@@ -115,7 +122,7 @@ public final class JsonStoreRecovery {
                 return Optional.empty();
             }
             String raw = Files.readString(file, StandardCharsets.UTF_8);
-            T decoded = gson.fromJson(raw, type);
+            T decoded = codec.decode(raw);
             return decoded != null && validator.test(decoded)
                     ? Optional.of(decoded)
                     : Optional.empty();
