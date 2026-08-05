@@ -123,8 +123,11 @@ public final class ChatCompletionHttpClient {
             return new AttemptResult(completion, null, null);
         } catch (BoundedResponseReader.ResponseTooLargeException exception) {
             return new AttemptResult(null, RESPONSE_TOO_LARGE_ERROR, exception);
-        } catch (AiRequestDeadline.DeadlineExceededException | SocketTimeoutException exception) {
+        } catch (AiRequestDeadline.DeadlineExceededException exception) {
             return new AttemptResult(null, REQUEST_DEADLINE_ERROR, exception);
+        } catch (SocketTimeoutException exception) {
+            String error = deadline.isExpired() ? REQUEST_DEADLINE_ERROR : REQUEST_FAILED_ERROR;
+            return new AttemptResult(null, error, exception);
         } catch (Exception exception) {
             if (deadline.isExpired()) {
                 return new AttemptResult(null, REQUEST_DEADLINE_ERROR, exception);
