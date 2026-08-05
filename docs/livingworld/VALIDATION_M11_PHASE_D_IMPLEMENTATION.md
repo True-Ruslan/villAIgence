@@ -108,6 +108,8 @@ failure: Clear fixture loaded an already-empty canonical value, so beginSave cor
 
 This was not a production defect. The fixture was corrected by seeding a non-empty initial canonical value before both clients loaded it. Production code was unchanged for this correction.
 
+A later source-policy run reached 424 of 425 passing tests and exposed one format-fragile substring assertion: `canonicalEntityId` contains the token `Entity`. The policy was narrowed to reject actual Minecraft entity/network imports instead of arbitrary identifier text. Production code was unchanged.
+
 ## Scenario mapping
 
 | Plan scenario | Automated evidence |
@@ -152,4 +154,25 @@ open the same scope on two clients
 
 ## Final exact-head verification
 
-Final run identifiers and the reviewed head are recorded after the implementation, documentation and acceptance catalog are all synchronized and the complete required CI matrix passes.
+```text
+reviewed PR head:            da0ddd0a463f29cdf211a14a749c4872e66d0e30
+VillAIgence CI:              31017438938 / #1527 — SUCCESS
+Java Pull Request CI:        31017438567 / #915  — SUCCESS
+Repository security policy: 31017438672 / #961  — SUCCESS
+common tests:                425 passed
+review verdict:              no unresolved P0/P1/P2 finding
+squash merge:                67e0644b355708c06747e3ec4659a337bc4189b3
+```
+
+VillAIgence CI passed:
+
+- exact release identity and workflow inventory;
+- repository security policy;
+- common/provider/Phase D tests;
+- production acceptance contract tests;
+- exact two-JVM production startup/shutdown/restart;
+- acceptance catalog and Fabric server GameTests;
+- Fabric and NeoForge builds;
+- distributable package verification.
+
+The merge completes automated Phase D only. `VAI-CONCUR-004` remains pending until the same scope is exercised by two installed Minecraft clients on an exact candidate containing the merge.
