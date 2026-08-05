@@ -4,21 +4,16 @@ import net.conczin.mca.gametest.bridge.MobMoveControlBridge;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.control.MoveControl;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.gen.Accessor;
 
-/** Test-only Mixin bridge to the actual Mob.moveControl field. */
+/** Test-only accessor to the actual Mob.moveControl field. */
 @Mixin(Mob.class)
-abstract class MixinMobMoveControlBridge implements MobMoveControlBridge {
-    @Shadow
-    protected MoveControl moveControl;
+interface MixinMobMoveControlBridge extends MobMoveControlBridge {
+    @Override
+    @Accessor("moveControl")
+    void mca$setActiveMoveControl(MoveControl replacement);
 
     @Override
-    public void mca$setActiveMoveControl(MoveControl replacement) {
-        this.moveControl = replacement;
-    }
-
-    @Override
-    public MoveControl mca$getActiveMoveControl() {
-        return this.moveControl;
-    }
+    @Accessor("moveControl")
+    MoveControl mca$getActiveMoveControl();
 }
