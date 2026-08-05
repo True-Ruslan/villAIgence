@@ -16,6 +16,7 @@
       "net.conczin.mca.gametest.NavigationWaterSurfaceGameTests",
       "net.conczin.mca.gametest.NavigationObstacleGameTests",
       "net.conczin.mca.gametest.NavigationLadderGameTests",
+      "net.conczin.mca.gametest.NavigationDoorGameTests",
       "net.conczin.mca.gametest.GameplayInteractionGameTests",
       "net.conczin.mca.entity.ai.brain.tasks.chore.FishingCatchGameTests",
       "net.conczin.mca.gametest.MountedArcherControlGameTests"
