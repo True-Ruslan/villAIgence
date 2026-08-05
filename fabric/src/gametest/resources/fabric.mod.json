@@ -11,7 +11,8 @@
       "net.conczin.mca.gametest.TombstoneInventoryDeathGameTests",
       "net.conczin.mca.gametest.TombstoneIdentityReplayGameTests",
       "net.conczin.mca.gametest.NavigationWaterSurfaceGameTests",
-      "net.conczin.mca.gametest.GameplayInteractionGameTests"
+      "net.conczin.mca.gametest.GameplayInteractionGameTests",
+      "net.conczin.mca.entity.ai.brain.tasks.chore.FishingCatchGameTests"
     ]
   },
   "depends": {
