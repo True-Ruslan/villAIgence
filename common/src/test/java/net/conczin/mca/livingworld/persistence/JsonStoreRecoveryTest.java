@@ -1,15 +1,17 @@
 package net.conczin.mca.livingworld.persistence;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,7 +19,59 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JsonStoreRecoveryTest {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Pattern DOCUMENT = Pattern.compile(
+            "\\{\\s*\\\"version\\\"\\s*:\\s*(-?\\d+)\\s*,"
+                    + "\\s*\\\"values\\\"\\s*:\\s*\\{(.*)}\\s*}\\s*",
+            Pattern.DOTALL
+    );
+    private static final Pattern ENTRY = Pattern.compile(
+            "\\s*\\\"([^\\\"]+)\\\"\\s*:\\s*\\\"([^\\\"]*)\\\"\\s*"
+    );
+    private static final JsonStoreRecovery.Codec<FixtureFile> CODEC =
+            new JsonStoreRecovery.Codec<>() {
+                @Override
+                public FixtureFile decode(String raw) {
+                    Matcher document = DOCUMENT.matcher(raw);
+                    if (!document.matches()) {
+                        throw new IllegalArgumentException("invalid fixture JSON");
+                    }
+                    FixtureFile value = new FixtureFile();
+                    value.version = Integer.parseInt(document.group(1));
+                    String entries = document.group(2).trim();
+                    if (!entries.isEmpty()) {
+                        for (String entry : entries.split(",")) {
+                            Matcher matcher = ENTRY.matcher(entry);
+                            if (!matcher.matches()) {
+                                throw new IllegalArgumentException("invalid fixture map entry");
+                            }
+                            value.values.put(matcher.group(1), matcher.group(2));
+                        }
+                    }
+                    return value;
+                }
+
+                @Override
+                public String encode(FixtureFile value) {
+                    StringBuilder encoded = new StringBuilder();
+                    encoded.append("{\"version\":")
+                            .append(value.version)
+                            .append(",\"values\":{");
+                    boolean first = true;
+                    for (Map.Entry<String, String> entry
+                            : new TreeMap<>(value.values).entrySet()) {
+                        if (!first) {
+                            encoded.append(',');
+                        }
+                        first = false;
+                        encoded.append('\"')
+                                .append(entry.getKey())
+                                .append("\":\"")
+                                .append(entry.getValue())
+                                .append('\"');
+                    }
+                    return encoded.append("}}").toString();
+                }
+            };
 
     @TempDir
     Path directory;
@@ -25,7 +79,7 @@ class JsonStoreRecoveryTest {
     @Test
     void truncatedJsonIsBackedUpAndCanonicalStoreIsRegenerated() throws IOException {
         Path file = directory.resolve("memory.json");
-        byte[] corrupt = "{\"version\":1,\"values\":".getBytes();
+        byte[] corrupt = "{\"version\":1,\"values\":".getBytes(StandardCharsets.UTF_8);
         Files.write(file, corrupt);
 
         FixtureFile loaded = load(file);
@@ -117,7 +171,7 @@ class JsonStoreRecoveryTest {
     @Test
     void secondLoadIsIdempotentAndDoesNotRewriteRecoveryEvidence() throws IOException {
         Path file = directory.resolve("memory.json");
-        byte[] corrupt = "null".getBytes();
+        byte[] corrupt = "null".getBytes(StandardCharsets.UTF_8);
         Files.write(file, corrupt);
 
         FixtureFile first = load(file);
@@ -151,9 +205,9 @@ class JsonStoreRecoveryTest {
         FixtureFile replacement = new FixtureFile();
         replacement.values.put("npc", "new memory");
 
-        JsonStoreRecovery.writeAtomic(file, GSON, replacement);
+        JsonStoreRecovery.writeAtomic(file, CODEC, replacement);
 
-        FixtureFile stored = GSON.fromJson(Files.readString(file), FixtureFile.class);
+        FixtureFile stored = CODEC.decode(Files.readString(file));
         assertEquals(Map.of("npc", "new memory"), stored.values);
         assertFalse(Files.exists(temporary(file)));
     }
@@ -161,8 +215,7 @@ class JsonStoreRecoveryTest {
     private static FixtureFile load(Path file) {
         return JsonStoreRecovery.loadOrRecover(
                 file,
-                GSON,
-                FixtureFile.class,
+                CODEC,
                 value -> value != null && value.version == 1 && value.values != null,
                 FixtureFile::new
         );
@@ -172,11 +225,11 @@ class JsonStoreRecoveryTest {
         FixtureFile fixture = new FixtureFile();
         fixture.values.putAll(values);
         Files.createDirectories(path.getParent());
-        Files.writeString(path, GSON.toJson(fixture));
+        Files.writeString(path, CODEC.encode(fixture));
     }
 
     private static void assertValidCanonical(Path file) throws IOException {
-        FixtureFile canonical = GSON.fromJson(Files.readString(file), FixtureFile.class);
+        FixtureFile canonical = CODEC.decode(Files.readString(file));
         assertEquals(1, canonical.version);
         assertTrue(canonical.values.isEmpty());
     }
