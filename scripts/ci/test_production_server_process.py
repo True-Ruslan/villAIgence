@@ -6,7 +6,7 @@ import sys
 import tempfile
 import unittest
 
-from production_server_acceptance import (
+from production_server_acceptance_strict import (
     AcceptanceError,
     evaluate_server_log,
     run_server_process,
