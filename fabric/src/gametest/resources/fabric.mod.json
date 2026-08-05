@@ -16,6 +16,9 @@
       "net.conczin.mca.gametest.MountedArcherControlGameTests"
     ]
   },
+  "mixins": [
+    "mca-acceptance-test.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.16.14",
     "fabric-api": "*",
