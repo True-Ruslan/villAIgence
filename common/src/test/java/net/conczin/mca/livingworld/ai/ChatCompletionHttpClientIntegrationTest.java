@@ -73,6 +73,30 @@ class ChatCompletionHttpClientIntegrationTest {
         }
     }
 
+    @Test
+    void configuredReadTimeoutBeforeGlobalBudgetIsNotMisreportedAsDeadline() throws Exception {
+        try (ScriptedChatServer server = ScriptedChatServer.slowSingleResponse()) {
+            AtomicReference<ChatCompletionHttpClient.Result> result = new AtomicReference<>();
+            long started = System.nanoTime();
+
+            assertTimeoutPreemptively(Duration.ofSeconds(3), () -> result.set(ChatCompletionHttpClient.post(
+                    server.endpoint(),
+                    "{\"model\":\"phase-timeout-model\",\"messages\":[]}",
+                    "phase-timeout-secret",
+                    1_000,
+                    200,
+                    ChatCompletionHttpClient.AttemptObserver.NOOP
+            )));
+
+            long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+            assertNotNull(result.get());
+            assertEquals(ChatCompletionHttpClient.REQUEST_FAILED_ERROR, result.get().error());
+            assertEquals(1, result.get().attempts());
+            assertEquals(1, server.requestCount());
+            assertTrue(elapsedMillis < 1_000, "Configured read timeout was not enforced: " + elapsedMillis + "ms");
+        }
+    }
+
     private static final class ScriptedChatServer implements AutoCloseable {
         private static final String EMPTY_COMPLETION = """
                 {"id":"empty-1","choices":[{"message":{"content":null},"finish_reason":"stop"}]}
@@ -101,6 +125,10 @@ class ChatCompletionHttpClientIntegrationTest {
 
         static ScriptedChatServer slowEmptyThenBlocked() throws IOException {
             return start(Mode.SLOW_EMPTY_THEN_BLOCKED);
+        }
+
+        static ScriptedChatServer slowSingleResponse() throws IOException {
+            return start(Mode.SLOW_SINGLE_RESPONSE);
         }
 
         private static ScriptedChatServer start(Mode mode) throws IOException {
@@ -146,14 +174,14 @@ class ChatCompletionHttpClientIntegrationTest {
                 return;
             }
 
+            if (mode == Mode.SLOW_SINGLE_RESPONSE) {
+                if (!sleep(exchange, 500L)) return;
+                respondJson(exchange, SUCCESS_COMPLETION);
+                return;
+            }
+
             if (requestNumber == 1) {
-                try {
-                    Thread.sleep(1_000L);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    exchange.close();
-                    return;
-                }
+                if (!sleep(exchange, 1_000L)) return;
                 respondJson(exchange, EMPTY_COMPLETION);
                 return;
             }
@@ -164,6 +192,17 @@ class ChatCompletionHttpClientIntegrationTest {
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
+            }
+        }
+
+        private static boolean sleep(HttpExchange exchange, long millis) {
+            try {
+                Thread.sleep(millis);
+                return true;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                exchange.close();
+                return false;
             }
         }
 
@@ -185,7 +224,8 @@ class ChatCompletionHttpClientIntegrationTest {
 
         private enum Mode {
             RETRY_THEN_SUCCESS,
-            SLOW_EMPTY_THEN_BLOCKED
+            SLOW_EMPTY_THEN_BLOCKED,
+            SLOW_SINGLE_RESPONSE
         }
     }
 }
