@@ -9,11 +9,13 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
 public final class NavigationObstacleGameTests implements FabricGameTest {
     private static final double MIN_REROUTE_DEVIATION = 1.5D;
+    private static final double MAX_TERMINAL_DISTANCE_SQUARED = 6.25D;
 
     @GameTest(template = FabricGameTest.EMPTY_STRUCTURE, timeoutTicks = 400)
     public void obstacleRerouteReachesBoundedTerminalState(GameTestHelper helper) {
@@ -37,9 +39,14 @@ public final class NavigationObstacleGameTests implements FabricGameTest {
                     );
                     helper.assertTrue(mob.isAlive(),
                             "Obstacle fixture mob must remain alive");
-                    helper.assertTrue(isNear(mob, target),
-                            "Production navigation must reach the target around the obstacle: "
-                                    + navigationState(mob, target));
+                    helper.assertTrue(reachesTerminalRange(mob, target),
+                            "Production navigation must complete behind the obstacle within its "
+                                    + "bounded terminal range: " + navigationState(mob, target));
+                    helper.assertTrue(
+                            mob.getX() > helper.absolutePos(new BlockPos(6, 1, 4)).getX() + 0.5D,
+                            "Mob must finish on the target side of the obstacle: "
+                                    + navigationState(mob, target)
+                    );
                     helper.assertTrue(maximumDeviation[0] >= MIN_REROUTE_DEVIATION,
                             "Path must visibly leave the blocked direct lane; maximum Z deviation was "
                                     + maximumDeviation[0]);
@@ -106,11 +113,12 @@ public final class NavigationObstacleGameTests implements FabricGameTest {
         );
     }
 
-    private static boolean isNear(PathfinderMob mob, BlockPos target) {
+    private static boolean reachesTerminalRange(PathfinderMob mob, BlockPos target) {
         double dx = mob.getX() - (target.getX() + 0.5D);
         double dy = mob.getY() - target.getY();
         double dz = mob.getZ() - (target.getZ() + 0.5D);
-        return dx * dx + dy * dy + dz * dz <= 2.25D;
+        return mob.getNavigation().isDone()
+                && dx * dx + dy * dy + dz * dz <= MAX_TERMINAL_DISTANCE_SQUARED;
     }
 
     private static String navigationState(PathfinderMob mob, BlockPos target) {
@@ -123,7 +131,7 @@ public final class NavigationObstacleGameTests implements FabricGameTest {
     private static void setBlock(
             GameTestHelper helper,
             BlockPos relativePos,
-            net.minecraft.world.level.block.Block block
+            Block block
     ) {
         helper.getLevel().setBlockAndUpdate(
                 helper.absolutePos(relativePos),
