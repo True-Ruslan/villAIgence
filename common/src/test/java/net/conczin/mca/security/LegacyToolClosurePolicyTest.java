@@ -43,6 +43,7 @@ class LegacyToolClosurePolicyTest {
             "scripts/ci/production_lifecycle_acceptance.py",
             "scripts/ci/production_server_acceptance.py",
             "scripts/ci/production_server_acceptance_strict.py",
+            "scripts/ci/recovery_fixture_stage.py",
             "scripts/ci/repository_security_policy.py",
             "scripts/ci/test_persistence_recovery_acceptance.py",
             "scripts/ci/test_production_lifecycle_acceptance.py",
