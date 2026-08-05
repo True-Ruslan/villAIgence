@@ -30,45 +30,58 @@ jobs:
 
           ci = Path('.github/workflows/livingworld-ci.yml')
           source = ci.read_text(encoding='utf-8')
-          anchor = '''      - name: Run production acceptance contract tests
-          run: |
-          '''
-          step = '''      - name: Run common and deterministic mock-provider tests
-                run: |
-                  chmod +x gradlew
-                  ./gradlew \\
-                    :common:test \\
-                    --stacktrace \\
-                    --no-daemon \\
-                    --console=plain
+          anchor = """      - name: Run production acceptance contract tests
+                  run: |
+          """
+          step = """      - name: Run common and deterministic mock-provider tests
+                  run: |
+                    chmod +x gradlew
+                    ./gradlew \\
+                      :common:test \\
+                      --stacktrace \\
+                      --no-daemon \\
+                      --console=plain
 
-          '''
+          """
           if source.count(anchor) != 1 or 'Run common and deterministic mock-provider tests' in source:
               raise SystemExit('unexpected primary CI insertion state')
-          source = source.replace(anchor, step + anchor)
-          ci.write_text(source, encoding='utf-8')
+          ci.write_text(source.replace(anchor, step + anchor), encoding='utf-8')
 
           release = Path('.github/workflows/livingworld-release.yml')
           source = release.read_text(encoding='utf-8')
-          anchor = '''      - name: Run production acceptance contract tests
-                shell: bash
-                run: |
-          '''
-          step = '''      - name: Run common and deterministic mock-provider tests
-                shell: bash
-                run: |
-                  set -euo pipefail
-                  chmod +x gradlew
-                  ./gradlew \\
-                    :common:test \\
-                    --stacktrace \\
-                    --no-daemon \\
-                    --console=plain
+          anchor = """      - name: Run production acceptance contract tests
+                  shell: bash
+                  run: |
+          """
+          step = """      - name: Run common and deterministic mock-provider tests
+                  shell: bash
+                  run: |
+                    set -euo pipefail
+                    chmod +x gradlew
+                    ./gradlew \\
+                      :common:test \\
+                      --stacktrace \\
+                      --no-daemon \\
+                      --console=plain
 
-          '''
+          """
           if source.count(anchor) != 1 or 'Run common and deterministic mock-provider tests' in source:
               raise SystemExit('unexpected release CI insertion state')
           source = source.replace(anchor, step + anchor)
+
+          path_anchor = """      - 'scripts/ci/test-release-version-contract.sh'
+          """
+          path_rows = """      - 'common/src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java'
+                - 'common/src/main/java/net/conczin/mca/livingworld/ai/**'
+                - 'common/src/main/java/net/conczin/mca/livingworld/voice/**'
+                - 'common/src/test/java/net/conczin/mca/entity/ai/chatAI/**'
+                - 'common/src/test/java/net/conczin/mca/livingworld/ai/**'
+                - 'common/src/test/java/net/conczin/mca/livingworld/voice/**'
+                - 'common/src/test/resources/acceptance/scenarios.tsv'
+          """
+          if source.count(path_anchor) != 1:
+              raise SystemExit('unexpected release path trigger state')
+          source = source.replace(path_anchor, path_anchor + path_rows)
           release.write_text(source, encoding='utf-8')
 
           catalog = Path('common/src/test/resources/acceptance/scenarios.tsv')
