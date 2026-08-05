@@ -28,8 +28,6 @@ public final class TombstoneIdentityReplayGameTests implements FabricGameTest {
     public void rejectedDuplicateReplayPreservesGraveForOneLaterRestoration(
             GameTestHelper helper
     ) {
-        helper.assertTrue(false, "VAI-LIFE-005-DISCOVERY-SENTINEL");
-
         VillagerEntityMCA authoritative = createFixture(helper);
         BlockPos authoritativePos = helper.absolutePos(new BlockPos(2, 1, 2));
         authoritative.setPos(
@@ -90,6 +88,7 @@ public final class TombstoneIdentityReplayGameTests implements FabricGameTest {
         );
         assertLiveIdentityCount(helper, 1);
         assertInventory(helper, restored);
+        System.out.println("VAI-LIFE-005-AUTOMATED-PASS");
         helper.succeed();
     }
 
