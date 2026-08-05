@@ -5,20 +5,11 @@ import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.ai.chatAI.ChatAI;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import org.apache.commons.lang3.StringUtils;
 
 import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Server-owned transport boundary for one authenticated text turn.
- *
- * <p>The public entrypoint accepts only the authenticated connection player and an NPC already
- * resolved from live server state. The deterministic core remains package-private so acceptance
- * tests can prove exactly-once provider and response ownership without exposing test-only APIs.</p>
- */
+/** Server-owned Minecraft bridge for one authenticated text turn. */
 public final class AuthenticatedTextTurn {
     private AuthenticatedTextTurn() {
     }
@@ -35,11 +26,14 @@ public final class AuthenticatedTextTurn {
         Objects.requireNonNull(player, "player");
         Objects.requireNonNull(villager, "villager");
 
-        Session session = new Session(player.getUUID(), villager.getUUID());
-        String normalizedMessage = normalize(message);
-        if (!isEligibleMessage(normalizedMessage)) return;
+        AuthenticatedTextTurnCore.Session session = new AuthenticatedTextTurnCore.Session(
+                player.getUUID(),
+                villager.getUUID()
+        );
+        String normalizedMessage = AuthenticatedTextTurnCore.normalize(message);
+        if (!AuthenticatedTextTurnCore.isEligibleMessage(normalizedMessage)) return;
 
-        CompletableFuture.runAsync(() -> execute(
+        CompletableFuture.runAsync(() -> AuthenticatedTextTurnCore.execute(
                 session,
                 normalizedMessage,
                 (ignored, text) -> ChatAI.answer(player, villager, text),
@@ -56,72 +50,5 @@ public final class AuthenticatedTextTurn {
             );
             return null;
         });
-    }
-
-    static Outcome execute(
-            Session session,
-            String message,
-            AnswerProvider provider,
-            ResponseSink responseSink
-    ) {
-        Objects.requireNonNull(session, "session");
-        Objects.requireNonNull(provider, "provider");
-        Objects.requireNonNull(responseSink, "responseSink");
-
-        String normalizedMessage = normalize(message);
-        if (!isEligibleMessage(normalizedMessage)) {
-            return new Outcome(Status.REJECTED, session);
-        }
-
-        Optional<String> answer = provider.answer(session, normalizedMessage);
-        if (answer == null || answer.isEmpty()) {
-            return new Outcome(Status.NO_RESPONSE, session);
-        }
-
-        String response = answer.get();
-        if (response == null || response.isBlank()) {
-            return new Outcome(Status.NO_RESPONSE, session);
-        }
-
-        responseSink.deliver(session, response);
-        return new Outcome(Status.DELIVERED, session);
-    }
-
-    private static String normalize(String value) {
-        return StringUtils.normalizeSpace(value == null ? "" : value);
-    }
-
-    private static boolean isEligibleMessage(String value) {
-        return !value.isBlank() && !value.startsWith("/");
-    }
-
-    record Session(UUID authenticatedPlayerId, UUID resolvedNpcId) {
-        Session {
-            Objects.requireNonNull(authenticatedPlayerId, "authenticatedPlayerId");
-            Objects.requireNonNull(resolvedNpcId, "resolvedNpcId");
-        }
-    }
-
-    record Outcome(Status status, Session session) {
-        Outcome {
-            Objects.requireNonNull(status, "status");
-            Objects.requireNonNull(session, "session");
-        }
-    }
-
-    enum Status {
-        DELIVERED,
-        NO_RESPONSE,
-        REJECTED
-    }
-
-    @FunctionalInterface
-    interface AnswerProvider {
-        Optional<String> answer(Session session, String normalizedMessage);
-    }
-
-    @FunctionalInterface
-    interface ResponseSink {
-        void deliver(Session session, String response);
     }
 }
