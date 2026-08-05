@@ -24,6 +24,7 @@ import net.conczin.mca.registry.BlocksMCA;
 import net.conczin.mca.registry.EntitiesMCA;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -74,6 +75,8 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
             "minecraft:iron_sword", 1
     );
 
+    private static LifecycleRun activeLifecycle;
+
     @Override
     public void onInitialize() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
@@ -84,9 +87,23 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
             initializeRelationship(worldRoot);
             initializeVoice(worldRoot);
             initializeOperatorLore(worldRoot);
-            initializeLifecycle(server, worldRoot);
-            verifyCanonicalFiles(worldRoot);
-            LOGGER.info("{}", READY_MARKER);
+            verifyPersistentStores(worldRoot);
+            activeLifecycle = new LifecycleRun(server, worldRoot);
+        });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            LifecycleRun lifecycle = activeLifecycle;
+            if (lifecycle == null || lifecycle.server != server) {
+                return;
+            }
+            if (lifecycle.tick()) {
+                activeLifecycle = null;
+            }
+        });
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            LifecycleRun lifecycle = activeLifecycle;
+            if (lifecycle != null && lifecycle.server == server) {
+                activeLifecycle = null;
+            }
         });
     }
 
@@ -200,117 +217,6 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
         }
     }
 
-    private static void initializeLifecycle(MinecraftServer server, Path worldRoot) {
-        Path evidencePath = worldRoot.resolve("livingworld/acceptance-lifecycle.json");
-        if (!Files.exists(evidencePath)) {
-            createLifecycle(server, evidencePath);
-            return;
-        }
-        verifyLifecycleAfterRestart(server, evidencePath);
-    }
-
-    private static void createLifecycle(MinecraftServer server, Path evidencePath) {
-        ServerLevel level = server.overworld();
-        BlockPos origin = level.getSharedSpawnPos().offset(6, 0, 6);
-        BlockPos capturePos = origin;
-        BlockPos restorePos = origin.offset(3, 0, 0);
-        prepareTombstone(level, capturePos);
-
-        VillagerEntityMCA villager = createLifecycleVillager(level);
-        villager.setPos(
-                capturePos.getX() + 0.5D,
-                capturePos.getY(),
-                capturePos.getZ() + 1.5D
-        );
-        if (!level.addFreshEntity(villager)) {
-            throw new IllegalStateException("lifecycle fixture villager could not enter the level");
-        }
-        verifyLifecycleEntity(server, villager);
-
-        if (!villager.hurt(level.damageSources().genericKill(), Float.MAX_VALUE)) {
-            throw new IllegalStateException("lifecycle fixture death path rejected fatal damage");
-        }
-        TombstoneBlock.Data captured = requireTombstoneData(level, capturePos);
-        if (!captured.hasEntity()) {
-            throw new IllegalStateException("lifecycle fixture death was not captured by the tombstone");
-        }
-        if (countLooseFixtureInventory(level, capturePos) != 0) {
-            throw new IllegalStateException("captured lifecycle inventory was also emitted as loose drops");
-        }
-
-        ItemStack portable = new ItemStack(BlocksMCA.UPRIGHT_HEADSTONE.asItem());
-        captured.writeToStack(portable);
-        villager.discard();
-        level.setBlockAndUpdate(capturePos, Blocks.AIR.defaultBlockState());
-
-        prepareTombstone(level, restorePos);
-        TombstoneBlock.Data portableData = requireTombstoneData(level, restorePos);
-        portableData.readFromStack(portable);
-        Optional<Entity> restoredCandidate = portableData.createEntity(level, true);
-        if (restoredCandidate.isEmpty()
-                || !(restoredCandidate.get() instanceof VillagerEntityMCA restored)) {
-            throw new IllegalStateException("portable lifecycle grave did not restore an MCA villager");
-        }
-        if (portableData.hasEntity()) {
-            throw new IllegalStateException("portable lifecycle grave was not consumed exactly once");
-        }
-
-        restored.setPos(
-                restorePos.getX() + 0.5D,
-                restorePos.getY(),
-                restorePos.getZ() + 1.5D
-        );
-        if (!level.addFreshEntity(restored)) {
-            throw new IllegalStateException("restored lifecycle villager could not enter the level");
-        }
-        verifyLifecycleEntity(server, restored);
-        level.setBlockAndUpdate(restorePos, Blocks.AIR.defaultBlockState());
-
-        JsonObject created = lifecycleSnapshot(server, restored, "CREATED", true);
-        JsonArray history = new JsonArray();
-        history.add(created.deepCopy());
-        JsonObject root = created.deepCopy();
-        root.add("history", history);
-        writeLifecycleEvidence(evidencePath, root);
-        LOGGER.info("{}", LIFECYCLE_CREATED_MARKER);
-    }
-
-    private static void verifyLifecycleAfterRestart(MinecraftServer server, Path evidencePath) {
-        JsonObject root = readLifecycleEvidence(evidencePath);
-        JsonArray history = requiredHistory(root);
-        if (history.size() == 1) {
-            JsonObject created = history.get(0).getAsJsonObject();
-            verifySnapshot(created, "CREATED");
-            VillagerEntityMCA restored = requireLifecycleEntity(server);
-            verifyLifecycleEntity(server, restored);
-
-            JsonObject restarted = lifecycleSnapshot(
-                    server,
-                    restored,
-                    "RESTART_VERIFIED",
-                    true
-            );
-            JsonArray completedHistory = new JsonArray();
-            completedHistory.add(created.deepCopy());
-            completedHistory.add(restarted.deepCopy());
-            JsonObject completed = restarted.deepCopy();
-            completed.add("history", completedHistory);
-            writeLifecycleEvidence(evidencePath, completed);
-            LOGGER.info("{}", LIFECYCLE_RESTART_MARKER);
-            return;
-        }
-        if (history.size() == 2) {
-            verifySnapshot(history.get(0).getAsJsonObject(), "CREATED");
-            verifySnapshot(history.get(1).getAsJsonObject(), "RESTART_VERIFIED");
-            verifySnapshot(root, "RESTART_VERIFIED");
-            VillagerEntityMCA restored = requireLifecycleEntity(server);
-            verifyLifecycleEntity(server, restored);
-            LOGGER.info("{}", LIFECYCLE_RESTART_MARKER);
-            return;
-        }
-        throw new IllegalStateException("lifecycle history must contain one or two snapshots");
-    }
-
     private static VillagerEntityMCA createLifecycleVillager(ServerLevel level) {
         VillagerEntityMCA villager = EntitiesMCA.MALE_VILLAGER.create(level);
         if (villager == null) {
@@ -357,6 +263,16 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
             }
         }
         return count;
+    }
+
+    private static boolean hasRegisteredLifecycleIdentity(MinecraftServer server) {
+        for (ServerLevel level : server.getAllLevels()) {
+            Entity entity = level.getEntity(LIFECYCLE_NPC_ID);
+            if (entity != null && !entity.isRemoved()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static VillagerEntityMCA requireLifecycleEntity(MinecraftServer server) {
@@ -514,7 +430,7 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
         }
     }
 
-    private static void verifyCanonicalFiles(Path worldRoot) {
+    private static void verifyPersistentStores(Path worldRoot) {
         Path livingWorld = worldRoot.resolve("livingworld");
         for (String basename : List.of(
                 "memory.json",
@@ -522,13 +438,196 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
                 "semantic-memory.json",
                 "relationships.json",
                 "voices.json",
-                "operator-lore.json",
-                "acceptance-lifecycle.json"
+                "operator-lore.json"
         )) {
             Path file = livingWorld.resolve(basename);
             if (!Files.isRegularFile(file)) {
                 throw new IllegalStateException("missing fixture store " + basename);
             }
+        }
+    }
+
+    private static void verifyCanonicalFiles(Path worldRoot) {
+        verifyPersistentStores(worldRoot);
+        Path lifecycle = worldRoot.resolve("livingworld/acceptance-lifecycle.json");
+        if (!Files.isRegularFile(lifecycle)) {
+            throw new IllegalStateException("missing fixture store acceptance-lifecycle.json");
+        }
+    }
+
+    private enum Phase {
+        SPAWN,
+        KILL,
+        WAIT_FOR_REMOVAL,
+        RESTORE,
+        VERIFY_RESTORED,
+        VERIFY_RESTART
+    }
+
+    private static final class LifecycleRun {
+        private static final int MAX_TICKS = 200;
+
+        private final MinecraftServer server;
+        private final Path worldRoot;
+        private final Path evidencePath;
+        private final ServerLevel level;
+        private final BlockPos capturePos;
+        private final BlockPos restorePos;
+        private Phase phase;
+        private int ticks;
+        private ItemStack portableGrave = ItemStack.EMPTY;
+
+        private LifecycleRun(MinecraftServer server, Path worldRoot) {
+            this.server = server;
+            this.worldRoot = worldRoot;
+            this.evidencePath = worldRoot.resolve("livingworld/acceptance-lifecycle.json");
+            this.level = server.overworld();
+            BlockPos origin = level.getSharedSpawnPos().offset(6, 0, 6);
+            this.capturePos = origin;
+            this.restorePos = origin.offset(3, 0, 0);
+            this.phase = Files.exists(evidencePath) ? Phase.VERIFY_RESTART : Phase.SPAWN;
+        }
+
+        private boolean tick() {
+            ticks++;
+            if (ticks > MAX_TICKS) {
+                throw new IllegalStateException(
+                        "lifecycle fixture exceeded " + MAX_TICKS + " server ticks in phase " + phase
+                );
+            }
+            return switch (phase) {
+                case SPAWN -> spawn();
+                case KILL -> kill();
+                case WAIT_FOR_REMOVAL -> waitForRemoval();
+                case RESTORE -> restore();
+                case VERIFY_RESTORED -> verifyRestored();
+                case VERIFY_RESTART -> verifyRestart();
+            };
+        }
+
+        private boolean spawn() {
+            if (hasRegisteredLifecycleIdentity(server)) {
+                throw new IllegalStateException("lifecycle UUID already exists before fixture spawn");
+            }
+            prepareTombstone(level, capturePos);
+            VillagerEntityMCA villager = createLifecycleVillager(level);
+            villager.setPos(
+                    capturePos.getX() + 0.5D,
+                    capturePos.getY(),
+                    capturePos.getZ() + 1.5D
+            );
+            if (!level.addFreshEntity(villager)) {
+                throw new IllegalStateException("lifecycle fixture villager could not enter the level");
+            }
+            verifyLifecycleEntity(server, villager);
+            phase = Phase.KILL;
+            return false;
+        }
+
+        private boolean kill() {
+            VillagerEntityMCA villager = requireLifecycleEntity(server);
+            if (!villager.hurt(level.damageSources().genericKill(), Float.MAX_VALUE)) {
+                throw new IllegalStateException("lifecycle fixture death path rejected fatal damage");
+            }
+            TombstoneBlock.Data captured = requireTombstoneData(level, capturePos);
+            if (!captured.hasEntity()) {
+                throw new IllegalStateException("lifecycle fixture death was not captured by the tombstone");
+            }
+            portableGrave = new ItemStack(BlocksMCA.UPRIGHT_HEADSTONE.asItem());
+            captured.writeToStack(portableGrave);
+            if (portableGrave.isEmpty()) {
+                throw new IllegalStateException("lifecycle portable grave was not created");
+            }
+            phase = Phase.WAIT_FOR_REMOVAL;
+            return false;
+        }
+
+        private boolean waitForRemoval() {
+            if (hasRegisteredLifecycleIdentity(server)) {
+                return false;
+            }
+            if (countLooseFixtureInventory(level, capturePos) != 0) {
+                throw new IllegalStateException("captured lifecycle inventory was also emitted as loose drops");
+            }
+            phase = Phase.RESTORE;
+            return false;
+        }
+
+        private boolean restore() {
+            level.setBlockAndUpdate(capturePos, Blocks.AIR.defaultBlockState());
+            prepareTombstone(level, restorePos);
+            TombstoneBlock.Data portableData = requireTombstoneData(level, restorePos);
+            portableData.readFromStack(portableGrave);
+            Optional<Entity> restoredCandidate = portableData.createEntity(level, true);
+            if (restoredCandidate.isEmpty()
+                    || !(restoredCandidate.get() instanceof VillagerEntityMCA restored)) {
+                throw new IllegalStateException("portable lifecycle grave did not restore an MCA villager");
+            }
+            if (portableData.hasEntity()) {
+                throw new IllegalStateException("portable lifecycle grave was not consumed exactly once");
+            }
+            restored.setPos(
+                    restorePos.getX() + 0.5D,
+                    restorePos.getY(),
+                    restorePos.getZ() + 1.5D
+            );
+            if (!level.addFreshEntity(restored)) {
+                throw new IllegalStateException("restored lifecycle villager could not enter the level");
+            }
+            phase = Phase.VERIFY_RESTORED;
+            return false;
+        }
+
+        private boolean verifyRestored() {
+            VillagerEntityMCA restored = requireLifecycleEntity(server);
+            verifyLifecycleEntity(server, restored);
+            level.setBlockAndUpdate(restorePos, Blocks.AIR.defaultBlockState());
+
+            JsonObject created = lifecycleSnapshot(server, restored, "CREATED", true);
+            JsonArray history = new JsonArray();
+            history.add(created.deepCopy());
+            JsonObject root = created.deepCopy();
+            root.add("history", history);
+            writeLifecycleEvidence(evidencePath, root);
+            verifyCanonicalFiles(worldRoot);
+            LOGGER.info("{}", LIFECYCLE_CREATED_MARKER);
+            LOGGER.info("{}", READY_MARKER);
+            return true;
+        }
+
+        private boolean verifyRestart() {
+            JsonObject root = readLifecycleEvidence(evidencePath);
+            JsonArray history = requiredHistory(root);
+            VillagerEntityMCA restored = requireLifecycleEntity(server);
+            verifyLifecycleEntity(server, restored);
+
+            if (history.size() == 1) {
+                JsonObject created = history.get(0).getAsJsonObject();
+                verifySnapshot(created, "CREATED");
+                JsonObject restarted = lifecycleSnapshot(
+                        server,
+                        restored,
+                        "RESTART_VERIFIED",
+                        true
+                );
+                JsonArray completedHistory = new JsonArray();
+                completedHistory.add(created.deepCopy());
+                completedHistory.add(restarted.deepCopy());
+                JsonObject completed = restarted.deepCopy();
+                completed.add("history", completedHistory);
+                writeLifecycleEvidence(evidencePath, completed);
+            } else if (history.size() == 2) {
+                verifySnapshot(history.get(0).getAsJsonObject(), "CREATED");
+                verifySnapshot(history.get(1).getAsJsonObject(), "RESTART_VERIFIED");
+                verifySnapshot(root, "RESTART_VERIFIED");
+            } else {
+                throw new IllegalStateException("lifecycle history must contain one or two snapshots");
+            }
+
+            verifyCanonicalFiles(worldRoot);
+            LOGGER.info("{}", LIFECYCLE_RESTART_MARKER);
+            LOGGER.info("{}", READY_MARKER);
+            return true;
         }
     }
 }
