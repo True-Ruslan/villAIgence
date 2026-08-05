@@ -1,0 +1,167 @@
+name: One-shot wire voice service deadline
+
+on:
+  push:
+    branches:
+      - agent/m11-phase-c-orchestration-deadline
+    paths:
+      - .github/workflows/one-shot-wire-voice-service-deadline.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: agent/m11-phase-c-orchestration-deadline
+          fetch-depth: 0
+      - name: Wire one deadline through the production voice turn
+        shell: bash --noprofile --norc -e -o pipefail {0}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: Path, old: str, new: str, label: str) -> None:
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: {label}: expected 1 anchor, found {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          service = Path('fabric/src/main/java/net/conczin/mca/fabric/livingworld/voice/VoiceConversationService.java')
+          replace_once(service, 'import net.conczin.mca.livingworld.LivingWorldConfig;\n', 'import net.conczin.mca.livingworld.LivingWorldConfig;\nimport net.conczin.mca.livingworld.ai.AiRequestDeadline;\n', 'deadline import')
+          replace_once(
+              service,
+              '        MinecraftServer server = optionalServer.get();\n        server.execute(() -> validateTargetAndTranscribe(server, playerId, microphonePcm));\n',
+              '        MinecraftServer server = optionalServer.get();\n        LivingWorldConfig config = LivingWorldConfig.getInstance();\n        AiRequestDeadline deadline = AiRequestDeadline.startTotalMillis(\n                secondsToMillis(config.voiceConversationTimeoutSeconds)\n        );\n        server.execute(() -> validateTargetAndTranscribe(server, playerId, microphonePcm, deadline));\n',
+              'deadline creation before queueing'
+          )
+          replace_once(
+              service,
+              '    private void validateTargetAndTranscribe(MinecraftServer server, UUID playerId, short[] microphonePcm) {\n',
+              '    private void validateTargetAndTranscribe(\n            MinecraftServer server,\n            UUID playerId,\n            short[] microphonePcm,\n            AiRequestDeadline deadline\n    ) {\n',
+              'validation signature'
+          )
+          replace_once(
+              service,
+              '        executor.execute(() -> transcribeAndRoute(server, playerId, targetId, microphonePcm));\n',
+              '        executor.execute(() -> transcribeAndRoute(server, playerId, targetId, microphonePcm, deadline));\n',
+              'STT scheduling'
+          )
+          replace_once(
+              service,
+              '    private void transcribeAndRoute(MinecraftServer server, UUID playerId, UUID targetId, short[] microphonePcm) {\n',
+              '    private void transcribeAndRoute(\n            MinecraftServer server,\n            UUID playerId,\n            UUID targetId,\n            short[] microphonePcm,\n            AiRequestDeadline deadline\n    ) {\n',
+              'STT signature'
+          )
+          replace_once(
+              service,
+              '            transcript = audioProvider.transcribe(new PcmAudio(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE, microphonePcm));\n',
+              '            transcript = audioProvider.transcribe(\n                    new PcmAudio(VoiceCaptureManager.VOICECHAT_SAMPLE_RATE, microphonePcm),\n                    deadline\n            );\n',
+              'STT deadline call'
+          )
+          replace_once(
+              service,
+              '            executor.execute(() -> answerAndRespond(server, player, target.get(), snapshot, voiceSnapshot, transcript));\n',
+              '            executor.execute(() -> answerAndRespond(\n                    server, player, target.get(), snapshot, voiceSnapshot, transcript, deadline\n            ));\n',
+              'Chat scheduling'
+          )
+          replace_once(
+              service,
+              '            NpcVoiceSnapshot voiceSnapshot,\n            String transcript\n    ) {\n',
+              '            NpcVoiceSnapshot voiceSnapshot,\n            String transcript,\n            AiRequestDeadline deadline\n    ) {\n',
+              'answer signature'
+          )
+          replace_once(
+              service,
+              '            Optional<String> answer = ChatAI.answer(server, player, villager, transcript, snapshot);\n',
+              '            Optional<String> answer = ChatAI.answer(server, player, villager, transcript, snapshot, deadline);\n',
+              'Chat deadline call'
+          )
+          replace_once(
+              service,
+              '                speech = audioProvider.synthesize(new TtsRequest(text, profile.voiceId(), style))\n',
+              '                speech = audioProvider.synthesize(new TtsRequest(text, profile.voiceId(), style), deadline)\n',
+              'TTS deadline call'
+          )
+          replace_once(
+              service,
+              '    private void release(UUID playerId, UUID villagerId) {\n',
+              '    private static int secondsToMillis(int seconds) {\n        long value = Math.max(1L, seconds) * 1_000L;\n        return (int) Math.min(Integer.MAX_VALUE, value);\n    }\n\n    private void release(UUID playerId, UUID villagerId) {\n',
+              'timeout conversion helper'
+          )
+
+          source = service.read_text(encoding='utf-8')
+          expected = {
+              'AiRequestDeadline.startTotalMillis(': 1,
+              'audioProvider.transcribe(': 1,
+              'ChatAI.answer(server, player, villager, transcript, snapshot, deadline)': 1,
+              'audioProvider.synthesize(new TtsRequest(text, profile.voiceId(), style), deadline)': 1,
+          }
+          for needle, count in expected.items():
+              actual = source.count(needle)
+              if actual != count:
+                  raise SystemExit(f'{needle}: expected {count}, found {actual}')
+          PY
+          cat > common/src/test/java/net/conczin/mca/security/VoiceConversationDeadlineWiringPolicyTest.java <<'JAVA'
+          package net.conczin.mca.security;
+
+          import org.junit.jupiter.api.Test;
+
+          import java.io.IOException;
+          import java.nio.file.Files;
+          import java.nio.file.Path;
+
+          import static org.junit.jupiter.api.Assertions.assertEquals;
+          import static org.junit.jupiter.api.Assertions.assertTrue;
+
+          class VoiceConversationDeadlineWiringPolicyTest {
+              @Test
+              void productionVoiceTurnCreatesOneDeadlineBeforeQueueingAndSharesItAcrossAllProviderStages() throws IOException {
+                  Path root = Path.of("..").toAbsolutePath().normalize();
+                  String service = Files.readString(root.resolve(
+                          "fabric/src/main/java/net/conczin/mca/fabric/livingworld/voice/VoiceConversationService.java"
+                  ));
+
+                  assertEquals(1L, service.lines().filter(line -> line.contains("AiRequestDeadline.startTotalMillis(")).count());
+                  assertTrue(service.indexOf("AiRequestDeadline.startTotalMillis(") < service.indexOf("server.execute(() -> validateTargetAndTranscribe"));
+                  assertTrue(service.contains("microphonePcm, deadline"));
+                  assertTrue(service.contains("ChatAI.answer(server, player, villager, transcript, snapshot, deadline)"));
+                  assertTrue(service.contains("audioProvider.synthesize(new TtsRequest(text, profile.voiceId(), style), deadline)"));
+              }
+
+              @Test
+              void retryTransportDoesNotOwnDialogueOrRelationshipCommitSites() throws IOException {
+                  Path root = Path.of("..").toAbsolutePath().normalize();
+                  String transport = Files.readString(root.resolve(
+                          "common/src/main/java/net/conczin/mca/livingworld/ai/ChatCompletionHttpClient.java"
+                  ));
+                  String openAi = Files.readString(root.resolve(
+                          "common/src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java"
+                  ));
+                  String chatAi = Files.readString(root.resolve(
+                          "common/src/main/java/net/conczin/mca/entity/ai/chatAI/ChatAI.java"
+                  ));
+
+                  assertTrue(transport.contains("AiRequestDeadline deadline"));
+                  assertTrue(!transport.contains("Memory2DialogueLifecycle"));
+                  assertTrue(!transport.contains("LivingWorldRelationshipStore"));
+                  assertEquals(1L, openAi.lines().filter(line -> line.contains("applySnapshotRelationshipDelta(snapshot,")).count());
+                  assertEquals(1L, chatAi.lines().filter(line -> line.contains("rememberMemory2Dialogue(") && !line.contains("private static")).count());
+              }
+          }
+          JAVA
+          git diff --check
+      - name: Commit voice service wiring
+        shell: bash --noprofile --norc -e -o pipefail {0}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add fabric/src/main/java/net/conczin/mca/fabric/livingworld/voice/VoiceConversationService.java common/src/test/java/net/conczin/mca/security/VoiceConversationDeadlineWiringPolicyTest.java
+          git commit -m 'feat: enforce one deadline across the voice turn'
+          git push origin HEAD:agent/m11-phase-c-orchestration-deadline
