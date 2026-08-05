@@ -1,0 +1,71 @@
+name: One-shot polish orchestration contract
+
+on:
+  push:
+    branches:
+      - agent/m11-phase-c-orchestration-deadline
+    paths:
+      - .github/workflows/one-shot-polish-orchestration-contract.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: agent/m11-phase-c-orchestration-deadline
+          fetch-depth: 0
+      - name: Apply review polish
+        shell: bash --noprofile --norc -e -o pipefail {0}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: Path, old: str, new: str, label: str) -> None:
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: {label}: expected 1 anchor, found {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          chat = Path('common/src/main/java/net/conczin/mca/entity/ai/chatAI/ChatAI.java')
+          replace_once(
+              chat,
+              'import net.minecraft.world.level.storage.LevelResource;\n',
+              'import net.minecraft.world.level.storage.LevelResource;\nimport org.jetbrains.annotations.Nullable;\n',
+              'nullable import'
+          )
+          replace_once(
+              chat,
+              '            LivingWorldContextSnapshot snapshot,\n            AiRequestDeadline deadline\n',
+              '            LivingWorldContextSnapshot snapshot,\n            @Nullable AiRequestDeadline deadline\n',
+              'nullable deadline parameter'
+          )
+
+          test = Path('common/src/test/java/net/conczin/mca/livingworld/voice/VoiceConversationOrchestrationIntegrationTest.java')
+          replace_once(
+              test,
+              'import static org.junit.jupiter.api.Assertions.assertEquals;\n',
+              'import static org.junit.jupiter.api.Assertions.assertEquals;\nimport static org.junit.jupiter.api.Assertions.assertNull;\n',
+              'assertNull import'
+          )
+          source = test.read_text(encoding='utf-8')
+          count = source.count('assertEquals(null, chat.error());')
+          if count != 2:
+              raise SystemExit(f'expected two null assertions, found {count}')
+          test.write_text(source.replace('assertEquals(null, chat.error());', 'assertNull(chat.error());'), encoding='utf-8')
+          PY
+          git diff --check
+      - name: Commit review polish
+        shell: bash --noprofile --norc -e -o pipefail {0}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add common/src/main/java/net/conczin/mca/entity/ai/chatAI/ChatAI.java common/src/test/java/net/conczin/mca/livingworld/voice/VoiceConversationOrchestrationIntegrationTest.java
+          git commit -m 'test: clarify orchestration null contracts'
+          git push origin HEAD:agent/m11-phase-c-orchestration-deadline
