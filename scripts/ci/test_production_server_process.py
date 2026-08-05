@@ -6,7 +6,11 @@ import sys
 import tempfile
 import unittest
 
-from production_server_acceptance import AcceptanceError, run_server_process
+from production_server_acceptance import (
+    AcceptanceError,
+    evaluate_server_log,
+    run_server_process,
+)
 
 
 SUCCESS_SCRIPT = r'''
@@ -105,6 +109,53 @@ class ServerProcessTest(unittest.TestCase):
                     startup_timeout_seconds=0.2,
                     shutdown_timeout_seconds=0.2,
                 )
+
+
+class ServerCrashLogOracleTest(unittest.TestCase):
+    def test_vanilla_ready_without_fixture_marker_is_not_ready(self) -> None:
+        log = '''
+Loading Minecraft 1.21.1 with Fabric Loader 0.19.3
+\t- mca 1.21.1-SNAPSHOT
+Done (1.000s)! For help, type "help"
+Stopping server
+Saving worlds
+ThreadedAnvilChunkStorage: All dimensions are saved
+'''
+
+        result = evaluate_server_log(
+            log,
+            minecraft_version='1.21.1',
+            candidate_version='1.21.1-SNAPSHOT',
+            require_shutdown=True,
+        )
+
+        self.assertFalse(result.ready)
+        self.assertTrue(any('fixture ready marker' in error for error in result.errors))
+
+    def test_unexpected_exception_is_forbidden_even_with_both_ready_markers(self) -> None:
+        log = '''
+Loading Minecraft 1.21.1 with Fabric Loader 0.19.3
+\t- mca 1.21.1-SNAPSHOT
+Done (1.000s)! For help, type "help"
+VILLAIGENCE_PRODUCTION_FIXTURE_READY
+Encountered an unexpected exception
+This crash report has been saved to: crash-reports/crash.txt
+Stopping server
+Saving worlds
+ThreadedAnvilChunkStorage: All dimensions are saved
+'''
+
+        result = evaluate_server_log(
+            log,
+            minecraft_version='1.21.1',
+            candidate_version='1.21.1-SNAPSHOT',
+            require_shutdown=True,
+        )
+
+        self.assertTrue(
+            any('Encountered an unexpected exception' in error for error in result.errors)
+        )
+        self.assertTrue(any('crash report' in error.lower() for error in result.errors))
 
 
 if __name__ == '__main__':
