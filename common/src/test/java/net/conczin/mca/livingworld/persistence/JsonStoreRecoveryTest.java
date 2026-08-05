@@ -144,6 +144,20 @@ class JsonStoreRecoveryTest {
         assertFalse(Files.exists(corruptBackup(healthyStore)));
     }
 
+    @Test
+    void atomicWriteReplacesCanonicalAndLeavesNoTemporaryFile() throws IOException {
+        Path file = directory.resolve("memory.json");
+        Files.writeString(file, "old");
+        FixtureFile replacement = new FixtureFile();
+        replacement.values.put("npc", "new memory");
+
+        JsonStoreRecovery.writeAtomic(file, GSON, replacement);
+
+        FixtureFile stored = GSON.fromJson(Files.readString(file), FixtureFile.class);
+        assertEquals(Map.of("npc", "new memory"), stored.values);
+        assertFalse(Files.exists(temporary(file)));
+    }
+
     private static FixtureFile load(Path file) {
         return JsonStoreRecovery.loadOrRecover(
                 file,
