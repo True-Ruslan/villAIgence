@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** For exact implementation and validation state, read `docs/PROJECT_STATE.md` first.
 >
-> Last reconciled: **2026-08-05**. S10c and M11 Phases A-C are complete. M11 Phase D is the immediate implementation target.
+> Last reconciled: **2026-08-05**. S10c and M11 Phases A–D are complete. The immediate delivery target is the next exact candidate plus installed acceptance; additive legacy-memory migration follows that boundary.
 
 ## Product vision
 
@@ -71,6 +71,7 @@ Prefer systems that produce durable behavior and causality over one-off generate
 
 ```text
 unit/source policy
+→ common integration
 → server GameTest
 → production candidate startup/restart
 → exact release workflow
@@ -94,18 +95,22 @@ Operator Lore S9-S10c                                  COMPLETE
 M11 Phase A risk catalog and GameTests                 COMPLETE
 M11 Phase B exact production-JAR restart harness       COMPLETE
 M11 Phase C provider/voice orchestration               COMPLETE
-M11 Phase D concurrency and client acceptance          NEXT
-0.1.25 installed inventory canary                      PENDING
-legacy memory.json migration                           AFTER ACCEPTANCE/RELEASE GATE
+M11 Phase D concurrency and client acceptance          COMPLETE
+real installed two-client Operator Lore canary         PENDING
+0.1.25 inventory/grave/resurrection canary             PENDING
+next release containing post-0.1.25 work               NOT REQUESTED
+legacy memory.json migration                           AFTER RELEASE BOUNDARY
 ```
 
 Immediate sequence:
 
 ```text
-M11 Phase D
-→ exact-head review and all required CI
-→ focused installed inventory/grave/resurrection canary
-→ next sequential release containing post-0.1.25 work
+confirm post-merge/documentation CI
+→ prepare next sequential exact dry-run candidate
+→ installed inventory/grave/resurrection canary
+→ installed two-client Operator Lore conflict canary
+→ short physical voice smoke
+→ publish only on PASS
 → additive legacy memory.json migration
 → remaining Memory 2.0 exit criteria
 → personality and NPC↔NPC social graph
@@ -113,83 +118,111 @@ M11 Phase D
 
 ---
 
-# Immediate milestone — M11 Phase D
+# Completed milestone — M11 Phase D
 
 ## Goal
 
-Automate the concurrency and client-state boundaries that still require manual confidence, without weakening the S10b/S10c server-authority model.
+Automate the concurrency and client-state boundaries that previously required manual confidence, without weakening the S10b/S10c server-authority model.
 
-Primary scenario:
+Primary scenario now automated:
 
 ```text
 client A reads revision R
 client B reads revision R
 client A writes value A with R → OK, revision R2
 client B writes value B with stale R → CONFLICT, canonical value A/R2
-client B reloads/reviews
+client B retains/reviews its draft
 client B writes with R2 → OK, revision R3
 ```
 
-Required assertions:
+Implemented guarantees:
 
-- exactly one stale writer is rejected;
-- canonical value is never silently overwritten;
-- conflict response includes the current canonical value and revision;
-- no duplicate persistence mutation occurs;
-- exact replay remains `UNCHANGED`;
-- permissions and server target resolution are evaluated independently per logical client;
-- client request generation rejects stale responses after scope or target changes.
+- the stale writer performs no mutation;
+- canonical value and revision are returned with `CONFLICT`;
+- retry with the current revision succeeds exactly once;
+- exact replay returns `UNCHANGED` without rewriting persistence;
+- unauthorized logical operations cannot read or mutate canonical lore;
+- Clear uses the same revision-protected path;
+- request-generation correlation rejects stale responses;
+- conflict preserves the user draft and exposes explicit choices;
+- modal response forwarding remains owned by the active editor;
+- permissions and target resolution stay server-owned;
+- C2S has no arbitrary UUID, dimension ID or village ID;
+- client code owns no `operator-lore.json` access or global response mailbox.
 
-## Client acceptance boundary
+Canonical implementation evidence:
 
-Automate as much of the following as the supported test runtime permits:
+```text
+docs/livingworld/VALIDATION_M11_PHASE_D_IMPLEMENTATION.md
+```
 
-- operator-only editor opening;
-- WORLD, PLAYER, VILLAGER and VILLAGE scopes;
-- read before edit;
-- edit/save/reopen;
-- Clear through the same revision-protected write path;
-- dirty close and scope-switch confirmation;
-- explicit loading, saving, conflict and failure states;
-- Save response retained while a confirmation modal is open;
-- FORBIDDEN and NOT_FOUND handling;
-- keyboard and resize-safe state behavior through deterministic model/controller tests;
-- no global mailbox or unowned response path.
+Acceptance split:
 
-A full visual rendering claim is not required if the harness cannot run a real Minecraft client deterministically. State/model and network authority must still be automated; one real installed two-client UI canary remains separate.
+```text
+VAI-CONCUR-003  automated logical-client/common integration
+VAI-CONCUR-004  real installed two-client UI/network canary
+```
 
-## Security and authority invariants
+The remaining installed canary must not be reported as completed merely because the logical harness is green.
 
-Phase D must not:
+---
 
-- add arbitrary player/villager UUID fields to C2S;
-- add arbitrary dimension or village identifiers;
-- decide permissions on the client;
-- bypass SHA-256 revision checks;
-- silently overwrite on conflict;
-- access `operator-lore.json` from client code;
-- ingest Operator Lore into semantic memory;
-- add unbounded packet payloads;
-- call a public AI provider from CI;
-- mix unrelated gameplay or Memory 2.0 migration work.
+# Immediate delivery milestone — next exact candidate and installed acceptance
+
+## Goal
+
+Promote the accumulated post-`0.1.25` work through a versioned exact candidate, validate it in the operator environment and publish only after the focused canaries pass.
+
+The candidate includes at least:
+
+- deterministic production Chat/STT/TTS acceptance;
+- one monotonic complete voice-turn deadline;
+- configuration-cache and release-request corrections;
+- M11 Phase D concurrency/client acceptance.
+
+## Required sequence
+
+```text
+resolve the next free sequential version
+→ open release-request PR
+→ build exact versioned dry-run artifact
+→ verify embedded tag/filename/manifest identity
+→ install the exact candidate
+→ grave/resurrection with known inventory
+→ restart and repeat identity/inventory verification
+→ open one Operator Lore scope on two clients
+→ first save succeeds
+→ stale second save returns explicit conflict
+→ reload or keep draft and save with current revision
+→ short text/voice smoke
+→ merge release request only on PASS
+→ verify published artifact byte identity
+→ one post-release restart smoke
+```
+
+Expected next version is `0.1.26+1.21.1` only if repository/tag inspection confirms it remains free.
 
 ## Exit criteria
 
-Phase D is complete only when:
+The release boundary is complete only when:
 
-- deterministic RED demonstrates the missing stale-writer/client-state acceptance;
-- the minimal harness or test seam is implemented;
-- logical two-client conflict acceptance is green;
-- editor state acceptance is green;
-- common tests, Fabric GameTests/build, NeoForge build, package verification and repository security pass;
-- exact-head review finds no unresolved P0/P1/P2 issue;
-- `docs/PROJECT_STATE.md`, this roadmap and the acceptance catalog are synchronized.
+- the exact dry-run candidate passes all automated gates;
+- installed inventory/grave/resurrection passes without loss or duplication;
+- installed two-client conflict handling passes without silent overwrite;
+- physical voice smoke remains functional;
+- persistent hashes remain valid across restart;
+- the release request is merged only after installed PASS;
+- published assets are byte-identical to the accepted candidate;
+- `PROJECT_STATE.md`, this roadmap and release validation evidence are synchronized.
 
-Canonical implementation boundary:
+## Out of scope
 
-```text
-docs/livingworld/VALIDATION_M11_PHASE_D_PLAN.md
-```
+- legacy-memory migration;
+- BELIEF producers;
+- personality/social graph;
+- rumor propagation;
+- provider redesign;
+- unrelated MCA gameplay synchronization.
 
 ---
 
@@ -199,7 +232,7 @@ docs/livingworld/VALIDATION_M11_PHASE_D_PLAN.md
 
 ### Goal
 
-Make provider, voice, persistence and inherited MCA gameplay behavior safe enough for continued simulation development.
+Make provider, voice, persistence, concurrency and inherited MCA gameplay behavior safe enough for continued simulation development.
 
 ### Implemented
 
@@ -216,14 +249,16 @@ Make provider, voice, persistence and inherited MCA gameplay behavior safe enoug
 - Operator Lore store, immutable context, server-authoritative API and client editor;
 - risk-based GameTests;
 - exact production-JAR startup/shutdown/restart;
-- exact-production release publication.
+- exact-production release publication;
+- deterministic logical two-client conflict/client-state acceptance.
 
 ### Remaining exit gate
 
-- M11 Phase D;
+- next exact candidate containing post-`0.1.25` changes;
 - focused installed inventory/grave/resurrection canary;
-- next sequential release containing post-`0.1.25` work;
-- retain short physical voice and real-client canaries.
+- real installed two-client Operator Lore canary;
+- short physical voice canary;
+- next sequential release and post-release restart verification.
 
 ---
 
@@ -254,16 +289,11 @@ Relationship memory causal social history
 - source durability and NPC isolation;
 - restart-safe world-local persistence.
 
-### Remaining capabilities
+### Next implementation package — additive legacy migration
 
-- additive migration from `memory.json`;
-- controlled BELIEF producers;
-- explicit relationship-change reasons;
-- long-horizon recall and multi-day soak;
-- NPC-to-NPC knowledge transfer;
-- rumor propagation with uncertainty and distortion.
+After the release boundary, migrate useful legacy `memory.json` history into Memory 2.0 without deleting or reinterpreting the source.
 
-### Migration requirements
+Required properties:
 
 ```text
 additive, never destructive
@@ -278,6 +308,24 @@ atomic writes
 dry-run and rollback evidence
 legacy reads retained until cutover acceptance
 ```
+
+Recommended delivery slices:
+
+1. migration inventory and schema/checkpoint design;
+2. deterministic dry-run parser and report;
+3. RED duplicate/rerun/partial-failure tests;
+4. bounded additive import;
+5. backup and rollback verification;
+6. same-world restart acceptance;
+7. optional cutover only after installed evidence.
+
+### Remaining capabilities
+
+- controlled BELIEF producers;
+- explicit relationship-change reasons;
+- long-horizon recall and multi-day soak;
+- NPC-to-NPC knowledge transfer;
+- rumor propagation with uncertainty and distortion.
 
 ### Exit criteria
 
@@ -497,4 +545,4 @@ specification
 → canonical state update
 ```
 
-Automated validation, exact-production candidate validation and installed-server/client validation must always be reported separately.
+Automated validation, exact-production candidate validation, exact-release validation and installed-server/client validation must always be reported separately.
