@@ -4,24 +4,24 @@
 
 PASS on 2026-08-06.
 
-This document records exact-head evidence for E9. It does not request a version, create a tag, merge PR #114 or publish a release.
+This document records exact implementation and independent-review evidence for E9. It does not request a version, create a tag, merge PR #114 or publish a release.
 
 ## Exact validated implementation head
 
 ```text
-20fb7fd741916ffcb3f7f4630fd6d0bb046efba7
+78d7961632501b038d233dd662c62384d81a7c3b
 ```
 
 ## Mandatory workflow evidence
 
 | Gate | Run | Result |
 | --- | ---: | --- |
-| VillAIgence CI | 1715 / `31081408589` | PASS |
-| Java Pull Request CI with Gradle | 1101 / `31081408606` | PASS |
-| Repository security policy | 1335 / `31081408597` | PASS |
-| Supply-chain verification | 161 / `31081408667` | PASS |
-| VillAIgence Production Soak | 8 / `31081408703` | PASS |
-| VillAIgence GitHub Release dry-run | 327 / `31081408638` | PASS |
+| VillAIgence CI | 1721 / `31083451312` | PASS |
+| Java Pull Request CI with Gradle | 1107 / `31083451053` | PASS |
+| Repository security policy | 1347 / `31083451124` | PASS |
+| Supply-chain verification | 167 / `31083451252` | PASS |
+| VillAIgence Production Soak | 14 / `31083451193` | PASS |
+| VillAIgence GitHub Release dry-run | 333 / `31083451015` | PASS |
 
 The release workflow ran in dry-run mode. Its `github-release` job was intentionally skipped, so no tag or release was created.
 
@@ -45,7 +45,8 @@ The selector is deterministic and has no GitHub API or network dependency. It re
 - an empty change set selects all five suites;
 - absolute, parent-traversal, unknown or unclassified paths select all five suites;
 - workflow, build, Gradle, production-fixture and CI-script changes select all five suites;
-- persistence runtime changes select all five suites;
+- persistence infrastructure changes select all five suites;
+- every production `*Store.java` under LivingWorld selects all five suites;
 - voice, navigation and generic runtime changes select fast, server, production and package;
 - documentation-only changes select the fast contract suite.
 
@@ -53,14 +54,35 @@ This is fail-closed optimization: classification may remove work only for explic
 
 ### TDD evidence
 
-The selector was developed through independently observed RED states:
+The selector was developed and reviewed through independently observed RED states:
 
 1. missing module produced `ModuleNotFoundError: select_acceptance_suites`;
 2. missing CLI entrypoint produced an import failure for `main`;
 3. missing workflow wiring produced seven focused policy failures;
-4. missing release/soak parity produced four focused policy failures.
+4. missing release/soak parity produced four focused policy failures;
+5. independent review found that the six canonical store implementations selected runtime suites but omitted `recovery`;
+6. the review regression test produced seven focused failures: six current stores and one future LivingWorld `*Store.java`;
+7. the matcher was corrected and the complete selector suite passed before any expensive gate ran.
 
-The final implementation passes the API, CLI and workflow-policy contract tests in normal CI, release validation and the soak workflow.
+The final implementation passes API, CLI, store-classification and workflow-policy contracts in normal CI, release validation and the soak workflow.
+
+### Independent change review
+
+The complete PR #114 diff was reviewed after E9 implementation, with focused inspection of:
+
+- changed-path collection and fail-closed classification;
+- release-mode `all=true` enforcement;
+- workflow permissions and publication conditions;
+- Gradle fork-heap compatibility;
+- production soak failure/report paths;
+- corrupt-store backup and atomic replacement;
+- authenticated text and Operator Lore authority boundaries;
+- tombstone replay identity protection;
+- exact-package and no-release side effects.
+
+One P2 finding was found and fixed: canonical store-class changes did not directly select the destructive recovery matrix in normal CI. Release dry-run already protected those paths, so published-release safety was not bypassed, but E9's main-CI fail-closed contract was incomplete. The final matcher treats any production LivingWorld `*Store.java` as persistence-sensitive while leaving ordinary voice/runtime classes on the narrower runtime suite.
+
+After the fix and full re-review, no open P0, P1, P2 or P3 findings remained.
 
 ### Main CI integration
 
@@ -76,13 +98,13 @@ recovery   → six-case destructive persistent-store recovery matrix
 package    → distributable package smoke
 ```
 
-PR #114 modifies protected workflow, build and CI-script paths, therefore the selector correctly chose the complete five-suite matrix rather than an optimized subset.
+PR #114 modifies protected workflow, build and CI-script paths, therefore the selector correctly chose the complete five-suite matrix rather than an optimized subset. The fresh main-CI run executed and passed the selected recovery matrix.
 
 ### Release integration
 
 The release workflow runs the selector with `--mode release`, then fails unless `all=true`. It does not conditionally skip any release acceptance stage.
 
-Changes to the soak workflow, soak harness or soak tests are release-triggering paths. The release contract suite executes the soak harness tests before exact production acceptance.
+Changes to the soak workflow, soak harness or soak tests are release-triggering paths. The release contract suite executes selector and soak-harness tests before exact production acceptance.
 
 ## Bounded production soak
 
@@ -133,9 +155,9 @@ Cycle one must report `CREATED`. Cycles two through five must report `RESTART_VE
 ## Inspected soak artifact
 
 ```text
-artifact: production-soak-8
-artifact id: 8959713111
-digest: sha256:a623cd6e662a1b4e6759ad4ba15a1fe1c646b87d374442435f2cc8bc1ef78c9f
+artifact: production-soak-14
+artifact id: 8960538615
+digest: sha256:6567b4a8cad895945a204a8a64b64e7a9078ab989b6d6e7db3c242a56fbd1c83
 ```
 
 The downloaded `production-soak-report.json` was inspected after the workflow completed.
@@ -172,17 +194,17 @@ voices.json          4211e9e5d493f46975514e252f52d1c3bf379648b34325d94ac9673c7e1
 ## Exact release dry-run artifacts
 
 ```text
-production-server-acceptance-327
-artifact id: 8959844583
-digest: sha256:c631cd41d925121e72994c2b1457b480b88f0d9ddba71aeef3a1181fa8615dac
+production-server-acceptance-333
+artifact id: 8960504586
+digest: sha256:00985742a59aaf8db9617a57c2cca586a2a7184ffec26cf006c2b6650fbab2e0
 
-persistence-recovery-327
-artifact id: 8959920387
-digest: sha256:b67ff4b3d965aab1d6e15b2c57e5b0881450325f33a894fa82a30da04283d92f
+persistence-recovery-333
+artifact id: 8960600598
+digest: sha256:85051aaef1fef9b0d0e04055437aa4ebdf20cebd02737b75b4c1efd5c474a4c3
 
 villaigence-fabric-package
-artifact id: 8959947498
-digest: sha256:2cec6fb4588cb40db7557eaae4a48e47311964f9132167a1f75ed4187bfbcb35
+artifact id: 8960636786
+digest: sha256:d8e9574874414e28e7f583319f4a3386367f2cb37ddc26597d355053da129558
 ```
 
 The production-accepted JAR and packaged JAR passed byte-identity verification.
@@ -191,18 +213,19 @@ The production-accepted JAR and packaged JAR passed byte-identity verification.
 
 Phase E removes routine manual regression for deterministic server behavior. It does not make physical or visual claims that CI cannot observe.
 
-The remaining release canaries are limited to:
+The six remaining catalog canaries are:
 
-1. the exact released JAR starts and connects in the operator environment;
-2. one installed player performs the visible Silk Touch grave interaction;
-3. two installed graphical clients visibly render Operator Lore conflict/reload/keep-draft behavior;
-4. one real microphone input traverses OS permission, client capture and UDP routing;
-5. one spatial NPC reply is audibly correct and has no obvious visual/audio defect.
+1. exact released/candidate JAR startup in the operator environment;
+2. two ordinary MCA NPC brains visibly escape reachable water;
+3. an installed client visibly addresses the selected NPC and renders one response;
+4. a real player performs Silk Touch grave pickup, placement and restart without loss or duplication;
+5. one physical microphone turn traverses OS permission, client capture and UDP routing and yields an audible spatial response;
+6. two installed graphical clients visibly render Operator Lore conflict, keep/reload the draft and complete an explicit retry.
 
 All other catalog scenarios are automated. There are no remaining `PLANNED` scenarios in `common/src/test/resources/acceptance/scenarios.tsv`.
 
 ## Decision
 
-M11 Phase E implementation is complete at the automation layer.
+M11 Phase E implementation and independent code review are complete at the automation layer.
 
-PR #114 must remain unmerged and no release should be requested until final exact-head documentation CI and change review are complete. The next product delivery boundary is the focused installed canary package followed by the next free exact release version.
+PR #114 remains draft and unmerged. No release should be requested until the final documentation-head workflows complete and the six installed canaries are prepared as the next delivery boundary.
