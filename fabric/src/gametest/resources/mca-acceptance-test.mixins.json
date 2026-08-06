@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.conczin.mca.gametest.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "MixinMobMoveControlBridge"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

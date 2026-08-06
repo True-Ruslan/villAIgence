@@ -83,9 +83,7 @@ public class FishingTask extends AbstractChoreTask {
                     ItemStack stack = getFishingLoot(world, villager);
 
                     villager.swing(villager.getDominantHand());
-                    villager.getInventory().addItem(stack);
-                    villager.getItemInHand(villager.getDominantHand())
-                            .hurtAndBreak(1, villager, villager.getDominantSlot());
+                    FishingCatchApplication.apply(villager, stack);
                 }
                 ticks = 0;
             }

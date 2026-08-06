@@ -13,7 +13,13 @@ loom {
     }
 }
 
-def productionCandidateJar = tasks.named('remapJar').flatMap { it.archiveFile }
+def productionAcceptanceMinecraftVersion = providers.gradleProperty('minecraft_version')
+def productionAcceptanceLoaderVersion = providers.gradleProperty('fabric_loader_version')
+def productionAcceptanceInstallerVersion = providers.gradleProperty('fabric_installer_version')
+def productionAcceptanceModId = providers.gradleProperty('mod_id')
+def productionAcceptanceCandidateJar = tasks.named('remapJar').flatMap { it.archiveFile }
+def productionAcceptanceInstallerArtifacts = configurations.productionAcceptanceInstaller
+def productionAcceptanceRuntimeArtifacts = configurations.productionAcceptanceRuntimeMods
 def productionAcceptanceFixtureStageDir = layout.buildDirectory.dir('production-acceptance/stage')
 
 def productionAcceptanceFixtureJar = tasks.register('productionAcceptanceFixtureJar', Jar) {
@@ -53,32 +59,69 @@ def fixtureSha256 = { File file ->
     digest.digest().encodeHex().toString()
 }
 
-def fixtureMetadata = { File jarFile ->
+def productionMetadata = { File jarFile ->
     def zip = new java.util.zip.ZipFile(jarFile)
     try {
         def entry = zip.getEntry('fabric.mod.json')
         if (entry == null) {
-            throw new GradleException("Acceptance fixture is missing fabric.mod.json: ${jarFile}")
+            throw new GradleException("Fabric mod JAR is missing fabric.mod.json: ${jarFile}")
         }
         def metadata = new groovy.json.JsonSlurper().parse(
                 zip.getInputStream(entry),
                 'UTF-8'
         )
-        if (metadata.id != 'mca-production-acceptance-fixture'
-                || metadata.version != '1.0.0') {
-            throw new GradleException(
-                    "Acceptance fixture metadata must be mca-production-acceptance-fixture 1.0.0, found ${metadata.id} ${metadata.version}"
-            )
+        if (!(metadata instanceof Map)
+                || !(metadata.id instanceof String)
+                || metadata.id.trim().isEmpty()
+                || !(metadata.version instanceof String)
+                || metadata.version.trim().isEmpty()) {
+            throw new GradleException("Fabric mod metadata must contain non-empty id and version: ${jarFile}")
         }
-        metadata
+        [id: metadata.id.trim(), version: metadata.version.trim()]
     } finally {
         zip.close()
     }
 }
 
+def fixtureMetadata = { File jarFile ->
+    def metadata = productionMetadata(jarFile)
+    if (metadata.id != 'mca-production-acceptance-fixture'
+            || metadata.version != '1.0.0') {
+        throw new GradleException(
+                "Acceptance fixture metadata must be mca-production-acceptance-fixture 1.0.0, found ${metadata.id} ${metadata.version}"
+        )
+    }
+    metadata
+}
+
+def deleteStageDirectory = { File directory ->
+    if (!directory.exists()) {
+        return
+    }
+    def paths = java.nio.file.Files.walk(directory.toPath())
+    try {
+        paths.sorted(java.util.Comparator.reverseOrder()).forEach { path ->
+            java.nio.file.Files.deleteIfExists(path)
+        }
+    } finally {
+        paths.close()
+    }
+}
+
+def artifactEvidence = { File stageDir, File file ->
+    [
+            path: stageDir.toPath()
+                    .relativize(file.toPath())
+                    .toString()
+                    .replace(File.separatorChar, '/' as char),
+            sha256: fixtureSha256(file),
+            size: file.length()
+    ]
+}
+
 tasks.named('verifyFabricRefmap') {
     doLast {
-        def jarFile = productionCandidateJar.get().asFile
+        def jarFile = productionAcceptanceCandidateJar.get().asFile
         def zip = new java.util.zip.ZipFile(jarFile)
         try {
             if (zip.getEntry('net/conczin/mca/acceptancefixture/ProductionAcceptanceFixture.class') != null) {
@@ -101,45 +144,127 @@ tasks.named('verifyFabricRefmap') {
     }
 }
 
-tasks.named('stageProductionAcceptanceRuntime') {
+def stageProductionAcceptanceRuntime = tasks.named('stageProductionAcceptanceRuntime')
+stageProductionAcceptanceRuntime.configure {
     dependsOn remapProductionAcceptanceFixtureJar
     inputs.file(remapProductionAcceptanceFixtureJar.flatMap { it.archiveFile })
+    inputs.property('safeMinecraftVersion', productionAcceptanceMinecraftVersion)
+    inputs.property('safeLoaderVersion', productionAcceptanceLoaderVersion)
+    inputs.property('safeInstallerVersion', productionAcceptanceInstallerVersion)
+    inputs.property('safeModId', productionAcceptanceModId)
 
+    setActions([])
     doLast {
-        def fixtureJar = remapProductionAcceptanceFixtureJar.get().archiveFile.get().asFile
-        fixtureMetadata(fixtureJar)
+        def installerFiles = productionAcceptanceInstallerArtifacts.files
+                .toList()
+                .sort { left, right -> left.name <=> right.name }
+        if (installerFiles.size() != 1) {
+            throw new GradleException(
+                    "Production acceptance requires exactly one Fabric Installer JAR, found ${installerFiles.size()}: ${installerFiles}"
+            )
+        }
+
+        def runtimeFiles = productionAcceptanceRuntimeArtifacts.files
+                .toList()
+                .sort { left, right -> left.name <=> right.name }
+        if (runtimeFiles.size() != 2) {
+            throw new GradleException(
+                    "Production acceptance requires exactly two runtime mod JARs, found ${runtimeFiles.size()}: ${runtimeFiles}"
+            )
+        }
 
         def stageDir = productionAcceptanceFixtureStageDir.get().asFile
+        deleteStageDirectory(stageDir)
+        def installerDir = new File(stageDir, 'installer')
         def modsDir = new File(stageDir, 'mods')
+        if (!installerDir.mkdirs() || !modsDir.mkdirs()) {
+            throw new GradleException("Unable to create production acceptance stage directories: ${stageDir}")
+        }
+
+        def stagedInstaller = new File(installerDir, 'fabric-installer.jar')
+        java.nio.file.Files.copy(
+                installerFiles[0].toPath(),
+                stagedInstaller.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING
+        )
+
+        def candidateSource = productionAcceptanceCandidateJar.get().asFile
+        def candidateMetadata = productionMetadata(candidateSource)
+        def expectedModId = productionAcceptanceModId.get()
+        if (candidateMetadata.id != expectedModId) {
+            throw new GradleException(
+                    "Production acceptance candidate must declare id ${expectedModId}, found ${candidateMetadata.id}"
+            )
+        }
+        def stagedCandidate = new File(modsDir, 'villaigence-under-test.jar')
+        java.nio.file.Files.copy(
+                candidateSource.toPath(),
+                stagedCandidate.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING
+        )
+
+        def expectedRuntimeIds = ['fabric-api', 'voicechat'] as Set
+        def runtimeMetadata = runtimeFiles.collect { runtimeFile ->
+            def metadata = productionMetadata(runtimeFile)
+            [source: runtimeFile, id: metadata.id, version: metadata.version]
+        }.sort { left, right -> left.id <=> right.id }
+        def actualRuntimeIds = runtimeMetadata.collect { it.id } as Set
+        if (actualRuntimeIds != expectedRuntimeIds
+                || runtimeMetadata.size() != expectedRuntimeIds.size()) {
+            throw new GradleException(
+                    "Production acceptance runtime mods must be exactly ${expectedRuntimeIds}, found ${runtimeMetadata.collect { it.id }}"
+            )
+        }
+
+        def stagedRuntime = runtimeMetadata.collect { metadata ->
+            def safeVersion = metadata.version.replaceAll('[^0-9A-Za-z.+_-]', '_')
+            def target = new File(modsDir, "${metadata.id}-${safeVersion}.jar")
+            java.nio.file.Files.copy(
+                    metadata.source.toPath(),
+                    target.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
+            )
+            artifactEvidence(stageDir, target) + [
+                    id: metadata.id,
+                    version: metadata.version
+            ]
+        }
+
+        def fixtureJar = remapProductionAcceptanceFixtureJar.get().archiveFile.get().asFile
+        def acceptedFixtureMetadata = fixtureMetadata(fixtureJar)
         def stagedFixture = new File(modsDir, fixtureJar.name)
         java.nio.file.Files.copy(
                 fixtureJar.toPath(),
                 stagedFixture.toPath(),
                 java.nio.file.StandardCopyOption.REPLACE_EXISTING
         )
+        stagedRuntime.add(artifactEvidence(stageDir, stagedFixture) + [
+                id: acceptedFixtureMetadata.id,
+                version: acceptedFixtureMetadata.version
+        ])
+        stagedRuntime.sort { left, right -> left.id <=> right.id }
+
+        def manifest = [
+                schema: 1,
+                minecraftVersion: productionAcceptanceMinecraftVersion.get(),
+                loaderVersion: productionAcceptanceLoaderVersion.get(),
+                installerVersion: productionAcceptanceInstallerVersion.get(),
+                installer: artifactEvidence(stageDir, stagedInstaller),
+                candidate: artifactEvidence(stageDir, stagedCandidate) + [
+                        id: candidateMetadata.id,
+                        version: candidateMetadata.version
+                ],
+                runtimeMods: stagedRuntime
+        ]
 
         def manifestFile = new File(stageDir, 'manifest.json')
-        def manifest = new groovy.json.JsonSlurper().parse(manifestFile, 'UTF-8')
-        if (!(manifest.runtimeMods instanceof List)) {
-            throw new GradleException("Production acceptance manifest runtimeMods must be a list")
-        }
-        if (manifest.runtimeMods.any { it.id == 'mca-production-acceptance-fixture' }) {
-            throw new GradleException("Production acceptance manifest already contains the fixture")
-        }
-        manifest.runtimeMods.add([
-                id: 'mca-production-acceptance-fixture',
-                version: '1.0.0',
-                path: stageDir.toPath()
-                        .relativize(stagedFixture.toPath())
-                        .toString()
-                        .replace(File.separatorChar, '/' as char),
-                sha256: fixtureSha256(stagedFixture),
-                size: stagedFixture.length()
-        ])
-        manifest.runtimeMods.sort { left, right -> left.id <=> right.id }
         manifestFile.setText(
                 groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(manifest)) + '\n',
                 'UTF-8'
+        )
+        logger.lifecycle("Staged production acceptance runtime: ${stageDir}")
+        logger.lifecycle(
+                "Candidate ${candidateMetadata.id} ${candidateMetadata.version}: ${fixtureSha256(stagedCandidate)}"
         )
         logger.lifecycle(
                 "Staged production acceptance fixture: ${stagedFixture.name} ${fixtureSha256(stagedFixture)}"

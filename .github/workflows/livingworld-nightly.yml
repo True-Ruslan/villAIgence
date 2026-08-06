@@ -1,0 +1,105 @@
+name: VillAIgence Nightly Acceptance
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: villaigence-nightly-acceptance
+  cancel-in-progress: false
+
+jobs:
+  persistence-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GRADLE_OPTS: --enable-native-access=ALL-UNNAMED
+      NO_COLOR: "1"
+
+    steps:
+      - name: Checkout current 1.21.1 head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: '1.21.1'
+          fetch-depth: 1
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+        with:
+          validate-wrappers: true
+
+      - name: Run recovery contracts and repository policy
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/repository_security_policy.py --check
+          python3 scripts/ci/test_persistence_recovery_acceptance.py
+          chmod +x gradlew
+          ./gradlew \
+            :common:test \
+            --tests '*JsonStoreRecoveryTest' \
+            --tests '*ConversationMemoryStoreRecoveryTest' \
+            --tests '*PersistentStoreRecoveryIntegrationTest' \
+            --stacktrace \
+            --no-daemon \
+            --console=plain
+
+      - name: Stage exact production runtime
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew \
+            :fabric:stageProductionAcceptanceRuntime \
+            --stacktrace \
+            --no-daemon \
+            --console=plain
+
+      - name: Execute six-store recovery matrix
+        run: |
+          set -euo pipefail
+          rm -rf build/persistence-recovery-acceptance
+          mkdir -p build/persistence-recovery-acceptance/evidence
+          python3 scripts/ci/persistence_recovery_acceptance.py \
+            --stage-dir fabric/build/production-acceptance/stage \
+            --execute \
+            --work-dir build/persistence-recovery-acceptance/work \
+            --report-dir build/persistence-recovery-acceptance/evidence \
+            --java "${JAVA_HOME}/bin/java" \
+            --installer-timeout-seconds 300 \
+            --startup-timeout-seconds 180 \
+            --shutdown-timeout-seconds 60 \
+            --max-heap-mib 768
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path('build/persistence-recovery-acceptance/evidence/persistence-recovery-report.json')
+              .read_text(encoding='utf-8')
+          )
+          if report.get('status') != 'PASS':
+              raise SystemExit('persistence recovery report is not PASS')
+          cases = report.get('cases')
+          if not isinstance(cases, list) or len(cases) != 6:
+              raise SystemExit('persistence recovery report must contain six cases')
+          if any(case.get('status') != 'PASS' for case in cases):
+              raise SystemExit('at least one persistence recovery case is not PASS')
+          PY
+
+      - name: Upload persistence recovery evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: persistence-recovery-${{ github.run_number }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: build/persistence-recovery-acceptance/evidence

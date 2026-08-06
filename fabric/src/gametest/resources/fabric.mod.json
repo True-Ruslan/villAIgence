@@ -5,13 +5,26 @@
   "name": "VillAIgence Acceptance Tests",
   "environment": "*",
   "entrypoints": {
+    "main": [
+      "net.conczin.mca.gametest.GameplayTestItems"
+    ],
     "fabric-gametest": [
       "net.conczin.mca.gametest.VillAIgenceGameTests",
       "net.conczin.mca.gametest.TombstoneControlGameTests",
       "net.conczin.mca.gametest.TombstoneInventoryDeathGameTests",
-      "net.conczin.mca.gametest.NavigationWaterSurfaceGameTests"
+      "net.conczin.mca.gametest.TombstoneIdentityReplayGameTests",
+      "net.conczin.mca.gametest.NavigationWaterSurfaceGameTests",
+      "net.conczin.mca.gametest.NavigationObstacleGameTests",
+      "net.conczin.mca.gametest.NavigationLadderGameTests",
+      "net.conczin.mca.gametest.NavigationDoorGameTests",
+      "net.conczin.mca.gametest.GameplayInteractionGameTests",
+      "net.conczin.mca.entity.ai.brain.tasks.chore.FishingCatchGameTests",
+      "net.conczin.mca.gametest.MountedArcherControlGameTests"
     ]
   },
+  "mixins": [
+    "mca-acceptance-test.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.16.14",
     "fabric-api": "*",

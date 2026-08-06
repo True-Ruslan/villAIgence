@@ -5,15 +5,10 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.conczin.mca.livingworld.persistence.JsonStoreRecovery;
 
-import java.io.IOException;
-import java.io.Reader;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.Files;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -34,10 +29,26 @@ public final class WorldOperatorLoreStore {
             .setPrettyPrinting()
             .disableHtmlEscaping()
             .create();
+    private static final JsonStoreRecovery.Codec<JsonObject> CODEC =
+            new JsonStoreRecovery.Codec<>() {
+                @Override
+                public JsonObject decode(String raw) {
+                    JsonElement element = JsonParser.parseString(raw);
+                    if (!element.isJsonObject()) {
+                        throw new IllegalStateException(
+                                "operator lore root must be a JSON object"
+                        );
+                    }
+                    return element.getAsJsonObject();
+                }
+
+                @Override
+                public String encode(JsonObject value) {
+                    return GSON.toJson(value);
+                }
+            };
 
     private final Path file;
-    private final Path temporaryFile;
-    private final Path corruptBackup;
     private final TreeMap<String, String> villagers = new TreeMap<>();
     private final TreeMap<String, String> players = new TreeMap<>();
     private final TreeMap<String, String> villages = new TreeMap<>();
@@ -47,10 +58,7 @@ public final class WorldOperatorLoreStore {
         Path root = Objects.requireNonNull(worldRoot, "worldRoot")
                 .toAbsolutePath()
                 .normalize();
-        Path directory = root.resolve(DIRECTORY);
-        this.file = directory.resolve(FILE_NAME);
-        this.temporaryFile = directory.resolve(FILE_NAME + ".tmp");
-        this.corruptBackup = directory.resolve(FILE_NAME + ".corrupt");
+        this.file = root.resolve(DIRECTORY).resolve(FILE_NAME);
         load();
     }
 
@@ -125,42 +133,50 @@ public final class WorldOperatorLoreStore {
     }
 
     private void load() {
-        if (!Files.exists(file)) {
-            return;
-        }
+        JsonObject root = JsonStoreRecovery.loadOrRecover(
+                file,
+                CODEC,
+                WorldOperatorLoreStore::isValidRoot,
+                WorldOperatorLoreStore::emptyRoot
+        );
+        clearState();
+        world = normalizeValue(readString(root, "world"));
+        readMap(root, "villagers", villagers);
+        readMap(root, "players", players);
+        readMap(root, "villages", villages);
+    }
 
-        try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-            JsonElement element = JsonParser.parseReader(reader);
-            if (!element.isJsonObject()) {
-                throw new IllegalStateException("operator lore root must be a JSON object");
-            }
-
-            JsonObject root = element.getAsJsonObject();
-            JsonElement versionElement = root.get("version");
-            if (versionElement == null || !versionElement.isJsonPrimitive()
-                    || versionElement.getAsInt() != VERSION) {
-                throw new IllegalStateException("unsupported operator lore schema version");
-            }
-
-            clearState();
-            world = normalizeValue(readString(root, "world"));
-            readMap(root, "villagers", villagers);
-            readMap(root, "players", players);
-            readMap(root, "villages", villages);
-        } catch (Exception malformed) {
-            recoverMalformedFile();
+    private static boolean isValidRoot(JsonObject root) {
+        try {
+            validateVersion(root);
+            readString(root, "world");
+            readMap(root, "villagers", new TreeMap<>());
+            readMap(root, "players", new TreeMap<>());
+            readMap(root, "villages", new TreeMap<>());
+            return true;
+        } catch (RuntimeException malformed) {
+            return false;
         }
     }
 
-    private void recoverMalformedFile() {
-        clearState();
-        try {
-            Files.createDirectories(file.getParent());
-            Files.copy(file, corruptBackup, StandardCopyOption.REPLACE_EXISTING);
-            save();
-        } catch (IOException failure) {
-            throw new IllegalStateException("Unable to recover malformed operator lore file", failure);
+    private static void validateVersion(JsonObject root) {
+        JsonElement versionElement = root.get("version");
+        if (versionElement == null
+                || !versionElement.isJsonPrimitive()
+                || !versionElement.getAsJsonPrimitive().isNumber()
+                || versionElement.getAsInt() != VERSION) {
+            throw new IllegalStateException("unsupported operator lore schema version");
         }
+    }
+
+    private static JsonObject emptyRoot() {
+        JsonObject root = new JsonObject();
+        root.addProperty("version", VERSION);
+        root.addProperty("world", "");
+        root.add("villagers", new JsonObject());
+        root.add("players", new JsonObject());
+        root.add("villages", new JsonObject());
+        return root;
     }
 
     private void clearState() {
@@ -208,45 +224,14 @@ public final class WorldOperatorLoreStore {
 
     private void save() {
         try {
-            Files.createDirectories(file.getParent());
-            String json = GSON.toJson(toJson()) + System.lineSeparator();
-            Files.writeString(
-                    temporaryFile,
-                    json,
-                    StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE
-            );
-
-            try {
-                Files.move(
-                        temporaryFile,
-                        file,
-                        StandardCopyOption.ATOMIC_MOVE,
-                        StandardCopyOption.REPLACE_EXISTING
-                );
-            } catch (AtomicMoveNotSupportedException unsupported) {
-                Files.move(
-                        temporaryFile,
-                        file,
-                        StandardCopyOption.REPLACE_EXISTING
-                );
-            }
-        } catch (IOException failure) {
+            JsonStoreRecovery.writeAtomic(file, CODEC, toJson());
+        } catch (UncheckedIOException failure) {
             throw new IllegalStateException("Unable to save operator lore", failure);
-        } finally {
-            try {
-                Files.deleteIfExists(temporaryFile);
-            } catch (IOException ignored) {
-                // Best effort cleanup. A later save always truncates this path before use.
-            }
         }
     }
 
     private JsonObject toJson() {
-        JsonObject root = new JsonObject();
-        root.addProperty("version", VERSION);
+        JsonObject root = emptyRoot();
         root.addProperty("world", world);
         root.add("villagers", toJsonObject(villagers));
         root.add("players", toJsonObject(players));

@@ -2,15 +2,10 @@ package net.conczin.mca.livingworld.memory;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import net.conczin.mca.livingworld.persistence.GsonJsonStoreCodec;
+import net.conczin.mca.livingworld.persistence.JsonStoreRecovery;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,6 +23,8 @@ import java.util.concurrent.ConcurrentMap;
 public final class ConversationMemoryStore {
     private static final int FORMAT_VERSION = 1;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final JsonStoreRecovery.Codec<MemoryFile> CODEC =
+            new GsonJsonStoreCodec<>(GSON, MemoryFile.class);
     private static final ConcurrentMap<Path, ConversationMemoryStore> STORES = new ConcurrentHashMap<>();
 
     private final Path file;
@@ -70,45 +67,24 @@ public final class ConversationMemoryStore {
     }
 
     private MemoryFile load() {
-        if (!Files.exists(file)) {
-            return new MemoryFile();
-        }
-        try {
-            String json = Files.readString(file, StandardCharsets.UTF_8);
-            MemoryFile loaded = GSON.fromJson(json, MemoryFile.class);
-            if (loaded == null || loaded.version != FORMAT_VERSION) {
-                return new MemoryFile();
-            }
-            if (loaded.conversations == null) {
-                loaded.conversations = new HashMap<>();
-            }
-            loaded.conversations.replaceAll((key, value) -> value == null ? new ArrayList<>() : new ArrayList<>(value));
-            return loaded;
-        } catch (IOException | RuntimeException e) {
-            return new MemoryFile();
-        }
+        MemoryFile loaded = JsonStoreRecovery.loadOrRecover(
+                file,
+                CODEC,
+                value -> value != null
+                        && value.version == FORMAT_VERSION
+                        && value.conversations != null,
+                MemoryFile::new
+        );
+        loaded.conversations.replaceAll(
+                (key, value) -> value == null
+                        ? new ArrayList<>()
+                        : new ArrayList<>(value)
+        );
+        return loaded;
     }
 
     private void save() {
-        try {
-            Files.createDirectories(file.getParent());
-            Path temp = file.resolveSibling(file.getFileName() + ".tmp");
-            Files.writeString(
-                    temp,
-                    GSON.toJson(data),
-                    StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE
-            );
-            try {
-                Files.move(temp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException("Unable to persist LivingWorld memory to " + file, e);
-        }
+        JsonStoreRecovery.writeAtomic(file, CODEC, data);
     }
 
     private static String key(UUID villagerId, UUID playerId) {

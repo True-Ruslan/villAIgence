@@ -20,15 +20,63 @@
       "ci": true
     },
     {
-      "path": "scripts/ci/production_server_acceptance.py",
-      "purpose": "Validates and later executes the isolated production Fabric server acceptance bundle; process orchestration may cause the pinned Fabric installer to download official Minecraft runtime files.",
+      "path": "scripts/ci/persistence_recovery_acceptance.py",
+      "purpose": "Runs the isolated exact-candidate six-store corruption, backup, regeneration and idempotent-restart matrix; the pinned Fabric installer may download official Minecraft runtime files.",
       "network": true,
       "ci": true
+    },
+    {
+      "path": "scripts/ci/production_lifecycle_acceptance.py",
+      "purpose": "Validates deterministic two-JVM NPC death, portable grave, resurrection, identity and inventory evidence in an isolated production server; performs no network requests.",
+      "network": false,
+      "ci": true
+    },
+    {
+      "path": "scripts/ci/production_server_acceptance.py",
+      "purpose": "Provides production-server staging, installer, persistence comparison and report-generation primitives; process orchestration may cause the pinned Fabric installer to download official Minecraft runtime files.",
+      "network": true,
+      "ci": true
+    },
+    {
+      "path": "scripts/ci/production_server_acceptance_strict.py",
+      "purpose": "Runs production-server acceptance with VillAIgence fixture-ready and crash-signature process oracles; process orchestration may cause the pinned Fabric installer to download official Minecraft runtime files.",
+      "network": true,
+      "ci": true
+    },
+    {
+      "path": "scripts/ci/production_soak_acceptance.py",
+      "purpose": "Runs bounded repeated exact-candidate server restarts under constrained heap and validates strict startup, lifecycle, voice and stable persistent-store evidence; the pinned Fabric installer may download official Minecraft runtime files.",
+      "network": true,
+      "ci": true
+    },
+    {
+      "path": "scripts/ci/recovery_fixture_stage.py",
+      "purpose": "Imported helper that derives a recovery-only test fixture JAR inside an isolated staged runtime and updates only that fixture's manifest evidence; performs no network requests and never changes the candidate JAR.",
+      "network": false,
+      "ci": false
     },
     {
       "path": "scripts/ci/repository_security_policy.py",
       "purpose": "Runs deterministic secret, source-policy, workflow-permission and script-inventory checks; its source contains detector signatures but performs no network requests.",
       "network": true,
+      "ci": true
+    },
+    {
+      "path": "scripts/ci/select_acceptance_suites.py",
+      "purpose": "Selects deterministic CI acceptance suites from changed repository paths and fails closed to the complete mandatory matrix for releases, protected files and unknown paths; performs no network requests.",
+      "network": false,
+      "ci": true
+    },
+    {
+      "path": "scripts/ci/test_persistence_recovery_acceptance.py",
+      "purpose": "Standard-library unit tests for corruption-plan confinement, matrix coverage, recovery-only fixture derivation, candidate immutability and sibling-store isolation; performs no network requests.",
+      "network": false,
+      "ci": true
+    },
+    {
+      "path": "scripts/ci/test_production_lifecycle_acceptance.py",
+      "purpose": "Standard-library unit tests for exact production lifecycle evidence, restart identity stability and inventory preservation; performs no network requests.",
+      "network": false,
       "ci": true
     },
     {
@@ -40,6 +88,18 @@
     {
       "path": "scripts/ci/test_production_server_process.py",
       "purpose": "Standard-library subprocess lifecycle tests using local Python child processes; performs no network requests.",
+      "network": false,
+      "ci": true
+    },
+    {
+      "path": "scripts/ci/test_production_soak_acceptance.py",
+      "purpose": "Standard-library tests for bounded restart, constrained-heap and stable-persistence soak acceptance; performs no network requests.",
+      "network": false,
+      "ci": true
+    },
+    {
+      "path": "scripts/ci/test_select_acceptance_suites.py",
+      "purpose": "Standard-library tests for fail-closed path-to-risk acceptance suite selection; performs no network requests.",
       "network": false,
       "ci": true
     },

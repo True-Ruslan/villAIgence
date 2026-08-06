@@ -2,15 +2,10 @@ package net.conczin.mca.livingworld.memory2;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import net.conczin.mca.livingworld.persistence.GsonJsonStoreCodec;
+import net.conczin.mca.livingworld.persistence.JsonStoreRecovery;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -24,6 +19,8 @@ import java.util.concurrent.ConcurrentMap;
 public final class SemanticMemoryStore {
     private static final int FORMAT_VERSION = 1;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final JsonStoreRecovery.Codec<SemanticMemoryFile> CODEC =
+            new GsonJsonStoreCodec<>(GSON, SemanticMemoryFile.class);
     private static final ConcurrentMap<Path, SemanticMemoryStore> STORES = new ConcurrentHashMap<>();
     private static final Comparator<SemanticMemoryEntry> OLDEST_FIRST = Comparator
             .comparingLong(SemanticMemoryEntry::gameTime)
@@ -82,51 +79,33 @@ public final class SemanticMemoryStore {
     }
 
     private SemanticMemoryFile load() {
-        if (!Files.exists(file)) return new SemanticMemoryFile();
-        try {
-            SemanticMemoryFile loaded = GSON.fromJson(Files.readString(file, StandardCharsets.UTF_8), SemanticMemoryFile.class);
-            if (loaded == null || loaded.version != FORMAT_VERSION) return new SemanticMemoryFile();
-            if (loaded.entriesByNpc == null) loaded.entriesByNpc = new HashMap<>();
+        SemanticMemoryFile loaded = JsonStoreRecovery.loadOrRecover(
+                file,
+                CODEC,
+                value -> value != null
+                        && value.version == FORMAT_VERSION
+                        && value.entriesByNpc != null,
+                SemanticMemoryFile::new
+        );
 
-            Map<String, List<SemanticMemoryEntry>> sanitized = new HashMap<>();
-            for (Map.Entry<String, List<SemanticMemoryEntry>> entry : loaded.entriesByNpc.entrySet()) {
-                UUID owner = parseUuid(entry.getKey());
-                if (owner == null || entry.getValue() == null) continue;
-                List<SemanticMemoryEntry> entries = entry.getValue().stream()
-                        .filter(value -> isValidForOwner(value, owner))
-                        .sorted(OLDEST_FIRST)
-                        .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
-                entries = new ArrayList<>(SemanticMemoryConsolidator.consolidateAll(entries));
-                entries.sort(OLDEST_FIRST);
-                if (!entries.isEmpty()) sanitized.put(owner.toString(), entries);
-            }
-            loaded.entriesByNpc = sanitized;
-            return loaded;
-        } catch (IOException | RuntimeException ignored) {
-            return new SemanticMemoryFile();
+        Map<String, List<SemanticMemoryEntry>> sanitized = new HashMap<>();
+        for (Map.Entry<String, List<SemanticMemoryEntry>> entry : loaded.entriesByNpc.entrySet()) {
+            UUID owner = parseUuid(entry.getKey());
+            if (owner == null || entry.getValue() == null) continue;
+            List<SemanticMemoryEntry> entries = entry.getValue().stream()
+                    .filter(value -> isValidForOwner(value, owner))
+                    .sorted(OLDEST_FIRST)
+                    .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+            entries = new ArrayList<>(SemanticMemoryConsolidator.consolidateAll(entries));
+            entries.sort(OLDEST_FIRST);
+            if (!entries.isEmpty()) sanitized.put(owner.toString(), entries);
         }
+        loaded.entriesByNpc = sanitized;
+        return loaded;
     }
 
     private void save() {
-        try {
-            Files.createDirectories(file.getParent());
-            Path temp = file.resolveSibling(file.getFileName() + ".tmp");
-            Files.writeString(
-                    temp,
-                    GSON.toJson(data),
-                    StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE
-            );
-            try {
-                Files.move(temp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException("Unable to persist VillAIgence semantic memory to " + file, e);
-        }
+        JsonStoreRecovery.writeAtomic(file, CODEC, data);
     }
 
     private static UUID parseUuid(String value) {

@@ -59,6 +59,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -455,13 +456,31 @@ public class TombstoneBlock extends BaseEntityBlock implements SimpleWaterlogged
         }
 
         public Optional<Entity> createEntity(Level world, boolean remove) {
-            try {
-                return entityData.flatMap(data -> EntityType.create(withoutActiveEffects(data.nbt), world));
-            } finally {
-                if (remove) {
-                    setEntity(null);
+            Optional<Entity> created = entityData.flatMap(
+                    data -> EntityType.create(withoutActiveEffects(data.nbt), world)
+            );
+            if (remove
+                    && created.isPresent()
+                    && hasExistingIdentity(world, created.get().getUUID())) {
+                return Optional.empty();
+            }
+            if (remove) {
+                setEntity(null);
+            }
+            return created;
+        }
+
+        private boolean hasExistingIdentity(Level world, UUID uuid) {
+            if (!(world instanceof ServerLevel serverLevel)) {
+                return false;
+            }
+            for (ServerLevel level : serverLevel.getServer().getAllLevels()) {
+                Entity existing = level.getEntity(uuid);
+                if (existing != null && !existing.isRemoved()) {
+                    return true;
                 }
             }
+            return false;
         }
 
         private CompoundTag withoutActiveEffects(CompoundTag nbt) {
