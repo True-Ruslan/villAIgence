@@ -39,6 +39,14 @@ class AcceptanceSuiteSelectionTest(unittest.TestCase):
         self.assertTrue(selection.fail_closed)
         self.assertIn("experimental/unclassified/new-runtime.txt", selection.reason)
 
+    def test_unsafe_path_fails_closed_to_all(self) -> None:
+        for changed_path in ("/runtime.java", "../runtime.java"):
+            with self.subTest(changed_path=changed_path):
+                selection = select_suites([changed_path], mode=SelectionMode.PR)
+                self.assertEqual(ALL_SUITES, selection.suites)
+                self.assertTrue(selection.fail_closed)
+                self.assertIn("unsafe-path", selection.reason)
+
     def test_documentation_only_change_runs_fast_contracts(self) -> None:
         selection = select_suites(
             ["docs/livingworld/VALIDATION_EXAMPLE.md", "docs/ROADMAP.md"],
