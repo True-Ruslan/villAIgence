@@ -1,6 +1,6 @@
 # M11 Phase E Automation Completion Implementation Plan
 
-> **Status:** implementation complete at the automation layer on 2026-08-06. PR #114 remains draft and unmerged. No release was requested or published by this plan.
+> **Status:** implementation and independent code review complete at the automation layer on 2026-08-06. PR #114 remains draft and unmerged. No release was requested or published by this plan.
 
 **Goal:** Move every deterministic VillAIgence release risk into repeatable CI and reduce manual acceptance to physical microphone, audible/spatial perception, graphical-client review and exact installed-environment smoke.
 
@@ -59,7 +59,7 @@
 - [x] Regenerate valid canonical JSON.
 - [x] Prove five unaffected sibling hashes remain unchanged.
 - [x] Prove idempotent second startup.
-- [x] Add nightly and release-gate execution.
+- [x] Add nightly, selected-main-CI and release-gate execution.
 - [x] Automate `VAI-PERSIST-003`.
 
 ## Task 6 — E4/E5 authenticated text and Operator Lore transport
@@ -114,7 +114,40 @@
 - [x] Make soak workflow/harness/test changes trigger release dry-run.
 - [x] Run soak contracts inside release validation.
 - [x] Reconcile `PROJECT_STATE.md`, `ROADMAP.md` and E9 validation evidence.
-- [ ] Complete final documentation-head workflows and independent change review.
+- [x] Complete independent review, fix the canonical-store selector P2 and prepare the final documentation-only head for workflow verification.
+
+---
+
+# Independent review result
+
+Review scope covered the complete PR #114 diff, with focused inspection of CI/release/soak, persistence, server authority, tombstone lifecycle, voice, concurrency and package identity.
+
+One P2 was found:
+
+```text
+canonical LivingWorld Store.java changes selected runtime suites
+but did not directly select the destructive recovery suite in main CI
+```
+
+The release dry-run already protected these paths, so published-release safety was not bypassed. The main-CI fail-closed contract was nevertheless incomplete.
+
+Resolution:
+
+- [x] Add six current canonical store regression cases.
+- [x] Add a future LivingWorld `*Store.java` regression case.
+- [x] Observe seven focused RED failures.
+- [x] Classify persistence infrastructure and every production LivingWorld `*Store.java` as recovery-sensitive.
+- [x] Preserve the narrower runtime suite for ordinary voice classes.
+- [x] Rerun selector, main recovery, release recovery and five-cycle soak.
+
+Open findings after correction:
+
+```text
+P0: 0
+P1: 0
+P2: 0
+P3: 0
+```
 
 ---
 
@@ -123,19 +156,40 @@
 Runtime implementation head:
 
 ```text
-20fb7fd741916ffcb3f7f4630fd6d0bb046efba7
+78d7961632501b038d233dd662c62384d81a7c3b
 ```
 
 Validated runs:
 
 ```text
-VillAIgence CI                 1715 / 31081408589 — PASS
-Java Pull Request CI           1101 / 31081408606 — PASS
-Repository security policy    1335 / 31081408597 — PASS
-Supply-chain verification     161  / 31081408667 — PASS
-Production Soak               8    / 31081408703 — PASS
-GitHub Release dry-run         327  / 31081408638 — PASS
+VillAIgence CI                 1721 / 31083451312 — PASS
+Java Pull Request CI           1107 / 31083451053 — PASS
+Repository security policy    1347 / 31083451124 — PASS
+Supply-chain verification     167  / 31083451252 — PASS
+Production Soak               14   / 31083451193 — PASS
+GitHub Release dry-run         333  / 31083451015 — PASS
 release publication                                SKIPPED
+```
+
+Inspected soak evidence:
+
+```text
+production-soak-14
+artifact id: 8960538615
+digest: sha256:6567b4a8cad895945a204a8a64b64e7a9078ab989b6d6e7db3c242a56fbd1c83
+5 clean JVM cycles at 512 MiB
+one live NPC per cycle
+voice PASS per cycle
+six stable persistent-store hashes
+```
+
+Release dry-run evidence:
+
+```text
+production-server-acceptance-333  artifact 8960504586
+persistence-recovery-333          artifact 8960600598
+villaigence-fabric-package        artifact 8960636786
+production-tested/package JAR     byte-identical
 ```
 
 Canonical detailed evidence:
@@ -161,7 +215,7 @@ Acceptance catalog after Phase E:
 
 The following are deliberately not marked complete by this plan:
 
-- [ ] exact published/candidate JAR startup in the operator environment;
+- [ ] exact candidate/released JAR startup in the operator environment;
 - [ ] two ordinary MCA brains visibly escape water in the installed world;
 - [ ] selected-NPC visible text response on an installed client;
 - [ ] real-player Silk Touch grave pickup/placement/restart interaction;
