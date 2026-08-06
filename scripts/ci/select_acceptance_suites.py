@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import PurePosixPath
-from typing import Iterable
+from pathlib import Path, PurePosixPath
+from typing import Iterable, Sequence
 
 FAST_SUITE = "fast"
 SERVER_SUITE = "server"
@@ -172,3 +173,57 @@ def select_suites(
         return Selection(ALL_SUITES, True, f"unclassified-path:{path}")
 
     return Selection(frozenset(suites), False, "classified")
+
+
+def _github_output_lines(selection: Selection) -> list[str]:
+    suites = sorted(selection.suites)
+    values = {
+        "all": selection.suites == ALL_SUITES,
+        "fail_closed": selection.fail_closed,
+        FAST_SUITE: FAST_SUITE in selection.suites,
+        PACKAGE_SUITE: PACKAGE_SUITE in selection.suites,
+        PRODUCTION_SUITE: PRODUCTION_SUITE in selection.suites,
+        "reason": selection.reason,
+        RECOVERY_SUITE: RECOVERY_SUITE in selection.suites,
+        SERVER_SUITE: SERVER_SUITE in selection.suites,
+        "suites": ",".join(suites),
+    }
+    return [
+        f"{key}={str(value).lower() if isinstance(value, bool) else value}"
+        for key, value in sorted(values.items())
+    ]
+
+
+def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Select mandatory VillAIgence acceptance suites from changed paths."
+    )
+    parser.add_argument(
+        "--mode",
+        required=True,
+        choices=[mode.value for mode in SelectionMode],
+    )
+    parser.add_argument("--changed-paths-file", required=True)
+    parser.add_argument("--github-output", required=True)
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _parse_args(argv)
+    changed_paths_file = Path(args.changed_paths_file)
+    changed_paths = changed_paths_file.read_text(encoding="utf-8").splitlines()
+    selection = select_suites(
+        changed_paths,
+        mode=SelectionMode(args.mode),
+    )
+    output = Path(args.github_output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        "\n".join(_github_output_lines(selection)) + "\n",
+        encoding="utf-8",
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
