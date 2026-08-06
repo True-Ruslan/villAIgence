@@ -80,6 +80,12 @@
       "ci": true
     },
     {
+      "path": "scripts/ci/test_select_acceptance_suites.py",
+      "purpose": "Standard-library tests for fail-closed path-to-risk acceptance suite selection; performs no network requests.",
+      "network": false,
+      "ci": true
+    },
+    {
       "path": "scripts/ci/test-release-version-contract.sh",
       "purpose": "Builds temporary local JAR fixtures and verifies exact Gradle and embedded release-version identity without network access.",
       "network": false,
