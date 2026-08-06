@@ -32,10 +32,12 @@ on:
       - 'scripts/ci/production_lifecycle_acceptance.py'
       - 'scripts/ci/production_server_acceptance.py'
       - 'scripts/ci/production_server_acceptance_strict.py'
+      - 'scripts/ci/select_acceptance_suites.py'
       - 'scripts/ci/test_persistence_recovery_acceptance.py'
       - 'scripts/ci/test_production_lifecycle_acceptance.py'
       - 'scripts/ci/test_production_server_acceptance.py'
       - 'scripts/ci/test_production_server_process.py'
+      - 'scripts/ci/test_select_acceptance_suites.py'
       - 'scripts/ci/test-release-version-contract.sh'
   workflow_dispatch:
 
@@ -187,6 +189,22 @@ jobs:
         with:
           validate-wrappers: true
 
+      - name: Select complete release acceptance suite
+        id: acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/acceptance-selection
+          : > build/acceptance-selection/changed-paths.txt
+          python3 scripts/ci/select_acceptance_suites.py \
+            --mode release \
+            --changed-paths-file build/acceptance-selection/changed-paths.txt \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Require complete release acceptance suite
+        shell: bash
+        run: test "${{ steps.acceptance.outputs.all }}" = 'true'
+
       - name: Verify exact release identity contract
         shell: bash
         run: |
@@ -205,6 +223,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 scripts/ci/test_select_acceptance_suites.py
           python3 scripts/ci/test_production_server_acceptance.py
           python3 scripts/ci/test_production_server_process.py
           python3 scripts/ci/test_production_lifecycle_acceptance.py
