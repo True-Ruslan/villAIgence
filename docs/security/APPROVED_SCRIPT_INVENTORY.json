@@ -86,6 +86,12 @@
       "ci": true
     },
     {
+      "path": "scripts/ci/test_production_soak_acceptance.py",
+      "purpose": "Standard-library tests for bounded restart, constrained-heap and stable-persistence soak acceptance; performs no network requests.",
+      "network": false,
+      "ci": true
+    },
+    {
       "path": "scripts/ci/test_select_acceptance_suites.py",
       "purpose": "Standard-library tests for fail-closed path-to-risk acceptance suite selection; performs no network requests.",
       "network": false,
