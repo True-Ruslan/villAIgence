@@ -4,6 +4,7 @@ plugins {
 }
 
 def nativeAccessJvmArgs = ['--enable-native-access=ALL-UNNAMED']
+def forkMaxHeap = providers.gradleProperty('fork_max_heap').orElse('4G')
 
 allprojects {
     dependencyLocking {
@@ -21,7 +22,7 @@ allprojects {
         tasks.configureEach { task ->
             if (task instanceof JavaForkOptions) {
                 if (task.maxHeapSize == null) {
-                    task.maxHeapSize = '4G'
+                    task.maxHeapSize = forkMaxHeap.get()
                 }
                 nativeAccessJvmArgs.each { nativeAccessJvmArg ->
                     if (!task.jvmArgs.contains(nativeAccessJvmArg)) {
