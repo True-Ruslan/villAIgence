@@ -17,7 +17,7 @@ permissions:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
 
     steps:
       - name: Checkout without external actions
@@ -42,6 +42,55 @@ jobs:
       - name: Run acceptance suite selector contract tests
         run: python3 scripts/ci/test_select_acceptance_suites.py
 
+      - name: Select acceptance suites
+        id: acceptance
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          selection_dir='build/acceptance-selection'
+          changed_paths="${selection_dir}/changed-paths.txt"
+          mkdir -p "${selection_dir}"
+
+          case "${GITHUB_EVENT_NAME}" in
+            pull_request)
+              test -n "${GITHUB_BASE_REF:-}"
+              test -n "${PR_BASE_SHA:-}"
+              git fetch --no-tags --depth=1 origin "${PR_BASE_SHA}"
+              git diff --name-only "${PR_BASE_SHA}" HEAD \
+                | sed '/^[[:space:]]*$/d' \
+                | sort -u \
+                > "${changed_paths}"
+              selection_mode='pr'
+              ;;
+            push)
+              if [[ -n "${PUSH_BEFORE_SHA:-}" \
+                    && "${PUSH_BEFORE_SHA}" != '0000000000000000000000000000000000000000' ]]; then
+                git fetch --no-tags --depth=1 origin "${PUSH_BEFORE_SHA}"
+                git diff --name-only "${PUSH_BEFORE_SHA}" HEAD \
+                  | sed '/^[[:space:]]*$/d' \
+                  | sort -u \
+                  > "${changed_paths}"
+              else
+                : > "${changed_paths}"
+              fi
+              selection_mode='push'
+              ;;
+            *)
+              : > "${changed_paths}"
+              selection_mode='push'
+              ;;
+          esac
+
+          python3 scripts/ci/select_acceptance_suites.py \
+            --mode "${selection_mode}" \
+            --changed-paths-file "${changed_paths}" \
+            --github-output "$GITHUB_OUTPUT"
+
+          echo 'Changed paths:'
+          cat "${changed_paths}"
+
       - name: Verify exact release identity contract
         run: |
           chmod +x gradlew scripts/ci/test-release-version-contract.sh
@@ -57,6 +106,7 @@ jobs:
           test -s build/security/script-inventory.json
 
       - name: Run common and deterministic mock-provider tests
+        if: steps.acceptance.outputs.fast == 'true'
         run: |
           chmod +x gradlew
           ./gradlew \
@@ -66,6 +116,7 @@ jobs:
             --console=plain
 
       - name: Run risk catalog, server GameTests and supported loader builds
+        if: steps.acceptance.outputs.server == 'true'
         run: |
           chmod +x gradlew
           set +e
@@ -86,7 +137,7 @@ jobs:
 
             echo "--- extracted Minecraft/GameTest diagnostics ---"
             while IFS= read -r log_file; do
-              grep -HEn "VillAIgenceGameTests|TombstoneControlGameTests|TombstoneInventoryDeathGameTests|TombstoneIdentityReplayGameTests|NavigationWaterSurfaceGameTests|ControlledNavigationMob|test failed|required test|Failed required test|GameTest|Exception" "$log_file" | tail -n 200 || true
+              grep -HEn "VillAIgenceGameTests|TombstoneControlGameTests|TombstoneInventoryDeathGameTests|TombstoneIdentityReplayGameTests|NavigationWaterSurfaceGameTests|NavigationObstacleGameTests|NavigationLadderGameTests|NavigationDoorGameTests|GameplayInteractionGameTests|MountedArcherControlGameTests|ControlledNavigationMob|test failed|required test|Failed required test|GameTest|Exception" "$log_file" | tail -n 240 || true
             done < <(find fabric -type f \( -name '*.log' -o -name '*.txt' \) -print | sort)
 
             echo "--- final 120 Gradle log lines ---"
@@ -100,6 +151,7 @@ jobs:
           tail -n 20 gradle-build.log
 
       - name: Run production acceptance contract tests
+        if: steps.acceptance.outputs.fast == 'true'
         run: |
           python3 scripts/ci/test_production_server_acceptance.py
           python3 scripts/ci/test_production_server_process.py
@@ -107,6 +159,7 @@ jobs:
           python3 scripts/ci/test_persistence_recovery_acceptance.py
 
       - name: Stage and execute production server acceptance
+        if: steps.acceptance.outputs.production == 'true'
         run: |
           chmod +x gradlew
           ./gradlew \
@@ -160,7 +213,7 @@ jobs:
           PY
 
       - name: Upload production acceptance evidence
-        if: always()
+        if: always() && steps.acceptance.outputs.production == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: production-server-acceptance-${{ github.run_number }}
@@ -168,7 +221,51 @@ jobs:
           retention-days: 14
           path: build/production-server-acceptance/evidence
 
+      - name: Execute selected persistence recovery matrix
+        if: steps.acceptance.outputs.recovery == 'true'
+        run: |
+          set -euo pipefail
+          test -s fabric/build/production-acceptance/stage/manifest.json
+          rm -rf build/persistence-recovery-acceptance
+          mkdir -p build/persistence-recovery-acceptance/evidence
+          python3 scripts/ci/persistence_recovery_acceptance.py \
+            --stage-dir fabric/build/production-acceptance/stage \
+            --execute \
+            --work-dir build/persistence-recovery-acceptance/work \
+            --report-dir build/persistence-recovery-acceptance/evidence \
+            --java "${JAVA_HOME}/bin/java" \
+            --installer-timeout-seconds 300 \
+            --startup-timeout-seconds 180 \
+            --shutdown-timeout-seconds 60 \
+            --max-heap-mib 768
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path('build/persistence-recovery-acceptance/evidence/persistence-recovery-report.json')
+              .read_text(encoding='utf-8')
+          )
+          cases = report.get('cases')
+          if report.get('status') != 'PASS':
+              raise SystemExit('persistence recovery report is not PASS')
+          if not isinstance(cases, list) or len(cases) != 6:
+              raise SystemExit('persistence recovery report must contain six cases')
+          if any(case.get('status') != 'PASS' for case in cases):
+              raise SystemExit('at least one persistence recovery case is not PASS')
+          PY
+
+      - name: Upload selected persistence recovery evidence
+        if: always() && steps.acceptance.outputs.recovery == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: persistence-recovery-${{ github.run_number }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: build/persistence-recovery-acceptance/evidence
+
       - name: Verify distributable VillAIgence Fabric package
+        if: steps.acceptance.outputs.package == 'true'
         run: |
           chmod +x scripts/ci/package-livingworld-release.sh
           scripts/ci/package-livingworld-release.sh "ci-${GITHUB_RUN_NUMBER}" false ci-dist
