@@ -1,227 +1,173 @@
 # M11 Phase E Automation Completion Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Status:** implementation complete at the automation layer on 2026-08-06. PR #114 remains draft and unmerged. No release was requested or published by this plan.
 
-**Goal:** Move all deterministic VillAIgence release risks into repeatable CI and reduce manual acceptance to physical microphone, audible/spatial perception, final graphical-client review and one exact installed-JAR smoke.
+**Goal:** Move every deterministic VillAIgence release risk into repeatable CI and reduce manual acceptance to physical microphone, audible/spatial perception, graphical-client review and exact installed-environment smoke.
 
-**Architecture:** Extend the existing common-test, Fabric GameTest, production-JAR acceptance and exact-release gates. Fast deterministic tests remain mandatory on every pull request; destructive, long-running and real-brain scenarios run nightly and are also mandatory for release candidates. The acceptance catalog remains the canonical risk-to-proof map.
+**Architecture:** Common tests, source policy, Fabric GameTests, exact production-JAR acceptance, destructive persistence recovery, fail-closed risk selection and constrained-heap soak form one evidence chain. Release validation always selects every mandatory suite. The acceptance catalog remains the canonical risk-to-proof map.
 
-**Tech Stack:** Java 21, Gradle 9.6.1, Fabric 1.21.1, Fabric GameTest, JUnit 5, Python 3.12, GitHub Actions, Simple Voice Chat integration.
+**Tech stack:** Java 21, Gradle 9.6.1, Fabric 1.21.1, Fabric GameTest, JUnit 5, Python 3.12, GitHub Actions and Simple Voice Chat.
 
-## Global Constraints
+## Global constraints
 
-- Do not request, tag or publish `0.1.26+1.21.1` during Phase E.
-- Do not require paid providers or repository secrets for pull-request tests.
-- Do not weaken deadlines, payload limits, redirect restrictions, authorization or exactly-once persistence.
-- Do not use sleeps as correctness oracles.
-- Every destructive persistence fixture must use a generated temporary world.
-- Every automated scenario must have a bounded timeout and explicit terminal oracle.
-- A catalog state may become `AUTOMATED` only after exact-head CI evidence exists.
+- [x] No `0.1.26+1.21.1` request, tag or publication during Phase E.
+- [x] No paid provider or repository-secret dependency in pull-request acceptance.
+- [x] No weakening of deadlines, payload limits, redirect restrictions, authorization or exactly-once persistence.
+- [x] No sleeps used as correctness oracles.
+- [x] Destructive persistence fixtures use isolated generated worlds.
+- [x] Every automated scenario has a bounded timeout and explicit terminal oracle.
+- [x] Catalog states changed to `AUTOMATED` only after exact-head evidence.
 
 ---
 
-### Task 1: Capture the approved Phase E design and execution plan
+## Task 1 — approved design and execution plan
 
-**Files:**
-- Create: `docs/superpowers/specs/2026-08-05-m11-phase-e-automation-completion-design.md`
-- Create: `docs/superpowers/plans/2026-08-05-m11-phase-e-automation-completion.md`
+- [x] Write the Phase E design.
+- [x] Write the executable task plan.
+- [x] Review scope, non-goals and evidence requirements.
+- [x] Commit on isolated branch `agent/m11-phase-e-automation-completion`.
 
-**Interfaces:**
-- Produces: canonical scope, non-goals, workstream order and evidence requirements used by all later tasks.
+## Task 2 — E0 production staging hardening
 
-- [x] **Step 1:** Write the approved design.
-- [x] **Step 2:** Self-review for placeholders, contradictions and ambiguous completion criteria.
-- [x] **Step 3:** Commit the design and plan on an isolated branch.
+- [x] Add source-policy coverage for execution-time Gradle Project access.
+- [x] Capture immutable provider-backed staging inputs during configuration.
+- [x] Remove execution-time `project.*` access from production staging.
+- [x] Make production fixture staging configuration-cache safe.
+- [x] Close subprocess file handles and remove ResourceWarnings.
+- [x] Verify common tests, staging, configuration-cache reuse and production acceptance.
 
-### Task 2: E0 — remove execution-time Project access from production staging
+## Task 3 — E1 duplicate-identity prevention
 
-**Files:**
-- Create: `common/src/test/java/net/conczin/mca/security/ProductionAcceptanceConfigurationCachePolicyTest.java`
-- Modify: `fabric/build.gradle`
-- Modify: `fabric/production-acceptance-fixture.gradle`
+- [x] Add `TombstoneIdentityReplayGameTests` RED boundary.
+- [x] Reject replay when the stored UUID already has an authoritative live entity.
+- [x] Preserve grave data when a conflicting replay is rejected.
+- [x] Verify later non-conflicting restoration preserves UUID, name and inventory once.
+- [x] Automate `VAI-LIFE-005`.
 
-**Interfaces:**
-- Consumes: task name `stageProductionAcceptanceRuntime` and existing `productionAcceptanceStageDir` provider.
-- Produces: configuration-time values `productionAcceptanceMinecraftVersion`, `productionAcceptanceLoaderVersion`, `productionAcceptanceInstallerVersion`, `productionAcceptanceModId`, and a task action containing no `project.` access.
+## Task 4 — E2 production lifecycle across two JVMs
 
-- [ ] **Step 1: Write the failing source-policy test**
+- [x] Add lifecycle report contract tests.
+- [x] Create real MCA villager death/tombstone/portable/resurrection evidence.
+- [x] Verify UUID, name, inventory and one live entity after restart.
+- [x] Include lifecycle evidence in production acceptance artifacts.
+- [x] Automate `VAI-LIFE-002` at production-restart layer.
 
-```java
-@Test
-void productionAcceptanceStagingDoesNotQueryProjectDuringExecution() throws IOException {
-    String source = Files.readString(repositoryRoot().resolve("fabric/build.gradle"));
-    String block = taskBlock(source, "def stageProductionAcceptanceRuntime =", "\n\ntasks.named('check')");
-    assertFalse(block.contains("project.delete("));
-    assertFalse(block.contains("project.property("));
-    assertTrue(block.contains("FileSystemOperations"));
-}
+## Task 5 — E3 corrupt persistence recovery matrix
+
+- [x] Cover truncated JSON, empty file, wrong root, incompatible schema and temp-file variants.
+- [x] Preserve exact corrupt bytes in bounded backup paths.
+- [x] Regenerate valid canonical JSON.
+- [x] Prove five unaffected sibling hashes remain unchanged.
+- [x] Prove idempotent second startup.
+- [x] Add nightly and release-gate execution.
+- [x] Automate `VAI-PERSIST-003`.
+
+## Task 6 — E4/E5 authenticated text and Operator Lore transport
+
+- [x] Add authenticated text-turn authority tests.
+- [x] Add two authenticated Operator Lore network-session tests.
+- [x] Prove player/NPC ownership and one provider/persistence/response effect.
+- [x] Prove stale conflict, retained draft and explicit retry exactly once.
+- [x] Prove unauthorized requests disclose and mutate nothing.
+- [x] Prove response ownership and session isolation.
+- [x] Automate `VAI-GAME-005` and `VAI-CONCUR-005`.
+
+## Task 7 — E6 production voice transport
+
+- [x] Add deterministic production codec/transport acceptance.
+- [x] Use the real Simple Voice Chat Opus runtime.
+- [x] Verify encode/decode, packet loss concealment, duplicate and ordering rejection.
+- [x] Verify bounded PCM, cancellation and resource closure.
+- [x] Repeat transport validation across production restarts.
+- [x] Automate `VAI-AI-005` while retaining physical-device canary `VAI-AI-006`.
+
+## Task 8 — E7/E8 gameplay and navigation matrix
+
+- [x] Add special gift PASS/FAIL/CONSUME GameTests.
+- [x] Add deterministic fishing inventory and rod-durability GameTest.
+- [x] Add mounted archer stable-controller and NPC-owned projectile GameTest.
+- [x] Add obstacle reroute with intact-wall terminal oracle.
+- [x] Add ladder ascent/descent with observed production climb control.
+- [x] Add real closed-door open/pass/close GameTest.
+- [x] Retain water, dry-land and isolated navigation fixtures.
+- [x] Run sixteen required server GameTests in normal and release CI.
+- [x] Automate `VAI-GAME-002` and `VAI-NAV-004`.
+
+## Task 9 — E9 risk selection, soak and documentation closure
+
+- [x] Write RED selector API tests.
+- [x] Implement deterministic path-to-risk classification.
+- [x] Write RED CLI and workflow-policy tests.
+- [x] Emit deterministic GitHub Actions outputs.
+- [x] Collect authoritative PR/push changed paths.
+- [x] Guard fast, server, production, recovery and package groups independently.
+- [x] Fail closed for release, empty, unsafe, unknown, workflow, build and CI-script changes.
+- [x] Require `all=true` in release validation.
+- [x] Add selected recovery execution to normal CI.
+- [x] Write RED bounded-soak contracts.
+- [x] Add explicit Gradle fork-heap override.
+- [x] Repeat authenticated text and Operator Lore scenarios three times with `--rerun-tasks` at 512 MiB.
+- [x] Stage the exact remapped candidate at constrained workers/heap.
+- [x] Run five production JVM cycles at 512 MiB.
+- [x] Verify strict startup/stop/save/exit, one live NPC, voice PASS and six stable store hashes after every cycle.
+- [x] Upload and inspect machine-readable soak evidence.
+- [x] Make soak workflow/harness/test changes trigger release dry-run.
+- [x] Run soak contracts inside release validation.
+- [x] Reconcile `PROJECT_STATE.md`, `ROADMAP.md` and E9 validation evidence.
+- [ ] Complete final documentation-head workflows and independent change review.
+
+---
+
+# Exact implementation evidence
+
+Runtime implementation head:
+
+```text
+20fb7fd741916ffcb3f7f4630fd6d0bb046efba7
 ```
 
-- [ ] **Step 2: Run RED**
+Validated runs:
 
-Run: `./gradlew :common:test --tests '*ProductionAcceptanceConfigurationCachePolicyTest' --no-daemon --console=plain`
-
-Expected: FAIL because the task action currently contains `project.delete` and `project.property`.
-
-- [ ] **Step 3: Capture immutable values during configuration**
-
-Use Gradle providers before task registration and declare them as inputs. Inject `FileSystemOperations` into a small task type or use a configuration-time provider-backed `Delete`/`Sync` composition so task execution never reaches `Project`.
-
-- [ ] **Step 4: Make the fixture extension configuration-cache safe**
-
-Capture fixture archive and stage paths as providers and avoid execution-time project lookups.
-
-- [ ] **Step 5: Run GREEN and configuration-cache reuse**
-
-Run:
-
-```bash
-./gradlew :common:test --tests '*ProductionAcceptanceConfigurationCachePolicyTest' --no-daemon --console=plain
-./gradlew :fabric:stageProductionAcceptanceRuntime --configuration-cache --no-daemon --console=plain
-./gradlew :fabric:stageProductionAcceptanceRuntime --configuration-cache --no-daemon --console=plain
+```text
+VillAIgence CI                 1715 / 31081408589 — PASS
+Java Pull Request CI           1101 / 31081408606 — PASS
+Repository security policy    1335 / 31081408597 — PASS
+Supply-chain verification     161  / 31081408667 — PASS
+Production Soak               8    / 31081408703 — PASS
+GitHub Release dry-run         327  / 31081408638 — PASS
+release publication                                SKIPPED
 ```
 
-Expected: policy PASS; first Gradle run stores configuration cache; second reuses it; no `Task.project` warning.
+Canonical detailed evidence:
 
-### Task 3: E1 — automate duplicate-identity prevention
-
-**Files:**
-- Create: `fabric/src/gametest/java/net/conczin/mca/gametest/TombstoneIdentityReplayGameTests.java`
-- Modify: `common/src/test/resources/acceptance/scenarios.tsv`
-
-**Interfaces:**
-- Consumes: `TombstoneBlock.Data.setEntity`, `writeToStack`, `readFromStack`, `createEntity` and real server entity lookup.
-- Produces: `VAI-LIFE-005` evidence that replaying one stored UUID leaves exactly one live entity and one inventory multiset.
-
-- [ ] **Step 1: Write the failing GameTest**
-
-Create one stored villager with a fixed UUID and inventory, reconstruct it twice from cloned portable tombstone data, add both attempted entities through the production server API, and assert exactly one live entity with the fixture UUID.
-
-- [ ] **Step 2: Run RED**
-
-Run: `./gradlew :fabric:runGameTest --no-daemon --console=plain`
-
-Expected: the new test must fail if the second replay can create a second live identity or if no explicit replay guard exists.
-
-- [ ] **Step 3: Implement the smallest replay guard at the tombstone resurrection boundary**
-
-Before adding a recreated entity, resolve the UUID in the target server level. Return the existing authoritative entity or reject the replay without consuming/duplicating inventory. Do not change ordinary first resurrection.
-
-- [ ] **Step 4: Add negative and restart-aware assertions**
-
-Verify different UUIDs remain independent and the stored inventory appears once.
-
-- [ ] **Step 5: Run GREEN**
-
-Run:
-
-```bash
-./gradlew :common:test :fabric:runGameTest :fabric:build :neoforge:build --no-daemon --console=plain
+```text
+docs/livingworld/VALIDATION_M11_PHASE_E_E7.md
+docs/livingworld/VALIDATION_M11_PHASE_E_E8.md
+docs/livingworld/VALIDATION_M11_PHASE_E_E9.md
 ```
 
-Expected: all tests and loader builds PASS.
+Acceptance catalog after Phase E:
 
-### Task 4: E2 — production lifecycle evidence across two JVMs
+```text
+34 total
+28 AUTOMATED
+6 MANUAL_CANARY
+0 PLANNED
+```
 
-**Files:**
-- Modify: `fabric/src/productionAcceptanceFixture/java/net/conczin/mca/acceptancefixture/ProductionAcceptanceFixture.java`
-- Create: `fabric/src/productionAcceptanceFixture/java/net/conczin/mca/acceptancefixture/LifecycleAcceptanceState.java`
-- Modify: `scripts/ci/production_server_acceptance.py`
-- Modify: `scripts/ci/test_production_server_acceptance.py`
-- Modify: `common/src/test/resources/acceptance/scenarios.tsv`
+---
 
-**Interfaces:**
-- Produces: `world/livingworld/acceptance-lifecycle.json` with schema, UUID, name, expected inventory, phase, live entity count and exact assertions from both JVM runs.
+# Remaining delivery boundary outside Phase E automation
 
-- [ ] **Step 1:** Add failing Python report tests requiring lifecycle evidence and exact before/after restart equality.
-- [ ] **Step 2:** Add fixture phase one: create real MCA villager, perform death/tombstone/portable/restoration/resurrection, persist evidence.
-- [ ] **Step 3:** Add fixture phase two: on second JVM, load authoritative entity/evidence and verify UUID, name, inventory and count.
-- [ ] **Step 4:** Include lifecycle evidence in `acceptance-report.json` and fail on missing or inconsistent fields.
-- [ ] **Step 5:** Run Python unit tests and exact production acceptance twice.
+The following are deliberately not marked complete by this plan:
 
-### Task 5: E3 — corrupt persistence recovery matrix
+- [ ] exact published/candidate JAR startup in the operator environment;
+- [ ] two ordinary MCA brains visibly escape water in the installed world;
+- [ ] selected-NPC visible text response on an installed client;
+- [ ] real-player Silk Touch grave pickup/placement/restart interaction;
+- [ ] physical microphone, client UDP routing and audible spatial response;
+- [ ] two graphical clients visibly review and resolve Operator Lore conflict;
+- [ ] release-request merge, tag and publication;
+- [ ] published-asset identity and post-release restart verification.
 
-**Files:**
-- Create: `scripts/ci/persistence_recovery_acceptance.py`
-- Create: `scripts/ci/test_persistence_recovery_acceptance.py`
-- Modify: `.github/workflows/livingworld-ci.yml`
-- Create: `.github/workflows/livingworld-nightly.yml`
-- Modify: `common/src/test/resources/acceptance/scenarios.tsv`
-
-**Interfaces:**
-- Consumes: staged production runtime and generated server world.
-- Produces: machine-readable recovery report for each canonical auxiliary store and corruption variant.
-
-- [ ] **Step 1:** Write failing Python tests for truncated JSON, empty file, wrong root type, incompatible schema and leftover temporary file.
-- [ ] **Step 2:** Implement isolated matrix setup, startup, backup detection and canonical JSON validation.
-- [ ] **Step 3:** Verify unaffected store hashes and idempotent second startup.
-- [ ] **Step 4:** Add nightly workflow and release-gate invocation.
-- [ ] **Step 5:** Run Python tests and one complete matrix in CI.
-
-### Task 6: E4/E5 — authenticated text and two-session Operator Lore transport
-
-**Files:**
-- Create: `common/src/test/java/net/conczin/mca/network/AuthenticatedTextTurnAcceptanceTest.java`
-- Create: `common/src/test/java/net/conczin/mca/livingworld/lore/OperatorLoreNetworkSessionAcceptanceTest.java`
-- Modify only the narrow package-private transport seams required by those tests.
-- Modify: `common/src/test/resources/acceptance/scenarios.tsv`
-
-**Interfaces:**
-- Produces: deterministic authenticated session harness with player UUID, scope, target NPC UUID, request ID and revision.
-
-- [ ] **Step 1:** Write failing tests around production packet-handler authority boundaries.
-- [ ] **Step 2:** Add the smallest package-private session adapters without exposing test-only public APIs.
-- [ ] **Step 3:** Prove exactly one dialogue effect and explicit stale conflict/retry.
-- [ ] **Step 4:** Prove unauthorized identity/scope rejection and response ownership.
-- [ ] **Step 5:** Run all common and provider integration tests.
-
-### Task 7: E6 — voice codec and loopback transport
-
-**Files:**
-- Create: `common/src/test/java/net/conczin/mca/voice/VoiceTransportLoopbackAcceptanceTest.java`
-- Modify narrow voice transport seams only where required.
-- Modify: `common/src/test/resources/acceptance/scenarios.tsv`
-
-**Interfaces:**
-- Produces: bounded local PCM/Opus loopback fixture with sequence numbers, deadlines and cancellation token.
-
-- [ ] **Step 1:** Write failing encode/decode, ordering, loss and disconnect tests.
-- [ ] **Step 2:** Implement deterministic local loopback adapter around production codec/queue boundaries.
-- [ ] **Step 3:** Verify shared deadline, bounded buffers and cancellation on disconnect.
-- [ ] **Step 4:** Run common tests and existing mock-provider integration.
-
-### Task 8: E7/E8 — nightly gameplay and real-brain navigation
-
-**Files:**
-- Create focused GameTest classes under `fabric/src/gametest/java/net/conczin/mca/gametest/`.
-- Modify: `.github/workflows/livingworld-nightly.yml`
-- Modify: `common/src/test/resources/acceptance/scenarios.tsv`
-
-**Interfaces:**
-- Produces: bounded scenarios for ladders, doors, obstacle replan, mounts, ranged combat, gifts, fishing and two real MCA villagers escaping independent water lanes.
-
-- [ ] **Step 1:** Add one failing scenario per behavior with explicit inventory/entity/position oracle.
-- [ ] **Step 2:** Implement only production fixes exposed by meaningful RED failures.
-- [ ] **Step 3:** Group long scenarios in a nightly GameTest tag/suite.
-- [ ] **Step 4:** Require nightly suite in exact release validation.
-
-### Task 9: E9 — soak, risk selection and documentation closure
-
-**Files:**
-- Create: `scripts/ci/select_acceptance_suites.py`
-- Create: `scripts/ci/test_select_acceptance_suites.py`
-- Create: `.github/workflows/livingworld-soak.yml`
-- Modify: `.github/workflows/livingworld-ci.yml`
-- Modify: `.github/workflows/livingworld-release.yml`
-- Modify: `docs/PROJECT_STATE.md`
-- Modify: `docs/ROADMAP.md`
-- Modify: `common/src/test/resources/acceptance/scenarios.tsv`
-
-**Interfaces:**
-- Produces: deterministic path-to-risk suite selection for PR optimization; release validation always selects all mandatory suites.
-
-- [ ] **Step 1:** Write failing selector tests for runtime, persistence, network, voice, navigation and release-only changes.
-- [ ] **Step 2:** Implement fail-closed suite selection with an `all` mode for release.
-- [ ] **Step 3:** Add bounded repeated restart, concurrent turns and memory-pressure soak workflow.
-- [ ] **Step 4:** Reconcile catalog, state and roadmap with exact CI evidence.
-- [ ] **Step 5:** Run all mandatory workflows and perform final change review before any merge or release request.
+These are the six catalog `MANUAL_CANARY` scenarios plus release governance. They must remain small and must not repeat deterministic internals already covered by automation.
