@@ -69,6 +69,9 @@ class ProductionSoakWorkflowPolicyTest(unittest.TestCase):
         cls.workflow = (
             root / ".github/workflows/livingworld-soak.yml"
         ).read_text(encoding="utf-8")
+        cls.release = (
+            root / ".github/workflows/livingworld-release.yml"
+        ).read_text(encoding="utf-8")
         cls.build = (root / "build.gradle").read_text(encoding="utf-8")
 
     def test_workflow_uses_bounded_restart_and_heap_parameters(self) -> None:
@@ -91,6 +94,20 @@ class ProductionSoakWorkflowPolicyTest(unittest.TestCase):
     def test_gradle_supports_explicit_fork_heap_override(self) -> None:
         self.assertIn("fork_max_heap", self.build)
         self.assertIn("task.maxHeapSize", self.build)
+
+    def test_release_gate_tracks_and_validates_soak_automation(self) -> None:
+        required_paths = (
+            ".github/workflows/livingworld-soak.yml",
+            "scripts/ci/production_soak_acceptance.py",
+            "scripts/ci/test_production_soak_acceptance.py",
+        )
+        for required_path in required_paths:
+            with self.subTest(required_path=required_path):
+                self.assertIn(required_path, self.release)
+        self.assertIn(
+            "python3 scripts/ci/test_production_soak_acceptance.py",
+            self.release,
+        )
 
 
 if __name__ == "__main__":
