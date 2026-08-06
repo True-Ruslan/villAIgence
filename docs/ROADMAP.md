@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** For exact implementation and validation state, read `docs/PROJECT_STATE.md` first.
 >
-> Last reconciled: **2026-08-06**. M11 Phases A–E are complete at the automation layer. The immediate delivery boundary is final PR #114 review, an exact versioned candidate and six minimal installed canaries. Additive legacy-memory migration follows that boundary.
+> Last reconciled: **2026-08-06**. M11 Phases A–E and independent code review are complete at the automation layer. The immediate delivery boundary is the final documentation-head gate, an exact versioned candidate and six minimal installed canaries. Additive legacy-memory migration follows that boundary.
 
 ## Product vision
 
@@ -26,64 +26,27 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 
 # Architecture principles
 
-## 1. LLM is not authority
+1. **LLM is not authority.** Server state is captured, the model proposes, and the server validates and mutates.
+2. **Identity outlives providers.** Provider/model changes cannot regenerate NPC identity, memory, relationships or voice.
+3. **Fail soft without corrupting state.** Provider, packet, voice and auxiliary-store errors become bounded statuses.
+4. **Persistent state is explicit and world-local.** Important data remains inspectable, bounded, backup-safe and migration-aware.
+5. **Provenance layers remain separate.** Observed facts, lore, semantic memory and episodic memory never silently merge.
+6. **Client convenience never becomes authority.** The server resolves identity, permissions, targets, revisions and mutations.
+7. **Simulation before spectacle.** Prefer durable systems and causality over isolated generated text.
+8. **Evidence layers remain explicit.** Unit, integration, GameTest, production candidate, release dry-run and installed evidence are distinct.
+9. **CI optimization fails closed.** Empty, unsafe, protected, unknown and persistence-store changes select the complete mandatory matrix; release mode always selects all suites.
+
+Canonical flow:
 
 ```text
 server world state
 → immutable bounded context
+→ observed facts + lore + memory
 → LLM proposal
-→ validation and policy
+→ server validation/revalidation
 → server-owned action
+→ persistent evidence
 ```
-
-## 2. Identity outlives providers
-
-Changing OpenAI, OpenRouter or a future local model must not regenerate NPC identity, memories, relationships or voice.
-
-## 3. Fail soft without corrupting state
-
-Provider, voice, packet and auxiliary-store failures become controlled statuses. They must not crash conversations, duplicate actions, leak reasoning or damage world data.
-
-## 4. Persistent state is explicit and world-local
-
-Important data belongs under `<world>/livingworld/`, remains inspectable, bounded, backup-safe and migration-aware.
-
-## 5. Provenance layers remain separate
-
-```text
-observed current facts       authoritative for this turn
-operator-authored lore       explicit background setting
-semantic FACT/BELIEF         learned persistent knowledge
-episodic memory              remembered events/dialogue
-```
-
-Current observations win conflicts.
-
-## 6. Client convenience never becomes authority
-
-UI may request operations. The server resolves permissions, identities, targets, revisions and mutations.
-
-## 7. Simulation before spectacle
-
-Prefer systems that produce durable behavior and causality over one-off generated text.
-
-## 8. Evidence layers remain explicit
-
-```text
-unit/source policy
-→ common integration
-→ server GameTest
-→ production candidate startup/restart
-→ exact release dry-run
-→ installed server/client canary
-→ real graphical multi-client/physical voice canary
-```
-
-Passing one layer never silently upgrades another.
-
-## 9. CI optimization fails closed
-
-Only reviewed path classifications may narrow pull-request work. Empty, unknown, unsafe, workflow, build, release and production-fixture changes select the complete mandatory matrix. Release mode always selects all suites.
 
 ---
 
@@ -98,6 +61,7 @@ MCA selective synchronization S1-S8                    COMPLETE
 Operator Lore S9-S10c                                  COMPLETE
 M11 Phases A-D                                          COMPLETE
 M11 Phase E automation completion E0-E9                 COMPLETE AT AUTOMATION LAYER
+independent PR #114 review                              COMPLETE — NO OPEN P0/P1/P2/P3
 acceptance catalog                                      28 AUTOMATED / 6 MANUAL / 0 PLANNED
 PR #114                                                 DRAFT / UNMERGED
 installed graphical and physical canaries               PENDING
@@ -105,14 +69,20 @@ next release containing post-0.1.25 work               NOT REQUESTED
 legacy memory.json migration                           AFTER RELEASE BOUNDARY
 ```
 
+Validated runtime implementation:
+
+```text
+78d7961632501b038d233dd662c62384d81a7c3b
+```
+
 Immediate sequence:
 
 ```text
-final exact-head CI, soak and change review
+final documentation-head CI, soak and release dry-run
 → resolve next free sequential version
 → build exact versioned dry-run candidate
 → run six minimal installed canaries
-→ publish only on PASS
+→ merge and publish only on PASS
 → verify published identity and one restart
 → additive legacy memory.json migration
 → remaining Memory 2.0 exit criteria
@@ -140,7 +110,7 @@ Completed foundations:
 
 ### Goal
 
-Move every deterministic release risk into repeatable CI and reduce routine manual testing to boundaries that require a real graphical client, physical device, audible perception or exact operator environment.
+Move every deterministic release risk into repeatable CI and reduce routine manual testing to boundaries requiring a graphical client, physical device, audible perception or exact operator environment.
 
 ### Completed workstreams
 
@@ -178,9 +148,17 @@ package    distributable smoke and identity checks
 
 Release validation always selects all five.
 
+The selector also requires recovery for:
+
+- persistence infrastructure;
+- each current canonical LivingWorld store implementation;
+- future production LivingWorld classes ending in `Store.java`.
+
+This rule was added after independent review found one P2 gap in the initial classifier. The gap was reproduced by seven focused RED failures and then closed. No review findings remain.
+
 ### Production soak result
 
-Validated implementation head `20fb7fd741916ffcb3f7f4630fd6d0bb046efba7` passed:
+Validated implementation head `78d7961632501b038d233dd662c62384d81a7c3b` passed:
 
 - three clean authenticated text/Operator Lore repetitions under 512 MiB test JVM heap;
 - exact candidate staging under constrained Gradle workers;
@@ -190,7 +168,19 @@ Validated implementation head `20fb7fd741916ffcb3f7f4630fd6d0bb046efba7` passed:
 - real voice transport `PASS` in every cycle;
 - identical hashes for all six persistent stores.
 
-Canonical evidence:
+Fresh evidence:
+
+```text
+VillAIgence CI                1721 / 31083451312 — PASS
+Java Pull Request CI          1107 / 31083451053 — PASS
+Repository security policy   1347 / 31083451124 — PASS
+Supply-chain verification    167  / 31083451252 — PASS
+Production Soak              14   / 31083451193 — PASS
+GitHub Release dry-run        333  / 31083451015 — PASS
+release publication                              SKIPPED
+```
+
+Canonical detailed evidence:
 
 ```text
 docs/livingworld/VALIDATION_M11_PHASE_E_E9.md
@@ -200,13 +190,13 @@ docs/livingworld/VALIDATION_M11_PHASE_E_E9.md
 
 Automation does not claim:
 
-- operator-machine startup of the exact published JAR;
+- operator-machine startup of the exact candidate/published JAR;
+- ordinary autonomous NPC-brain behavior in the operator world;
 - visible selected-NPC response rendering;
 - real-player Silk Touch pickup/placement UI interaction;
 - two graphical-client conflict presentation;
 - OS microphone permission and client UDP routing;
-- audible/spatial subjective output quality;
-- ordinary autonomous NPC-brain behavior in the operator world.
+- audible/spatial subjective output quality.
 
 These are represented by six small `MANUAL_CANARY` scenarios rather than broad repeated manual regression.
 
@@ -221,8 +211,8 @@ Promote PR #114 and accumulated post-`0.1.25` work through one exact versioned c
 ## Required sequence
 
 ```text
-complete final PR #114 change review
-→ confirm all exact-head workflows are green
+complete final documentation-head workflows
+→ confirm PR #114 remains mergeable and all checks are green
 → resolve next free sequential version from current tags
 → open release-request PR
 → build exact versioned dry-run artifact
@@ -241,7 +231,7 @@ complete final PR #114 change review
 1. Exact candidate reaches full operator-server startup without Mixin/refmap failure.
 2. Two ordinary MCA NPCs visibly escape reachable water and retain land movement.
 3. An installed client visibly addresses one selected NPC and renders one response.
-4. A real player completes the Silk Touch grave break/pickup/placement/restart interaction without loss or duplication.
+4. A real player completes Silk Touch grave break/pickup/placement/restart without loss or duplication.
 5. One physical microphone turn reaches the NPC and one spatial response is audibly correct.
 6. Two graphical clients visibly expose Operator Lore conflict, retain/review the stale draft and complete an explicit retry.
 
@@ -251,11 +241,11 @@ Automated internals must not be manually re-tested unless an installed canary ex
 
 The release boundary is complete only when:
 
-- final PR #114 exact-head automation and review pass;
+- final PR #114 exact-head automation remains green;
 - the exact versioned dry-run passes the complete release matrix;
 - all six installed canaries pass;
 - persistent data remains valid across restart;
-- release publication occurs only after installed PASS;
+- publication occurs only after installed PASS;
 - published JAR is byte-identical to the accepted candidate;
 - canonical state, roadmap and release evidence are synchronized.
 
@@ -274,38 +264,32 @@ The release boundary is complete only when:
 
 ## 0.1.x — Reliability, security and compatibility baseline
 
-### Implemented
+Implemented:
 
-- hardened provider parsing and error handling;
-- bounded retries and exactly-once effects;
+- hardened provider parsing and bounded error handling;
 - endpoint/credential/redirect policy;
-- bounded Chat/STT/TTS and PCM;
 - one monotonic complete voice-turn deadline;
 - deterministic provider and real Opus acceptance;
 - verified supply chain and security CI;
 - Fabric/NeoForge gates;
 - selective MCA tombstone, conversion, HOME, navigation, mourning, gift, fishing and mounted-archer corrections;
 - Operator Lore store/API/editor/concurrency acceptance;
-- exact production startup/restart and release publication gates;
+- exact production startup/restart and release gates;
 - fail-closed path-to-risk CI selection;
 - corrupt-store recovery matrix;
 - five-cycle constrained-heap production soak;
 - 28 automated catalog scenarios with zero planned gaps.
 
-### Remaining exit gate
+Remaining exit gate:
 
-- final PR #114 review/merge boundary;
+- final documentation-head validation;
 - exact post-`0.1.25` candidate;
 - six installed canaries;
 - next sequential release and post-release restart verification.
 
----
-
 ## 0.2 — Memory 2.0
 
-### Goal
-
-Move from raw chat history to bounded layered memory.
+Goal: move from raw chat history to bounded layered memory.
 
 ```text
 Working memory       recent turn-local context
@@ -314,7 +298,7 @@ Semantic memory      sourced FACT/BELIEF knowledge
 Relationship memory causal social history
 ```
 
-### Implemented
+Implemented:
 
 - persistent bounded episodic events;
 - explicit event types and provenance;
@@ -327,9 +311,7 @@ Relationship memory causal social history
 - pressure-based forgetting;
 - source durability, NPC isolation and restart safety.
 
-### Next implementation package — additive legacy migration
-
-After the release boundary, migrate useful legacy `memory.json` history without deleting or reinterpreting the source.
+Next implementation package after release: additive legacy migration.
 
 Required properties:
 
@@ -347,17 +329,7 @@ dry-run and rollback evidence
 legacy reads retained until cutover acceptance
 ```
 
-Recommended slices:
-
-1. migration inventory and schema/checkpoint design;
-2. deterministic dry-run parser/report;
-3. RED duplicate/rerun/partial-failure tests;
-4. bounded additive import;
-5. backup and rollback verification;
-6. same-world restart acceptance;
-7. optional cutover only after installed evidence.
-
-### Remaining capabilities
+Remaining capabilities:
 
 - controlled BELIEF producers;
 - explicit relationship-change reasons;
@@ -365,46 +337,13 @@ Recommended slices:
 - NPC-to-NPC knowledge transfer;
 - rumor propagation with uncertainty and distortion.
 
----
-
 ## 0.3 — Personality and NPC↔NPC social graph
 
-### Goal
-
-Make each NPC a persistent individual and extend social state beyond player↔NPC.
-
-Potential bounded dimensions:
-
-```text
-temperament, values, goals, fears, speech style,
-morality, ambition, curiosity, sociability, aggression, loyalty
-```
-
-NPC-pair state may include friendship, trust, respect, fear, family, rivalry, romance and grudges.
-
-Generated biography must not replace deterministic identity or server-owned social state.
-
----
+Persistent temperament, values, goals, fears, speech style, morality, ambition, curiosity, sociability, aggression and loyalty; NPC-pair friendship, trust, respect, fear, family, rivalry, romance and grudges.
 
 ## 0.4 — Knowledge propagation and rumors
 
-### Goal
-
-Create a provenance-aware information ecosystem.
-
-```text
-OBSERVED
-TOLD_BY_PLAYER
-TOLD_BY_NPC
-OFFICIAL
-INFERRED
-RUMOR
-UNKNOWN
-```
-
-Propagation depends on trust, social proximity, emotional importance, community membership, memory and time. Distortion is permitted only with inspectable source history.
-
----
+Provenance-aware OBSERVED, TOLD_BY_PLAYER, TOLD_BY_NPC, OFFICIAL, INFERRED, RUMOR and UNKNOWN knowledge. Distortion remains bounded and inspectable.
 
 ## 0.5 — Autonomous NPC agents
 
@@ -420,25 +359,17 @@ perceive
 
 The LLM proposes intent, never arbitrary Minecraft commands.
 
----
-
 ## 0.6 — Settlement simulation
 
-Population, households, resources, professions, safety, morale, reputation, public events and bounded settlement memory influence authoritative NPC behavior.
-
----
+Population, households, resources, professions, safety, morale, reputation, public events and bounded settlement memory influence authoritative behavior.
 
 ## 0.7 — Factions and politics
 
-Persistent alliances, disputes, leadership, laws and inter-settlement relations produce server-owned consequences rather than improvised dialogue alone.
-
----
+Persistent alliances, disputes, leadership, laws and inter-settlement relations produce server-owned consequences.
 
 ## 0.8 — Emergent stories
 
 Accumulated memory, relationships, events and faction state produce multi-session stories whose causes remain reconstructable.
-
----
 
 ## 0.9 — Performance, large servers and local models
 
@@ -449,9 +380,7 @@ Accumulated memory, relationships, events and faction state produce multi-sessio
 - multi-day/large-world soak;
 - optional local models without identity migration.
 
-The five-cycle Phase E soak is a bounded release-regression gate, not the final large-server scalability milestone.
-
----
+The five-cycle Phase E soak is a bounded release-regression gate, not the final scalability milestone.
 
 ## 1.0 — Persistent Living Society
 
