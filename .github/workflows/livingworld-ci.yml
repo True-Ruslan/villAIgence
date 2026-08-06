@@ -53,6 +53,9 @@ jobs:
           python3 scripts/ci/repository_security_policy.py --check
           test -s build/security/script-inventory.json
 
+      - name: Run acceptance suite selector contract tests
+        run: python3 scripts/ci/test_select_acceptance_suites.py
+
       - name: Run common and deterministic mock-provider tests
         run: |
           chmod +x gradlew
@@ -98,7 +101,6 @@ jobs:
 
       - name: Run production acceptance contract tests
         run: |
-          python3 scripts/ci/test_select_acceptance_suites.py
           python3 scripts/ci/test_production_server_acceptance.py
           python3 scripts/ci/test_production_server_process.py
           python3 scripts/ci/test_production_lifecycle_acceptance.py
