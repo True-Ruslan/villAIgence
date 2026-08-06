@@ -2,9 +2,9 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md` when resuming work.
 >
-> Last reconciled: **2026-08-06**, after implementation, independent review and exact-head validation of M11 Phase E in draft PR #114.
+> Last reconciled: **2026-08-06**, after M11 Phase E was merged through PR #114 and the `0.1.26+1.21.1` release-request branch was prepared.
 >
-> Always distinguish unit/source-policy evidence, common integration, server GameTests, production-candidate evidence, exact-release dry-run evidence and installed operator-server/client evidence.
+> Always distinguish unit/source-policy evidence, common integration, server GameTests, production-candidate evidence, exact-release evidence and installed operator-server/client evidence.
 
 ## Executive snapshot
 
@@ -13,14 +13,15 @@ VillAIgence is a Minecraft 1.21.1 MCA-derived mod evolving from AI-assisted vill
 ```text
 repository:                         True-Ruslan/villAIgence
 primary branch:                     1.21.1
-active implementation PR:           #114 — draft, unmerged
-validated runtime implementation:   78d7961632501b038d233dd662c62384d81a7c3b
+current primary head:               c51201d7a37b9d09c9a8cb490d1c56f3f6921c1f
+Phase E merge:                      PR #114 / c51201d7a37b9d09c9a8cb490d1c56f3f6921c1f
+release candidate branch:           release/0.1.26+1.21.1
 Java:                               21
 primary distribution:               Fabric
 NeoForge:                           compile compatibility required
 latest official release:            0.1.25+1.21.1
 latest release commit:              588cc676d356271c4cf74eb21131f6d071476e48
-next release:                       not requested
+next requested candidate:            0.1.26+1.21.1
 ```
 
 Current delivery state:
@@ -30,22 +31,22 @@ Current delivery state:
 Memory 2.0 foundation                                  SUBSTANTIALLY IMPLEMENTED
 MCA selective synchronization S1-S8                    COMPLETE
 Operator Lore S9-S10c                                  COMPLETE
-M11 Phases A-D                                          COMPLETE
-M11 Phase E automation completion E0-E9                 COMPLETE AT AUTOMATION LAYER
-independent PR review                                   COMPLETE — NO OPEN P0/P1/P2/P3
+M11 Phases A-E                                          COMPLETE AT AUTOMATION LAYER
+independent Phase E review                              COMPLETE — NO OPEN P0/P1/P2/P3
 acceptance catalog                                      28 AUTOMATED / 6 MANUAL / 0 PLANNED
-installed graphical/physical canaries                   PENDING
-next post-0.1.25 exact release                          NOT REQUESTED
+0.1.26 exact release-request dry run                    PENDING
+0.1.26 installed graphical/physical canaries            PENDING
+0.1.26 publication                                      BLOCKED UNTIL INSTALLED PASS
 legacy memory.json migration                            AFTER RELEASE BOUNDARY
 ```
 
-PR #114 remains draft. No Phase E tag or release has been created.
+PR #114 is merged. No `0.1.26+1.21.1` tag or GitHub Release exists yet.
 
 ---
 
 # Product and architecture
 
-VillAIgence is not merely MCA with an LLM call. The target product is:
+Target product:
 
 ```text
 NPC Identity
@@ -65,7 +66,7 @@ NPC Identity
 ## Architecture laws
 
 1. The LLM is never authoritative; Minecraft/server-owned state is truth.
-2. Mutable game state used by asynchronous AI is captured into immutable bounded context first.
+2. Mutable game state used asynchronously is captured into immutable bounded context first.
 3. Provider/model changes must not redefine persistent NPC identity, memory, relationships or voice.
 4. External-provider and auxiliary-persistence failures fail soft whenever safe.
 5. Retry and replay paths must not duplicate dialogue, memory, relationship or gameplay effects.
@@ -77,7 +78,7 @@ NPC Identity
 11. Migration remains additive, deterministic, idempotent and reversible until cutover evidence exists.
 12. Exact release identity must match tag, filename, embedded metadata and manifest.
 13. Published artifacts must be byte-identical to the exact artifact accepted by the release gate.
-14. Automated logical-client evidence never silently becomes a real installed multi-client claim.
+14. Automated logical-client evidence never silently becomes installed multi-client evidence.
 15. Unknown, unsafe, protected and persistence-store CI changes fail closed to the complete mandatory matrix.
 
 Canonical AI flow:
@@ -109,10 +110,6 @@ world data root:  <world>/livingworld/
 
 Compatibility-sensitive `mca`, `LivingWorld` and `livingworld` identifiers must not be renamed without a dedicated migration design.
 
----
-
-# Persistent world-local data
-
 Canonical runtime stores:
 
 ```text
@@ -126,22 +123,20 @@ Canonical runtime stores:
 
 `memory.json` remains active. Memory 2.0 is additive and legacy migration has not started. Unrelated work must not delete or destructively reinterpret it.
 
-Implemented persistence guarantees include deterministic JSON, bounded stores, temporary-file writes, atomic replacement where supported, corrupt-file preservation, fail-open auxiliary recovery, explicit provenance and restart-safe restoration.
-
 ---
 
 # Implemented systems
 
-## AI provider, parsing and security
+## Provider, parsing and security
 
 Implemented and retained:
 
-- OpenAI-compatible Chat, STT and TTS endpoints;
-- OpenRouter-compatible Chat operation;
+- OpenAI-compatible Chat, STT and TTS;
+- OpenRouter-compatible Chat;
 - endpoint normalization and credential-family binding;
 - authenticated redirect blocking;
 - remote plaintext rejection except explicit literal-loopback development mode;
-- bounded Chat, STT, TTS, error and verification bodies;
+- bounded response/error/verification bodies;
 - controlled null, empty, malformed and provider-error handling;
 - retry without duplicate persistent/gameplay effects;
 - voice-duration and aggregate PCM limits;
@@ -154,15 +149,15 @@ Security findings `SEC-001` through `SEC-009` are closed.
 
 Automated evidence covers:
 
-- one monotonic total deadline across capture, queue handoff, STT, Chat retries and optional TTS;
+- one monotonic deadline across queue handoff, STT, Chat retries and optional TTS;
 - exactly-once dialogue and relationship persistence;
-- deterministic mock-provider STT/Chat/TTS integration;
+- deterministic mock-provider STT/Chat/TTS;
 - real Simple Voice Chat Opus encode/decode;
-- packet loss concealment, duplicate/order rejection and bounded PCM;
+- loss concealment, duplicate/order rejection and bounded PCM;
 - encoder/decoder closure and cancellation;
-- repeated voice transport validation across five constrained-heap production restarts.
+- repeated voice transport across constrained-heap production restarts.
 
-Physical microphone permissions, real client UDP routing, audible spatial playback and subjective audio quality remain manual.
+Physical microphone permissions, real client UDP routing, audible spatial playback and subjective quality remain manual.
 
 ## Memory 2.0
 
@@ -176,7 +171,7 @@ Implemented:
 - bounded Working Memory;
 - typed semantic FACT/BELIEF entries;
 - controlled server-observed FACT ingestion;
-- consolidation and provenance/source union;
+- consolidation and source union;
 - deterministic pressure-based forgetting;
 - NPC isolation and restart safety.
 
@@ -201,37 +196,34 @@ Remaining Memory 2.0 work:
 
 Implemented:
 
-- world-local schema-versioned `operator-lore.json`;
+- schema-versioned world-local store;
 - WORLD, PLAYER, VILLAGER and VILLAGE scopes;
-- immutable prompt-context capture with explicit provenance;
-- permission-level-2 server-authoritative read/write API;
-- server-resolved identity and target scope;
+- immutable prompt-context capture;
+- permission-level-2 server-authoritative API;
+- server-resolved identity and scope;
 - SHA-256 optimistic revisions;
-- bounded code-point and UTF-8 validation;
+- bounded validation;
 - explicit success/conflict/error statuses;
-- multiline editor, counters and close confirmations;
-- request-generation correlation and stale-response rejection;
-- conflict review without blind overwrite;
-- authenticated two-session logical network harness with owner-bound responses.
+- multiline editor and close confirmations;
+- stale-generation rejection;
+- authenticated two-session owner-bound transport;
+- explicit stale conflict and reviewed retry.
 
-The client contains no arbitrary target identity path and has no direct persistence access.
-
-## Selective MCA synchronization and runtime corrections
+## Selective MCA corrections
 
 Implemented and retained:
 
 - tombstone item/entity-data integrity;
 - pre-serialization inventory ownership transfer;
-- UUID-preserving villager/zombie conversion;
-- repeated resurrection/replay identity guard;
+- UUID-preserving conversion and resurrection replay guard;
 - occupied HOME-bed rejection;
-- water-aware, climbable, ladder, obstacle and door navigation;
+- water, ladder, obstacle and door navigation;
 - progress watchdog and staggered pathfinding;
 - graveyard mourning lifecycle;
-- relationship-gift interaction semantics;
+- gift interaction semantics;
 - fishing/AquaCulture compatibility;
 - stable mounted archer control and NPC-owned projectile evidence;
-- exactly one filled Silk Touch portable grave;
+- exactly one filled portable grave;
 - exact loose-drop fallback when no tombstone captures the NPC.
 
 ---
@@ -248,181 +240,60 @@ common/src/test/resources/acceptance/scenarios.tsv
 0 PLANNED
 ```
 
-## Phase A — risk catalog and GameTests
+## Phases A-E
 
-Complete. Risk-to-proof mappings are explicit and source-controlled.
+Complete at the automation layer:
 
-## Phase B — exact production-JAR startup/restart
+- **A:** risk catalog and server GameTests;
+- **B:** exact production-JAR startup, controlled stop/save and restart;
+- **C:** provider and complete voice-turn orchestration;
+- **D:** authenticated text and Operator Lore concurrency/client-state acceptance;
+- **E0:** configuration-cache-safe production staging;
+- **E1/E2:** duplicate-identity prevention and real death/grave/resurrection across two JVMs;
+- **E3:** six-case corrupt persistence recovery;
+- **E4/E5:** authenticated text and owner-bound Operator Lore sessions;
+- **E6:** production Simple Voice Chat transport;
+- **E7/E8:** gifts, fishing, mounted combat, water, obstacles, ladders and doors;
+- **E9:** fail-closed suite selection and bounded production soak.
 
-Complete:
-
-- exact remapped Fabric candidate staged outside Loom/dev runtime;
-- pinned installer/runtime dependencies;
-- deterministic manifest and hashes;
-- real JVM startup, controlled stop/save and restart;
-- forbidden startup-signature scan;
-- six canonical stores discovered exactly once;
-- fixture classes excluded from the public JAR.
-
-## Phase C — provider and voice orchestration
-
-Complete:
-
-- production Chat/STT/TTS clients against literal-loopback providers;
-- no external provider or real credential in CI;
-- shared retry and full-turn deadlines;
-- bounded streaming reads;
-- exactly-once dialogue and relationship effects.
-
-## Phase D — concurrency and client-state acceptance
-
-Complete:
-
-- authenticated text session ownership;
-- two logical Operator Lore sessions;
-- stale conflict with canonical value/revision;
-- retained-draft retry exactly once;
-- unauthorized requests disclose and mutate nothing;
-- response ownership and stale-generation rejection.
-
-Real installed graphical conflict rendering remains manual.
-
-## Phase E — automation completion
-
-Complete at the automation layer through draft PR #114.
-
-### E0 — production staging hardening
-
-- execution-time Gradle Project access removed;
-- provider-backed/configuration-cache-safe staging;
-- subprocess handle leaks removed;
-- source-policy regression coverage added.
-
-### E1/E2 — identity lifecycle
-
-- duplicate resurrection/replay prevention;
-- real death → tombstone → portable data → resurrection lifecycle;
-- identity, name and complete inventory preserved;
-- second JVM verifies one authoritative entity after restart.
-
-### E3 — corrupt persistence recovery
-
-- six destructive cases;
-- exact corrupt-byte backup;
-- valid canonical regeneration;
-- unaffected sibling hashes unchanged;
-- idempotent second startup;
-- nightly, selected-main-CI and release evidence.
-
-### E4/E5 — authenticated transport and concurrency
-
-- authenticated text cannot spoof player or NPC ownership;
-- provider, persistence and response effects occur exactly once;
-- two Operator Lore sessions cannot receive each other's responses;
-- stale write returns conflict and reviewed retry succeeds once.
-
-### E6 — production voice transport
-
-- real Opus codec and transport lifecycle;
-- loss, duplicate and ordering behavior;
-- bounded PCM and resource closure;
-- hardware-independent production evidence.
-
-### E7/E8 — gameplay and navigation matrix
-
-Sixteen required Fabric GameTests include gifts, deterministic fishing, mounted archer ownership, water escape, obstacle reroute, ladder ascent/descent, closed-door passage and tombstone lifecycle/replay controls.
-
-### E9 — fail-closed selection and production soak
-
-Implemented:
-
-- deterministic path-to-risk selector;
-- five explicit suites: fast, server, production, recovery and package;
-- release always selects all suites;
-- protected, empty, unsafe and unknown changes fail closed to all;
-- all production LivingWorld `*Store.java` changes select recovery;
-- main CI executes only explicitly selected groups;
-- weekly/relevant-PR/manual production soak;
-- three authenticated concurrency repetitions at 512 MiB;
-- five exact-candidate JVM cycles at 512 MiB;
-- lifecycle, voice, identity and six-store hash validation after every cycle;
-- machine-readable evidence artifact.
-
-Canonical evidence:
+Phase E merge:
 
 ```text
-docs/livingworld/VALIDATION_M11_PHASE_E_E7.md
-docs/livingworld/VALIDATION_M11_PHASE_E_E8.md
-docs/livingworld/VALIDATION_M11_PHASE_E_E9.md
+PR:            #114
+merge commit:  c51201d7a37b9d09c9a8cb490d1c56f3f6921c1f
 ```
 
----
+Independent review found one P2 selector gap for canonical `*Store.java` changes. Seven focused RED cases reproduced it; the selector was corrected and all mandatory workflows passed afterward.
 
-# Independent review and exact code-head evidence
-
-Independent review covered the complete PR diff, CI/release/soak, persistence, server authority, lifecycle and packaging boundaries.
-
-One P2 finding was found and fixed: canonical store-class changes did not directly request the main-CI recovery suite. A RED regression produced seven failures, the selector was corrected for current and future LivingWorld `*Store.java` implementations, and the full matrix was rerun.
-
-Open review findings after the fix:
+Final exact PR-head evidence before merge:
 
 ```text
-P0: 0
-P1: 0
-P2: 0
-P3: 0
-```
-
-Validated implementation head:
-
-```text
-78d7961632501b038d233dd662c62384d81a7c3b
-```
-
-Fresh mandatory results:
-
-```text
-VillAIgence CI:                1721 / 31083451312 — PASS
-Java Pull Request CI:          1107 / 31083451053 — PASS
-Repository security policy:   1347 / 31083451124 — PASS
-Supply-chain verification:    167  / 31083451252 — PASS
-Production Soak:              14   / 31083451193 — PASS
-GitHub Release dry-run:        333  / 31083451015 — PASS
+head:                         a8f1ce741904adc67db3b804a1c568d30b91c217
+VillAIgence CI:              1725 / 31084661119 — PASS
+Java Pull Request CI:        1111 / 31084661085 — PASS
+Repository security policy: 1355 / 31084661096 — PASS
+Supply-chain verification:  171  / 31084661090 — PASS
+Production Soak:            18   / 31084661091 — PASS
+GitHub Release dry-run:      337  / 31084661176 — PASS
 release publication:                              SKIPPED
 ```
 
-Inspected soak artifact:
+Inspected soak evidence:
 
 ```text
-production-soak-14
-artifact id: 8960538615
-digest: sha256:6567b4a8cad895945a204a8a64b64e7a9078ab989b6d6e7db3c242a56fbd1c83
-```
-
-Report evidence:
-
-```text
-5 clean JVM exits
+artifact: production-soak-18
+artifact id: 8961024036
+five clean JVM exits
 512 MiB production heap
-1 live lifecycle NPC in every cycle
-voice PASS in every cycle
-peak PCM 7680 bytes in every cycle
-six persistent-store SHA-256 values identical across all cycles
+one live lifecycle NPC every cycle
+voice PASS every cycle
+peak PCM 7680 bytes every cycle
+six persistent-store hashes unchanged across all cycles
 ```
-
-Release dry-run artifacts:
-
-```text
-production-server-acceptance-333  artifact 8960504586
-persistence-recovery-333          artifact 8960600598
-villaigence-fabric-package        artifact 8960636786
-```
-
-The exact production-tested and packaged JARs were byte-identical.
 
 ---
 
-# Latest official release and code ahead
+# Release boundary
 
 Latest official release:
 
@@ -431,73 +302,64 @@ tag:     0.1.25+1.21.1
 commit:  588cc676d356271c4cf74eb21131f6d071476e48
 ```
 
-PR #114 contains post-`0.1.25` automation and acceptance work. It is not part of the published release and must not be described as installed release behavior.
+The next exact candidate is requested on:
 
-No `0.1.26+1.21.1` request, tag or release has been created by Phase E.
+```text
+branch:  release/0.1.26+1.21.1
+file:    docs/releases/NEXT_RELEASE.txt
+value:   0.1.26+1.21.1
+notes:   docs/releases/0.1.26+1.21.1.md
+```
 
----
+A release-request PR is a non-publishing exact dry run. It must remain unmerged until all six installed canaries pass. Merging that PR causes the exact merge commit to run the complete release gate and publish only after PASS.
 
-# Remaining manual canaries
+## Remaining manual canaries
 
-Routine deterministic manual regression has been removed. The six remaining catalog canaries cover only installed/physical/visual boundaries:
-
-1. `VAI-BOOT-002` — exact candidate/released JAR starts on the operator server.
-2. `VAI-NAV-001` — two ordinary MCA NPC brains visibly escape water in an installed world.
-3. `VAI-GAME-001` — an installed client visibly addresses the selected NPC and renders one response.
-4. `VAI-GAME-003` — a real player performs Silk Touch grave pickup/placement/restart without loss or duplication.
+1. `VAI-BOOT-002` — exact candidate starts on the operator server and a client connects.
+2. `VAI-NAV-001` — two ordinary MCA NPC brains visibly escape reachable water.
+3. `VAI-GAME-001` — an installed client addresses the selected NPC and renders one response.
+4. `VAI-GAME-003` — real Silk Touch pickup/placement/restart/resurrection preserves one UUID, name and inventory.
 5. `VAI-AI-006` — physical microphone, client UDP routing and audible spatial playback.
-6. `VAI-CONCUR-004` — two graphical clients visibly render conflict, reload/keep-draft and reviewed retry.
+6. `VAI-CONCUR-004` — two graphical clients visibly expose and resolve an Operator Lore conflict without losing drafts.
 
-These canaries must remain small. They must not repeat automated persistence, codec, retry, recovery, identity or concurrency internals.
+These checks must remain small and must not repeat deterministic persistence, codec, retry, recovery or logical-session internals already automated.
 
 ---
 
 # Known gaps and technical debt
 
-1. Exact installed post-Phase-E canaries are pending.
+1. Exact `0.1.26` dry-run and installed canaries are pending.
 2. Physical microphone and subjective spatial audio remain inherently manual.
 3. `memory.json` migration has not started.
 4. Controlled BELIEF producers and causal relationship reasons remain incomplete.
 5. NPC-to-NPC knowledge and rumor propagation remain future work.
-6. Multi-day and large-server simulation soak remains future scaling work; the five-cycle bounded soak is not a multi-day claim.
-7. Historical Javadoc/deprecation warnings remain but do not block verified build gates.
+6. Multi-day and large-server simulation soak remains future scaling work; the five-cycle soak is not a multi-day claim.
+7. Historical Javadoc/deprecation warnings remain but do not block verified gates.
 
 ---
 
 # Next optimal delivery step
 
-Complete final documentation-head workflows for PR #114. Then prepare the focused installed canary package; do not publish until it passes.
-
-Recommended sequence:
-
 ```text
-final documentation-head CI + soak + release dry-run
-→ keep PR #114 draft until all checks are green
-→ resolve next free version from repository/tags
-→ build exact versioned dry-run candidate
-→ install exact candidate on operator server/client
-→ run the six minimal installed canaries
-→ merge/release only on PASS
-→ verify published JAR identity and one restart
+open 0.1.26 release-request PR
+→ complete exact non-publishing dry run
+→ download and record exact candidate JAR + SHA-256
+→ install the same JAR on operator server/client
+→ run six minimal installed canaries
+→ merge release request only on PASS
+→ verify official assets and byte identity
+→ perform one post-release restart
+→ update canonical evidence
 → begin additive legacy memory.json migration
 ```
 
-The delivery boundary must not:
+Do not:
 
-- use a snapshot JAR as release evidence;
+- use a snapshot or local JAR as release evidence;
 - claim logical-client automation as graphical multi-client evidence;
-- overwrite or migrate `memory.json`;
-- weaken revision, authority, provider, credential or fail-closed CI policies;
-- combine unrelated personality/social-graph implementation into the release.
-
-After the release boundary:
-
-```text
-additive memory.json migration
-→ remaining Memory 2.0 exit criteria
-→ personality and NPC↔NPC social graph
-→ knowledge propagation and rumors
-```
+- publish before installed canaries pass;
+- overwrite or migrate `memory.json` before the release boundary;
+- weaken authority, revision, credential, deadline or fail-closed CI policies.
 
 ---
 
@@ -505,15 +367,14 @@ additive memory.json migration
 
 Preferred resume prompt:
 
-> Open `docs/PROJECT_STATE.md`, `docs/ROADMAP.md`, `common/src/test/resources/acceptance/scenarios.tsv`, and `docs/livingworld/VALIDATION_M11_PHASE_E_E9.md`. Check current PR #114 head, exact-head workflows, releases and tags. Prepare the six installed canaries and exact release boundary without weakening fail-closed suite selection or server authority.
+> Open `docs/PROJECT_STATE.md`, `docs/ROADMAP.md`, `docs/RELEASING.md`, `common/src/test/resources/acceptance/scenarios.tsv`, and `docs/livingworld/VALIDATION_M11_PHASE_E_E9.md`. Check branch `release/0.1.26+1.21.1`, its PR and exact dry-run artifacts. Continue from the six installed canaries without weakening server authority or fail-closed acceptance.
 
 A new session must:
 
 1. read this file and `docs/ROADMAP.md`;
-2. inspect current PR #114 head and mergeability;
-3. inspect exact-head CI, release dry-run and production soak;
-4. confirm the next free release version from current tags;
-5. distinguish automated, candidate, exact-release and installed evidence;
-6. complete installed canaries before publication;
-7. begin legacy migration only after the release boundary;
-8. update canonical documents after material progress.
+2. inspect current `1.21.1` head and open PRs;
+3. inspect exact candidate CI, artifacts and tag availability;
+4. distinguish automated, candidate, exact-release and installed evidence;
+5. complete installed canaries before publication;
+6. begin legacy migration only after release verification;
+7. update canonical documents after material progress.
