@@ -71,6 +71,33 @@ class AcceptanceSuiteSelectionTest(unittest.TestCase):
         self.assertEqual(ALL_SUITES, selection.suites)
         self.assertFalse(selection.fail_closed)
 
+    def test_each_canonical_store_implementation_selects_recovery(self) -> None:
+        store_paths = (
+            "common/src/main/java/net/conczin/mca/livingworld/memory/ConversationMemoryStore.java",
+            "common/src/main/java/net/conczin/mca/livingworld/memory2/MemoryEventStore.java",
+            "common/src/main/java/net/conczin/mca/livingworld/memory2/SemanticMemoryStore.java",
+            "common/src/main/java/net/conczin/mca/livingworld/lore/WorldOperatorLoreStore.java",
+            "common/src/main/java/net/conczin/mca/livingworld/relationship/LivingWorldRelationshipStore.java",
+            "common/src/main/java/net/conczin/mca/livingworld/voice/PersistentNpcVoiceStore.java",
+        )
+
+        for changed_path in store_paths:
+            with self.subTest(changed_path=changed_path):
+                selection = select_suites([changed_path], mode=SelectionMode.PR)
+                self.assertEqual(ALL_SUITES, selection.suites)
+                self.assertFalse(selection.fail_closed)
+
+    def test_future_livingworld_store_implementation_selects_recovery(self) -> None:
+        selection = select_suites(
+            [
+                "common/src/main/java/net/conczin/mca/livingworld/newdomain/FuturePersistentStore.java",
+            ],
+            mode=SelectionMode.PR,
+        )
+
+        self.assertEqual(ALL_SUITES, selection.suites)
+        self.assertFalse(selection.fail_closed)
+
     def test_voice_change_selects_real_server_without_recovery_matrix(self) -> None:
         selection = select_suites(
             [
