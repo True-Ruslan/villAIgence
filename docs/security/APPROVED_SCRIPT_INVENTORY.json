@@ -56,6 +56,12 @@
       "ci": true
     },
     {
+      "path": "scripts/ci/select_acceptance_suites.py",
+      "purpose": "Selects deterministic CI acceptance suites from changed repository paths and fails closed to the complete mandatory matrix for releases, protected files and unknown paths; performs no network requests.",
+      "network": false,
+      "ci": true
+    },
+    {
       "path": "scripts/ci/test_persistence_recovery_acceptance.py",
       "purpose": "Standard-library unit tests for corruption-plan confinement, matrix coverage, recovery-only fixture derivation, candidate immutability and sibling-store isolation; performs no network requests.",
       "network": false,
