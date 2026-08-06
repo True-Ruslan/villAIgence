@@ -66,13 +66,17 @@ def _is_documentation(path: str) -> bool:
 
 
 def _is_persistence_runtime(path: str) -> bool:
+    production_root = "common/src/main/java/net/conczin/mca/livingworld/"
+    test_root = "common/src/test/java/net/conczin/mca/livingworld/persistence/"
+    if path.startswith(test_root):
+        return True
+    if not path.startswith(production_root):
+        return False
+
+    relative = path.removeprefix(production_root)
     return (
-        path.startswith(
-            "common/src/main/java/net/conczin/mca/livingworld/persistence/"
-        )
-        or path.startswith(
-            "common/src/test/java/net/conczin/mca/livingworld/persistence/"
-        )
+        relative.startswith("persistence/")
+        or PurePosixPath(relative).name.endswith("Store.java")
     )
 
 
