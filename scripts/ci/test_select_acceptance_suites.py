@@ -195,5 +195,45 @@ class AcceptanceSuiteSelectionTest(unittest.TestCase):
             )
 
 
+class AcceptanceSuiteWorkflowPolicyTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.repository_root = Path(__file__).resolve().parents[2]
+        cls.ci = (
+            cls.repository_root / ".github/workflows/livingworld-ci.yml"
+        ).read_text(encoding="utf-8")
+        cls.release = (
+            cls.repository_root / ".github/workflows/livingworld-release.yml"
+        ).read_text(encoding="utf-8")
+
+    def test_pull_request_ci_collects_diff_and_exposes_selector_outputs(self) -> None:
+        self.assertIn("id: acceptance", self.ci)
+        self.assertIn("changed-paths.txt", self.ci)
+        self.assertIn("--changed-paths-file", self.ci)
+        self.assertIn("--github-output \"$GITHUB_OUTPUT\"", self.ci)
+        self.assertIn("GITHUB_BASE_REF", self.ci)
+        self.assertIn("PUSH_BEFORE_SHA", self.ci)
+
+    def test_expensive_ci_steps_are_guarded_by_selected_suites(self) -> None:
+        required_conditions = (
+            "if: steps.acceptance.outputs.fast == 'true'",
+            "if: steps.acceptance.outputs.server == 'true'",
+            "if: steps.acceptance.outputs.production == 'true'",
+            "if: steps.acceptance.outputs.recovery == 'true'",
+            "if: steps.acceptance.outputs.package == 'true'",
+        )
+        for condition in required_conditions:
+            with self.subTest(condition=condition):
+                self.assertIn(condition, self.ci)
+
+    def test_release_workflow_forces_complete_mandatory_selection(self) -> None:
+        self.assertIn("id: acceptance", self.release)
+        self.assertIn("--mode release", self.release)
+        self.assertIn(
+            "test \"${{ steps.acceptance.outputs.all }}\" = 'true'",
+            self.release,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
