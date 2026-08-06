@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+import tempfile
 import unittest
 
 from select_acceptance_suites import (
@@ -10,6 +12,7 @@ from select_acceptance_suites import (
     RECOVERY_SUITE,
     SERVER_SUITE,
     SelectionMode,
+    main,
     select_suites,
 )
 
@@ -122,6 +125,74 @@ class AcceptanceSuiteSelectionTest(unittest.TestCase):
                 selection = select_suites([changed_path], mode=SelectionMode.PR)
                 self.assertEqual(ALL_SUITES, selection.suites)
                 self.assertTrue(selection.fail_closed)
+
+    def test_cli_writes_deterministic_github_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            changed_paths = root / "changed-paths.txt"
+            output = root / "github-output.txt"
+            changed_paths.write_text(
+                "docs/PROJECT_STATE.md\ndocs/ROADMAP.md\n",
+                encoding="utf-8",
+            )
+
+            exit_code = main(
+                [
+                    "--mode",
+                    "pr",
+                    "--changed-paths-file",
+                    str(changed_paths),
+                    "--github-output",
+                    str(output),
+                ]
+            )
+
+            self.assertEqual(0, exit_code)
+            self.assertEqual(
+                [
+                    "all=false",
+                    "fail_closed=false",
+                    "fast=true",
+                    "package=false",
+                    "production=false",
+                    "reason=classified",
+                    "recovery=false",
+                    "server=false",
+                    "suites=fast",
+                ],
+                output.read_text(encoding="utf-8").splitlines(),
+            )
+
+    def test_cli_release_mode_ignores_narrow_changed_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            changed_paths = root / "changed-paths.txt"
+            output = root / "github-output.txt"
+            changed_paths.write_text("docs/README.md\n", encoding="utf-8")
+
+            exit_code = main(
+                [
+                    "--mode",
+                    "release",
+                    "--changed-paths-file",
+                    str(changed_paths),
+                    "--github-output",
+                    str(output),
+                ]
+            )
+
+            self.assertEqual(0, exit_code)
+            values = dict(
+                line.split("=", 1)
+                for line in output.read_text(encoding="utf-8").splitlines()
+            )
+            self.assertEqual("true", values["all"])
+            self.assertEqual("true", values["fail_closed"])
+            self.assertEqual("release-mode", values["reason"])
+            self.assertEqual(
+                "fast,package,production,recovery,server",
+                values["suites"],
+            )
 
 
 if __name__ == "__main__":
