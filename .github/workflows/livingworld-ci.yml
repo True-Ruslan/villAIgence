@@ -98,6 +98,7 @@ jobs:
 
       - name: Run production acceptance contract tests
         run: |
+          python3 scripts/ci/test_select_acceptance_suites.py
           python3 scripts/ci/test_production_server_acceptance.py
           python3 scripts/ci/test_production_server_process.py
           python3 scripts/ci/test_production_lifecycle_acceptance.py
