@@ -14,6 +14,7 @@ on:
     paths:
       - '.github/workflows/livingworld-release.yml'
       - '.github/workflows/livingworld-nightly.yml'
+      - '.github/workflows/livingworld-soak.yml'
       - 'build.gradle'
       - 'gradle.properties'
       - 'gradle/verification-metadata.xml'
@@ -32,11 +33,13 @@ on:
       - 'scripts/ci/production_lifecycle_acceptance.py'
       - 'scripts/ci/production_server_acceptance.py'
       - 'scripts/ci/production_server_acceptance_strict.py'
+      - 'scripts/ci/production_soak_acceptance.py'
       - 'scripts/ci/select_acceptance_suites.py'
       - 'scripts/ci/test_persistence_recovery_acceptance.py'
       - 'scripts/ci/test_production_lifecycle_acceptance.py'
       - 'scripts/ci/test_production_server_acceptance.py'
       - 'scripts/ci/test_production_server_process.py'
+      - 'scripts/ci/test_production_soak_acceptance.py'
       - 'scripts/ci/test_select_acceptance_suites.py'
       - 'scripts/ci/test-release-version-contract.sh'
   workflow_dispatch:
@@ -228,6 +231,7 @@ jobs:
           python3 scripts/ci/test_production_server_process.py
           python3 scripts/ci/test_production_lifecycle_acceptance.py
           python3 scripts/ci/test_persistence_recovery_acceptance.py
+          python3 scripts/ci/test_production_soak_acceptance.py
 
       - name: Stage and execute exact production server acceptance
         shell: bash
