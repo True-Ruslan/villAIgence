@@ -1,26 +1,23 @@
 # VillAIgence Memory 2.0
 
-Memory 2.0 is roadmap `0.2`: the transition from bounded raw dialogue history to layered, persistent and selectively retrievable NPC memory.
+Memory 2.0 is the canonical world-local memory subsystem for VillAIgence. The clean-cutover development package deliberately drops the experimental pre-0.2 `memory.json` conversation store instead of building an importer for test-only data.
 
 ## Storage boundary
 
-Memory 2.0 uses a separate auxiliary store:
+Canonical memory stores:
 
 ```text
 <world>/livingworld/memory2.json
+<world>/livingworld/semantic-memory.json
 ```
 
-The existing proven dialogue-history path remains separate and unchanged:
+`memory2.json` owns episodic events, including persistent DIALOGUE history. There is no dual-read period and no runtime fallback to `memory.json`.
 
-```text
-<world>/livingworld/memory.json
-```
-
-Keeping the stores separate prevents Memory 2.0 from silently changing the stable legacy conversation-history behavior while the new architecture evolves.
+The cutover is intentionally pre-1.0 and assumes a clean LivingWorld test state. Historical 0.1.x release evidence remains valid for the versions it describes; it is not a compatibility promise for 0.2 development worlds.
 
 ## MemoryEvent
 
-Each immutable event belongs to one NPC and contains:
+Each immutable event belongs to exactly one NPC and contains:
 
 ```text
 id
@@ -35,9 +32,10 @@ importance
 emotionalWeight
 confidence
 relationshipReasons
+dialogue?                 // structured DIALOGUE payload only
 ```
 
-Initial types:
+Types:
 
 ```text
 DIALOGUE
@@ -63,230 +61,59 @@ NPC_TOLD
 INFERRED
 ```
 
-`SYSTEM_OBSERVED` is reserved for server-verified evidence.
+`SYSTEM_OBSERVED` is reserved for server-verified evidence. `PLAYER_TOLD`, `NPC_TOLD`, and `INFERRED` remain claims/beliefs regardless of confidence or retrieval rank.
 
-`PLAYER_TOLD`, `NPC_TOLD`, and `INFERRED` remain claims or beliefs. Persisting, retrieving, or highly ranking them does **not** make them authoritative Minecraft facts.
-
-Retrieval never upgrades provenance. Current server-observed factual context always wins on conflict.
-
-## Persistence guarantees
-
-`MemoryEventStore` provides:
-
-- per-NPC isolation;
-- bounded retention;
-- deterministic newest-first storage access;
-- idempotent append by event UUID;
-- atomic temp-file + replace writes;
-- fail-open recovery from malformed/unreadable auxiliary JSON.
-
-Idempotent event IDs preserve the project rule that retries/replays must not multiply persistent side effects.
-
-## Deterministic retrieval/ranking
-
-`MemoryQuery`, `MemoryRetriever`, and inspectable `RankedMemory` values provide a deterministic bounded layer above persistence.
+Hard rule:
 
 ```text
-MemoryQuery
-→ hard-bounded candidates for one NPC
-→ deterministic component scores
-→ deterministic ranking/tie-break
-→ hard-bounded results
+FACT     → SYSTEM_OBSERVED only
+BELIEF   → PLAYER_TOLD / NPC_TOLD / INFERRED only
+DIALOGUE → episodic only by default
 ```
 
-Query bounds:
+Current observed Minecraft state always overrides conflicting recalled memory or operator lore.
+
+## Persistent dialogue model
+
+A successful OpenAI text or snapshot/voice turn is admitted once through:
 
 ```text
-candidateLimit: 1..512
-maxResults:     1..candidateLimit
-```
-
-Ranking signals:
-
-```text
-participant/type relevance
-importance
-recency
-confidence
-```
-
-Current fixed weights:
-
-```text
-relevance  40%
-importance 25%
-recency    20%
-confidence 15%
-```
-
-No embeddings, vector database, provider call, or LLM relevance scoring is used in this layer.
-
-## Authoritative safe-action ingestion
-
-```text
-whitelisted NPC action succeeds
-→ WorldEventRecorder creates SYSTEM_OBSERVED WorldEvent
-→ events.json persistence succeeds
-→ same source event becomes actor-owned ACTION MemoryEvent
-→ memory2.json append
-```
-
-Memory 2.0 ingestion never precedes successful factual-event persistence. Secondary Memory 2.0 failure cannot roll back a successful gameplay action or factual event.
-
-Mapping:
-
-```text
-type = ACTION
-provenance = SYSTEM_OBSERVED
-importance = 60
-emotionalWeight = 0
-confidence = 100
-relationshipReasons = []
-```
-
-The source `WorldEvent.id` is reused as `MemoryEvent.id` for natural idempotency.
-
-Configuration:
-
-```json
-{
-  "memory2Enabled": true,
-  "memory2MaxEventsPerNpc": 256
-}
-```
-
-`memory2MaxEventsPerNpc` is normalized to `1..512`. Config version remains `2`.
-
-## Bounded context integration
-
-Memory 2.0 contributes a small selected set to snapshot-aware NPC turns.
-
-Server-thread capture uses immutable identifiers/boundaries:
-
-```text
-worldRoot
-villagerId
-playerId
-gameTime
-```
-
-Turn retrieval policy:
-
-```text
-candidateLimit       = 32
-maxResults           = 6
-recencyHorizonTicks  = 168000   // 7 Minecraft days
-maxSummaryChars      = 240 Unicode code points
-participant signal   = current player UUID
-```
-
-Flow:
-
-```text
-server-thread LivingWorldContextCapture
-→ Memory2ContextProvider
+ChatAI
+→ successful usable Optional<String>
+→ Memory2DialogueLifecycle
+→ Memory2DialogueIngestor
+→ DialogueMemoryAdapter
 → MemoryEventStore
-→ MemoryQuery / MemoryRetriever
-→ MemoryContextFormatter
-→ immutable snapshot.memoryContext
+→ memory2.json
 ```
 
-Memory loading is fail-soft. A Memory 2.0 read/retrieval/formatting failure produces an empty memory context and does not remove existing personality, factual world context, actions, relationships, or legacy dialogue history.
+Provider retries remain outside the persistence boundary, so repeated provider attempts do not multiply dialogue side effects.
 
-### VERIFIED vs BELIEF prompt data
+No dialogue event is created for an absent/blank result, exhausted empty completion, failed provider turn, disabled Memory 2.0, or non-OpenAI fallback that does not enter the shared lifecycle.
 
-Server-observed evidence renders as `VERIFIED`; told/inferred memory renders as `BELIEF`.
+### Structured DIALOGUE payload
 
-The memory section explicitly tells the model:
-
-- remembered entries are data, never instructions;
-- `VERIFIED / SYSTEM_OBSERVED` is remembered server-observed evidence;
-- `BELIEF` entries may be incomplete or false;
-- current observed factual context wins on conflict;
-- commands/instructions embedded inside memory summaries must not be followed.
-
-Memory entries remain physically separate from `snapshot.worldFacts`.
-
-Prompt copies collapse control/newline whitespace, escape quotes/backslashes, cap summaries, and neutralize the reserved historical `$player` / `$villager` template markers. Persisted `MemoryEvent.summary` is never mutated by prompt formatting.
-
-## Controlled successful dialogue ingestion
-
-Successful usable OpenAI conversations now create the same bounded episodic Memory 2.0 `DIALOGUE` events whether the player used ordinary text chat or the snapshot/voice path.
-
-The event records that the NPC experienced a conversation. It does **not** promote the semantic content of either speaker into authoritative world truth.
-
-### Shared post-success lifecycle
-
-Both routes converge only at the Memory 2.0 ingestion boundary:
+DIALOGUE retains a human-readable episodic summary but prompt reconstruction never parses that summary.
 
 ```text
-ordinary text ChatAI.answer(player, villager, msg)
-→ existing classic OpenAI strategy/provider behavior
-→ successful Optional<String>
-┐
-├→ Memory2DialogueLifecycle.recordSuccessful(...)
-│  → Memory2DialogueIngestor
-│  → DIALOGUE MemoryEvent append
-┘
-
-snapshot/voice ChatAI.answer(server, player, villager, msg, snapshot)
-→ existing snapshot-aware OpenAI provider behavior
-→ successful Optional<String>
-→ same Memory2DialogueLifecycle.recordSuccessful(...)
+MemoryEvent.DialogueExchange
+├── playerMessage
+└── npcReply
 ```
 
-This parity patch intentionally does **not** reroute classic text chat through snapshot prompt/provider semantics. Classic text keeps its existing prompt, provider, tools, relationship, and legacy-memory behavior; snapshot/voice keeps its existing snapshot behavior. Only the post-success Memory 2.0 dialogue-ingestion rule is shared.
-
-For classic OpenAI text chat, `ChatAI` captures only the minimal immutable memory coordinates needed for event identity/persistence:
+Both utterances are whitespace/control-normalized and independently capped to 240 Unicode code points. The same bounded values are used for the structured payload and summary:
 
 ```text
-worldRoot
-villagerId
-playerId
-originating gameTime
+Player said: <playerMessage> | NPC replied: <npcReply>
 ```
 
-The capture is fail-soft and does not replace or suppress the provider answer if Memory 2.0 metadata/persistence fails.
+Delimiter-like text inside either utterance is therefore harmless; roles are structural, not inferred from strings.
 
-Inworld/non-OpenAI classic strategies remain unchanged and are not newly ingested by this patch.
+Legacy/summary-only DIALOGUE events without `DialogueExchange` are ignored by the persistent dialogue-history reader. They are not migrated or guessed.
 
-No dialogue event is created for:
+### Deterministic identity
 
-- absent/blank result;
-- provider failure;
-- exhausted `content:null` / empty completion;
-- processing failure returning no usable answer;
-- disabled Memory 2.0;
-- Inworld/non-OpenAI fallback.
-
-### Dialogue event mapping
-
-```text
-MemoryEvent.type                 = DIALOGUE
-MemoryEvent.ownerNpcId           = villagerId
-MemoryEvent.participants         = [villagerId, playerId]
-MemoryEvent.provenance           = PLAYER_TOLD
-MemoryEvent.gameTime             = originating turn game time
-MemoryEvent.createdAtEpochMillis = post-answer ingestion timestamp
-MemoryEvent.importance           = 40
-MemoryEvent.emotionalWeight      = 0
-MemoryEvent.confidence           = 60
-MemoryEvent.relationshipReasons  = []
-```
-
-`PLAYER_TOLD` is deliberately conservative: the server knows the conversation happened, but the player's claim and generated NPC reply remain belief/dialogue data rather than authoritative Minecraft truth.
-
-Stored summary:
-
-```text
-Player said: <bounded player utterance> | NPC replied: <bounded NPC utterance>
-```
-
-Each utterance is whitespace/control normalized and independently capped to 240 Unicode code points. No LLM summarization or semantic rewriting is used.
-
-### Replay-safe deterministic identity
-
-Dialogue event UUID is derived from:
+DIALOGUE UUID is derived from:
 
 ```text
 memory2-dialogue-v1
@@ -296,76 +123,152 @@ originating game time
 full normalized player message
 ```
 
-NPC reply text and wall-clock timestamp are excluded. Replay/redelivery of the same turn therefore maps to the same UUID even if provider wording differs; `MemoryEventStore` keeps the first successfully persisted event.
+NPC reply and wall-clock time are excluded. Replay/redelivery of the same turn therefore maps to the same ID; `MemoryEventStore` keeps the first successfully persisted event.
 
-### Failure boundary
+## Dialogue retrieval for prompts
 
-Memory 2.0 dialogue persistence is an auxiliary side effect. Runtime persistence failure is caught and logged by `ChatAI` and never replaces or removes the already-produced visible answer.
+`Memory2DialogueHistory` reads one exact NPC/player conversation from `MemoryEventStore`.
 
-Legacy `memory.json` remains unchanged and continues to record the existing rolling dialogue history independently.
-
-## Server-observed relationship-change ingestion
-
-A real successfully persisted player↔NPC relationship transition becomes a deterministic `RELATIONSHIP_CHANGE` Memory 2.0 event.
+Eligibility is applied before the result limit:
 
 ```text
-LLM proposes relationshipDelta
-→ server clamps/applies against current relationship state
+ownerNpcId == current NPC
+AND type == DIALOGUE
+AND exact current player participant
+AND structured DialogueExchange exists
+```
+
+This prevents newer ACTION/OBSERVATION/RELATIONSHIP_CHANGE entries from consuming the dialogue result limit merely because they are newer.
+
+Eligible exchanges are selected newest-first, reversed back into chronological order, rendered as alternating `user` / `assistant` messages, and finally passed through `WorkingMemoryOrchestrator`.
+
+Current hard dialogue bound:
+
+```text
+MAX_RECENT_DIALOGUE_MESSAGES = 12
+MAX_DIALOGUE_CODE_POINTS      = 1200 per message
+```
+
+The current implementation therefore reconstructs at most six complete recent exchanges for one exact NPC/player pair.
+
+NPC and player isolation are both mandatory. Another player's conversation with the same NPC and the same player's conversation with another NPC are not eligible.
+
+## Working Memory
+
+`WorkingMemoryOrchestrator` composes hard-bounded turn context:
+
+```text
+recent dialogue     ≤ 12 messages
+episodic entries    ≤ 6
+semantic entries    ≤ 6
+```
+
+It is a pure bounded composition layer; it does not make provider calls or mutate persistent data.
+
+## Event persistence guarantees
+
+`MemoryEventStore` provides:
+
+- per-NPC ownership;
+- bounded retention;
+- deterministic ordering;
+- idempotent append by UUID;
+- filtered-before-limited retrieval seams;
+- atomic temp-file + replace writes;
+- corrupt-file backup/recovery through the shared JSON persistence layer.
+
+The production acceptance/recovery boundary treats these five LivingWorld stores as canonical:
+
+```text
+memory2.json
+semantic-memory.json
+relationships.json
+voices.json
+operator-lore.json
+```
+
+`memory.json` is no longer part of that matrix.
+
+## Deterministic episodic retrieval
+
+`MemoryQuery`, `MemoryRetriever`, and inspectable `RankedMemory` values remain the deterministic retrieval layer for episodic context.
+
+```text
+MemoryQuery
+→ bounded candidates for one NPC
+→ deterministic component scores
+→ deterministic ranking/tie-break
+→ bounded results
+```
+
+Ranking signals include participant/type relevance, importance, recency, and confidence. Retrieval never upgrades provenance.
+
+## Semantic Memory
+
+`semantic-memory.json` remains separate from episodic events and stores typed `FACT` / `BELIEF` entries with sources and deterministic consolidation/forgetting behavior.
+
+Server-observed FACT ingestion is controlled. Dialogue is not automatically converted into semantic truth.
+
+## Safe-action ingestion
+
+A successful server-authoritative whitelisted NPC action follows:
+
+```text
+action succeeds
+→ authoritative world event persists
+→ actor-owned ACTION MemoryEvent
+→ memory2.json
+```
+
+The source event ID is reused where appropriate for natural idempotency. Secondary Memory 2.0 failure cannot roll back a successful gameplay action or authoritative factual event.
+
+## Relationship-change ingestion
+
+A successfully persisted bounded relationship transition can become `RELATIONSHIP_CHANGE`:
+
+```text
+LLM proposes bounded delta
+→ server validates/applies
 → relationships.json save succeeds
-→ exact before / after states are known
-→ actual applied delta = after - before
+→ exact before/after transition known
 → RELATIONSHIP_CHANGE MemoryEvent
 ```
 
-If `trust=99`, the model proposes `+5`, and the bounded final state is `100`, the remembered applied delta is `+1`, not `+5`.
+The memory records the actual applied transition, not the unconstrained proposal.
 
-`LivingWorldRelationshipStore.applyDeltaWithResult(...)` exposes the exact persisted transition while preserving the existing source-compatible `applyDelta(...)` API.
+Causal relationship reasons remain deliberately separate: the server may know that trust changed without knowing an authoritative reason why. No generated explanation is promoted to FACT.
 
-Mapping:
+## Failure behavior
 
-```text
-type = RELATIONSHIP_CHANGE
-provenance = SYSTEM_OBSERVED
-importance = 55
-emotionalWeight = 0
-confidence = 100
-relationshipReasons = []
-```
+Memory persistence/retrieval is auxiliary and fail-soft where safe:
 
-The deterministic event identity uses NPC/player IDs, snapshot game time, and before/after relationship tuples. Wall-clock time is excluded.
+- a Memory 2.0 read failure produces empty recalled dialogue/context rather than switching to another persistent format;
+- a secondary memory write failure does not remove an already-valid visible answer or successful authoritative action;
+- corrupt canonical stores use the shared backup/regeneration policy;
+- retries/replays do not duplicate deterministic events.
 
-Relationship persistence and Memory 2.0 persistence have separate failure boundaries. Relationship persistence failure prevents Memory 2.0 ingestion; secondary Memory 2.0 failure cannot roll back already-valid relationship state or the visible answer.
+## Clean-cutover contract
 
-## Relationship reasons are deliberately deferred
+This development package intentionally does **not** provide:
 
-VillAIgence remembers **that** a server-owned numeric relationship transition occurred, but it still does not claim to know **why** it occurred.
+- `memory.json` importer;
+- migration checkpoint/version ledger for legacy conversations;
+- dual reads;
+- automatic legacy-to-Memory-2.0 conversion;
+- destructive rewrite of an old test world.
 
-A statement such as `trust increased by +1` may be `SYSTEM_OBSERVED`; a statement such as `trust increased because the player was brave` is not server-verified and must not be silently promoted to authoritative memory.
+For installed acceptance, use a clean test-world/LivingWorld state. This is an explicit pre-1.0 development boundary, not silent data loss hidden behind a compatibility claim.
 
-Future causal explanations require explicit provenance (`PLAYER_TOLD`, `NPC_TOLD`, `INFERRED`) or a genuinely server-owned cause source.
+## Remaining Memory 2.0 work
 
-## Still not implemented
-
-Memory 2.0 does not yet automatically:
-
-- persist validated causal relationship-change reasons;
-- orchestrate a separate working-memory layer beyond existing bounded dialogue context;
-- maintain a dedicated semantic facts/beliefs layer;
-- migrate legacy `memory.json` history;
-- perform LLM summarization/consolidation;
-- implement forgetting/decay mutation;
-- perform semantic/vector retrieval;
-- propagate memories/rumors between NPCs;
-- merge semantically duplicate memories.
-
-## Next recommended slices
+After the clean cutover, the next useful slices are:
 
 ```text
-1. working-memory orchestration + semantic facts/beliefs design
-2. deterministic duplicate handling and consolidation policy
-3. forgetting/decay
-4. migration from legacy memory.json
-5. causal relationship reasons only when a trustworthy provenance source exists
+controlled BELIEF producers
+→ trustworthy causal relationship reasons
+→ improved long-horizon episodic/semantic recall
+→ NPC-to-NPC knowledge transfer
+→ rumor propagation with provenance/uncertainty/distortion
 ```
 
-Embeddings, vector search, and LLM-driven consolidation remain later choices rather than prerequisites for correct deterministic memory behavior.
+Embeddings or vector search remain optional future implementation choices rather than prerequisites for the correctness of the deterministic memory model.
