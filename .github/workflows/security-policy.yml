@@ -38,7 +38,6 @@ jobs:
           livingworld-release-recovery.yml
           livingworld-release.yml
           livingworld-soak.yml
-          pr_gradle.yml
           security-policy.yml
           supply-chain-metadata.yml
           EOF
