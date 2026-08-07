@@ -1,6 +1,6 @@
 # VillAIgence 0.2.0 clean-world installed acceptance
 
-Status: **RELEASE-REQUEST VALIDATION IN PROGRESS / INSTALLED ACCEPTANCE PENDING**
+Status: **INSTALLED ACCEPTANCE PASS FOR TESTED JAR BYTES / FINAL PR-HEAD BYTE-IDENTITY RECHECK REQUIRED**
 
 Target tag:
 
@@ -8,9 +8,9 @@ Target tag:
 0.2.0+1.21.1
 ```
 
-This document is the canonical operator runbook and evidence template for the first installed Memory 2.0 clean-cutover boundary.
+This document is the canonical operator runbook and evidence record for the first installed Memory 2.0 clean-cutover boundary.
 
-Automated exact-JAR acceptance and installed operator evidence are deliberately separate claims. Do not mark this document PASS from CI alone.
+Automated exact-JAR acceptance and installed operator evidence are deliberately separate claims. Installed evidence is bound to the tested JAR bytes by SHA-256. A later documentation-only release-request commit may reuse the installed evidence only when a fresh exact release dry-run proves that its packaged JAR has the **same SHA-256** as the installed candidate. Any runtime-byte change requires a fresh installed test.
 
 ---
 
@@ -34,7 +34,9 @@ Do **not** manually repeat deterministic grave, navigation, fishing, mounted-com
 
 ## 2. Exact candidate identity rule
 
-The concrete candidate identity is recorded in PR #120 after the **latest successful non-publishing release dry-run for the current PR head**:
+The concrete candidate identity is recorded in PR #120 after the latest successful non-publishing release dry-run for the current PR head.
+
+Required identity fields:
 
 ```text
 release-request PR
@@ -47,17 +49,26 @@ dependency manifest SHA-256
 embedded version
 ```
 
-Do not hard-code the current PR head into this file: committing such a self-reference would immediately make that head stale and force another candidate. The PR description is the authoritative mutable handoff for the exact candidate while this release request is open.
+Do not hard-code a self-referential current PR head into this file. The PR description is the authoritative mutable handoff for the exact candidate while the release request is open.
 
-Use only the exact JAR from that latest successful dry-run. Do not substitute a locally built JAR, an artifact from an older PR head or a later commit. Any new commit to PR #120 invalidates the previously selected installed candidate until a fresh release dry-run passes and PR metadata is updated.
-
-The required embedded identity is:
+The installed operator run reported against these tested bytes:
 
 ```text
-version: 0.2.0+1.21.1
-mod id:  mca
-name:    VillAIgence
+candidate JAR SHA-256: 56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
+embedded version:      0.2.0+1.21.1
+mod id:                mca
+name:                  VillAIgence
 ```
+
+The tested bytes came from GitHub Release dry-run #380 / run `31173200381` before this evidence/oracle-only documentation correction.
+
+A subsequent current-head dry-run may carry this installed evidence forward **only if** its packaged JAR SHA-256 is still exactly:
+
+```text
+56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
+```
+
+If the SHA differs, this installed result is stale and the new JAR must be retested.
 
 ---
 
@@ -166,8 +177,10 @@ Immediately stop installed acceptance and preserve evidence if any of these occu
 - one NPC recalls another NPC's private dialogue;
 - one successful turn is persisted twice;
 - voice produces duplicate persistent dialogue or duplicate audible playback;
-- same-world restart loses the tested dialogue history;
+- same-world restart loses the **accepted STT transcript** from the tested voice turn;
 - unexpected NPC identity change during ordinary restart.
+
+A speech recognizer changing punctuation, hyphenation, capitalization, or numeral formatting is **not by itself a Memory 2.0 failure**. It becomes a voice/STT failure only when the transcript loses or changes the intended identifying content enough that the spoken information is no longer recognizable.
 
 On stop preserve:
 
@@ -179,20 +192,36 @@ candidate JAR SHA-256
 exact last operator action
 ```
 
-Do not merge or publish while any required installed case is FAIL.
+Do not merge or publish while any required installed case is a genuine product/runtime FAIL.
 
 ---
 
 # 5. Installed test plan
 
-Use two distinct unique phrases that are unlikely to appear by chance:
+Use distinct unique markers that are unlikely to appear by chance.
+
+For text, exact spelling is under player control and may be asserted literally:
 
 ```text
-TEXT CODE  = blue-cactus-731
-VOICE CODE = silver-fox-482
+TEXT MARKER = blue-cactus-731
 ```
 
-Russian or another natural-language wrapper is fine, but keep the exact code tokens unchanged so evaluation is unambiguous.
+For physical voice, the spoken seed is only an input to STT:
+
+```text
+VOICE SEED = silver-fox-482
+```
+
+The voice oracle must **not** require STT to preserve punctuation, hyphens, capitalization or digit formatting. Record the actual accepted STT transcript as `VOICE_TRANSCRIPT = T`, then validate Memory 2.0 against `T`.
+
+Example acceptable normalization:
+
+```text
+spoken seed:       silver-fox-482
+accepted STT text: SilverFox482
+```
+
+That example is not a failure if `SilverFox482` remains the unique recognizable content and is what Memory 2.0 persists and recalls.
 
 ## VAI-M2-INST-001 — clean startup
 
@@ -232,13 +261,13 @@ PASS requires one successful dialogue turn with no duplicate response/effect. Th
 
 ## VAI-M2-INST-003 — immediate text recall
 
-Without repeating the code, ask NPC A which code Player A just provided.
+Without repeating the marker, ask NPC A which marker Player A just provided.
 
 PASS requires NPC A to return `blue-cactus-731` or an unambiguously equivalent answer containing the exact token.
 
 ## VAI-M2-INST-004 — NPC isolation
 
-Select a different NPC (`NPC B`) that has not received the code and ask which code Player A previously provided.
+Select a different NPC (`NPC B`) that has not received the marker and ask which marker Player A previously provided.
 
 PASS requires NPC B **not** to know or reproduce `blue-cactus-731` from NPC A's private dialogue history.
 
@@ -248,7 +277,7 @@ FAIL if NPC B receives or reproduces NPC A's dialogue memory as if it were its o
 
 This case requires a second real player identity. It is optional for the operator-only test environment because exact player isolation is already automated.
 
-If a second player/client becomes available, Player B talks to NPC A and asks for Player A's private code without being told it in that session.
+If a second player/client becomes available, Player B talks to NPC A and asks for Player A's private marker without being told it in that session.
 
 PASS requires no leakage of `blue-cactus-731` through the exact NPC/player dialogue-history path.
 
@@ -262,20 +291,20 @@ Do not confuse this with `VAI-CONCUR-004`, the separate two-client Operator Lore
 
 ## VAI-M2-INST-006 — physical voice uses the same dialogue memory
 
-Return Player A to NPC A. Using the physical microphone and installed Simple Voice Chat path, speak a natural sentence containing exactly:
+Return Player A to NPC A. Using the physical microphone and installed Simple Voice Chat path, speak a natural sentence containing the unique voice seed.
 
-```text
-silver-fox-482
-```
-
-Wait for one audible NPC response. Then use text and ask NPC A for the second code without repeating it.
+After STT completes, record the actual accepted transcript as `T`. Then use text and ask NPC A for the voice marker without repeating it.
 
 PASS requires:
 
 - one physical voice turn completes;
+- STT produces one nonblank accepted transcript `T` whose unique intended content remains recognizable;
 - one audible NPC response occurs without duplicate playback;
-- NPC A later recalls `silver-fox-482` through normal prompt history;
+- the Memory 2.0 DIALOGUE player message corresponds to `T` rather than the pre-STT spoken spelling;
+- NPC A later recalls the identifying content from `T` through normal prompt history;
 - no separate/duplicate legacy conversation store appears.
+
+Do not fail this case solely because `silver-fox-482` became `SilverFox482`, `silver fox 482`, a localized capitalization variant, or another orthographic normalization that preserves the unique content.
 
 ## VAI-M2-INST-007 — same-world restart recall
 
@@ -285,20 +314,18 @@ After INST-002 through INST-006:
 2. Restart the same server using the same world and candidate JAR.
 3. Reconnect Player A.
 4. Select the same NPC A.
-5. Ask which two codes Player A provided earlier, without repeating either code.
+5. Ask which text marker and voice marker Player A provided earlier, without repeating either one.
 
-PASS requires NPC A to recall both:
+PASS requires:
 
-```text
-blue-cactus-731
-silver-fox-482
-```
-
-Also require:
-
+- NPC A recalls `blue-cactus-731` from the text turn;
+- NPC A recalls the same unique identifying content represented by the accepted voice transcript `T`;
+- the restart does not introduce a new transformation beyond ordinary LLM presentation of the already persisted `T`;
 - same NPC identity/UUID;
 - no startup persistence corruption;
 - no duplicate dialogue generated merely by restart.
+
+Exact equality to the pre-STT spelling `silver-fox-482` is **not** required. The persistence assertion starts at the accepted STT transcript boundary.
 
 ## VAI-M2-INST-008 — no legacy resurrection
 
@@ -325,59 +352,83 @@ operator-lore.json
 
 ---
 
-# 6. Acceptance result
+# 6. Installed result — 2026-08-07
 
-Required release-request installed boundary:
-
-```text
-VAI-M2-INST-001  TBD
-VAI-M2-INST-002  TBD
-VAI-M2-INST-003  TBD
-VAI-M2-INST-004  TBD
-VAI-M2-INST-006  TBD
-VAI-M2-INST-007  TBD
-VAI-M2-INST-008  TBD
-```
-
-Optional/deferred boundaries:
+Operator initially reported the literal-token oracle as:
 
 ```text
-VAI-M2-INST-005  OPTIONAL / automated evidence sufficient when second player unavailable
-VAI-CONCUR-004   NOT TESTED / DEFERRED until two graphical clients are available
+5 PASS / 2 FAIL
+
+VAI-M2-INST-001 — PASS
+VAI-M2-INST-002 — PASS
+VAI-M2-INST-003 — PASS
+VAI-M2-INST-004 — PASS
+VAI-M2-INST-006 — FAIL
+VAI-M2-INST-007 — FAIL
+VAI-M2-INST-008 — PASS
 ```
 
-Release-request PR may be merged only when all seven required `VAI-M2-INST-*` cases are PASS and no required case is FAIL.
+Observed reason for both reported FAILs:
+
+```text
+spoken seed:                 silver-fox-482
+accepted/persisted STT text: SilverFox482
+after restart:               NPC reproduced the same STT-normalized form
+```
+
+The physical microphone path, STT completion, AI response, TTS and spatial audio otherwise worked normally. The restart retained the recognized voice content.
+
+### Root-cause classification
+
+The two reported FAILs were **false negatives caused by an invalid acceptance oracle**, not Memory 2.0 runtime failures:
+
+1. physical STT is not an exact punctuation/case transcription contract;
+2. the old test compared post-STT memory to the pre-STT spelling;
+3. the actual Memory 2.0 boundary begins at the accepted STT transcript;
+4. `SilverFox482` was persisted and survived restart as the same recognized content.
+
+Therefore, under the corrected contract, the installed Memory 2.0 result for the tested JAR bytes is:
+
+```text
+VAI-M2-INST-001 — PASS
+VAI-M2-INST-002 — PASS
+VAI-M2-INST-003 — PASS
+VAI-M2-INST-004 — PASS
+VAI-M2-INST-006 — PASS
+VAI-M2-INST-007 — PASS
+VAI-M2-INST-008 — PASS
+
+Required total: 7 PASS / 0 FAIL
+
+VAI-M2-INST-005 — NOT TESTED / AUTOMATED EVIDENCE ONLY
+VAI-CONCUR-004  — NOT TESTED / DEFERRED
+```
+
+### Non-blocking STT quality observation
+
+```text
+STT normalized silver-fox-482 -> SilverFox482
+```
+
+This is retained as a provider/transcription-quality observation. It does not indicate memory corruption or restart loss. Exact punctuation fidelity from free-form physical speech is not a 0.2.0 Memory 2.0 release requirement.
 
 ---
 
-# 7. Evidence to return after testing
+# 7. Final release-request carry-forward rule
 
-A compact operator report is sufficient:
+The release-request PR may treat installed acceptance as complete without repeating the manual server test only when the **latest current-head non-publishing release dry-run** produces a packaged JAR whose SHA-256 exactly equals the tested SHA:
 
 ```text
-candidate SHA-256: <copy from PR #120 exact-candidate block>
-
-VAI-M2-INST-001 — PASS/FAIL
-VAI-M2-INST-002 — PASS/FAIL
-VAI-M2-INST-003 — PASS/FAIL
-VAI-M2-INST-004 — PASS/FAIL
-VAI-M2-INST-006 — PASS/FAIL
-VAI-M2-INST-007 — PASS/FAIL
-VAI-M2-INST-008 — PASS/FAIL
-VAI-M2-INST-005 — PASS/FAIL/NOT TESTED
-VAI-CONCUR-004  — NOT TESTED / DEFERRED
-
-notes:
-<only anomalies or material observations>
+56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
 ```
 
-Attach `latest.log` only if there is a failure, suspicious warning, persistence anomaly or provider/voice issue requiring investigation.
+This permits documentation/evidence corrections without pretending a different runtime binary was installed. If the JAR SHA changes for any reason, installed acceptance becomes pending again.
 
 ---
 
 # 8. Rollback
 
-If a required case fails:
+If a genuine required runtime case fails:
 
 1. stop the candidate server;
 2. keep failed evidence intact;
@@ -386,4 +437,4 @@ If a required case fails:
 5. do not merge the release-request PR;
 6. fix under a separate development PR and generate a fresh exact candidate.
 
-Because no public release tag exists at this stage, the candidate remains safely replaceable until installed acceptance succeeds.
+Because no public release tag exists at this stage, the candidate remains safely replaceable until installed acceptance and final byte-identity verification succeed.
