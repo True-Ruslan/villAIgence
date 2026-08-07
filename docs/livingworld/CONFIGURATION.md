@@ -81,11 +81,11 @@ Tuning guidance:
 
 Existing `version=2` config files do not require migration. Missing admission fields receive the defaults above.
 
-## Memory 2.0 authoritative ingestion
+## Memory 2.0
 
-Memory 2.0 uses a separate world-local store at `<world>/livingworld/memory2.json`.
+Memory 2.0 is the canonical persistent NPC-memory system. Persistent dialogue is stored and recalled from `<world>/livingworld/memory2.json`; the experimental pre-0.2 `memory.json` store is no longer read, written, recovered or migrated.
 
-Current ingestion controls:
+Current controls:
 
 ```json
 {
@@ -96,10 +96,25 @@ Current ingestion controls:
 
 | Setting | Default | Normalized range | Meaning |
 |---|---:|---:|---|
-| `memory2Enabled` | `true` | boolean | enables secondary Memory 2.0 ingestion of eligible authoritative server-observed events |
+| `memory2Enabled` | `true` | boolean | enables Memory 2.0 persistence and persistent dialogue recall |
 | `memory2MaxEventsPerNpc` | `256` | `1..512` | maximum persisted Memory 2.0 events retained for one NPC |
 
-The first automatic ingestion path is intentionally narrow:
+Successful text and voice dialogue use one post-success persistence boundary:
+
+```text
+usable AI result
+→ Memory2DialogueLifecycle
+→ structured DIALOGUE MemoryEvent
+→ memory2.json
+```
+
+The next prompt reconstructs recent dialogue from structured Memory 2.0 DIALOGUE events for the exact NPC/player pair. It never parses the human-readable event summary and never reads a second persistent conversation format.
+
+The historical serialized field `persistentMemoryEnabled` is retained for configuration compatibility and currently acts as the outer prompt-recall switch in the inherited chat path. When it is `false`, the inherited process-local transient dialogue fallback is used; no legacy persistent file is created. `memory2Enabled=false` also prevents persistent Memory 2.0 dialogue recall and writes.
+
+The historical `persistentMemoryMaxMessages` and `persistentMemoryMaxCharsPerMessage` fields remain deserializable for version-2 config compatibility but no longer size a separate persistent conversation store. Memory 2.0 uses its own event bound plus hard Working Memory prompt bounds.
+
+Authoritative action ingestion remains intentionally narrow:
 
 ```text
 successful whitelisted NPC action
@@ -107,19 +122,19 @@ successful whitelisted NPC action
 → actor-owned ACTION memory in memory2.json
 ```
 
-`eventMemoryEnabled` and `memory2Enabled` are separate controls:
+`eventMemoryEnabled` and `memory2Enabled` remain separate controls:
 
 - `eventMemoryEnabled=false` disables creation of the authoritative factual action event, so this ingestion path has no source event to copy;
-- `eventMemoryEnabled=true` + `memory2Enabled=false` keeps the existing `events.json` factual event behavior but skips the secondary `memory2.json` entry;
+- `eventMemoryEnabled=true` + `memory2Enabled=false` keeps the existing `events.json` factual event behavior but skips the secondary action-memory entry;
 - both enabled gives the normal authoritative event → actor-owned memory flow.
 
 Memory 2.0 failure is fail-soft after factual event persistence. It does not undo the successful NPC action or invalidate the existing `events.json` record.
 
-The source `WorldEvent` UUID is reused as the `MemoryEvent` UUID, so retries/redelivery of the same source event cannot create duplicate memory entries for the acting NPC.
+The source `WorldEvent` UUID is reused as the `MemoryEvent` UUID, so retries/redelivery of the same source event cannot create duplicate action-memory entries for the acting NPC. Dialogue has its own deterministic turn identity and is also idempotent.
 
-Current relationship numeric deltas are **not** automatically stored as relationship-reason memories because the existing relationship path has no separately server-validated reason. VillAIgence does not invent one or promote an LLM explanation to authoritative truth.
+Current relationship numeric deltas can be stored as `RELATIONSHIP_CHANGE` events after the server successfully applies the bounded transition. The system still does **not** invent an authoritative causal reason when one was not separately validated.
 
-Config version remains `2`; existing version-2 configs require no migration. Missing Memory 2.0 fields receive safe defaults.
+Config version remains `2`; existing version-2 configs require no schema migration. The Memory 2.0 clean cutover is a **world-data** compatibility decision: pre-0.2 experimental conversation history is intentionally not imported. Installed validation should use a clean LivingWorld test state.
 
 See [MEMORY_2.md](MEMORY_2.md) for the persistence, provenance, ranking and truth-boundary design.
 
@@ -369,7 +384,7 @@ See [DIAGNOSTICS.md](DIAGNOSTICS.md) for field meanings, privacy guarantees and 
 
 ## Existing config migration
 
-Config version remains `2`. Existing version-2 files do not require migration: missing newer fields receive safe defaults.
+Config version remains `2`. Existing version-2 files do not require config-schema migration: missing newer fields receive safe defaults.
 
 Legacy version-1 `voiceEnabled` migration remains unchanged.
 
@@ -379,14 +394,19 @@ The VillAIgence rebrand does **not** rename `config/livingworld.json` or seriali
 
 ```text
 <world>/livingworld/
-├── memory.json
 ├── memory2.json
+├── semantic-memory.json
 ├── events.json
 ├── relationships.json
-└── voices.json
+├── voices.json
+└── operator-lore.json
 ```
 
-Back these files up with the Minecraft world.
+`memory2.json`, `semantic-memory.json`, `relationships.json`, `voices.json`, and `operator-lore.json` form the current five-store production corruption/recovery matrix. `events.json` is authoritative factual event history and has its own validation path; it is not a replacement for Memory 2.0 dialogue.
+
+The removed pre-0.2 `memory.json` conversation file is not imported. For this clean-cutover development package, start installed acceptance from a clean LivingWorld test state rather than copying legacy conversation data forward.
+
+Back the active files up with the Minecraft world.
 
 Raw microphone and synthesized audio are processed in memory and are not intentionally persisted.
 
