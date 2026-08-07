@@ -13,7 +13,6 @@ VillAIgence is a Minecraft 1.21.1 MCA-derived mod evolving from AI-assisted vill
 ```text
 repository:                         True-Ruslan/villAIgence
 primary branch:                     1.21.1
-current primary head:               ae551b81d221ce88ceebfce96b1038afa718da50
 Phase E merge:                      PR #114 / c51201d7a37b9d09c9a8cb490d1c56f3f6921c1f
 0.1.26 release merge:               PR #115 / 40ce7cb77e9b9178fd96fd91025cee22ba686dc0
 release-recovery merge:             PR #116 / ae551b81d221ce88ceebfce96b1038afa718da50
