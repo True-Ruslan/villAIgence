@@ -27,6 +27,33 @@ jobs:
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
+      - name: Verify canonical workflow inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(cat <<'EOF'
+          build-commit-artifacts.yml
+          livingworld-ci.yml
+          livingworld-nightly.yml
+          livingworld-release-recovery.yml
+          livingworld-release.yml
+          livingworld-soak.yml
+          pr_gradle.yml
+          security-policy.yml
+          supply-chain-metadata.yml
+          EOF
+          )"
+          actual="$(find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -printf '%f\n' | sort)"
+          if [[ "${actual}" != "${expected}" ]]; then
+            echo '::error title=Unexpected GitHub Actions workflow inventory::Keep .github/workflows limited to the canonical permanent workflows.'
+            echo 'Expected:'
+            printf '%s\n' "${expected}"
+            echo 'Actual:'
+            printf '%s\n' "${actual}"
+            diff -u <(printf '%s\n' "${expected}") <(printf '%s\n' "${actual}") || true
+            exit 1
+          fi
+
       - name: Run policy detector self-tests
         shell: bash
         run: |

@@ -1,14 +1,16 @@
-# Builds every pushed commit and uploads the Fabric and NeoForge jars as artifacts.
-name: build-commit-artifacts
+# Manual ad-hoc build for testing a specific branch or commit.
+# Pull requests and releases are validated by the dedicated VillAIgence CI/release workflows.
+name: VillAIgence Manual Build Artifacts
 
 on:
-  push:
-    branches:
-      - '**'
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: villaigence-manual-build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -26,13 +28,13 @@ jobs:
         shell: bash
         run: echo "minecraft_version=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2)" >> "$GITHUB_OUTPUT"
 
-      - name: Setup Java 21
+      - name: Set up JDK 21
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
         with:
           distribution: temurin
           java-version: 21
 
-      - name: Setup Gradle
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
         with:
           cache-read-only: false
@@ -45,7 +47,7 @@ jobs:
       - name: Upload Fabric jars
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: mca-fabric-${{ steps.versions.outputs.minecraft_version }}
+          name: villaigence-fabric-${{ steps.versions.outputs.minecraft_version }}-${{ github.run_number }}
           path: |
             fabric/build/libs/*.jar
             !fabric/build/libs/*-sources.jar
@@ -55,7 +57,7 @@ jobs:
       - name: Upload NeoForge jars
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: mca-neoforge-${{ steps.versions.outputs.minecraft_version }}
+          name: villaigence-neoforge-${{ steps.versions.outputs.minecraft_version }}-${{ github.run_number }}
           path: |
             neoforge/build/libs/*.jar
             !neoforge/build/libs/*-sources.jar
