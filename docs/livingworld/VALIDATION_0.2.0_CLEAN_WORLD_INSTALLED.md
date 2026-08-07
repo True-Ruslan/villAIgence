@@ -1,6 +1,6 @@
 # VillAIgence 0.2.0 clean-world installed acceptance
 
-Status: **PLANNED / WAITING FOR EXACT RELEASE-REQUEST CANDIDATE**
+Status: **EXACT CANDIDATE READY / INSTALLED ACCEPTANCE PENDING**
 
 Target tag:
 
@@ -32,22 +32,30 @@ Do **not** manually repeat deterministic grave, navigation, fishing, mounted-com
 
 ---
 
-## 2. Candidate identity — fill from GitHub Actions
+## 2. Candidate identity
 
-Before installation record:
+Exact release-request evidence:
 
 ```text
-release-request PR:          TBD
-exact PR head:               TBD
-GitHub Release dry-run:      TBD
-candidate artifact id:       TBD
-candidate JAR:               TBD
-candidate JAR SHA-256:       TBD
+release-request PR:          #120
+exact PR head:               0cac5dd0dc80cb72fa1ed2014b9b49e2c848efce
+GitHub Release dry-run:      #378 / run 31172619861
+candidate artifact id:       8991703892
+artifact name:               villaigence-fabric-package
+candidate JAR:               villaigence-fabric-dry-run-378.jar
+candidate JAR SHA-256:       56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
+dependency manifest SHA-256: b16a7b842776d44ed21cad1b56cee63aadc782ada457c108c5107c483aab5816
+embedded version:            0.2.0+1.21.1
+embedded mod id:             mca
 Minecraft:                   1.21.1
 Java:                        21
 ```
 
-Use only the exact JAR produced by the successful release-request dry-run. Do not substitute a locally built JAR, another workflow artifact or a later commit.
+The release dry-run passed exact production startup/save/restart, current five-store destructive recovery, risk catalog and server GameTests, Fabric and NeoForge builds, package smoke and byte-for-byte equality between the production-accepted and packaged JAR. The publication job was correctly skipped on the pull request.
+
+Independent artifact inspection reproduced the checksum contained in the workflow package and confirmed `fabric.mod.json` embeds version `0.2.0+1.21.1` with mod id `mca` and public name `VillAIgence`.
+
+Use only this exact JAR for the installed test. Do not substitute a locally built JAR, another workflow artifact or a later commit. If PR #120 receives any further commit after this candidate identity was recorded, this exact installed candidate is stale and the release dry-run artifact/identity must be regenerated and re-recorded before testing.
 
 ---
 
@@ -404,7 +412,7 @@ Release-request PR may be merged only when all seven required `VAI-M2-INST-*` ca
 A compact operator report is sufficient:
 
 ```text
-candidate SHA-256: <hash>
+candidate SHA-256: 56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
 
 VAI-M2-INST-001 — PASS/FAIL
 VAI-M2-INST-002 — PASS/FAIL
