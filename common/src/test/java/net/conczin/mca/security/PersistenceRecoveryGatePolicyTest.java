@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PersistenceRecoveryGatePolicyTest {
@@ -16,7 +17,7 @@ class PersistenceRecoveryGatePolicyTest {
     private static final String REPORT = "persistence-recovery-report.json";
 
     @Test
-    void nightlyAndReleaseGatesExecuteTheSameRecoveryMatrix() throws IOException {
+    void nightlyAndReleaseGatesExecuteTheSameCurrentFiveStoreRecoveryMatrix() throws IOException {
         String nightly = workflow("livingworld-nightly.yml");
         String release = workflow("livingworld-release.yml");
 
@@ -25,7 +26,7 @@ class PersistenceRecoveryGatePolicyTest {
                 CONTRACT,
                 REPORT,
                 "report.get('status') != 'PASS'",
-                "len(cases) != 6"
+                "len(cases) != 5"
         }) {
             assertTrue(
                     nightly.contains(required),
@@ -36,6 +37,26 @@ class PersistenceRecoveryGatePolicyTest {
                     "Release recovery gate is missing: " + required
             );
         }
+    }
+
+    @Test
+    void immutableReleaseRecoveryUsesTheTargetReleaseOwnMatrixContract() throws IOException {
+        String recovery = workflow("livingworld-release-recovery.yml");
+
+        assertTrue(recovery.contains(MATRIX));
+        assertTrue(recovery.contains(CONTRACT));
+        assertTrue(recovery.contains(REPORT));
+        assertTrue(recovery.contains("report.get('status') != 'PASS'"));
+        assertTrue(recovery.contains("not isinstance(cases, list) or not cases"));
+        assertTrue(recovery.contains("any(case.get('status') != 'PASS' for case in cases)"));
+        assertFalse(
+                recovery.contains("len(cases) != 5"),
+                "Immutable recovery must not impose the current five-store matrix on historical tags"
+        );
+        assertFalse(
+                recovery.contains("len(cases) != 6"),
+                "Immutable recovery must not hardcode the historical six-store matrix either"
+        );
     }
 
     @Test
