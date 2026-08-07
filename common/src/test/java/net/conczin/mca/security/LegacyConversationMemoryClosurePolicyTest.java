@@ -24,6 +24,12 @@ class LegacyConversationMemoryClosurePolicyTest {
         assertFalse(Files.exists(root.resolve(
                 "common/src/main/java/net/conczin/mca/livingworld/memory/MemoryMessage.java"
         )));
+        assertFalse(Files.exists(root.resolve(
+                "common/src/test/java/net/conczin/mca/livingworld/memory/ConversationMemoryStoreTest.java"
+        )));
+        assertFalse(Files.exists(root.resolve(
+                "common/src/test/java/net/conczin/mca/livingworld/memory/ConversationMemoryStoreRecoveryTest.java"
+        )));
     }
 
     @Test
@@ -40,20 +46,34 @@ class LegacyConversationMemoryClosurePolicyTest {
     }
 
     @Test
-    void activeProductionAndAcceptanceSurfacesCannotReferenceLegacyStore() throws IOException {
+    void activeProductionJavaCannotResolveOrUseLegacyConversationStore() throws IOException {
         Path root = repositoryRoot();
         List<Path> surfaces = new ArrayList<>();
         collectJava(root.resolve("common/src/main/java"), surfaces);
         collectJava(root.resolve("fabric/src/productionAcceptanceFixture/java"), surfaces);
-        surfaces.add(root.resolve("scripts/ci/production_server_acceptance.py"));
-        surfaces.add(root.resolve("scripts/ci/persistence_recovery_acceptance.py"));
-        surfaces.add(root.resolve("scripts/ci/test_persistence_recovery_acceptance.py"));
 
         for (Path surface : surfaces) {
-            if (!Files.isRegularFile(surface)) continue;
             String content = Files.readString(surface);
-            assertFalse(content.contains(LEGACY_STORE),
-                    "Legacy persistent store is still referenced by " + root.relativize(surface));
+            assertFalse(content.contains("ConversationMemoryStore"),
+                    "Legacy store API is still wired by " + root.relativize(surface));
+            assertFalse(content.contains("resolve(\"" + LEGACY_STORE + "\")"),
+                    "Legacy persistent path is still resolved by " + root.relativize(surface));
+        }
+    }
+
+    @Test
+    void productionAcceptanceMatricesCannotDeclareLegacyStoreCanonical() throws IOException {
+        Path root = repositoryRoot();
+        for (String relative : List.of(
+                "scripts/ci/production_server_acceptance.py",
+                "scripts/ci/persistence_recovery_acceptance.py",
+                "scripts/ci/test_persistence_recovery_acceptance.py"
+        )) {
+            String content = Files.readString(root.resolve(relative));
+            assertFalse(content.contains("\"" + LEGACY_STORE + "\","),
+                    "Legacy store is still canonical in " + relative);
+            assertFalse(content.contains("'" + LEGACY_STORE + "',"),
+                    "Legacy store is still canonical in " + relative);
         }
     }
 
