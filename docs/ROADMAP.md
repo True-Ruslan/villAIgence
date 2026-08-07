@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation and validation state.
 >
-> Last reconciled: **2026-08-06**. M11 Phases A–E are merged and complete at the automation layer. The immediate delivery boundary is the exact `0.1.26+1.21.1` candidate plus six installed canaries. Additive legacy-memory migration follows release verification.
+> Last reconciled: **2026-08-07**. M11 Phases A–E are merged and complete at the automation layer. `0.1.26+1.21.1` is published with verified immutable assets and installed acceptance of `5 PASS / 0 FAIL / 1 NOT TESTED`; `VAI-CONCUR-004` remains explicitly deferred. The immediate development package is additive legacy `memory.json` migration.
 
 ## Product vision
 
@@ -35,6 +35,7 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 7. **Simulation before spectacle.** Prefer durable causal systems over one-off generated text.
 8. **Evidence layers remain explicit.** Unit, integration, GameTest, production candidate, exact release and installed evidence are separate claims.
 9. **Unknown CI changes fail closed.** Protected, unsafe, unclassified and persistence-store changes select the complete required matrix.
+10. **Release recovery preserves immutable identity.** Recovery may restore metadata/assets only from an existing verified release tag commit and may never create, delete or move that tag.
 
 ---
 
@@ -46,23 +47,25 @@ Memory 2.0 foundation                                  SUBSTANTIALLY IMPLEMENTED
 MCA selective synchronization S1-S8                    COMPLETE
 Operator Lore S9-S10c                                  COMPLETE
 M11 Phases A-E                                          MERGED / AUTOMATION COMPLETE
-0.1.26 exact release-request dry run                    NEXT
-six installed graphical/physical canaries              AFTER DRY RUN
-0.1.26 publication                                      ONLY AFTER INSTALLED PASS
-legacy memory.json migration                            AFTER RELEASE VERIFICATION
+0.1.26 exact release gates                              COMPLETE
+0.1.26 installed canaries                              5 PASS / 0 FAIL / 1 NOT TESTED
+0.1.26 publication                                      COMPLETE
+release-recovery automation                             COMPLETE
+legacy memory.json migration                            NEXT
 ```
 
 Immediate sequence:
 
 ```text
-open release/0.1.26+1.21.1 PR
-→ exact non-publishing release dry run
-→ preserve candidate JAR + checksum + dependency manifest
-→ install the exact candidate
-→ execute six minimal installed canaries
-→ merge release PR only on PASS
-→ verify official assets and one restart
-→ additive memory.json migration
+inventory existing legacy memory.json data
+→ define migration schema/checkpoint/version contract
+→ deterministic dry-run parser/report
+→ RED migration safety/idempotency tests
+→ bounded additive import
+→ backup + rollback verification
+→ same-world restart acceptance
+→ retain legacy reads
+→ cut over only after explicit acceptance evidence
 ```
 
 ---
@@ -75,7 +78,7 @@ Merged through PR #114 at:
 c51201d7a37b9d09c9a8cb490d1c56f3f6921c1f
 ```
 
-Phase E moved all deterministic release risks into repeatable CI:
+Phase E moved deterministic release risks into repeatable CI:
 
 - configuration-cache-safe production staging;
 - duplicate UUID resurrection/replay rejection;
@@ -97,78 +100,85 @@ Acceptance catalog:
 0 PLANNED
 ```
 
-The remaining six scenarios are not missing deterministic tests; they specifically require an installed environment, graphical rendering, physical microphone/UDP or subjective audible/spatial judgment.
+The six manual scenarios are not missing deterministic tests; they require an installed environment, graphical rendering, physical microphone/UDP or subjective audible/spatial judgment.
 
 ---
 
-# Immediate release milestone — 0.1.26+1.21.1
+# Completed release milestone — 0.1.26+1.21.1
 
-## Goal
-
-Promote all post-`0.1.25` work through the exact-production release gate without treating CI as installed-client evidence.
-
-Candidate branch:
+## Immutable identity
 
 ```text
-release/0.1.26+1.21.1
+tag:                         0.1.26+1.21.1
+release commit:              40ce7cb77e9b9178fd96fd91025cee22ba686dc0
+release PR:                  #115
+JAR SHA-256:                 5728f0f1a57b4c268df9b73603539f09ca30945a2ba251e72a5169ab45ae0a53
+dependency manifest SHA-256: b16a7b842776d44ed21cad1b56cee63aadc782ada457c108c5107c483aab5816
 ```
 
-Release-request files:
+The final GitHub Release contains:
 
 ```text
-docs/releases/NEXT_RELEASE.txt
-docs/releases/0.1.26+1.21.1.md
+villaigence-fabric-0.1.26+1.21.1.jar
+villaigence-fabric-0.1.26+1.21.1.jar.sha256
+villaigence-dependencies-0.1.26+1.21.1.txt
 ```
 
-## Automated candidate requirements
+## Automated release evidence
 
-The release-request PR must pass:
+The release boundary passed:
 
-- version/tag availability and Minecraft-version contract;
-- repository security and supply-chain policy;
+- version/tag and Minecraft-version contract;
+- repository security policy;
 - common and deterministic provider tests;
-- sixteen required Fabric GameTests;
+- required Fabric GameTests;
 - Fabric and NeoForge builds;
-- exact production candidate startup, stop/save and restart;
+- exact production startup, stop/save and restart;
 - identity/inventory lifecycle evidence;
 - six-case destructive persistence recovery;
 - production Simple Voice Chat transport evidence;
 - distributable package smoke;
 - byte identity between production-accepted and packaged JAR.
 
-The PR workflow is non-publishing.
+## Installed canary result
 
-## Installed canaries
+The exact candidate bytes installed on the operator server/client produced:
 
-Use the exact dry-run JAR, not a local or snapshot build.
+```text
+VAI-BOOT-002    PASS
+VAI-NAV-001     PASS
+VAI-GAME-001    PASS
+VAI-GAME-003    PASS
+VAI-AI-006      PASS after Chat model switched to google/gemini-2.5-flash-lite
+VAI-CONCUR-004  NOT TESTED — no second graphical client available
 
-1. exact candidate starts on the operator server and a client connects;
-2. two ordinary MCA NPC brains escape reachable water and retain land movement;
-3. an installed client addresses the selected NPC and renders exactly one text response;
-4. real Silk Touch grave pickup, placement, restart and resurrection preserve UUID, name and exact inventory once;
-5. one physical microphone turn reaches the NPC and one spatial reply is audible without duplicate playback;
-6. two graphical clients visibly expose and resolve an Operator Lore stale-revision conflict while preserving both drafts.
+Total: 5 PASS / 0 FAIL / 1 NOT TESTED
+```
 
-## Exit criteria
+`VAI-CONCUR-004` is a recorded release limitation, not a hidden PASS. Automated authenticated two-session acceptance covers server authority, revision, response ownership, retained draft and reviewed retry, but not graphical two-client presentation.
 
-`0.1.26` is complete only when:
+Canonical evidence:
 
-- exact PR dry-run passes;
-- all six installed canaries pass on the same candidate JAR;
-- the release PR is merged only after that installed PASS;
-- the merge-commit release workflow passes and publishes immutable assets;
-- the official JAR hash and asset identity are recorded;
-- one post-release restart passes;
-- `PROJECT_STATE.md`, this roadmap and release validation evidence are synchronized.
+```text
+docs/livingworld/VALIDATION_0.1.26_INSTALLED_CANARIES.md
+docs/livingworld/VALIDATION_0.1.26_RELEASE_COMPLETE.md
+```
 
-## Out of scope
+## Publication outage and recovery
 
-- legacy-memory migration;
-- BELIEF producers;
-- personality/social graph;
-- rumor propagation;
-- unrelated provider redesign;
-- unrelated MCA synchronization.
+A GitHub Actions service outage interrupted the original post-merge publication after the tag/Release record existed but before assets were complete. PR #116 introduced fail-closed recovery without moving the tag.
+
+```text
+recovery PR:             #116
+recovery control commit: ae551b81d221ce88ceebfce96b1038afa718da50
+recovery workflow:       VillAIgence Release Recovery #4
+recovery run id:         31154864224
+result:                  PASS
+```
+
+Recovery #4 rebuilt and tested the immutable release commit, restored the existing Release, downloaded the published assets again and compared them byte-for-byte. The recovered JAR reproduced the installed candidate SHA exactly.
+
+The published JAR is byte-identical to the exact installed candidate that already passed startup/restart and grave/restart/resurrection acceptance. No separate temporal claim is made that another operator restart occurred only after assets appeared on GitHub.
 
 ---
 
@@ -176,9 +186,9 @@ Use the exact dry-run JAR, not a local or snapshot build.
 
 ## 0.1.x — Reliability, security and compatibility
 
-Status: **release boundary in progress**.
+Status: **0.1.26 release boundary complete**.
 
-Implemented:
+Implemented and release-verified:
 
 - provider parsing and transport hardening;
 - bounded retries/deadlines and exactly-once effects;
@@ -187,13 +197,15 @@ Implemented:
 - world-local persistence recovery;
 - selective MCA gameplay corrections;
 - exact production startup/restart and package identity;
-- risk-based GameTests and bounded soak.
+- risk-based GameTests and bounded soak;
+- immutable release artifact verification;
+- fail-closed recovery of incomplete Release assets.
 
-Remaining exit gate:
+Deferred installed boundary:
 
-- exact `0.1.26` candidate;
-- six installed canaries;
-- immutable release and post-release restart.
+- `VAI-CONCUR-004` real two-graphical-client Operator Lore conflict presentation.
+
+This deferred canary should be executed when two graphical clients are available, but it does not block beginning the next additive development package because the limitation is explicit and server-side concurrency semantics are already automated.
 
 ## 0.2 — Memory 2.0
 
@@ -218,7 +230,9 @@ Already implemented:
 - deterministic forgetting;
 - restart-safe world-local stores.
 
-### Next package — additive legacy `memory.json` migration
+### NEXT — additive legacy `memory.json` migration
+
+The first 0.2 package is a migration foundation, not a destructive cutover.
 
 Required properties:
 
@@ -236,17 +250,48 @@ dry-run and rollback evidence
 legacy reads retained until cutover acceptance
 ```
 
-Recommended slices:
+Recommended implementation slices:
 
-1. migration inventory and schema/checkpoint design;
-2. deterministic dry-run parser/report;
-3. RED duplicate/rerun/partial-failure tests;
-4. bounded additive import;
-5. backup and rollback verification;
-6. same-world restart acceptance;
-7. optional cutover only after installed evidence.
+1. **Inventory and contract**
+   - enumerate real legacy `memory.json` shapes and ownership semantics;
+   - define supported/unsupported records;
+   - define schema/checkpoint/version and report format;
+   - define deterministic event-ID derivation.
 
-Remaining Memory 2.0 capabilities:
+2. **Dry-run parser/report**
+   - no canonical mutation;
+   - bounded record count/bytes;
+   - deterministic classification and stable report ordering;
+   - explicit skipped/rejected reasons.
+
+3. **RED safety matrix**
+   - duplicate source rows;
+   - rerun after successful import;
+   - partial destination state;
+   - malformed/oversized legacy data;
+   - wrong/unknown NPC ownership;
+   - interrupted write/backup failure;
+   - dialogue cannot become FACT.
+
+4. **Bounded additive import**
+   - backup before mutation;
+   - atomic destination writes;
+   - deterministic IDs and idempotency;
+   - preserve existing Memory 2.0 records;
+   - preserve NPC isolation.
+
+5. **Rollback and restart acceptance**
+   - byte-preserving backup evidence;
+   - rollback verification;
+   - same-world restart;
+   - second run produces no duplicate semantic/episodic effects.
+
+6. **Cutover decision later**
+   - keep legacy reads during migration rollout;
+   - do not delete or reinterpret legacy source data;
+   - remove legacy dependency only after explicit installed evidence and rollback plan.
+
+Remaining Memory 2.0 capabilities after migration foundation:
 
 - controlled BELIEF producers;
 - explicit relationship-change reasons;
@@ -367,3 +412,5 @@ specification
 ```
 
 Automated validation, exact-production candidate validation, exact-release validation and installed-server/client validation must always be reported separately.
+
+Release limitations must remain explicit. Deferred manual evidence must never be silently promoted to PASS by automated logical substitutes.
