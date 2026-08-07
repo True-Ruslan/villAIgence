@@ -28,6 +28,7 @@ public final class PersistentChatMemory {
     }
 
     public static List<Tuple<String, String>> load(Path worldRoot, UUID villagerId, UUID playerId) {
+        if (!LivingWorldConfig.getInstance().memory2Enabled) return List.of();
         return Memory2DialogueHistory.load(worldRoot, villagerId, playerId).stream()
                 .map(PersistentChatMemory::toTuple)
                 .toList();
