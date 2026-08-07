@@ -11,7 +11,7 @@
       "path": "gradlew.bat",
       "purpose": "Pinned Windows Gradle wrapper launcher; may download the checksum-pinned Gradle distribution.",
       "network": true,
-      "ci": false
+      "ci": true
     },
     {
       "path": "scripts/ci/package-livingworld-release.sh",
