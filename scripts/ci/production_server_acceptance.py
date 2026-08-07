@@ -21,7 +21,6 @@ import time
 from typing import Any, Mapping, Sequence
 
 CANONICAL_PERSISTENT_STORES: tuple[str, ...] = (
-    "memory.json",
     "memory2.json",
     "semantic-memory.json",
     "relationships.json",
