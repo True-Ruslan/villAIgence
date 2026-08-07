@@ -8,7 +8,8 @@ import net.conczin.mca.block.TombstoneBlock;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.livingworld.lore.OperatorLoreKey;
 import net.conczin.mca.livingworld.lore.WorldOperatorLoreStore;
-import net.conczin.mca.livingworld.memory.ConversationMemoryStore;
+import net.conczin.mca.livingworld.memory2.Memory2DialogueHistory;
+import net.conczin.mca.livingworld.memory2.Memory2DialogueIngestor;
 import net.conczin.mca.livingworld.memory2.MemoryEvent;
 import net.conczin.mca.livingworld.memory2.MemoryEventStore;
 import net.conczin.mca.livingworld.memory2.SemanticMemoryEntry;
@@ -107,19 +108,20 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
     }
 
     private static void initializeConversation(Path worldRoot) {
-        ConversationMemoryStore store = ConversationMemoryStore.forWorld(worldRoot);
-        if (store.getMessages(NPC_ID, PLAYER_ID).isEmpty()) {
-            store.appendExchange(
+        if (Memory2DialogueHistory.load(worldRoot, NPC_ID, PLAYER_ID).isEmpty()) {
+            Memory2DialogueIngestor.record(
+                    worldRoot,
                     NPC_ID,
                     PLAYER_ID,
+                    1L,
                     "fixture-user",
                     "fixture-assistant",
-                    4,
-                    64
+                    8,
+                    1L
             );
         }
-        if (store.getMessages(NPC_ID, PLAYER_ID).size() != 2) {
-            throw new IllegalStateException("conversation fixture is not stable");
+        if (Memory2DialogueHistory.load(worldRoot, NPC_ID, PLAYER_ID).size() != 2) {
+            throw new IllegalStateException("Memory 2.0 conversation fixture is not stable");
         }
     }
 
@@ -133,8 +135,8 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
                     FIXTURE_TEXT,
                     List.of(PLAYER_ID),
                     MemoryEvent.Provenance.SYSTEM_OBSERVED,
-                    1L,
-                    1L,
+                    2L,
+                    2L,
                     50,
                     0,
                     100,
@@ -368,7 +370,7 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
         if (!LIFECYCLE_NPC_ID.toString().equals(snapshot.get("npcUuid").getAsString())) {
             throw new IllegalStateException("lifecycle evidence UUID changed");
         }
-        if (!LIFECYCLE_NPC_NAME.equals(snapshot.get("npcName").getAsString())) {
+        if (!LIFECYCLE_NPC_NAME.equals(snapshot.get("npcName").getString())) {
             throw new IllegalStateException("lifecycle evidence name changed");
         }
         JsonObject inventory = snapshot.getAsJsonObject("inventory");
@@ -432,7 +434,6 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
     private static void verifyPersistentStores(Path worldRoot) {
         Path livingWorld = worldRoot.resolve("livingworld");
         for (String basename : List.of(
-                "memory.json",
                 "memory2.json",
                 "semantic-memory.json",
                 "relationships.json",
