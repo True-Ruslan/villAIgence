@@ -19,7 +19,8 @@ public record MemoryEvent(
         int importance,
         int emotionalWeight,
         int confidence,
-        List<String> relationshipReasons
+        List<String> relationshipReasons,
+        DialogueExchange dialogue
 ) {
     public MemoryEvent {
         if (id == null) throw new IllegalArgumentException("id is required");
@@ -36,6 +37,41 @@ public record MemoryEvent(
         emotionalWeight = clamp(emotionalWeight, -100, 100);
         confidence = clamp(confidence, 0, 100);
         relationshipReasons = normalizeReasons(relationshipReasons);
+    }
+
+    /**
+     * Source-compatible constructor for non-dialogue producers and historical tests.
+     * Structured dialogue is opt-in and absent for all other event types.
+     */
+    public MemoryEvent(
+            UUID id,
+            UUID ownerNpcId,
+            Type type,
+            String summary,
+            List<UUID> participants,
+            Provenance provenance,
+            long gameTime,
+            long createdAtEpochMillis,
+            int importance,
+            int emotionalWeight,
+            int confidence,
+            List<String> relationshipReasons
+    ) {
+        this(
+                id,
+                ownerNpcId,
+                type,
+                summary,
+                participants,
+                provenance,
+                gameTime,
+                createdAtEpochMillis,
+                importance,
+                emotionalWeight,
+                confidence,
+                relationshipReasons,
+                null
+        );
     }
 
     private static List<UUID> normalizeParticipants(List<UUID> participants) {
@@ -60,6 +96,20 @@ public record MemoryEvent(
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    /** Structured dialogue payload used to reconstruct prompt history without parsing summaries. */
+    public record DialogueExchange(String playerMessage, String npcReply) {
+        public DialogueExchange {
+            if (playerMessage == null || playerMessage.isBlank()) {
+                throw new IllegalArgumentException("playerMessage is required");
+            }
+            if (npcReply == null || npcReply.isBlank()) {
+                throw new IllegalArgumentException("npcReply is required");
+            }
+            playerMessage = playerMessage.strip();
+            npcReply = npcReply.strip();
+        }
     }
 
     public enum Type {
