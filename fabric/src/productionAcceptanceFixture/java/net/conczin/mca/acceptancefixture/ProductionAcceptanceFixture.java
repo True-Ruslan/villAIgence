@@ -370,7 +370,7 @@ public final class ProductionAcceptanceFixture implements ModInitializer {
         if (!LIFECYCLE_NPC_ID.toString().equals(snapshot.get("npcUuid").getAsString())) {
             throw new IllegalStateException("lifecycle evidence UUID changed");
         }
-        if (!LIFECYCLE_NPC_NAME.equals(snapshot.get("npcName").getString())) {
+        if (!LIFECYCLE_NPC_NAME.equals(snapshot.get("npcName").getAsString())) {
             throw new IllegalStateException("lifecycle evidence name changed");
         }
         JsonObject inventory = snapshot.getAsJsonObject("inventory");
