@@ -1,0 +1,447 @@
+name: VillAIgence Release Recovery
+
+on:
+  pull_request:
+    branches:
+      - '1.21.1'
+    paths:
+      - '.github/workflows/livingworld-release-recovery.yml'
+      - 'docs/releases/RECOVER_RELEASE.txt'
+  push:
+    branches:
+      - '1.21.1'
+    paths:
+      - '.github/workflows/livingworld-release-recovery.yml'
+      - 'docs/releases/RECOVER_RELEASE.txt'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: villaigence-release-recovery-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    outputs:
+      release_tag: ${{ steps.recovery-meta.outputs.release_tag }}
+      release_sha: ${{ steps.recovery-meta.outputs.release_sha }}
+    env:
+      GRADLE_OPTS: --enable-native-access=ALL-UNNAMED
+      NO_COLOR: "1"
+    steps:
+      - name: Checkout recovery control commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Resolve immutable release recovery target
+        id: recovery-meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          request_file='docs/releases/RECOVER_RELEASE.txt'
+          test -s "${request_file}"
+          release_tag="$(sed -e 's/\r$//' -e '/^[[:space:]]*$/d' "${request_file}")"
+
+          if [[ -z "${release_tag}" || "${release_tag}" == *$'\n'* || "${release_tag}" =~ [[:space:]] ]]; then
+            echo "::error title=Invalid recovery request::RECOVER_RELEASE.txt must contain exactly one tag and no whitespace."
+            exit 1
+          fi
+
+          tag_pattern='^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?[+][0-9]+([.][0-9]+){1,2}$'
+          if [[ ! "${release_tag}" =~ ${tag_pattern} ]]; then
+            echo "::error title=Invalid recovery tag::Expected '<mod_version>+<minecraft_version>'."
+            exit 1
+          fi
+
+          git fetch origin refs/heads/1.21.1:refs/remotes/origin/1.21.1
+          git fetch --tags origin
+
+          if ! git rev-parse -q --verify "refs/tags/${release_tag}" >/dev/null; then
+            echo "::error title=Missing immutable release tag::${release_tag} does not exist. Recovery never creates or moves tags."
+            exit 1
+          fi
+
+          release_sha="$(git rev-list -n 1 "refs/tags/${release_tag}")"
+          branch_sha="$(git rev-parse refs/remotes/origin/1.21.1)"
+
+          if ! git merge-base --is-ancestor "${release_sha}" "${branch_sha}"; then
+            echo "::error title=Recovery tag is outside 1.21.1 history::${release_tag} (${release_sha}) is not an ancestor of 1.21.1 (${branch_sha})."
+            exit 1
+          fi
+
+          echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+          echo "release_sha=${release_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout exact immutable release commit
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.recovery-meta.outputs.release_tag }}
+          RELEASE_SHA: ${{ steps.recovery-meta.outputs.release_sha }}
+        run: |
+          set -euo pipefail
+          git checkout --detach "${RELEASE_SHA}"
+          test "$(git rev-parse HEAD)" = "${RELEASE_SHA}"
+          test "$(git rev-list -n 1 "refs/tags/${RELEASE_TAG}")" = "${RELEASE_SHA}"
+
+          mapfile -t head_tags < <(git tag --points-at HEAD | sort)
+          if [[ "${#head_tags[@]}" -ne 1 || "${head_tags[0]}" != "${RELEASE_TAG}" ]]; then
+            echo "::error title=Ambiguous recovery identity::Exactly one tag must point at the recovered release commit and it must be ${RELEASE_TAG}."
+            printf 'Tags at release commit:\n%s\n' "${head_tags[*]:-<none>}"
+            exit 1
+          fi
+
+          minecraft_version="${RELEASE_TAG#*+}"
+          configured_minecraft_version="$(grep '^minecraft_version=' gradle.properties | head -n 1 | cut -d= -f2-)"
+          if [[ "${minecraft_version}" != "${configured_minecraft_version}" ]]; then
+            echo "::error title=Minecraft version mismatch::Tag declares ${minecraft_version}, but gradle.properties declares ${configured_minecraft_version}."
+            exit 1
+          fi
+
+          test -s "docs/releases/${RELEASE_TAG}.md"
+          echo "RELEASE_VERSION=${RELEASE_TAG}" >> "${GITHUB_ENV}"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+        with:
+          validate-wrappers: true
+
+      - name: Select complete release acceptance suite
+        id: acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/acceptance-selection
+          : > build/acceptance-selection/changed-paths.txt
+          python3 scripts/ci/select_acceptance_suites.py \
+            --mode release \
+            --changed-paths-file build/acceptance-selection/changed-paths.txt \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Require complete release acceptance suite
+        shell: bash
+        run: test "${{ steps.acceptance.outputs.all }}" = 'true'
+
+      - name: Verify exact release identity contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew scripts/ci/test-release-version-contract.sh
+          scripts/ci/test-release-version-contract.sh
+
+      - name: Run repository security policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/repository_security_policy.py --check
+          test -s build/security/script-inventory.json
+
+      - name: Run production acceptance contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/test_select_acceptance_suites.py
+          python3 scripts/ci/test_production_server_acceptance.py
+          python3 scripts/ci/test_production_server_process.py
+          python3 scripts/ci/test_production_lifecycle_acceptance.py
+          python3 scripts/ci/test_persistence_recovery_acceptance.py
+          python3 scripts/ci/test_production_soak_acceptance.py
+
+      - name: Stage and execute exact production server acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew \
+            :fabric:stageProductionAcceptanceRuntime \
+            --stacktrace \
+            --no-daemon \
+            --console=plain \
+            "-Prelease_version=${RELEASE_VERSION}"
+
+          rm -rf build/production-server-acceptance
+          mkdir -p build/production-server-acceptance/evidence
+          python3 scripts/ci/production_server_acceptance_strict.py \
+            --stage-dir fabric/build/production-acceptance/stage \
+            --execute \
+            --work-dir build/production-server-acceptance/work \
+            --report-dir build/production-server-acceptance/evidence \
+            --java "${JAVA_HOME}/bin/java" \
+            --installer-timeout-seconds 300 \
+            --startup-timeout-seconds 240 \
+            --shutdown-timeout-seconds 60 \
+            --max-heap-mib 768
+
+          grep -Fq 'VILLAIGENCE_PRODUCTION_FIXTURE_READY' \
+            build/production-server-acceptance/evidence/server-run-1.log
+          grep -Fq 'VILLAIGENCE_PRODUCTION_FIXTURE_READY' \
+            build/production-server-acceptance/evidence/server-run-2.log
+
+          python3 scripts/ci/production_lifecycle_acceptance.py \
+            --server-root build/production-server-acceptance/work/server \
+            --report build/production-server-acceptance/evidence/lifecycle-report.json
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          acceptance = json.loads(
+              Path('build/production-server-acceptance/evidence/acceptance-report.json')
+              .read_text(encoding='utf-8')
+          )
+          lifecycle = json.loads(
+              Path('build/production-server-acceptance/evidence/lifecycle-report.json')
+              .read_text(encoding='utf-8')
+          )
+          if acceptance.get('status') != 'PASS':
+              raise SystemExit('production acceptance report is not PASS')
+          if lifecycle.get('status') != 'PASS':
+              raise SystemExit('production lifecycle report is not PASS')
+          PY
+
+      - name: Upload production acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: recovery-production-server-acceptance-${{ github.run_number }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: build/production-server-acceptance/evidence
+
+      - name: Execute exact persistence recovery matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build/persistence-recovery-acceptance
+          mkdir -p build/persistence-recovery-acceptance/evidence
+          python3 scripts/ci/persistence_recovery_acceptance.py \
+            --stage-dir fabric/build/production-acceptance/stage \
+            --execute \
+            --work-dir build/persistence-recovery-acceptance/work \
+            --report-dir build/persistence-recovery-acceptance/evidence \
+            --java "${JAVA_HOME}/bin/java" \
+            --installer-timeout-seconds 300 \
+            --startup-timeout-seconds 180 \
+            --shutdown-timeout-seconds 60 \
+            --max-heap-mib 768
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path('build/persistence-recovery-acceptance/evidence/persistence-recovery-report.json')
+              .read_text(encoding='utf-8')
+          )
+          if report.get('status') != 'PASS':
+              raise SystemExit('persistence recovery report is not PASS')
+          cases = report.get('cases')
+          if not isinstance(cases, list) or len(cases) != 6:
+              raise SystemExit('persistence recovery report must contain six cases')
+          if any(case.get('status') != 'PASS' for case in cases):
+              raise SystemExit('at least one persistence recovery case is not PASS')
+          PY
+
+      - name: Upload persistence recovery evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: recovery-persistence-recovery-${{ github.run_number }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: build/persistence-recovery-acceptance/evidence
+
+      - name: Run risk catalog, server GameTests and supported loader builds
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew \
+            :common:test \
+            :fabric:runGameTest \
+            :fabric:build \
+            :neoforge:build \
+            dependencyManifest \
+            --stacktrace \
+            --no-daemon \
+            --console=plain \
+            "-Prelease_version=${RELEASE_VERSION}"
+          test -s build/reports/dependencies/villaigence-dependencies.txt
+
+      - name: Package and smoke-check exact release artifact
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/package-livingworld-release.sh
+          scripts/ci/package-livingworld-release.sh "${RELEASE_VERSION}" true dist
+          manifest_file="dist/villaigence-dependencies-${RELEASE_VERSION}.txt"
+          cp build/reports/dependencies/villaigence-dependencies.txt "${manifest_file}"
+          echo "manifest=${manifest_file}" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify production-accepted and packaged JAR identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          accepted_jar="fabric/build/production-acceptance/stage/mods/villaigence-under-test.jar"
+          packaged_jar="${{ steps.package.outputs.jar }}"
+          test -s "${accepted_jar}"
+          test -s "${packaged_jar}"
+          cmp -s "${accepted_jar}" "${packaged_jar}"
+          sha256sum "${accepted_jar}" "${packaged_jar}"
+
+      - name: Upload verified recovery package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: villaigence-fabric-recovery-package
+          path: |
+            ${{ steps.package.outputs.jar }}
+            ${{ steps.package.outputs.checksum }}
+            ${{ steps.package.outputs.manifest }}
+          if-no-files-found: error
+          retention-days: 30
+
+  restore-github-release:
+    needs: build-and-package
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout exact immutable release commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: ${{ needs.build-and-package.outputs.release_sha }}
+
+      - name: Download verified recovery package
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: villaigence-fabric-recovery-package
+          path: dist
+
+      - name: Verify immutable release tag
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ needs.build-and-package.outputs.release_tag }}
+          RELEASE_SHA: ${{ needs.build-and-package.outputs.release_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --tags origin
+          test "$(git rev-list -n 1 "refs/tags/${RELEASE_TAG}")" = "${RELEASE_SHA}"
+          test "$(git rev-parse HEAD)" = "${RELEASE_SHA}"
+
+      - name: Restore GitHub Release metadata and assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build-and-package.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          mod_version="${RELEASE_TAG%%+*}"
+          minecraft_version="${RELEASE_TAG#*+}"
+          jar_file="dist/villaigence-fabric-${RELEASE_TAG}.jar"
+          checksum_file="${jar_file}.sha256"
+          manifest_file="dist/villaigence-dependencies-${RELEASE_TAG}.txt"
+          notes_source="docs/releases/${RELEASE_TAG}.md"
+
+          test -f "${jar_file}"
+          test -f "${checksum_file}"
+          test -f "${manifest_file}"
+          test -s "${notes_source}"
+
+          checksum="$(cat "${checksum_file}")"
+          cp "${notes_source}" release-notes.md
+          printf '%s\n' \
+            "" \
+            "SHA-256:" \
+            "${checksum}" \
+            "" \
+            "The attached dependency manifest records the sorted resolved build coordinates used by this release." \
+            >> release-notes.md
+
+          title="VillAIgence ${mod_version} for Minecraft ${minecraft_version}"
+
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            if [[ "${mod_version}" == *-* ]]; then
+              gh release edit "${RELEASE_TAG}" \
+                --title "${title}" \
+                --notes-file release-notes.md \
+                --draft=false \
+                --prerelease=true
+            else
+              gh release edit "${RELEASE_TAG}" \
+                --title "${title}" \
+                --notes-file release-notes.md \
+                --draft=false \
+                --prerelease=false
+            fi
+          else
+            common_args=(
+              "${RELEASE_TAG}"
+              --verify-tag
+              --title "${title}"
+              --notes-file release-notes.md
+            )
+            if [[ "${mod_version}" == *-* ]]; then
+              gh release create "${common_args[@]}" --prerelease
+            else
+              gh release create "${common_args[@]}"
+            fi
+          fi
+
+          gh release upload "${RELEASE_TAG}" \
+            "${jar_file}" \
+            "${checksum_file}" \
+            "${manifest_file}" \
+            --clobber
+
+      - name: Verify published assets byte-for-byte
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build-and-package.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          rm -rf published
+          mkdir -p published
+
+          jar_name="villaigence-fabric-${RELEASE_TAG}.jar"
+          checksum_name="${jar_name}.sha256"
+          manifest_name="villaigence-dependencies-${RELEASE_TAG}.txt"
+
+          gh release download "${RELEASE_TAG}" \
+            --dir published \
+            --pattern "${jar_name}" \
+            --pattern "${checksum_name}" \
+            --pattern "${manifest_name}"
+
+          cmp -s "dist/${jar_name}" "published/${jar_name}"
+          cmp -s "dist/${checksum_name}" "published/${checksum_name}"
+          cmp -s "dist/${manifest_name}" "published/${manifest_name}"
+
+          metadata="$(gh release view "${RELEASE_TAG}" --json tagName,isDraft,isPrerelease)"
+          test "$(jq -r '.tagName' <<<"${metadata}")" = "${RELEASE_TAG}"
+          test "$(jq -r '.isDraft' <<<"${metadata}")" = 'false'
+          if [[ "${RELEASE_TAG%%+*}" == *-* ]]; then
+            test "$(jq -r '.isPrerelease' <<<"${metadata}")" = 'true'
+          else
+            test "$(jq -r '.isPrerelease' <<<"${metadata}")" = 'false'
+          fi
+
+          sha256sum "dist/${jar_name}" "published/${jar_name}"
