@@ -14,6 +14,8 @@ Perform a clean cutover: Memory 2.0 becomes the only persistent dialogue-memory 
 
 A clean LivingWorld state is required for installed acceptance of the cutover.
 
+The inherited `OpenAIChatAI` surface is large and compatibility-sensitive. To keep the behavioral blast radius bounded, the class name `PersistentChatMemory` may remain temporarily as a **no-storage adapter**. That adapter is not legacy persistence: it may read only `Memory2DialogueHistory`, may never resolve `memory.json`, and may never perform the persistent write. The existing outer `ChatAI → Memory2DialogueLifecycle` boundary remains the sole persistent DIALOGUE writer.
+
 ## Target flow
 
 ```text
@@ -51,25 +53,35 @@ Persistent dialogue history is selected from the bounded per-NPC Memory 2.0 stor
 - `type == DIALOGUE`;
 - exact current player participant match;
 - structured dialogue payload required;
-- intervening ACTION/OBSERVATION/RELATIONSHIP_CHANGE events cannot starve dialogue retrieval;
+- intervening ACTION/OBSERVATION/RELATIONSHIP_CHANGE events cannot consume the dialogue result limit before filtering;
 - newest eligible exchanges are selected, then rendered chronologically as alternating `user` / `assistant` messages;
 - final prompt messages pass through `WorkingMemoryOrchestrator` hard bounds.
 
 ## Configuration
 
-`memory2Enabled` owns persistent Memory 2.0 behavior. The legacy `persistentMemoryEnabled`, `persistentMemoryMaxMessages`, and `persistentMemoryMaxCharsPerMessage` controls are retired from production configuration/runtime use. When Memory 2.0 is disabled, the existing process-local non-persistent conversation fallback may continue to serve compatibility behavior, but no persistent legacy store may be read or written.
+`memory2Enabled` owns Memory 2.0 persistence and persistent dialogue recall.
+
+The historical version-2 fields `persistentMemoryEnabled`, `persistentMemoryMaxMessages`, and `persistentMemoryMaxCharsPerMessage` remain deserializable to avoid an unrelated config-schema migration in this package. `persistentMemoryEnabled` still serves as the inherited outer prompt-recall toggle; when disabled, the pre-existing process-local non-persistent dialogue fallback may be used. The two historical sizing fields no longer size a separate persistent conversation store.
+
+No configuration path may cause `memory.json` to be read or written after this cutover.
 
 ## Legacy removal
 
 After the production prompt path is switched:
 
-- remove `PersistentChatMemory`;
-- remove `ConversationMemoryStore` and its tests;
+- remove `ConversationMemoryStore` and `MemoryMessage` plus their dedicated tests;
+- retain `PersistentChatMemory` only if it is a no-storage Memory 2.0 adapter required to avoid a high-risk inherited-call-surface rewrite;
 - remove canonical/recovery acceptance expectations for `memory.json`;
-- reduce the current LivingWorld canonical store set from six to five;
-- add source-policy coverage preventing reintroduction of the legacy persistent path.
+- reduce the current LivingWorld corruption/recovery matrix from six to five stores;
+- add source-policy coverage preventing reintroduction of the legacy persistent path or a second dialogue writer.
 
 Historical validation documents remain historical and are not rewritten to pretend `memory.json` never existed.
+
+## Release-recovery compatibility
+
+Current branch CI/nightly/release validation uses the new five-store matrix. Immutable release recovery is different: after resolving a tag it checks out the target release commit and must execute that release's own persistence contract. Historical `0.1.26` has six cases; future releases may have five.
+
+Therefore the release-recovery controller must not hardcode the current store count. It requires a non-empty all-PASS recovery report, while the immutable target commit's own tests define exact matrix coverage.
 
 ## Safety and truth boundaries
 
@@ -89,12 +101,13 @@ Required automated evidence:
 1. structured dialogue round-trip including delimiter-like text without summary parsing;
 2. exact NPC and player isolation;
 3. chronological user/assistant reconstruction;
-4. non-dialogue events cannot starve recent dialogue;
+4. non-dialogue events cannot consume the dialogue retrieval limit before filtering;
 5. bounded Working Memory behavior;
 6. replay/idempotency unchanged;
 7. text/voice shared post-success lifecycle remains single-writer;
 8. no production source reads/writes `memory.json`;
-9. five-store corruption/recovery and production restart acceptance;
-10. Fabric + NeoForge + package + repository-security gates.
+9. five-store current corruption/recovery and production restart acceptance;
+10. historical immutable release recovery remains compatible with the target release's own matrix;
+11. Fabric + NeoForge + package + repository-security gates.
 
 Installed acceptance is performed on a clean test world/server and is reported separately from automated evidence.
