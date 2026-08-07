@@ -28,6 +28,11 @@ SCRIPT_SUFFIXES = {
 SCRIPT_NAMES = {"gradlew"}
 TEXT_SCAN_LIMIT_BYTES = 2 * 1024 * 1024
 
+RELEASE_WRITE_JOBS = {
+    "livingworld-release.yml": "github-release",
+    "livingworld-release-recovery.yml": "restore-github-release",
+}
+
 SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("PRIVATE_KEY", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----")),
     ("GITHUB_TOKEN", re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{30,255}|github_pat_[A-Za-z0-9_]{50,255})\b")),
@@ -330,19 +335,22 @@ def verify_workflow_permissions(root: Path, errors: list[str]) -> None:
         text = read_text(path) or ""
         relative = path.relative_to(root).as_posix()
         write_count = len(re.findall(r"(?m)^\s+contents:\s*write\s*$", text))
-        if path.name == "livingworld-release.yml":
+        write_job = RELEASE_WRITE_JOBS.get(path.name)
+        if write_job is not None:
             if not re.search(r"(?m)^permissions:\s*\n\s{2}contents:\s*read\s*$", text):
-                errors.append("release workflow must default to contents: read")
+                errors.append(f"{path.name} must default to contents: read")
             if write_count != 1:
                 errors.append(
-                    f"release workflow must contain exactly one job-scoped contents: write, found {write_count}"
+                    f"{path.name} must contain exactly one job-scoped contents: write, found {write_count}"
                 )
-            release_block = re.search(
-                r"(?ms)^  github-release:\n.*?^    permissions:\n      contents: write\s*$",
+            write_block = re.search(
+                rf"(?ms)^  {re.escape(write_job)}:\n.*?^    permissions:\n      contents: write\s*$",
                 text,
             )
-            if release_block is None:
-                errors.append("release contents: write must remain inside github-release job")
+            if write_block is None:
+                errors.append(
+                    f"{path.name} contents: write must remain inside {write_job} job"
+                )
         elif write_count:
             errors.append(f"non-release workflow grants contents: write: {relative}")
         if "permissions:" not in text:
