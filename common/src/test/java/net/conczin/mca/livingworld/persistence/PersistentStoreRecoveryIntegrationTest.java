@@ -2,7 +2,6 @@ package net.conczin.mca.livingworld.persistence;
 
 import net.conczin.mca.livingworld.lore.OperatorLoreKey;
 import net.conczin.mca.livingworld.lore.WorldOperatorLoreStore;
-import net.conczin.mca.livingworld.memory.ConversationMemoryStore;
 import net.conczin.mca.livingworld.memory2.MemoryEventStore;
 import net.conczin.mca.livingworld.memory2.SemanticMemoryStore;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipStore;
@@ -42,7 +41,6 @@ class PersistentStoreRecoveryIntegrationTest {
         Path livingWorld = worldRoot.resolve("livingworld");
         Files.createDirectories(livingWorld);
         Map<String, byte[]> corruptByStore = new LinkedHashMap<>();
-        corruptByStore.put("memory.json", bytes("{broken"));
         corruptByStore.put("memory2.json", new byte[0]);
         corruptByStore.put("semantic-memory.json", bytes("[]"));
         corruptByStore.put(
@@ -58,7 +56,6 @@ class PersistentStoreRecoveryIntegrationTest {
             Files.write(livingWorld.resolve(entry.getKey()), entry.getValue());
         }
 
-        ConversationMemoryStore.forWorld(worldRoot).getMessages(NPC_ID, PLAYER_ID);
         MemoryEventStore.forWorld(worldRoot).getRecent(NPC_ID, 8);
         SemanticMemoryStore.forWorld(worldRoot).getRecent(NPC_ID, 8);
         LivingWorldRelationshipStore.forWorld(worldRoot).get(NPC_ID, PLAYER_ID);

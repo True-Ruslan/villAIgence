@@ -29,8 +29,9 @@ public final class DialogueMemoryAdapter {
 
         long safeGameTime = Math.max(0L, gameTime);
         UUID id = deterministicId(npcId, playerId, safeGameTime, normalizedPlayer);
-        String summary = "Player said: " + limitCodePoints(normalizedPlayer, MAX_UTTERANCE_CODE_POINTS)
-                + " | NPC replied: " + limitCodePoints(normalizedNpc, MAX_UTTERANCE_CODE_POINTS);
+        String boundedPlayer = limitCodePoints(normalizedPlayer, MAX_UTTERANCE_CODE_POINTS);
+        String boundedNpc = limitCodePoints(normalizedNpc, MAX_UTTERANCE_CODE_POINTS);
+        String summary = "Player said: " + boundedPlayer + " | NPC replied: " + boundedNpc;
 
         return Optional.of(new MemoryEvent(
                 id,
@@ -44,7 +45,8 @@ public final class DialogueMemoryAdapter {
                 40,
                 0,
                 60,
-                List.of()
+                List.of(),
+                new MemoryEvent.DialogueExchange(boundedPlayer, boundedNpc)
         ));
     }
 

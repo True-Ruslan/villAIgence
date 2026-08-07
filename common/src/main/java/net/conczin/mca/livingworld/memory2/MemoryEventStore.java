@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Predicate;
 
 /** World-local bounded persistent store for Memory 2.0 events. */
 public final class MemoryEventStore {
@@ -57,10 +58,19 @@ public final class MemoryEventStore {
     }
 
     public synchronized List<MemoryEvent> getRecent(UUID npcId, int maxResults) {
-        if (npcId == null || maxResults <= 0) return List.of();
+        return getRecentMatching(npcId, maxResults, ignored -> true);
+    }
+
+    synchronized List<MemoryEvent> getRecentMatching(
+            UUID npcId,
+            int maxResults,
+            Predicate<MemoryEvent> predicate
+    ) {
+        if (npcId == null || maxResults <= 0 || predicate == null) return List.of();
         List<MemoryEvent> events = data.eventsByNpc.get(npcId.toString());
         if (events == null || events.isEmpty()) return List.of();
         return events.stream()
+                .filter(predicate)
                 .sorted(NEWEST_FIRST)
                 .limit(maxResults)
                 .toList();

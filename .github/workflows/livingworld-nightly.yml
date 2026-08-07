@@ -47,7 +47,6 @@ jobs:
           ./gradlew \
             :common:test \
             --tests '*JsonStoreRecoveryTest' \
-            --tests '*ConversationMemoryStoreRecoveryTest' \
             --tests '*PersistentStoreRecoveryIntegrationTest' \
             --stacktrace \
             --no-daemon \
@@ -63,7 +62,7 @@ jobs:
             --no-daemon \
             --console=plain
 
-      - name: Execute six-store recovery matrix
+      - name: Execute five-store recovery matrix
         run: |
           set -euo pipefail
           rm -rf build/persistence-recovery-acceptance
@@ -89,8 +88,8 @@ jobs:
           if report.get('status') != 'PASS':
               raise SystemExit('persistence recovery report is not PASS')
           cases = report.get('cases')
-          if not isinstance(cases, list) or len(cases) != 6:
-              raise SystemExit('persistence recovery report must contain six cases')
+          if not isinstance(cases, list) or len(cases) != 5:
+              raise SystemExit('persistence recovery report must contain five cases')
           if any(case.get('status') != 'PASS' for case in cases):
               raise SystemExit('at least one persistence recovery case is not PASS')
           PY

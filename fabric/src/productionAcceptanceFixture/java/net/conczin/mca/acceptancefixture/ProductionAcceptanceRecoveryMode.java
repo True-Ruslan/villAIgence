@@ -2,7 +2,8 @@ package net.conczin.mca.acceptancefixture;
 
 import net.conczin.mca.livingworld.lore.OperatorLoreKey;
 import net.conczin.mca.livingworld.lore.WorldOperatorLoreStore;
-import net.conczin.mca.livingworld.memory.ConversationMemoryStore;
+import net.conczin.mca.livingworld.memory2.Memory2DialogueHistory;
+import net.conczin.mca.livingworld.memory2.Memory2DialogueIngestor;
 import net.conczin.mca.livingworld.memory2.MemoryEvent;
 import net.conczin.mca.livingworld.memory2.MemoryEventStore;
 import net.conczin.mca.livingworld.memory2.SemanticMemoryEntry;
@@ -50,7 +51,6 @@ public final class ProductionAcceptanceRecoveryMode implements ModInitializer {
     private static final String FIXTURE_TEXT =
             "VillAIgence production recovery acceptance fixture";
     private static final List<String> STORES = List.of(
-            "memory.json",
             "memory2.json",
             "semantic-memory.json",
             "relationships.json",
@@ -82,19 +82,20 @@ public final class ProductionAcceptanceRecoveryMode implements ModInitializer {
     }
 
     private static void initializeConversation(Path worldRoot) {
-        ConversationMemoryStore store = ConversationMemoryStore.forWorld(worldRoot);
-        if (store.getMessages(NPC_ID, PLAYER_ID).isEmpty()) {
-            store.appendExchange(
+        if (Memory2DialogueHistory.load(worldRoot, NPC_ID, PLAYER_ID).isEmpty()) {
+            Memory2DialogueIngestor.record(
+                    worldRoot,
                     NPC_ID,
                     PLAYER_ID,
+                    1L,
                     "recovery-fixture-user",
                     "recovery-fixture-assistant",
-                    4,
-                    64
+                    8,
+                    1L
             );
         }
-        if (store.getMessages(NPC_ID, PLAYER_ID).size() != 2) {
-            throw new IllegalStateException("conversation recovery fixture is not stable");
+        if (Memory2DialogueHistory.load(worldRoot, NPC_ID, PLAYER_ID).size() != 2) {
+            throw new IllegalStateException("Memory 2.0 conversation recovery fixture is not stable");
         }
     }
 
@@ -108,8 +109,8 @@ public final class ProductionAcceptanceRecoveryMode implements ModInitializer {
                     FIXTURE_TEXT,
                     List.of(PLAYER_ID),
                     MemoryEvent.Provenance.SYSTEM_OBSERVED,
-                    1L,
-                    1L,
+                    2L,
+                    2L,
                     50,
                     0,
                     100,

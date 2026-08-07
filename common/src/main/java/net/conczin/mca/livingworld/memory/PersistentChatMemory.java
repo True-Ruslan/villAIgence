@@ -2,9 +2,8 @@ package net.conczin.mca.livingworld.memory;
 
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.livingworld.LivingWorldConfig;
-import net.conczin.mca.livingworld.memory2.WorkingMemoryContext;
+import net.conczin.mca.livingworld.memory2.Memory2DialogueHistory;
 import net.conczin.mca.livingworld.memory2.WorkingMemoryMessage;
-import net.conczin.mca.livingworld.memory2.WorkingMemoryOrchestrator;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Tuple;
 import net.minecraft.world.level.storage.LevelResource;
@@ -13,7 +12,13 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 
-/** Loader-independent bridge from an MCA conversation to the world-local memory store. */
+/**
+ * Compatibility facade for the existing ChatAI call surface.
+ *
+ * <p>Persistent dialogue is sourced exclusively from Memory 2.0. Successful persistent writes are
+ * owned by {@code ChatAI -> Memory2DialogueLifecycle}; the append methods intentionally perform no
+ * second write so provider retries and the compatibility facade cannot duplicate events.</p>
+ */
 public final class PersistentChatMemory {
     private PersistentChatMemory() {
     }
@@ -23,19 +28,9 @@ public final class PersistentChatMemory {
     }
 
     public static List<Tuple<String, String>> load(Path worldRoot, UUID villagerId, UUID playerId) {
-        List<WorkingMemoryMessage> dialogue = ConversationMemoryStore.forWorld(worldRoot)
-                .getMessages(villagerId, playerId)
-                .stream()
-                .filter(message -> message != null
-                        && message.role() != null
-                        && (message.role().equals("user") || message.role().equals("assistant"))
-                        && message.content() != null
-                        && !message.content().isBlank())
-                .map(message -> new WorkingMemoryMessage(message.role(), message.content()))
-                .toList();
-        WorkingMemoryContext workingMemory = WorkingMemoryOrchestrator.compose(dialogue, List.of(), List.of());
-        return workingMemory.recentDialogue().stream()
-                .map(message -> new Tuple<>(message.role(), message.content()))
+        if (!LivingWorldConfig.getInstance().memory2Enabled) return List.of();
+        return Memory2DialogueHistory.load(worldRoot, villagerId, playerId).stream()
+                .map(PersistentChatMemory::toTuple)
                 .toList();
     }
 
@@ -46,7 +41,7 @@ public final class PersistentChatMemory {
             String assistantMessage,
             LivingWorldConfig config
     ) {
-        append(worldRoot(player), villager.getUUID(), player.getUUID(), userMessage, assistantMessage, config);
+        // Intentionally empty. ChatAI persists the successful turn exactly once via Memory 2.0.
     }
 
     public static void append(
@@ -57,14 +52,11 @@ public final class PersistentChatMemory {
             String assistantMessage,
             LivingWorldConfig config
     ) {
-        ConversationMemoryStore.forWorld(worldRoot).appendExchange(
-                villagerId,
-                playerId,
-                userMessage,
-                assistantMessage,
-                config.persistentMemoryMaxMessages,
-                config.persistentMemoryMaxCharsPerMessage
-        );
+        // Intentionally empty. ChatAI persists the successful turn exactly once via Memory 2.0.
+    }
+
+    private static Tuple<String, String> toTuple(WorkingMemoryMessage message) {
+        return new Tuple<>(message.role(), message.content());
     }
 
     private static Path worldRoot(ServerPlayer player) {

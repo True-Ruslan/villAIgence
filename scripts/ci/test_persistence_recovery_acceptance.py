@@ -119,7 +119,7 @@ class RecoveryMatrixContractTest(unittest.TestCase):
         errors = compare_unaffected_stores(
             baseline,
             recovered,
-            "memory.json",
+            "memory2.json",
         )
 
         self.assertEqual(1, len(errors))

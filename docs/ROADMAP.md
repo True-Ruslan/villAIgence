@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation and validation state.
 >
-> Last reconciled: **2026-08-07**. M11 Phases A–E are merged and complete at the automation layer. `0.1.26+1.21.1` is published with verified immutable assets and installed acceptance of `5 PASS / 0 FAIL / 1 NOT TESTED`; `VAI-CONCUR-004` remains explicitly deferred. The immediate development package is additive legacy `memory.json` migration.
+> Last reconciled: **2026-08-07**. M11 Phases A–E remain complete at the automation layer. `0.1.26+1.21.1` remains the latest published release with verified immutable assets and installed acceptance of `5 PASS / 0 FAIL / 1 NOT TESTED`; `VAI-CONCUR-004` remains explicitly deferred. The current unreleased 0.2 package is the Memory 2.0 persistent-dialogue clean cutover in PR #119. The previously planned legacy `memory.json` migration is cancelled by design because the supported deployment is a clean-reset pre-1.0 test environment.
 
 ## Product vision
 
@@ -35,7 +35,9 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 7. **Simulation before spectacle.** Prefer durable causal systems over one-off generated text.
 8. **Evidence layers remain explicit.** Unit, integration, GameTest, production candidate, exact release and installed evidence are separate claims.
 9. **Unknown CI changes fail closed.** Protected, unsafe, unclassified and persistence-store changes select the complete required matrix.
-10. **Release recovery preserves immutable identity.** Recovery may restore metadata/assets only from an existing verified release tag commit and may never create, delete or move that tag.
+10. **Compatibility work must have a supported-data reason.** Pre-1.0 test data is not automatically entitled to a migration layer when a clean reset is an accepted deployment boundary.
+11. **Release recovery preserves immutable identity.** Recovery may restore metadata/assets only from an existing verified release tag commit and may never create, delete or move that tag.
+12. **Release recovery is version-aware.** The recovery controller must validate the matrix defined by the immutable target release, not impose the current branch's persistence-store count on historical tags.
 
 ---
 
@@ -44,28 +46,31 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 ```text
 0.1.x reliability/security baseline                    COMPLETE
 Memory 2.0 foundation                                  SUBSTANTIALLY IMPLEMENTED
+Memory 2.0 persistent-dialogue clean cutover            COMPLETE AT AUTOMATION LAYER / PR #119
+legacy memory.json migration                            CANCELLED BY DESIGN
 MCA selective synchronization S1-S8                    COMPLETE
 Operator Lore S9-S10c                                  COMPLETE
 M11 Phases A-E                                          MERGED / AUTOMATION COMPLETE
 0.1.26 exact release gates                              COMPLETE
 0.1.26 installed canaries                              5 PASS / 0 FAIL / 1 NOT TESTED
 0.1.26 publication                                      COMPLETE
-release-recovery automation                             COMPLETE
-legacy memory.json migration                            NEXT
+release-recovery automation                             COMPLETE / VERSION-AWARE
+clean-world installed cutover acceptance                NEXT RELEASE-CANDIDATE BOUNDARY
+controlled BELIEF producers                             NEXT PRODUCT SLICE
 ```
 
 Immediate sequence:
 
 ```text
-inventory existing legacy memory.json data
-→ define migration schema/checkpoint/version contract
-→ deterministic dry-run parser/report
-→ RED migration safety/idempotency tests
-→ bounded additive import
-→ backup + rollback verification
-→ same-world restart acceptance
-→ retain legacy reads
-→ cut over only after explicit acceptance evidence
+finish exact-head PR #119 gates and independent review
+→ merge clean Memory 2.0 cutover without publishing
+→ build the next exact candidate when release work is authorized
+→ install on a clean test-world/LivingWorld state
+→ verify text + voice dialogue recall and same-world restart
+→ retain VAI-CONCUR-004 as deferred until two graphical clients exist
+→ implement controlled BELIEF producers
+→ implement trustworthy causal relationship reasons
+→ extend long-horizon recall
 ```
 
 ---
@@ -126,7 +131,7 @@ villaigence-dependencies-0.1.26+1.21.1.txt
 
 ## Automated release evidence
 
-The release boundary passed:
+The 0.1.26 release boundary passed:
 
 - version/tag and Minecraft-version contract;
 - repository security policy;
@@ -135,14 +140,14 @@ The release boundary passed:
 - Fabric and NeoForge builds;
 - exact production startup, stop/save and restart;
 - identity/inventory lifecycle evidence;
-- six-case destructive persistence recovery;
+- the historical six-case destructive persistence recovery matrix present at that immutable commit;
 - production Simple Voice Chat transport evidence;
 - distributable package smoke;
 - byte identity between production-accepted and packaged JAR.
 
 ## Installed canary result
 
-The exact candidate bytes installed on the operator server/client produced:
+The exact 0.1.26 candidate bytes installed on the operator server/client produced:
 
 ```text
 VAI-BOOT-002    PASS
@@ -178,7 +183,7 @@ result:                  PASS
 
 Recovery #4 rebuilt and tested the immutable release commit, restored the existing Release, downloaded the published assets again and compared them byte-for-byte. The recovered JAR reproduced the installed candidate SHA exactly.
 
-The published JAR is byte-identical to the exact installed candidate that already passed startup/restart and grave/restart/resurrection acceptance. No separate temporal claim is made that another operator restart occurred only after assets appeared on GitHub.
+Current recovery control remains compatible with historical releases by validating that the target release produced a non-empty all-PASS matrix while the target commit's own tests define its exact store/case coverage.
 
 ---
 
@@ -205,11 +210,11 @@ Deferred installed boundary:
 
 - `VAI-CONCUR-004` real two-graphical-client Operator Lore conflict presentation.
 
-This deferred canary should be executed when two graphical clients are available, but it does not block beginning the next additive development package because the limitation is explicit and server-side concurrency semantics are already automated.
+This deferred canary should be executed when two graphical clients are available, but it does not block current development because the limitation is explicit and server-side concurrency semantics are already automated.
 
 ## 0.2 — Memory 2.0
 
-Goal: move from stored raw chat history to bounded layered memory.
+Goal: move from raw chat-history storage to bounded, layered, provenance-aware memory.
 
 ```text
 Working memory       recent turn-local context
@@ -218,7 +223,7 @@ Semantic memory      sourced FACT/BELIEF knowledge
 Relationship memory causal social history
 ```
 
-Already implemented:
+### Implemented foundation
 
 - episodic events and explicit provenance;
 - text/voice DIALOGUE parity;
@@ -230,74 +235,120 @@ Already implemented:
 - deterministic forgetting;
 - restart-safe world-local stores.
 
-### NEXT — additive legacy `memory.json` migration
+### Current package — clean persistent-dialogue cutover
 
-The first 0.2 package is a migration foundation, not a destructive cutover.
+The old migration plan has been replaced by a direct clean cutover because the supported deployment is an operator-only pre-1.0 test server that can be rebuilt without preserving experimental conversation history.
+
+Target storage flow:
+
+```text
+successful text/voice turn
+→ one post-success Memory2DialogueLifecycle write
+→ structured DIALOGUE MemoryEvent
+→ memory2.json
+
+next turn
+→ exact NPC/player DIALOGUE retrieval
+→ filter before limit
+→ chronological user/assistant reconstruction
+→ Working Memory hard bounds
+→ prompt
+```
+
+Implemented cutover properties:
+
+- `memory2.json` is the only persistent dialogue-memory source;
+- new DIALOGUE events carry structured `DialogueExchange(playerMessage, npcReply)` data;
+- human-readable summaries remain episodic/diagnostic only and are never parsed back into prompt roles;
+- exact NPC and player isolation;
+- non-dialogue events cannot starve dialogue retrieval before the result limit;
+- old summary-only DIALOGUE events are ignored rather than guessed;
+- deterministic IDs keep replay idempotent;
+- legacy `ConversationMemoryStore`/`MemoryMessage` code and dedicated tests are removed;
+- the remaining `PersistentChatMemory` class is only a no-storage inherited-call-surface adapter and never opens `memory.json` or performs the persistent write;
+- production corruption/recovery moves to five current auxiliary stores: Memory 2.0, semantic memory, relationships, voices and Operator Lore;
+- nightly and release gates use the same five-store current matrix;
+- immutable historical release recovery remains target-version-aware.
+
+Explicit non-goals:
+
+```text
+NO legacy memory.json importer
+NO migration checkpoint ledger
+NO dual persistent reads
+NO summary parsing
+NO destructive legacy conversion
+NO claim that automated exact-JAR evidence equals installed clean-world acceptance
+```
+
+Installed exit boundary for this package:
+
+1. build an exact candidate after merge/release work is authorized;
+2. deploy it on a clean test-world/LivingWorld state;
+3. verify first text conversation is recalled on the next turn;
+4. verify voice produces the same DIALOGUE model;
+5. restart the same world and verify recall remains correct;
+6. verify NPC/player isolation;
+7. record installed evidence separately.
+
+### NEXT — controlled BELIEF producers
+
+Goal: allow NPCs to learn claims without confusing them with server-observed facts.
+
+Required contract:
+
+```text
+PLAYER_TOLD → BELIEF
+NPC_TOLD    → BELIEF
+INFERRED    → BELIEF
+SYSTEM_OBSERVED only → FACT
+```
+
+Recommended slices:
+
+1. **Admission contract**
+   - define which conversational claims are eligible for semantic belief extraction;
+   - require explicit provenance and source IDs;
+   - keep extraction bounded and inspectable;
+   - never let confidence alone upgrade a claim to FACT.
+
+2. **Deterministic consolidation**
+   - identical/similar claims merge sources rather than multiplying blindly;
+   - conflicting claims remain representable;
+   - source union and confidence rules remain deterministic.
+
+3. **Retrieval boundary**
+   - current observed world facts outrank conflicting beliefs;
+   - relevant beliefs can affect dialogue without becoming authoritative actions.
+
+4. **Failure/replay safety**
+   - provider retry does not duplicate semantic entries;
+   - failed/empty dialogue does not create beliefs;
+   - malformed extraction fails soft.
+
+### NEXT — causal relationship memory
+
+Goal: relationship history should record a trustworthy reason when the server actually has one.
 
 Required properties:
 
+- distinguish numeric relationship transition from causal explanation;
+- accept only bounded reasons tied to a validated server event or controlled conversational source;
+- do not invent authoritative reasons from free-form LLM text;
+- retain exact before/after relationship state and source event IDs;
+- make reason history queryable for future dialogue and personality systems.
+
+### Later 0.2 work
+
 ```text
-additive, never destructive
-backup before mutation
-explicit version/checkpoint
-bounded import
-deterministic event IDs
-idempotent rerun
-NPC ownership preserved
-DIALOGUE never becomes automatic FACT
-atomic writes
-dry-run and rollback evidence
-legacy reads retained until cutover acceptance
+long-horizon / multi-day recall evidence
+→ NPC-to-NPC knowledge transfer
+→ rumor propagation with provenance and uncertainty
+→ bounded distortion / contradiction handling
+→ scaling evidence for larger populations
 ```
 
-Recommended implementation slices:
-
-1. **Inventory and contract**
-   - enumerate real legacy `memory.json` shapes and ownership semantics;
-   - define supported/unsupported records;
-   - define schema/checkpoint/version and report format;
-   - define deterministic event-ID derivation.
-
-2. **Dry-run parser/report**
-   - no canonical mutation;
-   - bounded record count/bytes;
-   - deterministic classification and stable report ordering;
-   - explicit skipped/rejected reasons.
-
-3. **RED safety matrix**
-   - duplicate source rows;
-   - rerun after successful import;
-   - partial destination state;
-   - malformed/oversized legacy data;
-   - wrong/unknown NPC ownership;
-   - interrupted write/backup failure;
-   - dialogue cannot become FACT.
-
-4. **Bounded additive import**
-   - backup before mutation;
-   - atomic destination writes;
-   - deterministic IDs and idempotency;
-   - preserve existing Memory 2.0 records;
-   - preserve NPC isolation.
-
-5. **Rollback and restart acceptance**
-   - byte-preserving backup evidence;
-   - rollback verification;
-   - same-world restart;
-   - second run produces no duplicate semantic/episodic effects.
-
-6. **Cutover decision later**
-   - keep legacy reads during migration rollout;
-   - do not delete or reinterpret legacy source data;
-   - remove legacy dependency only after explicit installed evidence and rollback plan.
-
-Remaining Memory 2.0 capabilities after migration foundation:
-
-- controlled BELIEF producers;
-- explicit relationship-change reasons;
-- long-horizon/multi-day recall;
-- NPC-to-NPC knowledge transfer;
-- rumor propagation with uncertainty and distortion.
+0.2 exit criterion: persistent NPC memory is layered, bounded, provenance-aware, restart-safe, supports controlled non-authoritative knowledge transfer, and no longer depends on the experimental raw conversation store.
 
 ## 0.3 — Personality and NPC↔NPC social graph
 

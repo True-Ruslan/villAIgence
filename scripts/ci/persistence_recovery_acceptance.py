@@ -45,14 +45,6 @@ class CorruptionEvidence:
 
 RECOVERY_CASES: tuple[RecoveryCase, ...] = (
     RecoveryCase(
-        "memory-truncated",
-        "memory.json",
-        "TRUNCATED_CANONICAL",
-        b'{"version":1,"conversations":',
-        "canonical",
-        ".corrupt",
-    ),
-    RecoveryCase(
         "memory2-empty",
         "memory2.json",
         "EMPTY_CANONICAL",
