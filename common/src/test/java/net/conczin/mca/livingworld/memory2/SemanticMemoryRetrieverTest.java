@@ -102,6 +102,31 @@ class SemanticMemoryRetrieverTest {
     }
 
     @Test
+    void contextProviderKeepsSharedSemanticMemoryWhenCurrentPlayerIsRelated() {
+        UUID npc = UUID.randomUUID();
+        UUID currentPlayer = UUID.randomUUID();
+        UUID otherEntity = UUID.randomUUID();
+        SemanticMemoryStore store = SemanticMemoryStore.forWorld(tempDir);
+        store.append(new SemanticMemoryEntry(
+                UUID.randomUUID(),
+                npc,
+                SemanticMemoryEntry.Kind.BELIEF,
+                "shared-current-player-belief",
+                List.of(currentPlayer, otherEntity),
+                MemoryEvent.Provenance.PLAYER_TOLD,
+                100L,
+                1_700_000_000_100L,
+                80,
+                100,
+                List.of(UUID.randomUUID())
+        ), 64);
+
+        List<String> context = SemanticMemoryContextProvider.load(tempDir, npc, currentPlayer, 200L);
+
+        assertTrue(context.stream().anyMatch(line -> line.contains("shared-current-player-belief")));
+    }
+
+    @Test
     void contextProviderReturnsAtMostSixEntries() {
         UUID npc = UUID.randomUUID();
         UUID player = UUID.randomUUID();
