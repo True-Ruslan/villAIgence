@@ -22,6 +22,7 @@ import net.conczin.mca.livingworld.ai.ChatCompletionRetryPolicy;
 import net.conczin.mca.livingworld.ai.LivingWorldAI;
 import net.conczin.mca.livingworld.ai.ProviderEndpoint;
 import net.conczin.mca.livingworld.ai.ProviderEndpointPolicy;
+import net.conczin.mca.livingworld.ai.SemanticBeliefCandidateParser;
 import net.conczin.mca.livingworld.ai.StructuredAiResponseParser;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
 import net.conczin.mca.livingworld.memory.PersistentChatMemory;
@@ -93,16 +94,27 @@ public class OpenAIChatAI implements ChatAIStrategy {
             return new ParsedProviderAnswer(new Answer(null, null), completion);
         }
 
-        StructuredAiResponseParser.ParsedResponse parsed = StructuredAiResponseParser.parse(content);
-        StructuredResponse reply = new StructuredResponse(
-                parsed.message(),
-                parsed.optionalCommand(),
-                parsed.relationshipDelta()
-        );
-        if (parsed.message() == null) {
+        StructuredResponse reply = parseStructuredContent(content);
+        if (reply.message() == null) {
             MCA.LOGGER.warn("AI answer contained no usable user-visible message after structured response sanitization");
         }
         return new ParsedProviderAnswer(new Answer(reply, null), completion);
+    }
+
+    static StructuredResponse parseStructuredContent(@Nullable String content) {
+        StructuredAiResponseParser.ParsedResponse parsed = StructuredAiResponseParser.parse(
+                content,
+                SemanticBeliefCandidateParser.HARD_MAX_CANDIDATES
+        );
+        if (parsed.message() == null) {
+            return new StructuredResponse(null, "", null, List.of());
+        }
+        return new StructuredResponse(
+                parsed.message(),
+                parsed.optionalCommand(),
+                parsed.relationshipDelta(),
+                parsed.beliefCandidates()
+        );
     }
 
     private static String parseError(@Nullable JsonElement element) {
@@ -667,10 +679,24 @@ public class OpenAIChatAI implements ChatAIStrategy {
     public record StructuredResponse(
             @Nullable String message,
             String optionalCommand,
-            @Nullable LivingWorldRelationshipDelta relationshipDelta
+            @Nullable LivingWorldRelationshipDelta relationshipDelta,
+            List<String> beliefCandidates
     ) {
+        public StructuredResponse {
+            optionalCommand = optionalCommand == null ? "" : optionalCommand;
+            beliefCandidates = beliefCandidates == null ? List.of() : List.copyOf(beliefCandidates);
+        }
+
         public StructuredResponse(@Nullable String message, String optionalCommand) {
-            this(message, optionalCommand, null);
+            this(message, optionalCommand, null, List.of());
+        }
+
+        public StructuredResponse(
+                @Nullable String message,
+                String optionalCommand,
+                @Nullable LivingWorldRelationshipDelta relationshipDelta
+        ) {
+            this(message, optionalCommand, relationshipDelta, List.of());
         }
     }
 
