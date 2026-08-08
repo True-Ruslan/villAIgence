@@ -1,6 +1,5 @@
 package net.conczin.mca.livingworld.ai;
 
-import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -11,7 +10,7 @@ class SemanticBeliefCandidateParserTest {
     @Test
     void parsesNormalizesBoundsAndDeduplicatesCandidates() {
         String longClaim = "x".repeat(260);
-        var element = JsonParser.parseString("""
+        String json = """
                 [
                   "  The   north\\nbridge is unsafe.  ",
                   42,
@@ -20,9 +19,9 @@ class SemanticBeliefCandidateParserTest {
                   "%s",
                   "ignored after configured limit"
                 ]
-                """.formatted(longClaim));
+                """.formatted(longClaim);
 
-        List<String> result = SemanticBeliefCandidateParser.parse(element, 3);
+        List<String> result = SemanticBeliefCandidateParser.parse(json, 3);
 
         assertEquals(3, result.size());
         assertEquals("The north bridge is unsafe.", result.get(0));
@@ -33,17 +32,17 @@ class SemanticBeliefCandidateParserTest {
     @Test
     void missingWrongAndBlankMetadataProduceNoCandidates() {
         assertEquals(List.of(), SemanticBeliefCandidateParser.parse(null, 3));
-        assertEquals(List.of(), SemanticBeliefCandidateParser.parse(JsonParser.parseString("null"), 3));
-        assertEquals(List.of(), SemanticBeliefCandidateParser.parse(JsonParser.parseString("{\"claim\":\"x\"}"), 3));
-        assertEquals(List.of(), SemanticBeliefCandidateParser.parse(JsonParser.parseString("[\"  \", false, null]"), 3));
+        assertEquals(List.of(), SemanticBeliefCandidateParser.parse("null", 3));
+        assertEquals(List.of(), SemanticBeliefCandidateParser.parse("{\"claim\":\"x\"}", 3));
+        assertEquals(List.of(), SemanticBeliefCandidateParser.parse("[\"  \", false, null]", 3));
     }
 
     @Test
     void configuredMaximumIsHardBoundedToSafeRange() {
-        var element = JsonParser.parseString("[\"one\",\"two\",\"three\",\"four\",\"five\",\"six\",\"seven\",\"eight\",\"nine\"]");
+        String json = "[\"one\",\"two\",\"three\",\"four\",\"five\",\"six\",\"seven\",\"eight\",\"nine\"]";
 
-        assertEquals(List.of("one", "two", "three"), SemanticBeliefCandidateParser.parse(element, 0));
-        assertEquals(8, SemanticBeliefCandidateParser.parse(element, 99).size());
-        assertEquals(List.of("one"), SemanticBeliefCandidateParser.parse(element, 1));
+        assertEquals(List.of("one", "two", "three"), SemanticBeliefCandidateParser.parse(json, 0));
+        assertEquals(8, SemanticBeliefCandidateParser.parse(json, 99).size());
+        assertEquals(List.of("one"), SemanticBeliefCandidateParser.parse(json, 1));
     }
 }
