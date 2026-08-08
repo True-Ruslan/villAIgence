@@ -8,178 +8,178 @@ Product track: Memory 2.0
 
 ## 1. Goal
 
-Make Memory 2.0 useful across realistic game-time distance, multiple sessions, restart and bounded capacity pressure without weakening current truth precedence, provenance, player isolation or hard storage/prompt bounds.
+Make Memory 2.0 useful across realistic Minecraft game-time distance, multiple sessions, restart and bounded capacity pressure without weakening truth precedence, provenance, player isolation, determinism or hard storage/prompt bounds.
 
-The feature must prove two distinct properties:
+The slice must prove two separate properties:
 
 1. **Retention durability** — important old memory can remain persisted while weaker memory is forgotten deterministically.
-2. **Recall durability** — an important memory that remains persisted can still enter the bounded prompt candidate set even after enough newer eligible records exist to fill the current newest-first candidate window.
+2. **Recall durability** — an important memory that remains persisted can still enter the bounded prompt candidate set after enough newer eligible records exist to fill the current newest-first candidate window.
 
-Long-horizon recall covers both:
+Long-horizon recall covers both Semantic Memory (`semantic-memory.json`) and episodic/social Memory 2.0 (`memory2.json`).
 
-- Semantic Memory (`semantic-memory.json`), where persistence already has deterministic durability/decay retention;
-- episodic/social Memory 2.0 (`memory2.json`), where persistence currently evicts oldest-first and therefore needs a durability-aware pressure policy if RED tests demonstrate the expected failure.
-
-This slice does not introduce cross-NPC knowledge transfer, rumor propagation, model-driven memory management or unbounded history.
-
-## 2. Existing architecture that remains authoritative
-
-The implementation starts from these already-merged contracts:
+## 2. Existing contracts that remain authoritative
 
 - current observations are authoritative for the current turn;
-- prompt layer order is current observations → Operator Lore → Semantic Memory → episodic/social history;
+- snapshot order remains current observations → Operator Lore → Semantic Memory → episodic/social history;
 - current relationship state precedes stale `RELATIONSHIP_CHANGE` / `RELATIONSHIP_CAUSE` history;
 - `FACT` is only `SYSTEM_OBSERVED`;
-- `PLAYER_TOLD`, `NPC_TOLD` and `INFERRED` remain `BELIEF` provenance classes;
-- confidence, ranking, repetition and long-term survival never promote BELIEF to FACT;
-- player-scoped prompt visibility is an eligibility boundary, not a ranking preference;
+- `PLAYER_TOLD`, `NPC_TOLD` and `INFERRED` remain BELIEF provenance classes;
+- confidence, ranking, repetition and survival never promote BELIEF to FACT;
+- player-scoped visibility is an eligibility boundary, not a ranking preference;
 - foreign-player memory is excluded before bounded candidate selection;
 - NPC-global memory remains eligible;
 - shared memory remains eligible when the current player is among the related/participating entities;
-- persistence, replay and retrieval are deterministic;
-- server state, never the provider/model, owns memory truth class, visibility, retention and gameplay authority.
+- persistence, replay and retrieval remain deterministic;
+- server state, never provider/model output, owns truth class, visibility, retention and gameplay authority.
 
-Official installed-release evidence remains `0.2.0+1.21.1`. This design is unreleased development work and must not be described as installed acceptance.
+Official installed-release evidence remains `0.2.0+1.21.1`. Long-horizon work is unreleased development until a later release candidate is explicitly accepted.
 
 ## 3. Non-goals
 
-The following are explicitly outside this slice:
+This slice does **not** authorize:
 
 - increasing `memory2MaxEventsPerNpc` as the solution;
-- adding a new persistence file or archive tier;
-- changing `memory2.json` or `semantic-memory.json` format version;
-- adding config fields or changing config version;
-- migrating or re-reading legacy `memory.json`;
-- embeddings, vector databases or semantic search services;
-- background summarization;
-- an extra LLM/provider call for memory ranking, retention, consolidation or summarization;
-- model-authored importance, provenance, retention or visibility decisions;
+- increasing prompt candidate/result bounds without a separate observed RED;
+- a new persistence/archive file;
+- persistence format/version changes;
+- config fields or config-version changes;
+- legacy `memory.json` migration or dual reads;
+- embeddings or vector databases;
+- background/model summarization;
+- extra provider calls for memory management;
+- provider/model ownership of importance, provenance, retention or visibility;
 - NPC-to-NPC knowledge transfer;
-- rumor propagation;
-- psychological causal explanation generation;
-- changing relationship mutation authority;
-- changing provider request/transport/retry semantics unless a test exposes an unrelated blocker, in which case that blocker is handled separately rather than folded into this feature.
+- rumors;
+- generated psychological causes;
+- relationship-authority changes;
+- unrelated provider/transport/retry changes.
 
-## 4. Core design choice: bounded dual-tier recall
+## 4. Core design: bounded dual-tier recall
 
-A newest-only candidate window is insufficient for long-horizon recall: an old important memory may survive persistence pressure but never reach ranking once newer eligible records fill the candidate limit.
+Newest-only retrieval is insufficient: a record may survive persistence pressure yet remain unreachable once newer eligible records fill the candidate window.
 
-The bounded candidate set therefore has two deterministic pools:
+Required flow:
 
 ```text
 NPC-owned persisted memory
 → exact current-player/NPC-global eligibility
-→ recent pool
-+ durable pool
-→ deterministic de-duplication
+→ recent pool + durable pool
+→ exact UUID de-duplication
 → hard candidate limit
 → existing ranker
 → existing hard prompt-result limit
 ```
 
-The context-provider candidate limit remains `32` and final prompt-result limit remains `6` unless a separate RED test proves an existing bound itself is defective. This design does not pre-authorize increasing either bound.
+For current context providers:
 
-### 4.1 Candidate budget
-
-For the normal `candidateLimit = 32`:
-
+- `candidateLimit = 32` remains unchanged;
+- `maxResults = 6` remains unchanged;
 - recent quota = `24`;
 - durable quota = `8`.
 
-Generic selector behavior for other positive limits:
+Generic selector rule:
 
-- `candidateLimit <= 1`: use the single newest eligible item;
-- `candidateLimit >= 2`: `durableQuota = max(1, floor(candidateLimit / 4))` and `recentQuota = candidateLimit - durableQuota`.
+- `candidateLimit <= 0` → empty;
+- `candidateLimit == 1` → single newest eligible record;
+- `candidateLimit >= 2` → `durableQuota = max(1, floor(candidateLimit / 4))`, `recentQuota = candidateLimit - durableQuota`.
 
-This keeps approximately 75% of candidate capacity focused on recent context while reserving approximately 25% for older durable memory.
+Thus the normal budget is approximately 75% recent / 25% durable without increasing prompt size.
 
-### 4.2 Recent pool
+### 4.1 Recent ordering
 
-The recent pool contains the newest eligible records using the existing stable persistence-time ordering:
+Recent candidates are the newest eligible records ordered exactly by:
 
 1. `gameTime` descending;
 2. `createdAtEpochMillis` descending;
-3. UUID string descending only where the existing newest-first comparator implies it.
+3. UUID string descending.
 
-No foreign-player record may consume a recent-pool slot.
+Foreign-player records are filtered before this ordering and consume zero recent slots.
 
-### 4.3 Durable pool
+### 4.2 Durable ordering
 
-The durable pool is selected from eligible records not already selected into the recent pool.
+Durable candidates are selected only from eligible records not already in the recent pool.
 
-It is ordered by the record's deterministic effective retention/durability score at the current authoritative Minecraft `gameTime`, then deterministic existing domain tie-breakers.
+Primary order:
 
-The durable pool is not a second truth system. It only decides which persisted records are allowed to compete in the existing ranker.
+1. effective retention/durability score descending;
+2. domain-specific deterministic tie-breakers;
+3. `gameTime` descending;
+4. `createdAtEpochMillis` descending;
+5. UUID string ascending for exact final ties.
 
-No foreign-player record may consume a durable-pool slot.
+For Semantic Memory, domain tie-breakers preserve the existing retention policy order where applicable:
 
-### 4.4 De-duplication and bound
+- importance descending;
+- confidence descending;
+- source-event count descending.
 
-The recent and durable pools are combined by exact record UUID. The union must never exceed `candidateLimit`.
+For episodic/social memory, domain tie-breakers are:
 
-Selection is deterministic for identical persisted data and identical current `gameTime` regardless of input-list iteration order.
+- importance descending;
+- confidence descending;
+- absolute emotional weight descending;
+- type durability tier descending;
+- provenance durability tier descending.
 
-The existing `MemoryRetriever` and `SemanticMemoryRetriever` remain responsible for final ranking and `maxResults` limiting. Ranking weights must remain unchanged unless a dedicated RED test proves that the newly eligible durable candidate still cannot satisfy the long-horizon contract for a reason caused by ranking rather than candidate starvation.
+The exact numeric coefficients used inside an episodic durability score are implementation details, but all ordering and monotonic contracts in section 7 must be locked by tests.
 
-## 5. Eligibility must happen before both pools
+### 4.3 Combination
 
-`PlayerScopedMemoryEligibility` remains the server-side visibility authority.
+Recent and durable pools are combined by exact record UUID. The union must never exceed `candidateLimit` and must be deterministic for identical persisted data and identical current `gameTime`, regardless of input iteration order.
 
-For Semantic Memory:
+The existing `MemoryRetriever` and `SemanticMemoryRetriever` remain final rankers. Their ranking weights remain unchanged unless a dedicated RED proves the newly admitted durable candidate still fails solely because of ranking rather than candidate starvation.
+
+## 5. Eligibility before both pools
+
+`PlayerScopedMemoryEligibility` remains the visibility authority.
+
+Semantic:
 
 - owner NPC must match;
-- empty related-entity scope is NPC-global and eligible;
-- a non-empty scope is eligible when it contains the current player;
-- a non-empty foreign-only scope is ineligible;
-- a shared scope containing current player plus other entities remains eligible.
+- empty `relatedEntities` → NPC-global, eligible;
+- non-empty scope containing current player → eligible;
+- foreign-only non-empty scope → ineligible;
+- current player plus another entity → eligible.
 
-For episodic/social memory:
+Episodic/social:
 
 - owner NPC must match;
-- an event with no external participant beyond the owner NPC is NPC-global and eligible;
-- an event with external participants is eligible when the current player participates;
-- a foreign-only external participant set is ineligible;
-- a shared participant set containing the current player plus another entity remains eligible.
+- no external participant beyond owner NPC → NPC-global, eligible;
+- external participants containing current player → eligible;
+- foreign-only external participants → ineligible;
+- current player plus another entity → eligible.
 
-Required ordering:
+Required order is immutable:
 
 ```text
-persisted bounded store
-→ player/NPC eligibility filter
-→ recent/durable candidate selection
-→ ranking
-→ prompt formatting
+bounded store
+→ eligibility filter
+→ recent/durable selector
+→ ranker
+→ formatter
 ```
 
-The inverse order is forbidden because it would allow foreign-player data to consume either recent or durable capacity.
+Selecting before filtering is forbidden because foreign-player memory could consume either recent or durable capacity.
 
-## 6. Semantic Memory persistence
+## 6. Semantic persistence
 
-The existing `SemanticMemoryRetentionPolicy` remains the persistence authority for Semantic Memory.
+`SemanticMemoryRetentionPolicy` remains the persistence authority.
 
-Its current behavior already includes:
+Its existing behavior already provides hard per-NPC bounds, deterministic pressure selection, Minecraft `gameTime` decay, importance/confidence/provenance/source-evidence contributions and stable persistence order.
 
-- hard per-NPC bounds;
-- deterministic input-order-independent selection;
-- authoritative Minecraft `gameTime` decay;
-- importance and confidence;
-- provenance contribution;
-- corroborating source-event contribution;
-- stable persistence order.
+Do not redesign or reweight Semantic persistence unless an observed RED demonstrates a concrete contract violation.
 
-This slice does not redesign or reweight Semantic persistence unless a new RED test demonstrates a concrete contract violation.
-
-The expected Semantic production change is therefore limited to long-horizon candidate selection if tests reproduce retained-but-unrecallable starvation.
+Expected Semantic production work is limited to recall candidate selection if tests reproduce retained-but-starved memory.
 
 ## 7. Episodic/social persistence under pressure
 
-`MemoryEventStore` currently retains newest events by chronological FIFO pressure. That behavior cannot satisfy the approved long-horizon contract when an important old event is displaced only because newer low-value dialogue exists.
+`MemoryEventStore` currently performs chronological FIFO eviction. That cannot satisfy the approved contract when an important old event is removed only because newer weak dialogue exists.
 
-If the required tests expose this RED, introduce a pure deterministic `MemoryEventRetentionPolicy` and make `MemoryEventStore.append(...)` use it.
+After the required tests expose this failure, add a pure deterministic `MemoryEventRetentionPolicy` and use it from `MemoryEventStore.append(...)`.
 
-### 7.1 Episodic durability inputs
+### 7.1 Allowed durability inputs
 
-The policy may use only persisted server-owned `MemoryEvent` fields:
+Only persisted server-owned `MemoryEvent` fields may influence episodic durability:
 
 - `importance`;
 - `confidence`;
@@ -188,216 +188,205 @@ The policy may use only persisted server-owned `MemoryEvent` fields:
 - `provenance`;
 - authoritative Minecraft `gameTime`.
 
-Wall-clock age must not affect retention.
+Wall-clock time is forbidden.
 
-### 7.2 Required monotonic behavior
+### 7.2 Monotonic and type contracts
 
-The exact numeric coefficients are an internal implementation detail, but the following relations are product contracts and must be locked by tests:
+With all other inputs equal:
 
-- increasing `importance` while all other inputs are equal must never reduce durability;
-- increasing `confidence` while all other inputs are equal must never reduce durability;
-- increasing absolute emotional weight while all other inputs are equal must never reduce durability;
-- authoritative `SYSTEM_OBSERVED` provenance must not be less durable than otherwise-equal told/inferred provenance;
-- at otherwise-equal values and age, type durability order is:
-  - `RELATIONSHIP_CAUSE` highest;
-  - `RELATIONSHIP_CHANGE` next;
-  - `OBSERVATION` and `ACTION` middle tier;
-  - ordinary `DIALOGUE` lowest tier;
-- older memory loses effective retention score deterministically as Minecraft `gameTime` advances;
-- sufficiently old weak memory remains evictable;
-- no memory type is immortal;
-- exact score ties resolve deterministically without input-order dependence.
+- increasing importance must never reduce durability;
+- increasing confidence must never reduce durability;
+- increasing absolute emotional weight must never reduce durability;
+- `SYSTEM_OBSERVED` must not be less durable than otherwise-equal told/inferred provenance;
+- type durability order is `RELATIONSHIP_CAUSE` > `RELATIONSHIP_CHANGE` > (`OBSERVATION` = `ACTION`) > `DIALOGUE`;
+- advancing Minecraft `gameTime` must reduce effective retention for an old event deterministically;
+- sufficiently old weak memory must remain evictable;
+- no type is immortal;
+- exact ties must resolve deterministically and independently of input order.
 
-`RELATIONSHIP_CAUSE` durability protects the server-observed process linkage and its embedded transition snapshot. It does not make linked dialogue prose factual.
+`RELATIONSHIP_CAUSE` durability protects only the server-observed causal-process linkage and embedded transition snapshot. It never promotes source dialogue prose to FACT.
 
 ### 7.3 Store behavior
 
-On append:
+Append flow after GREEN implementation:
 
 ```text
 exact UUID duplicate check
 → add candidate
-→ evaluate bounded retained set at max persisted gameTime
+→ nowGameTime = max persisted gameTime
+→ select bounded retained set
 → stable chronological persistence order
-→ atomic save only when retained state changed
+→ atomic save only if retained state changed
 ```
 
-A newly appended weak event that is immediately rejected under pressure should not rewrite the persistent file if the retained state is byte-for-byte unchanged after deterministic serialization.
+A weak append that is immediately rejected under pressure should not rewrite the file when the retained serialized state is unchanged.
 
-No store-format migration is required.
+No persistence migration is required.
 
 ## 8. Multi-session and restart semantics
 
-A session boundary has no special truth or retention meaning. Long-horizon behavior is derived from persisted state plus authoritative `gameTime`.
+Session boundaries have no independent truth/retention meaning. Behavior derives from persisted data plus authoritative `gameTime`.
 
 Required properties:
 
-- the same retained entries survive direct store reload;
-- the same eligible candidate IDs are selected after reload;
-- ranking order for the same query is identical after reload;
-- advancing `gameTime` may change recency/retention scores deterministically but not through wall-clock time;
-- repeated reloads do not duplicate records or mutate provenance;
-- production restart acceptance must verify that world-local stores reopen cleanly and preserve the expected survivors.
+- direct store reload preserves expected survivor IDs;
+- the same query after reload selects identical candidate IDs;
+- final ranking order is identical after reload;
+- advancing only `gameTime` may alter recency/retention scores deterministically;
+- wall-clock delay may not alter memory behavior;
+- replay/reload does not duplicate records or mutate provenance;
+- final production evidence includes real server startup/restart, not only reconstructed unit stores.
 
-Unit/integration tests may use direct store reconstruction from the same file. Final delivery evidence must also include the existing real server startup/restart acceptance path.
+## 9. Truth precedence after long horizons
 
-## 9. Current-truth precedence after long horizons
+Long-horizon work changes only which eligible persisted memories can enter the bounded candidate set. Snapshot authority order does not change.
 
-Long-horizon recall changes only which eligible persisted memories can enter the bounded candidate set. It does not change snapshot authority layering.
+Required regressions:
 
-Required conflict regressions:
-
-1. stale PLAYER_TOLD BELIEF conflicts with a current observed FACT → current observation remains first and authoritative;
-2. stale `RELATIONSHIP_CHANGE` or `RELATIONSHIP_CAUSE` conflicts with current relationship state → current relationship state remains first and authoritative;
-3. old Operator Lore conflicts with current observation → current observation remains authoritative;
+1. stale PLAYER_TOLD BELIEF conflicts with current observed FACT → current observation remains authoritative;
+2. stale relationship history conflicts with current relationship state → current relationship state remains authoritative;
+3. Operator Lore conflicts with current observation → current observation remains authoritative;
 4. repeated/corroborated BELIEF remains BELIEF;
-5. long-lived `RELATIONSHIP_CAUSE` does not promote its source DIALOGUE content to FACT.
+5. surviving `RELATIONSHIP_CAUSE` never makes source DIALOGUE content FACT.
 
-## 10. TDD delivery contract
+## 10. Strict TDD contract
 
-Production changes are forbidden until the corresponding test-only commit has produced an observed failure for the intended reason.
+Production changes for a slice are forbidden until a **tests-only** commit produces the expected RED for the intended reason.
+
+Every RED record must capture:
+
+- exact head SHA;
+- failing test names;
+- observed failure reason;
+- confirmation that production code for that slice was unchanged.
+
+Every GREEN transition must capture the exact implementation head and corresponding successful gates.
 
 ### RED 1 — Semantic retained-but-starved recall
 
 Fixture:
 
-- one old high-durability Semantic record scoped to the current player or NPC-global;
-- enough newer eligible records to exceed the 32-candidate newest-first window;
-- the old record remains physically persisted;
-- current implementation fails to include it in the context candidate/result path where the long-horizon contract expects it;
-- reload reproduces the same failure.
+- old high-durability Semantic memory;
+- current-player or NPC-global visibility;
+- more than 32 newer eligible records;
+- old memory still physically persisted;
+- newest-only context retrieval fails to expose the old memory;
+- reload reproduces the failure.
 
-Only after this exact RED may Semantic long-horizon candidate selection be implemented.
+Only then may Semantic long-horizon candidate selection change.
 
 ### RED 2 — Episodic pressure retention
 
 Fixture:
 
-- an old important `RELATIONSHIP_CAUSE`, `RELATIONSHIP_CHANGE` or authoritative observation;
-- newer low-value ordinary dialogue;
+- old important `RELATIONSHIP_CAUSE`, `RELATIONSHIP_CHANGE` or authoritative observation;
+- newer weak ordinary dialogue;
 - hard capacity pressure;
-- current FIFO implementation evicts the important old event.
+- current FIFO evicts the important old event.
 
-Only after this exact RED may episodic persistence retention change.
+Only then may episodic persistence retention change.
 
 ### RED 3 — Episodic retained-but-starved recall
 
-After episodic retention is GREEN:
+After RED 2 is GREEN:
 
-- the important old event is known to remain persisted;
-- enough newer eligible records fill the newest-first candidate window;
-- current candidate retrieval fails to expose it.
+- important old episodic/social event is known to remain persisted;
+- more than one newest-only candidate window of newer eligible history exists;
+- current context retrieval fails to expose the important old event.
 
-Only after this RED may episodic long-horizon candidate selection change.
+Only then may episodic candidate selection change.
 
-### RED 4 — multi-session/restart determinism
+### RED/Regression 4 — multi-session/restart determinism
 
-Construct multi-day Minecraft `gameTime` fixtures and reload the same persistent stores multiple times. Assert exact retained IDs, exact selected candidate IDs and exact ranking order.
+Use multi-day Minecraft `gameTime`, repeated reloads and exact survivor/candidate/ranking IDs. Any failure is fixed minimally without wall-clock state.
 
-Any failure must be fixed minimally without adding wall-clock state.
+### RED/Regression 5 — privacy under pressure
 
-### RED 5 — privacy under pressure
+Use at least two NPCs and two players with:
 
-Use at least:
-
-- two NPCs;
-- two players;
-- current-player private memory;
-- foreign-player private memory;
+- current-player-private memory;
+- foreign-player-private memory;
 - NPC-global memory;
-- shared current-player-plus-other-entity memory;
-- enough pressure to exercise both recent and durable pools.
+- current-player-plus-other-entity shared memory;
+- enough records to exercise both recent and durable pools.
 
-Assert that pressure and recall remain independent per NPC/player scope and that foreign-player data consumes zero candidate slots.
+Assert foreign-player data consumes zero candidate slots and pressure remains isolated per NPC.
 
-### RED 6 — authority precedence
+### Regression 6 — authority precedence
 
-Exercise stale long-horizon BELIEF/social history against newer current observations/current relationship state and prove current truth remains structurally first.
+Exercise stale long-horizon BELIEF/social history against newer current observations/current relationship state. If current code already passes, add/retain tests and make no production change.
 
-If existing code already passes, preserve those tests as regression evidence and make no production change.
+### Regression 7 — deterministic long-running simulation
 
-### RED 7 — deterministic long-running simulation
+Generate hundreds of bounded records across multiple Minecraft days, without sleeps. Run the same fixture repeatedly, reopen stores and assert exact survivor/candidate/ranking IDs.
 
-Generate hundreds of bounded events over multiple Minecraft days without sleeps or wall-clock dependencies.
+## 11. Expected component boundaries
 
-Run the same logical fixture more than once and assert exact survivor/candidate/ranking IDs. Reopen persistent files and assert the same result.
+Subject to observed RED evidence:
 
-## 11. Test levels and final delivery evidence
+- keep `SemanticMemoryRetentionPolicy` for Semantic persistence;
+- add pure `MemoryEventRetentionPolicy` for episodic/social pressure selection;
+- add a small pure long-horizon candidate selector shared between domains only if the generic form remains clear and type-safe;
+- otherwise prefer small explicit domain selectors over an opaque abstraction;
+- add store access that exposes bounded NPC-owned records through an eligibility predicate before candidate selection;
+- keep `SemanticMemoryContextProvider` and `Memory2ContextProvider` as prompt-facing retrieval boundaries;
+- keep existing rankers as final rankers;
+- keep `PlayerScopedMemoryEligibility` as visibility authority;
+- keep `SnapshotContextPromptPolicy` as truth-layer authority.
 
-The final feature cannot be called complete from unit tests alone.
+Candidate selection itself is pure and must have no persistence side effect.
 
-Required evidence:
+## 12. Failure and recovery behavior
 
-- pure retention/candidate-selector unit tests;
+- null/invalid queries continue to fail closed with empty results;
+- malformed persistence continues through existing recovery policy;
+- duplicate UUID replay remains idempotent;
+- invalid persisted entries continue to be sanitized;
+- provider failure cannot mutate retention state;
+- rejected weak pressure candidates cannot corrupt/reorder another NPC's state;
+- recovery, reload and restart cannot promote or rewrite provenance.
+
+## 13. Final delivery evidence
+
+Completion requires more than unit tests:
+
+- pure retention/selector tests;
 - store persistence/reload tests;
-- context-provider privacy and long-horizon tests;
-- prompt authority-order regressions;
-- existing common/mock-provider suite;
-- relevant server GameTests selected by the repository risk selector;
+- context-provider long-horizon/privacy tests;
+- prompt precedence regressions;
+- common/mock-provider suite;
+- relevant risk-selected server GameTests;
 - Fabric build;
-- NeoForge compile/build compatibility;
+- NeoForge compatibility build;
 - production startup/restart acceptance;
 - selected persistence-recovery acceptance;
 - repository security policy;
 - constrained production soak/restart cycle;
 - release dry-run with publication skipped;
 - exact-head independent review;
-- explicit distinction between automated candidate evidence and installed-release evidence.
-
-Every RED commit must be recorded with:
-
-- exact head SHA;
-- failing test names;
-- failure reason;
-- confirmation that production code for that slice had not yet changed.
-
-Every GREEN transition must record the exact implementation head and corresponding successful gate.
-
-## 12. Expected component boundaries
-
-The implementation should preserve small, testable units. Expected shape, subject to RED evidence:
-
-- existing `SemanticMemoryRetentionPolicy`: unchanged Semantic persistence scoring;
-- new pure `MemoryEventRetentionPolicy`: episodic/social persistence scoring and bounded survivor selection;
-- a pure bounded long-horizon candidate-selection unit shared by Semantic and episodic domains where practical, parameterized by stable recent order and domain durability order;
-- store APIs that can expose bounded persisted records for an NPC with an eligibility predicate before candidate selection;
-- `SemanticMemoryContextProvider` and `Memory2ContextProvider` remain the prompt-facing composition boundaries;
-- existing rankers remain final candidate rankers;
-- `PlayerScopedMemoryEligibility` remains visibility authority;
-- `SnapshotContextPromptPolicy` remains truth-layer authority.
-
-Do not create a generic abstraction if it makes the domain rules harder to inspect. Small duplicated selectors are preferable to an opaque framework if a shared generic helper is not clear and type-safe.
-
-## 13. Failure handling
-
-- invalid/null query inputs continue to fail closed with empty results;
-- malformed persistence continues through existing recovery policy;
-- duplicate UUID replay remains idempotent;
-- unknown/unsupported persisted entries continue to be sanitized by the stores;
-- no model/provider failure may change retention state;
-- candidate selection is pure and has no persistence side effect;
-- rejected weak pressure candidates must not corrupt or reorder unrelated NPC state.
+- explicit distinction between candidate automation evidence and installed-release evidence.
 
 ## 14. Acceptance criteria
 
-Long-horizon recall is complete only when all of the following are true:
+The slice is complete only when:
 
-1. an important old Semantic memory can survive storage pressure and still be recall-eligible after more than one candidate window of newer eligible memory;
-2. an important old episodic/social event can survive bounded pressure against weaker newer dialogue;
-3. important persisted episodic/social memory can still enter the bounded recall candidate set after more than one candidate window of newer eligible history;
-4. weak memory predictably decays/evicts under pressure;
-5. no memory type becomes immortal;
-6. multiple sessions and restart preserve exact expected survivors and deterministic selection/ranking;
-7. current-player/NPC-global/shared visibility stays exact and foreign-player data cannot consume either recent or durable slots;
-8. current observed truth and current relationship state continue to outrank stale recollection;
-9. FACT/BELIEF provenance remains unchanged;
-10. persistence and prompt bounds remain hard;
-11. no new persistence format, config version, external memory service or LLM memory-management call is introduced;
-12. all staged RED→GREEN evidence and final CI/production/release-dry-run evidence are documented before merge.
+1. important old Semantic memory can survive storage pressure and remain recall-eligible after more than one candidate window of newer eligible memory;
+2. important old episodic/social memory survives bounded pressure against weaker newer dialogue;
+3. important persisted episodic/social memory remains recall-eligible after more than one candidate window of newer eligible history;
+4. weak memory decays/evicts predictably;
+5. no memory type is immortal;
+6. multi-session/restart behavior preserves exact expected survivors and deterministic selection/ranking;
+7. current-player/NPC-global/shared visibility remains exact;
+8. foreign-player data consumes zero recent and durable slots;
+9. current observed truth/current relationship state still outrank stale recall;
+10. FACT/BELIEF provenance is unchanged;
+11. persistence and prompt bounds remain hard;
+12. no new persistence format, config version, external memory service or LLM memory-management call is introduced;
+13. staged RED→GREEN evidence and final CI/production/release-dry-run evidence are documented before merge.
 
 ## 15. Follow-on work
 
-Only after this slice is merged and canonical state/roadmap are reconciled should development advance to:
+Only after this slice is merged and canonical state/roadmap are reconciled:
 
-1. NPC-to-NPC knowledge transfer through the existing `NPC_TOLD` BELIEF contract;
-2. provenance-aware rumor propagation.
+1. NPC-to-NPC knowledge transfer via the existing `NPC_TOLD` BELIEF contract;
+2. provenance-aware rumors.
