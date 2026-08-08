@@ -24,6 +24,7 @@ public final class RelationshipCauseMemoryAdapter {
         if (relationshipChange.relationshipTransition() == null) return Optional.empty();
         if (dialogue.type() != MemoryEvent.Type.DIALOGUE) return Optional.empty();
         if (relationshipChange.id().equals(dialogue.id())) return Optional.empty();
+        if (relationshipChange.gameTime() != dialogue.gameTime()) return Optional.empty();
 
         UUID npcId = relationshipChange.ownerNpcId();
         if (!npcId.equals(dialogue.ownerNpcId())) return Optional.empty();
@@ -52,7 +53,7 @@ public final class RelationshipCauseMemoryAdapter {
                 DIALOGUE_SUMMARY,
                 List.of(npcId, playerId),
                 MemoryEvent.Provenance.SYSTEM_OBSERVED,
-                Math.max(relationshipChange.gameTime(), dialogue.gameTime()),
+                relationshipChange.gameTime(),
                 causeCreatedAt,
                 55,
                 0,
