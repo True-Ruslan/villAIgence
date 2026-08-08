@@ -49,7 +49,7 @@ class VoiceConversationDeadlineWiringPolicyTest {
                 .count());
 
         String providerCall =
-                "openAIChatAI.answer(server, player, villager, msg, snapshot, deadline)";
+                "openAIChatAI.answerDetailed(server, player, villager, msg, snapshot, deadline)";
         int providerCallIndex = chatAi.indexOf(providerCall);
         int snapshotCommitIndex = providerCallIndex < 0
                 ? -1

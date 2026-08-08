@@ -90,7 +90,9 @@ Current controls:
 ```json
 {
   "memory2Enabled": true,
-  "memory2MaxEventsPerNpc": 256
+  "memory2MaxEventsPerNpc": 256,
+  "semanticBeliefExtractionEnabled": false,
+  "semanticBeliefMaxCandidatesPerTurn": 3
 }
 ```
 
@@ -98,6 +100,12 @@ Current controls:
 |---|---:|---:|---|
 | `memory2Enabled` | `true` | boolean | enables Memory 2.0 persistence and persistent dialogue recall |
 | `memory2MaxEventsPerNpc` | `256` | `1..512` | maximum persisted Memory 2.0 events retained for one NPC |
+| `semanticBeliefExtractionEnabled` | `false` | boolean | opt-in extraction of bounded non-authoritative `PLAYER_TOLD` BELIEF candidates from the existing structured chat response |
+| `semanticBeliefMaxCandidatesPerTurn` | `3` | `1..8` | maximum candidate statements accepted from one successful player dialogue turn |
+
+Semantic BELIEF extraction is deliberately disabled by default. When enabled, it is active only while `memory2Enabled=true` and reuses the existing Chat provider response; it does **not** create a second provider request.
+
+The model may propose only bounded statement strings. Server-owned code fixes the NPC owner, current player UUID, `PLAYER_TOLD` provenance and exact persisted source DIALOGUE event. This path cannot create or promote `FACT`; `SYSTEM_OBSERVED` remains reserved for the authoritative FACT path. Candidate statements are normalized/deduplicated, capped at 240 Unicode code points, and bounded by the configured per-turn limit with a hard maximum of 8.
 
 Successful text and voice dialogue use one post-success persistence boundary:
 
@@ -107,6 +115,18 @@ usable AI result
 → structured DIALOGUE MemoryEvent
 → memory2.json
 ```
+
+With BELIEF extraction enabled, semantic admission happens only after the successful DIALOGUE event has been persisted:
+
+```text
+usable structured AI result
+→ persist exact PLAYER_TOLD DIALOGUE event
+→ bounded beliefCandidates metadata
+→ server-owned PLAYER_TOLD admission
+→ semantic-memory.json
+```
+
+If the visible response is unusable, DIALOGUE persistence fails, candidate metadata is malformed/empty, or semantic admission rejects a candidate, no BELIEF is written. Semantic persistence remains fail-soft and cannot remove an already successful dialogue response/source event.
 
 The next prompt reconstructs recent dialogue from structured Memory 2.0 DIALOGUE events for the exact NPC/player pair. It never parses the human-readable event summary and never reads a second persistent conversation format.
 
@@ -134,9 +154,9 @@ The source `WorldEvent` UUID is reused as the `MemoryEvent` UUID, so retries/red
 
 Current relationship numeric deltas can be stored as `RELATIONSHIP_CHANGE` events after the server successfully applies the bounded transition. The system still does **not** invent an authoritative causal reason when one was not separately validated.
 
-Config version remains `2`; existing version-2 configs require no schema migration. The Memory 2.0 clean cutover is a **world-data** compatibility decision: pre-0.2 experimental conversation history is intentionally not imported. Installed validation should use a clean LivingWorld test state.
+Config version remains `2`; existing version-2 configs require no schema migration. Missing semantic BELIEF extraction fields receive the safe defaults above. The Memory 2.0 clean cutover is a **world-data** compatibility decision: pre-0.2 experimental conversation history is intentionally not imported. Installed validation should use a clean LivingWorld test state.
 
-See [MEMORY_2.md](MEMORY_2.md) for the persistence, provenance, ranking and truth-boundary design.
+See [MEMORY_2.md](MEMORY_2.md) and [SEMANTIC_INGESTION.md](SEMANTIC_INGESTION.md) for the persistence, provenance, ranking, extraction and truth-boundary design.
 
 ## Voice switches
 
@@ -332,12 +352,14 @@ This prevents accidental cross-provider credential leakage.
 
 ## Structured AI response safety
 
-VillAIgence treats the visible NPC message independently from optional command and relationship metadata.
+VillAIgence treats the visible NPC message independently from optional command, relationship and semantic BELIEF metadata.
 
 - malformed `optionalCommand` is ignored without discarding a valid message;
 - malformed relationship fields are ignored;
 - relationship values must be integers before acceptance;
 - server-side relationship application performs configured per-turn clamping;
+- malformed/missing/non-array `beliefCandidates` metadata produces no candidates without discarding a valid message;
+- BELIEF candidate strings are bounded/normalized before admission and cannot supply provenance, source IDs or FACT authority;
 - syntactically malformed JSON may recover only a safe top-level JSON string `message`;
 - JSON metadata/tails are never used as visible fallback text;
 - unrecoverable JSON-looking responses produce no unsafe answer.
@@ -374,7 +396,7 @@ Configuration readiness is reported as:
 - `MISCONFIGURED` — enabled but required configuration is missing or unusable;
 - `DISABLED` — intentionally disabled by configuration.
 
-Runtime status is process-local. `last: NEVER` means no completed operation for that stage has been observed since the server process started.
+Runtime status is process-local. `last: NEVER` means no completed operation for that stage has been observed since the current server process started.
 
 Admission lines report current `active/max`, total local `rejected` count and remaining `providerCooldownMs` for each stage.
 

@@ -7,6 +7,8 @@ import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.ai.AiRequestDeadline;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
 import net.conczin.mca.livingworld.memory2.Memory2DialogueLifecycle;
+import net.conczin.mca.livingworld.memory2.MemoryEvent;
+import net.conczin.mca.livingworld.memory2.PlayerToldBeliefLifecycle;
 import net.conczin.mca.util.WorldUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -97,8 +99,10 @@ public class ChatAI {
         ChatAIStrategy strategy = computeStrategyIfAbsent(snapshot.villagerId());
         currentConversations.put(snapshot.playerId(), new OpenConversation(snapshot.villagerId(), snapshot.gameTime()));
         if (strategy instanceof OpenAIChatAI openAIChatAI) {
-            Optional<String> answer = openAIChatAI.answer(server, player, villager, msg, snapshot, deadline);
-            rememberMemory2Dialogue(
+            OpenAIChatAI.SnapshotAnswer snapshotAnswer =
+                    openAIChatAI.answerDetailed(server, player, villager, msg, snapshot, deadline);
+            Optional<String> answer = snapshotAnswer.message();
+            Optional<MemoryEvent> sourceEvent = rememberMemory2Dialogue(
                     new DialogueMemoryCoordinates(
                             snapshot.worldRoot(),
                             snapshot.villagerId(),
@@ -108,6 +112,27 @@ public class ChatAI {
                     msg,
                     answer
             );
+            LivingWorldConfig config = LivingWorldConfig.getInstance();
+            sourceEvent.ifPresent(source -> {
+                try {
+                    PlayerToldBeliefLifecycle.recordCandidatesIfEnabled(
+                            config.memory2Enabled && config.semanticBeliefExtractionEnabled,
+                            snapshot.worldRoot(),
+                            source,
+                            snapshot.playerId(),
+                            snapshotAnswer.beliefCandidates(),
+                            config.semanticBeliefMaxCandidatesPerTurn,
+                            config.memory2MaxEventsPerNpc
+                    );
+                } catch (RuntimeException e) {
+                    MCA.LOGGER.warn(
+                            "Unable to persist player-told semantic BELIEF candidates for villager {} and player {}",
+                            snapshot.villagerId(),
+                            snapshot.playerId(),
+                            e
+                    );
+                }
+            });
             return answer;
         }
         return strategy.answer(player, villager, msg);
@@ -135,15 +160,15 @@ public class ChatAI {
         }
     }
 
-    private static void rememberMemory2Dialogue(
+    private static Optional<MemoryEvent> rememberMemory2Dialogue(
             DialogueMemoryCoordinates coordinates,
             String playerMessage,
             Optional<String> answer
     ) {
-        if (coordinates == null) return;
+        if (coordinates == null) return Optional.empty();
         LivingWorldConfig config = LivingWorldConfig.getInstance();
         try {
-            Memory2DialogueLifecycle.recordSuccessful(
+            return Memory2DialogueLifecycle.recordSuccessful(
                     config.memory2Enabled,
                     coordinates.worldRoot(),
                     coordinates.villagerId(),
@@ -161,6 +186,7 @@ public class ChatAI {
                     coordinates.playerId(),
                     e
             );
+            return Optional.empty();
         }
     }
 

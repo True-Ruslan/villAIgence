@@ -11,6 +11,7 @@ import net.conczin.mca.livingworld.actions.LivingWorldActionPolicy;
 import net.conczin.mca.livingworld.ai.ProviderCredentialBinding;
 import net.conczin.mca.livingworld.ai.ProviderEndpoint;
 import net.conczin.mca.livingworld.ai.ProviderEndpointPolicy;
+import net.conczin.mca.livingworld.ai.SemanticBeliefCandidateParser;
 import net.conczin.mca.livingworld.voice.NpcVoiceCatalog;
 import net.conczin.mca.livingworld.voice.SttRequestFormat;
 import net.conczin.mca.livingworld.voice.TtsResponseFormat;
@@ -64,6 +65,9 @@ public final class LivingWorldConfig {
     /** Memory 2.0 ingestion of authoritative server-observed events. */
     public boolean memory2Enabled = true;
     public int memory2MaxEventsPerNpc = 256;
+    /** Advisory player-told BELIEF extraction is opt-in and never creates FACT. */
+    public boolean semanticBeliefExtractionEnabled = false;
+    public int semanticBeliefMaxCandidatesPerTurn = SemanticBeliefCandidateParser.DEFAULT_MAX_CANDIDATES;
 
     public boolean relationshipStateEnabled = true;
     public int relationshipMaxDeltaPerTurn = 2;
@@ -401,6 +405,7 @@ public final class LivingWorldConfig {
         if (eventContextRadius < 0.0D) eventContextRadius = 32.0D;
         if (eventContextMaxEvents < 1) eventContextMaxEvents = 8;
         memory2MaxEventsPerNpc = Math.max(1, Math.min(512, memory2MaxEventsPerNpc));
+        semanticBeliefMaxCandidatesPerTurn = SemanticBeliefCandidateParser.normalizeMaxCandidates(semanticBeliefMaxCandidatesPerTurn);
         if (relationshipMaxDeltaPerTurn < 0) relationshipMaxDeltaPerTurn = 2;
         if (sttApiKey == null) sttApiKey = "";
         sttRequestFormat = SttRequestFormat.parse(sttRequestFormat).configValue();

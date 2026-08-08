@@ -9,7 +9,7 @@ public final class Memory2DialogueLifecycle {
     private Memory2DialogueLifecycle() {
     }
 
-    public static void recordSuccessful(
+    public static Optional<MemoryEvent> recordSuccessful(
             boolean enabled,
             Path worldRoot,
             UUID npcId,
@@ -20,11 +20,11 @@ public final class Memory2DialogueLifecycle {
             int maxEventsPerNpc,
             long createdAtEpochMillis
     ) {
-        if (!enabled || answer == null || answer.isEmpty()) return;
+        if (!enabled || answer == null || answer.isEmpty()) return Optional.empty();
         String npcReply = answer.get();
-        if (npcReply == null || npcReply.isBlank()) return;
+        if (npcReply == null || npcReply.isBlank()) return Optional.empty();
 
-        Memory2DialogueIngestor.recordIfEnabled(
+        return Memory2DialogueIngestor.recordIfEnabled(
                 true,
                 worldRoot,
                 npcId,

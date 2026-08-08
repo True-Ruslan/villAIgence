@@ -29,6 +29,14 @@ This is the **canonical changelog** for the project.
   - `INFERRED` remains a non-authoritative BELIEF with explicit source-event evidence;
   - `SYSTEM_OBSERVED` is rejected by the BELIEF path and remains reserved for FACT;
   - admitted BELIEFs are replay-idempotent and use the existing deterministic consolidation/source-union pipeline.
+- Opt-in bounded `PLAYER_TOLD` BELIEF candidate extraction in the existing structured OpenAI/OpenRouter chat response:
+  - no second provider request;
+  - the model may propose statement strings only;
+  - server-owned code fixes NPC owner, player identity, `PLAYER_TOLD` provenance and persisted source DIALOGUE event;
+  - DIALOGUE is persisted before any BELIEF candidate can be admitted;
+  - malformed/empty candidate metadata fails soft and writes nothing;
+  - duplicate candidates are normalized/deduplicated and bounded to at most 8 hard-limit candidates, with a default configured limit of 3;
+  - the extraction path cannot create or promote FACT.
 
 ### Changed
 
@@ -37,10 +45,15 @@ This is the **canonical changelog** for the project.
   - the redundant PR Gradle workflow was removed in PR #122;
   - wrapper validation remains in supply-chain verification;
   - the permanent Actions surface is now the fail-closed canonical eight-workflow set.
+- New semantic extraction configuration is deliberately safe-by-default:
+  - `semanticBeliefExtractionEnabled=false` by default;
+  - `semanticBeliefMaxCandidatesPerTurn=3` by default and normalized to the bounded parser limit;
+  - existing version-2 configs require no migration because missing fields receive safe defaults.
 
 ### Validation
 
 - Controlled BELIEF admission was developed with a tests-first RED/GREEN boundary in PR #123.
+- Bounded player-told BELIEF extraction was developed through explicit RED/GREEN contract tests in PR #125; exact-head CI/release evidence is recorded in that PR.
 - Real two-graphical-client Operator Lore acceptance `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two graphical clients are available.
 
 ---
