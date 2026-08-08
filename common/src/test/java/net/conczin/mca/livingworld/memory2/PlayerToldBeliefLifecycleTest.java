@@ -70,6 +70,26 @@ class PlayerToldBeliefLifecycleTest {
     }
 
     @Test
+    void rejectsPlayerThatIsNotAParticipantOfSourceDialogue() {
+        UUID npc = UUID.randomUUID();
+        UUID sourcePlayer = UUID.randomUUID();
+        UUID unrelatedPlayer = UUID.randomUUID();
+        MemoryEvent source = dialogue(UUID.randomUUID(), npc, sourcePlayer, 115L, 55, 50);
+
+        PlayerToldBeliefLifecycle.recordCandidatesIfEnabled(
+                true,
+                tempDir,
+                source,
+                unrelatedPlayer,
+                List.of("The north bridge is unsafe."),
+                3,
+                16
+        );
+
+        assertEquals(List.of(), SemanticMemoryStore.forWorld(tempDir).getRecent(npc, 16));
+    }
+
+    @Test
     void configuredCandidateLimitIsAppliedAfterProviderHardBound() {
         UUID npc = UUID.randomUUID();
         UUID player = UUID.randomUUID();
