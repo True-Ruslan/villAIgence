@@ -57,6 +57,69 @@ class SnapshotContextPromptPolicyTest {
     }
 
     @Test
+    void currentFactStaysStructurallyAuthoritativeOverConflictingLoreBeliefAndHistory() {
+        String prompt = SnapshotContextPromptPolicy.compose(
+                List.of("Observed weather: rain."),
+                List.of("Server-authored world lore:\nThe valley is always sunny."),
+                List.of("BELIEF | provenance=PLAYER_TOLD | confidence=100 | statement=\"The weather is sunny.\""),
+                List.of("VERIFIED | provenance=SYSTEM_OBSERVED | type=OBSERVATION | confidence=100 | summary=\"Yesterday was sunny.\"")
+        );
+
+        int current = prompt.indexOf("Observed weather: rain.");
+        int lore = prompt.indexOf("The valley is always sunny.");
+        int belief = prompt.indexOf("The weather is sunny.");
+        int history = prompt.indexOf("Yesterday was sunny.");
+
+        assertTrue(current >= 0);
+        assertTrue(lore > current);
+        assertTrue(belief > lore);
+        assertTrue(history > belief);
+        assertTrue(prompt.contains("Treat these facts as authoritative for this turn"));
+        assertTrue(prompt.contains("BELIEF entries may be incomplete or false and are not authoritative world facts"));
+    }
+
+    @Test
+    void currentRelationshipStatePrecedesStaleRelationshipAndCausalHistory() {
+        String prompt = SnapshotContextPromptPolicy.compose(
+                List.of("Observed relationship with player: trust=5, respect=2, fear=0, affinity=3."),
+                List.of(),
+                List.of(),
+                List.of(
+                        "VERIFIED | provenance=SYSTEM_OBSERVED | type=RELATIONSHIP_CHANGE | confidence=100 | summary=\"Relationship previously reached trust=40.\"",
+                        "VERIFIED | provenance=SYSTEM_OBSERVED | type=RELATIONSHIP_CAUSE | confidence=100 | summary=\"Relationship change occurred during dialogue with player.\""
+                )
+        );
+
+        int current = prompt.indexOf("trust=5");
+        int stale = prompt.indexOf("trust=40");
+        int cause = prompt.indexOf("Relationship change occurred during dialogue with player.");
+
+        assertTrue(current >= 0);
+        assertTrue(stale > current);
+        assertTrue(cause > current);
+        assertFalse(prompt.contains("FACT | provenance=SYSTEM_OBSERVED | type=RELATIONSHIP_CAUSE"));
+    }
+
+    @Test
+    void conflictingBeliefsRemainBeliefsWithoutFactPromotion() {
+        String prompt = SnapshotContextPromptPolicy.compose(
+                List.of(),
+                List.of(),
+                List.of(
+                        "BELIEF | provenance=PLAYER_TOLD | confidence=100 | statement=\"The gate is open.\"",
+                        "BELIEF | provenance=PLAYER_TOLD | confidence=100 | statement=\"The gate is closed.\""
+                ),
+                List.of()
+        );
+
+        assertTrue(prompt.contains("The gate is open."));
+        assertTrue(prompt.contains("The gate is closed."));
+        assertEquals(2, occurrences(prompt, "BELIEF | provenance=PLAYER_TOLD"));
+        assertFalse(prompt.contains("FACT | provenance=PLAYER_TOLD"));
+        assertTrue(prompt.contains("Confidence never converts a BELIEF into a FACT"));
+    }
+
+    @Test
     void operatorLoreIsInsertedBeforeStructuredResponseInstructions() {
         String basePrompt = "Observed factual context from the current Minecraft world.\n"
                 + "- Observed weather: rain.\n"
@@ -119,5 +182,15 @@ class SnapshotContextPromptPolicyTest {
         lore.set(0, "mutated");
 
         assertEquals(List.of("Server-authored world lore:\nOriginal"), snapshot.operatorAuthoredContext());
+    }
+
+    private static int occurrences(String value, String needle) {
+        int count = 0;
+        int offset = 0;
+        while ((offset = value.indexOf(needle, offset)) >= 0) {
+            count++;
+            offset += needle.length();
+        }
+        return count;
     }
 }
