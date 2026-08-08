@@ -4,91 +4,105 @@
 
 **Goal:** Make current server-observed truth structurally authoritative over remembered/background context while preventing foreign-player episodic and semantic memory from entering the current player's prompt.
 
-**Architecture:** Keep persistence formats unchanged. Add exact player/global eligibility before candidate limiting, preserve existing ranking only for eligible candidates, remove snapshot-side duplicate MemoryModule loading, and make `SnapshotContextPromptPolicy` the single deterministic renderer for observed facts, Operator Lore, semantic memory, and episodic memory before structured-response instructions.
+**Architecture:** Keep all persistence formats unchanged. Apply exact current-player-or-NPC-global eligibility before candidate limiting, preserve existing ranking only for eligible candidates, remove snapshot-side duplicate `MemoryModule` loading, and make `SnapshotContextPromptPolicy` the single deterministic renderer for observed facts, Operator Lore, semantic memory, and episodic memory before structured-response instructions.
 
-**Tech Stack:** Java 21, Fabric/NeoForge Minecraft 1.21.1, JUnit 5, Gson-backed world-local JSON stores, GitHub Actions production acceptance/recovery/soak/release dry-run.
+**Tech Stack:** Java 21, Minecraft 1.21.1, Fabric + NeoForge, JUnit 5, Gson-backed world-local JSON stores, GitHub Actions production acceptance/recovery/soak/release dry-run.
 
 ## Global Constraints
 
-- Base branch is `1.21.1` at `853739f3e580ebb85538e2fb7febd4fa4b5ddfcf`.
+- Base branch: `1.21.1`; design base commit: `853739f3e580ebb85538e2fb7febd4fa4b5ddfcf`.
 - Runtime behavior follows strict TDD: observe intended RED before production implementation.
-- Current `SYSTEM_OBSERVED` world state remains the highest-authority factual context for a turn.
-- BELIEF is never promoted by confidence, ranking, repetition, recency, or corroboration count.
-- Player isolation is an eligibility decision before candidate limiting and ranking, not merely a relevance penalty.
+- Current `SYSTEM_OBSERVED` world state is the highest-authority factual context for a turn.
+- BELIEF is never promoted by confidence, score, repetition, recency, or corroboration count.
+- Player isolation is eligibility before candidate limiting/ranking, never only a relevance penalty.
 - NPC-global entries/events remain eligible.
-- Existing stored memories are retained; no contradiction-driven delete/rewrite is introduced.
-- No new persistence file, schema version, config field, migration, dual-reader, embeddings, vector DB, second provider call, or LLM conflict resolver.
-- Existing classic/legacy `PlayerModule.apply(...)` may retain `MemoryModule`; snapshot capture must use a no-memory player-context path.
-- Root `CHANGELOG.md` `[Unreleased]` must be updated in the runtime PR.
-- Final exact PR head must pass common tests, repository security, selected GameTests, Fabric + NeoForge, production startup/restart, persistence recovery, package smoke, production soak, release dry-run with publication skipped, and independent review with P0/P1/P2=0.
+- Stored memories are retained; no contradiction-driven delete/rewrite is introduced.
+- No new persistence file/schema version/config field/migration/dual reader/embedding/vector DB/second provider call/LLM conflict resolver.
+- Legacy/classic `PlayerModule.apply(...)` keeps its existing `MemoryModule` behavior; snapshot capture uses a no-memory player-context path.
+- Root `CHANGELOG.md` `[Unreleased]` changes in the runtime PR.
+- Final exact PR head must pass common tests, repository security, selected GameTests, Fabric + NeoForge, production startup/restart, persistence recovery, package smoke, Production Soak, GitHub Release dry-run with publication skipped, and independent review with P0/P1/P2 = 0.
 
 ---
 
-## File Structure
+## File map
 
-### New production unit
+### New production file
 
 - `common/src/main/java/net/conczin/mca/livingworld/memory2/PlayerScopedMemoryEligibility.java`
-  - Pure server-side eligibility predicates shared by semantic and episodic prompt retrieval.
-  - No I/O, persistence, ranking, mutation, or provider behavior.
+  - Pure semantic/episodic eligibility predicates; no I/O, ranking, persistence, mutation, or provider calls.
 
-### Existing production units to modify
+### Existing production files
 
 - `common/src/main/java/net/conczin/mca/livingworld/memory2/SemanticMemoryStore.java`
-  - Add bounded predicate filtering before limit, mirroring `MemoryEventStore.getRecentMatching(...)`.
+  - Add predicate filtering before `limit`, mirroring `MemoryEventStore.getRecentMatching(...)`.
 - `common/src/main/java/net/conczin/mca/livingworld/memory2/SemanticMemoryRetriever.java`
-  - Add ranking of an already bounded eligible candidate list without changing ranking weights.
+  - Rank an already bounded eligible candidate list; weights/ties unchanged.
 - `common/src/main/java/net/conczin/mca/livingworld/memory2/SemanticMemoryContextProvider.java`
-  - Apply exact player/global eligibility before candidate limit.
+  - Enforce semantic player/global eligibility before candidate limit.
 - `common/src/main/java/net/conczin/mca/livingworld/memory2/MemoryRetriever.java`
-  - Add ranking of an already bounded eligible candidate list without changing ranking weights.
+  - Rank an already bounded eligible episodic candidate list; weights/ties unchanged.
 - `common/src/main/java/net/conczin/mca/livingworld/memory2/Memory2ContextProvider.java`
-  - Use existing `MemoryEventStore.getRecentMatching(...)` to filter before candidate limit.
+  - Use existing `MemoryEventStore.getRecentMatching(...)` before candidate limit.
 - `common/src/main/java/net/conczin/mca/entity/ai/chatAI/modules/PlayerModule.java`
-  - Split player context capture from legacy `MemoryModule` side effect.
+  - Separate player context from the legacy memory side effect.
 - `common/src/main/java/net/conczin/mca/livingworld/context/LivingWorldContextCapture.java`
-  - Use player-context-only path during immutable snapshot capture.
+  - Use the player-context-only snapshot path.
 - `common/src/main/java/net/conczin/mca/livingworld/context/SnapshotContextPromptPolicy.java`
-  - Render all four authority-bearing snapshot layers exactly once in deterministic order.
+  - Render four authority-bearing snapshot layers exactly once.
 - `common/src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java`
-  - Replace direct world-fact rendering + mixin lore insertion with direct layered policy composition.
+  - Directly compose the four layers before structured-response instructions.
 - `common/src/main/resources/mca.mixins.json`
-  - Remove `MixinOpenAIChatAI` registration once direct composition is active.
+  - Remove `MixinOpenAIChatAI` registration.
 - Delete `common/src/main/java/net/conczin/mca/mixin/MixinOpenAIChatAI.java`
-  - Obsolete after direct layered composition.
+  - Obsolete after direct composition.
 - `CHANGELOG.md`
-  - Record privacy/retrieval/prompt-precedence guarantees in `[Unreleased]`.
+  - Record the privacy/retrieval/prompt-precedence guarantees.
 
-### Tests to modify/create
+### Tests
 
 - `common/src/test/java/net/conczin/mca/livingworld/memory2/SemanticMemoryRetrieverTest.java`
 - `common/src/test/java/net/conczin/mca/livingworld/memory2/MemoryRetrieverTest.java`
-- Create `common/src/test/java/net/conczin/mca/livingworld/memory2/PlayerScopedMemoryEligibilityTest.java`
 - `common/src/test/java/net/conczin/mca/livingworld/context/SnapshotContextPromptPolicyTest.java`
 - Create `common/src/test/java/net/conczin/mca/livingworld/context/SnapshotMemoryWiringPolicyTest.java`
 - Create `common/src/test/java/net/conczin/mca/entity/ai/chatAI/SnapshotLayeredPromptWiringPolicyTest.java`
 
 ---
 
-### Task 1: Semantic exact-player eligibility before candidate limiting
+## Task 1: Semantic player/global eligibility
 
 **Files:**
-- Create: `common/src/main/java/net/conczin/mca/livingworld/memory2/PlayerScopedMemoryEligibility.java`
-- Modify: `common/src/main/java/net/conczin/mca/livingworld/memory2/SemanticMemoryStore.java`
-- Modify: `common/src/main/java/net/conczin/mca/livingworld/memory2/SemanticMemoryRetriever.java`
-- Modify: `common/src/main/java/net/conczin/mca/livingworld/memory2/SemanticMemoryContextProvider.java`
-- Test: `common/src/test/java/net/conczin/mca/livingworld/memory2/SemanticMemoryRetrieverTest.java`
-- Test: `common/src/test/java/net/conczin/mca/livingworld/memory2/PlayerScopedMemoryEligibilityTest.java`
+- Test first: `common/src/test/java/net/conczin/mca/livingworld/memory2/SemanticMemoryRetrieverTest.java`
+- Then create: `common/src/main/java/net/conczin/mca/livingworld/memory2/PlayerScopedMemoryEligibility.java`
+- Then modify: `SemanticMemoryStore.java`, `SemanticMemoryRetriever.java`, `SemanticMemoryContextProvider.java`
 
-**Interfaces:**
-- Produces: `PlayerScopedMemoryEligibility.semantic(SemanticMemoryEntry entry, UUID npcId, UUID playerId) -> boolean`.
-- Produces: package-private `SemanticMemoryStore.getRecentMatching(UUID npcId, int maxResults, Predicate<SemanticMemoryEntry> predicate)`.
-- Produces: package-private `SemanticMemoryRetriever.rankCandidates(List<SemanticMemoryEntry> candidates, SemanticMemoryQuery query)`.
-- Existing public `SemanticMemoryRetriever.retrieve(store, query)` remains source-compatible.
+**Produces:**
 
-- [ ] **Step 1: Write semantic isolation RED tests only**
+```java
+public static boolean PlayerScopedMemoryEligibility.semantic(
+        SemanticMemoryEntry entry,
+        UUID npcId,
+        UUID playerId
+)
+```
 
-Add provider-level tests that create one NPC with current-player, NPC-global, and foreign-player entries. Include a starvation case where 32 newer foreign entries would occupy all current candidates under the old implementation.
+```java
+synchronized List<SemanticMemoryEntry> SemanticMemoryStore.getRecentMatching(
+        UUID npcId,
+        int maxResults,
+        Predicate<SemanticMemoryEntry> predicate
+)
+```
+
+```java
+static List<RankedSemanticMemory> SemanticMemoryRetriever.rankCandidates(
+        List<SemanticMemoryEntry> candidates,
+        SemanticMemoryQuery query
+)
+```
+
+- [ ] **1.1 Write provider-level RED tests using only existing APIs**
+
+Do not reference any new production class in the tests-only commit. Add cases for current player, NPC-global, foreign player, and pre-limit starvation.
 
 ```java
 @Test
@@ -98,12 +112,11 @@ void contextProviderFiltersForeignPlayerBeforeCandidateLimit() {
     UUID foreignPlayer = UUID.randomUUID();
     SemanticMemoryStore store = SemanticMemoryStore.forWorld(tempDir);
 
-    SemanticMemoryEntry eligible = new SemanticMemoryEntry(
+    store.append(new SemanticMemoryEntry(
             UUID.randomUUID(), npc, SemanticMemoryEntry.Kind.BELIEF,
             "eligible-current-player", List.of(currentPlayer), MemoryEvent.Provenance.PLAYER_TOLD,
             1L, 1_700_000_000_001L, 20, 30, List.of(UUID.randomUUID())
-    );
-    store.append(eligible, 128);
+    ), 128);
 
     for (int i = 0; i < 32; i++) {
         store.append(new SemanticMemoryEntry(
@@ -120,17 +133,18 @@ void contextProviderFiltersForeignPlayerBeforeCandidateLimit() {
 }
 ```
 
-Also test NPC-global entry (`relatedEntities = List.of()`) remains eligible and pure predicate owner/player behavior.
+Add a second test with `relatedEntities = List.of()` proving NPC-global semantic memory remains visible.
 
-- [ ] **Step 2: Run tests and record intended RED**
+- [ ] **1.2 Commit tests only and observe RED in CI**
 
-Run through the PR CI-bearing common test path after committing tests only. Expected failure: the current provider either returns foreign semantic entries or allows 32 foreign entries to starve the eligible entry. Do not change production before this RED is observed.
+Expected RED: current provider either returns foreign semantic entries or lets the 32 newer foreign entries consume the candidate window and starve the eligible entry. Reject infrastructure/policy failures as TDD evidence.
 
-- [ ] **Step 3: Implement pure semantic eligibility and bounded filtered store read**
+- [ ] **1.3 Implement minimal semantic eligibility**
 
 ```java
 public final class PlayerScopedMemoryEligibility {
-    private PlayerScopedMemoryEligibility() {}
+    private PlayerScopedMemoryEligibility() {
+    }
 
     public static boolean semantic(SemanticMemoryEntry entry, UUID npcId, UUID playerId) {
         if (entry == null || npcId == null || !npcId.equals(entry.ownerNpcId())) return false;
@@ -140,51 +154,57 @@ public final class PlayerScopedMemoryEligibility {
 }
 ```
 
-Mirror `MemoryEventStore.getRecentMatching(...)` in `SemanticMemoryStore` so filtering occurs before `.limit(maxResults)`.
+Mirror `MemoryEventStore.getRecentMatching(...)` in `SemanticMemoryStore`, with `.filter(predicate)` before `.limit(maxResults)`.
 
-- [ ] **Step 4: Rank only eligible semantic candidates**
+- [ ] **1.4 Rank only the bounded eligible candidates**
 
-Add `rankCandidates(...)` that maps/sorts/limits a supplied bounded candidate list using the existing `RANKING`; do not modify weights or tie breakers. `SemanticMemoryContextProvider.load(...)` must call:
+`SemanticMemoryRetriever.rankCandidates(...)` uses the existing `rank(...)`, `RANKING`, and `query.maxResults()` unchanged. `SemanticMemoryContextProvider.load(...)` becomes:
 
 ```java
-List<SemanticMemoryEntry> candidates = SemanticMemoryStore.forWorld(worldRoot)
-        .getRecentMatching(
-                npcId,
-                CANDIDATE_LIMIT,
-                entry -> PlayerScopedMemoryEligibility.semantic(entry, npcId, playerId)
-        );
+SemanticMemoryStore store = SemanticMemoryStore.forWorld(worldRoot);
+List<SemanticMemoryEntry> candidates = store.getRecentMatching(
+        npcId,
+        CANDIDATE_LIMIT,
+        entry -> PlayerScopedMemoryEligibility.semantic(entry, npcId, playerId)
+);
 List<RankedSemanticMemory> ranked = SemanticMemoryRetriever.rankCandidates(candidates, query);
+return SemanticMemoryContextFormatter.format(ranked);
 ```
 
-- [ ] **Step 5: Run focused + full common tests and commit GREEN**
+- [ ] **1.5 Run focused/full common tests and commit GREEN**
 
-Expected: semantic foreign-player entries are absent, NPC-global/current-player entries remain, ranking of eligible entries is unchanged.
+Expected: foreign semantic memory is absent, current-player/NPC-global memory remains, ranking among eligible entries is unchanged.
 
-Commit message:
-
-```text
-fix: isolate player-scoped semantic retrieval
-```
+Commit: `fix: isolate player-scoped semantic retrieval`
 
 ---
 
-### Task 2: Episodic exact-player eligibility before candidate limiting
+## Task 2: Episodic player/global eligibility
 
 **Files:**
-- Modify: `common/src/main/java/net/conczin/mca/livingworld/memory2/PlayerScopedMemoryEligibility.java`
-- Modify: `common/src/main/java/net/conczin/mca/livingworld/memory2/MemoryRetriever.java`
-- Modify: `common/src/main/java/net/conczin/mca/livingworld/memory2/Memory2ContextProvider.java`
-- Test: `common/src/test/java/net/conczin/mca/livingworld/memory2/MemoryRetrieverTest.java`
-- Test: `common/src/test/java/net/conczin/mca/livingworld/memory2/PlayerScopedMemoryEligibilityTest.java`
+- Test first: `common/src/test/java/net/conczin/mca/livingworld/memory2/MemoryRetrieverTest.java`
+- Then modify: `PlayerScopedMemoryEligibility.java`, `MemoryRetriever.java`, `Memory2ContextProvider.java`
 
-**Interfaces:**
-- Consumes: `MemoryEventStore.getRecentMatching(...)` already exists.
-- Produces: `PlayerScopedMemoryEligibility.episodic(MemoryEvent event, UUID npcId, UUID playerId) -> boolean`.
-- Produces: package-private `MemoryRetriever.rankCandidates(List<MemoryEvent> candidates, MemoryQuery query)`.
+**Produces:**
 
-- [ ] **Step 1: Write episodic isolation RED tests only**
+```java
+public static boolean PlayerScopedMemoryEligibility.episodic(
+        MemoryEvent event,
+        UUID npcId,
+        UUID playerId
+)
+```
 
-Create current-player, NPC-global, and foreign-player events. Include `RELATIONSHIP_CHANGE`/`RELATIONSHIP_CAUSE` foreign-player cases and candidate starvation.
+```java
+static List<RankedMemory> MemoryRetriever.rankCandidates(
+        List<MemoryEvent> candidates,
+        MemoryQuery query
+)
+```
+
+- [ ] **2.1 Write episodic RED tests using only existing APIs**
+
+Use deterministic summaries, not foreign UUID text, for assertions. Add current-player, NPC-global, foreign-player `RELATIONSHIP_CHANGE`, foreign-player `RELATIONSHIP_CAUSE`, and 32-foreign-entry starvation cases.
 
 ```java
 @Test
@@ -192,77 +212,81 @@ void contextProviderFiltersForeignPlayerEventsBeforeCandidateLimit() {
     UUID npc = UUID.randomUUID();
     UUID currentPlayer = UUID.randomUUID();
     UUID foreignPlayer = UUID.randomUUID();
-    MemoryEventStore store = new MemoryEventStore(tempDir.resolve("livingworld").resolve("memory2.json"));
+    MemoryEventStore store = MemoryEventStore.forWorld(tempDir);
 
-    MemoryEvent eligible = event(
+    store.append(eventWithSummary(
             UUID.randomUUID(), npc, MemoryEvent.Type.ACTION,
-            Set.of(npc, currentPlayer), 1L, 20, 30
-    );
-    store.append(eligible, 128);
+            Set.of(npc, currentPlayer), 1L, 20, 30, "eligible-current-player"
+    ), 128);
 
     for (int i = 0; i < 32; i++) {
-        store.append(event(
+        store.append(eventWithSummary(
                 UUID.randomUUID(), npc, MemoryEvent.Type.RELATIONSHIP_CHANGE,
-                Set.of(npc, foreignPlayer), 100L + i, 100, 100
+                Set.of(npc, foreignPlayer), 100L + i, 100, 100, "foreign-" + i
         ), 128);
     }
 
     List<String> context = Memory2ContextProvider.load(tempDir, npc, currentPlayer, 200L);
 
-    assertTrue(context.stream().anyMatch(line -> line.contains(eligible.summary())));
-    assertTrue(context.stream().noneMatch(line -> line.contains(foreignPlayer.toString())));
+    assertTrue(context.stream().anyMatch(line -> line.contains("eligible-current-player")));
+    assertTrue(context.stream().noneMatch(line -> line.contains("foreign-")));
 }
 ```
 
-Use deterministic summaries in fixtures so assertions do not depend on UUID text accidentally omitted from formatter output.
+- [ ] **2.2 Commit tests only and observe RED**
 
-- [ ] **Step 2: Run tests and record intended RED**
+Expected RED: current provider admits/starves on foreign-player events because participant mismatch is only a relevance penalty.
 
-Expected: old provider admits or is starved by foreign-player events. No production edit before observed RED.
-
-- [ ] **Step 3: Implement episodic eligibility**
+- [ ] **2.3 Implement episodic eligibility**
 
 ```java
 public static boolean episodic(MemoryEvent event, UUID npcId, UUID playerId) {
     if (event == null || npcId == null || !npcId.equals(event.ownerNpcId())) return false;
-    boolean hasExternalParticipant = event.participants().stream().anyMatch(id -> !npcId.equals(id));
+    boolean hasExternalParticipant = event.participants().stream()
+            .anyMatch(id -> !npcId.equals(id));
     if (!hasExternalParticipant) return true;
     return playerId != null && event.participants().contains(playerId);
 }
 ```
 
-This treats no-external-participant events as NPC-global and fails closed when externally scoped events do not include the current player.
+- [ ] **2.4 Filter before the existing candidate limit and rank**
 
-- [ ] **Step 4: Rank only bounded eligible episodic candidates**
-
-`Memory2ContextProvider.load(...)` obtains candidates through existing `MemoryEventStore.getRecentMatching(...)` before `CANDIDATE_LIMIT`, then calls `MemoryRetriever.rankCandidates(...)` with unchanged weights/tie breakers.
-
-- [ ] **Step 5: Run focused + full common tests and commit GREEN**
-
-Expected: current-player/NPC-global events remain; foreign relationship/social history cannot enter another player's prompt; owner isolation remains unchanged.
-
-Commit message:
-
-```text
-fix: isolate player-scoped episodic retrieval
+```java
+MemoryEventStore store = MemoryEventStore.forWorld(worldRoot);
+List<MemoryEvent> candidates = store.getRecentMatching(
+        npcId,
+        CANDIDATE_LIMIT,
+        event -> PlayerScopedMemoryEligibility.episodic(event, npcId, playerId)
+);
+List<RankedMemory> ranked = MemoryRetriever.rankCandidates(candidates, query);
+return MemoryContextFormatter.format(ranked);
 ```
+
+Do not change relevance weights, recency, confidence, importance, or tie ordering.
+
+- [ ] **2.5 Run focused/full common tests and commit GREEN**
+
+Commit: `fix: isolate player-scoped episodic retrieval`
 
 ---
 
-### Task 3: Remove snapshot-side duplicate memory loading
+## Task 3: Remove snapshot duplicate memory loading
 
 **Files:**
-- Modify: `common/src/main/java/net/conczin/mca/entity/ai/chatAI/modules/PlayerModule.java`
-- Modify: `common/src/main/java/net/conczin/mca/livingworld/context/LivingWorldContextCapture.java`
-- Create test: `common/src/test/java/net/conczin/mca/livingworld/context/SnapshotMemoryWiringPolicyTest.java`
+- Test first: create `common/src/test/java/net/conczin/mca/livingworld/context/SnapshotMemoryWiringPolicyTest.java`
+- Then modify: `PlayerModule.java`, `LivingWorldContextCapture.java`
 
-**Interfaces:**
-- Produces: `PlayerModule.applySnapshotContext(List<String> input, VillagerEntityMCA villager, ServerPlayer player)`.
-- Existing `PlayerModule.apply(...)` remains source-compatible and still calls `MemoryModule.apply(...)` after applying non-memory player context.
+**Produces:**
 
-- [ ] **Step 1: Write structural wiring RED test only**
+```java
+public static void PlayerModule.applySnapshotContext(
+        List<String> input,
+        VillagerEntityMCA villager,
+        ServerPlayer player
+)
+```
 
-Use the repository's established source-policy-test pattern (`Files.readString(...)`). Require snapshot capture to call the new no-memory entrypoint and require legacy `apply(...)` to keep MemoryModule.
+- [ ] **3.1 Write source-wiring RED test**
 
 ```java
 @Test
@@ -275,17 +299,14 @@ void snapshotCaptureUsesPlayerContextWithoutMemorySideEffect() throws IOExceptio
     assertTrue(capture.contains("PlayerModule.applySnapshotContext(context, villager, player)"));
     assertFalse(capture.contains("PlayerModule.apply(context, villager, player)"));
     assertTrue(playerModule.contains("public static void applySnapshotContext"));
-    assertTrue(playerModule.contains("MemoryModule.apply(input, villager, player)"));
 }
 ```
 
-- [ ] **Step 2: Run test and record compile/assertion RED**
+- [ ] **3.2 Commit tests only and observe RED**
 
-Expected: `applySnapshotContext` does not yet exist and snapshot capture still calls `PlayerModule.apply(...)`.
+Expected RED: snapshot capture still calls `PlayerModule.apply(...)` and no `applySnapshotContext(...)` exists.
 
-- [ ] **Step 3: Extract no-memory player context**
-
-Refactor without behavior change to classic callers:
+- [ ] **3.3 Extract the non-memory player context without changing classic behavior**
 
 ```java
 public static void apply(List<String> input, VillagerEntityMCA villager, ServerPlayer player) {
@@ -294,51 +315,57 @@ public static void apply(List<String> input, VillagerEntityMCA villager, ServerP
 }
 
 public static void applySnapshotContext(List<String> input, VillagerEntityMCA villager, ServerPlayer player) {
-    // existing advancement/player-context logic only
+    List<String> list = advancements.entrySet().stream()
+            .filter(entry -> {
+                AdvancementHolder advancement = Objects.requireNonNull(player.getServer())
+                        .getAdvancements().get(entry.getKey());
+                if (advancement == null) {
+                    MCA.LOGGER.warn("Advancement {} not found.", entry.getKey());
+                    return false;
+                }
+                return player.getAdvancements().getOrStartProgress(advancement).isDone();
+            })
+            .map(Map.Entry::getValue)
+            .toList();
+
+    if (!list.isEmpty()) {
+        input.add("Player has completed the following advancements: ");
+        for (String advancement : list) input.add(advancement + " ");
+    }
 }
 ```
 
-Then change only snapshot capture to `PlayerModule.applySnapshotContext(...)`.
+Change snapshot capture only to `PlayerModule.applySnapshotContext(context, villager, player)`.
 
-- [ ] **Step 4: Run focused/full common tests and commit GREEN**
+- [ ] **3.4 Run focused/full common tests and commit GREEN**
 
-Confirm `LivingWorldContextSnapshot.memoryContext()` and `.semanticMemoryContext()` remain populated by their dedicated loaders and classic `PlayerModule.apply(...)` still carries MemoryModule.
+Verify dedicated snapshot `memoryContext` and `semanticMemoryContext` loaders are unchanged.
 
-Commit message:
-
-```text
-refactor: isolate snapshot memory capture
-```
+Commit: `refactor: isolate snapshot memory capture`
 
 ---
 
-### Task 4: Centralize deterministic layered snapshot prompt composition
+## Task 4: Centralize layered snapshot prompt composition
 
 **Files:**
-- Modify: `common/src/main/java/net/conczin/mca/livingworld/context/SnapshotContextPromptPolicy.java`
-- Modify: `common/src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java`
-- Modify: `common/src/main/resources/mca.mixins.json`
-- Delete: `common/src/main/java/net/conczin/mca/mixin/MixinOpenAIChatAI.java`
-- Test: `common/src/test/java/net/conczin/mca/livingworld/context/SnapshotContextPromptPolicyTest.java`
-- Create: `common/src/test/java/net/conczin/mca/entity/ai/chatAI/SnapshotLayeredPromptWiringPolicyTest.java`
+- Test first: modify `SnapshotContextPromptPolicyTest.java`; create `SnapshotLayeredPromptWiringPolicyTest.java`
+- Then modify: `SnapshotContextPromptPolicy.java`, `OpenAIChatAI.java`, `mca.mixins.json`
+- Then delete: `common/src/main/java/net/conczin/mca/mixin/MixinOpenAIChatAI.java`
 
-**Interfaces:**
-- Produces overload:
+**Produces:**
 
 ```java
-SnapshotContextPromptPolicy.compose(
+public static String SnapshotContextPromptPolicy.compose(
         List<String> worldFacts,
         List<String> operatorAuthoredContext,
         List<String> semanticMemoryContext,
         List<String> episodicMemoryContext
-) -> String
+)
 ```
 
-- Existing two-argument `compose(worldFacts, operatorAuthoredContext)` delegates with empty memory lists for source compatibility.
+The existing two-argument `compose(worldFacts, operatorAuthoredContext)` remains and delegates with empty memory lists.
 
-- [ ] **Step 1: Write prompt-order RED tests only**
-
-Pure policy test requires exact ordering and labels:
+- [ ] **4.1 Write four-layer policy RED test**
 
 ```java
 @Test
@@ -364,26 +391,30 @@ void layeredPromptUsesFixedAuthorityOrderExactlyOnce() {
 }
 ```
 
-Structural test requires `OpenAIChatAI.buildSnapshotSystem(...)` to call the four-layer policy before `The reply MUST be in this JSON format`, and requires no `MixinOpenAIChatAI` registration.
+- [ ] **4.2 Write actual OpenAI wiring RED test**
 
-- [ ] **Step 2: Run tests and record intended RED**
+Use the established `Files.readString(...)` structural-test pattern. Require the direct four-field policy call to occur before the structured-response schema marker, and require no active `MixinOpenAIChatAI` registration.
 
-Expected: four-argument composition does not exist; OpenAI still renders world facts itself and lore is inserted by mixin.
+- [ ] **4.3 Commit tests only and observe RED**
 
-- [ ] **Step 3: Implement four-layer policy**
+Expected RED: four-argument policy API is missing; OpenAI still renders world facts directly and lore still arrives through a mixin.
 
-`SnapshotContextPromptPolicy` appends:
+- [ ] **4.4 Implement the four-layer renderer**
 
-1. observed facts using the existing authoritative wording;
-2. Operator Lore using existing background/current-facts-win wording;
-3. `SemanticMemoryContextFormatter.promptSection(semanticMemoryContext)`;
-4. `MemoryContextFormatter.promptSection(episodicMemoryContext)`.
+The four-argument policy appends in this exact order:
 
-Do not alter the semantic/episodic formatter truth labels.
+```java
+appendObservedFacts(builder, worldFacts);
+appendOperatorLore(builder, operatorAuthoredContext);
+builder.append(SemanticMemoryContextFormatter.promptSection(semanticMemoryContext));
+builder.append(MemoryContextFormatter.promptSection(episodicMemoryContext));
+```
 
-- [ ] **Step 4: Wire direct policy composition into OpenAIChatAI**
+Do not change the formatter truth labels or instructions.
 
-After stable `contextLines`, child/relative/language instructions and before structured-response instructions:
+- [ ] **4.5 Wire direct composition in `OpenAIChatAI.buildSnapshotSystem(...)`**
+
+After stable context lines + age/relationship/language instructions, and before structured-response instructions:
 
 ```java
 systemBuilder.append(SnapshotContextPromptPolicy.compose(
@@ -394,110 +425,80 @@ systemBuilder.append(SnapshotContextPromptPolicy.compose(
 ));
 ```
 
-Remove the existing direct `worldFacts` block so each layer is rendered once.
+Remove only the old direct `worldFacts` block. The request JSON schema/provider/retry path remains unchanged.
 
-- [ ] **Step 5: Remove obsolete lore mixin active path**
+- [ ] **4.6 Remove the obsolete lore mixin path**
 
-Delete `MixinOpenAIChatAI.java` and remove only `"MixinOpenAIChatAI",` from `mca.mixins.json`. Do not touch unrelated mixins/refmap behavior.
+Delete `MixinOpenAIChatAI.java` and remove only `"MixinOpenAIChatAI",` from `mca.mixins.json`.
 
-- [ ] **Step 6: Run focused/full common tests and commit GREEN**
+- [ ] **4.7 Run focused/full common tests and commit GREEN**
 
-Expected: exact order observed facts → lore → semantic → episodic → structured instructions; no duplicate memory/lore sections.
+Expected order: observed facts → Operator Lore → Semantic Memory → episodic/social history → structured response instructions, each durable layer exactly once.
 
-Commit message:
-
-```text
-feat: enforce layered prompt precedence
-```
+Commit: `feat: enforce layered prompt precedence`
 
 ---
 
-### Task 5: Conflict regression package, changelog, and delivery gates
+## Task 5: Conflict regressions and delivery
 
 **Files:**
-- Test: `common/src/test/java/net/conczin/mca/livingworld/context/SnapshotContextPromptPolicyTest.java`
-- Test: `common/src/test/java/net/conczin/mca/entity/ai/chatAI/SnapshotLayeredPromptWiringPolicyTest.java`
-- Test: semantic/episodic retrieval tests from Tasks 1-2
-- Modify: `CHANGELOG.md`
+- Tests from Tasks 1–4
+- Modify `CHANGELOG.md`
 
-**Interfaces:**
-- No new persistence or provider interfaces.
-- This task freezes the behavior delivered by Tasks 1-4.
+- [ ] **5.1 Add regression tests for all approved conflict boundaries**
 
-- [ ] **Step 1: Add conflict regression tests**
-
-Cover all approved conflicts:
+Assert structure/truth labels rather than generated model prose:
 
 ```text
-current world FACT vs PLAYER_TOLD BELIEF
-current relationship worldFact vs stale RELATIONSHIP_CHANGE/RELATIONSHIP_CAUSE
-current observation vs conflicting Operator Lore
-BELIEF vs BELIEF remains two BELIEF lines
-foreign player semantic + episodic records absent
+current FACT vs PLAYER_TOLD BELIEF → both visible; FACT section first
+current relationship factual summary vs stale relationship history → current state first
+current observation vs Operator Lore → observation first
+BELIEF vs BELIEF → both remain BELIEF; no FACT label appears
+foreign player semantic/episodic memory → absent
+RELATIONSHIP_CAUSE → historical process evidence only; no dialogue-to-FACT promotion
 ```
 
-Assertions must verify structure and truth labels, not model-generated prose.
+- [ ] **5.2 Verify the provider-facing snapshot string, not only isolated formatters**
 
-- [ ] **Step 2: Add request-wiring regression**
+Prefer an existing deterministic mock-provider request-capture harness if one already exists in the test suite. If none exists, use the source-wiring policy test plus the pure four-layer policy test; do not create a second network harness solely for this slice.
 
-Use structural source-policy evidence to prove the actual snapshot system string is composed from the dedicated fields and inserted before the JSON response marker. If an existing deterministic mock-provider harness exposes the posted request body directly, add an integration assertion there; otherwise do not introduce a second HTTP harness solely for this slice.
+- [ ] **5.3 Run full common suite**
 
-- [ ] **Step 3: Run full common suite**
+No existing assertion may be weakened to obtain GREEN.
 
-Expected: all existing tests plus new privacy/precedence regressions PASS; no baseline assertion weakened.
+- [ ] **5.4 Update root `[Unreleased]`**
 
-- [ ] **Step 4: Update canonical root changelog**
-
-Under `[Unreleased]`, record:
+Add concise entries equivalent to:
 
 ```text
 - Enforce exact current-player-or-NPC-global eligibility before bounded episodic/Semantic Memory retrieval so foreign-player memories cannot consume candidate slots or enter another player's AI prompt.
 - Compose snapshot context exactly once in deterministic authority order: current observed facts, Operator Lore, Semantic Memory, then episodic/social history; current observations remain authoritative and conflicting BELIEFs remain non-authoritative.
 ```
 
-Do not edit `docs/CHANGELOG.md` for new product history.
+- [ ] **5.5 Commit stabilization**
 
-- [ ] **Step 5: Commit stabilization**
+Commit: `test: lock FACT-over-BELIEF prompt precedence`
 
-Commit message:
+- [ ] **5.6 Open/update draft PR and run the mandatory exact-head matrix**
 
-```text
-test: lock FACT-over-BELIEF prompt precedence
-```
-
-- [ ] **Step 6: Open/update draft PR and run exact-head mandatory gates**
-
-Require on the same immutable head:
+Require on one immutable head:
 
 ```text
-Repository security policy          SUCCESS
-VillAIgence CI                       SUCCESS
-Production Soak                      SUCCESS
-GitHub Release dry-run               SUCCESS
-github-release publication           SKIPPED
+Repository security policy     SUCCESS
+VillAIgence CI                  SUCCESS
+Production Soak                 SUCCESS
+GitHub Release dry-run          SUCCESS
+github-release publication      SKIPPED
 ```
 
-Main CI must include common tests, selected server GameTests, Fabric + NeoForge, production startup/restart, persistence recovery, and package verification.
+- [ ] **5.7 Independent changed-file review**
 
-- [ ] **Step 7: Independent diff review**
+Review for: foreign-player leakage, scope ambiguity, filtering after limit, duplicate memory/lore rendering, accidental BELIEF/lore promotion, provider/schema/action/relationship regressions, persistence/config scope creep, and stale mixin/refmap registration. Any behavioral blocker gets a new tests-only RED before a production fix.
 
-Review base `853739f3e580ebb85538e2fb7febd4fa4b5ddfcf` → exact PR head for:
+- [ ] **5.8 Merge only the exact fully green reviewed head**
 
-- privacy leakage via player-scoped retrieval;
-- scope ambiguity with empty/non-empty related entities/participants;
-- candidate filtering happening after limit;
-- duplicated snapshot memory/lore rendering;
-- authority wording accidentally promoting BELIEF/lore;
-- provider/schema/action/relationship mutation regressions;
-- persistence/schema/config changes outside scope;
-- stale `MixinOpenAIChatAI` registration/refmap failure.
+Require zero unresolved review threads and P0/P1/P2 = 0. Squash merge using `expected_head_sha`.
 
-Any behavioral blocker requires a new tests-only RED before production fix.
+- [ ] **5.9 Separate docs-only handoff**
 
-- [ ] **Step 8: Merge only exact verified head**
-
-Require zero unresolved review threads and P0/P1/P2 = 0. Squash merge with `expected_head_sha` equal to the exact fully-green reviewed head.
-
-- [ ] **Step 9: Documentation-only state handoff after merge**
-
-Create a separate docs-only PR updating `docs/PROJECT_STATE.md` and `docs/ROADMAP.md` with the actual merge SHA, exact gate evidence, and next product slice. Do not promote unreleased automation to installed `0.2.0` evidence.
+After merge, update `docs/PROJECT_STATE.md` and `docs/ROADMAP.md` in a docs-only PR with the actual merge SHA and exact evidence. Keep `0.2.0+1.21.1` installed evidence unchanged until a later release candidate is explicitly accepted.
