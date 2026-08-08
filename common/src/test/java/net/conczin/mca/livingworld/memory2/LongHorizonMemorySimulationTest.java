@@ -72,8 +72,8 @@ class LongHorizonMemorySimulationTest {
                 id(211), npc, List.of(currentPlayer, otherEntity), 2L,
                 "shared-current-player-old-durable-semantic", 95, 95
         ), 128);
-        semantic.append(semanticScopedBelief(
-                id(213), npc, List.of(), 3L,
+        semantic.append(semanticGlobalFact(
+                id(213), npc, 3L,
                 "npc-global-old-durable-semantic", 90, 90
         ), 128);
         semantic.append(semanticBelief(
@@ -330,6 +330,29 @@ class LongHorizonMemorySimulationTest {
                 importance,
                 confidence,
                 List.of(id(9_000 + id.getLeastSignificantBits()))
+        );
+    }
+
+    private static SemanticMemoryEntry semanticGlobalFact(
+            UUID id,
+            UUID npc,
+            long gameTime,
+            String statement,
+            int importance,
+            int confidence
+    ) {
+        return new SemanticMemoryEntry(
+                id,
+                npc,
+                SemanticMemoryEntry.Kind.FACT,
+                statement,
+                List.of(),
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                gameTime,
+                1_700_000_000_000L + gameTime,
+                importance,
+                confidence,
+                List.of(id(19_000 + id.getLeastSignificantBits()))
         );
     }
 
