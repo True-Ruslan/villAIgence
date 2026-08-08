@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation and validation state. Read root `CHANGELOG.md` for release/product history.
 >
-> Last reconciled: **2026-08-08**, after PR #123 added the controlled Semantic Memory BELIEF admission boundary.
+> Last reconciled: **2026-08-08**, after PR #125 merged bounded opt-in `PLAYER_TOLD` Semantic Memory extraction.
 
 ## Product vision
 
@@ -33,14 +33,16 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 4. **Persistence is explicit and world-local.** Important state lives under `<world>/livingworld/`.
 5. **Provenance layers stay separate.** Observation, operator lore, episodic memory, FACT, BELIEF and rumor are not interchangeable.
 6. **Confidence is not authority.** BELIEF never becomes FACT because a model is confident.
-7. **Current observations outrank recollection.** Current server-observed facts override conflicting lore or beliefs.
-8. **Client convenience never becomes authority.** Permissions, identities, targets, revisions and mutations remain server-owned.
-9. **Simulation before spectacle.** Prefer durable causal systems over one-off generated text.
-10. **Evidence layers remain explicit.** Unit, integration, GameTest, production candidate, exact release and installed evidence are separate claims.
-11. **Unknown CI changes fail closed.** Protected, unsafe and unclassified changes select the complete required matrix.
-12. **Compatibility work requires a supported-data reason.** Experimental pre-1.0 state is not automatically entitled to migration code.
-13. **Release identity is immutable.** Recovery may restore assets/metadata only from an existing verified tag commit and never moves the tag.
-14. **Changelog is part of delivery.** Notable runtime, persistence, config, release, security and permanent-CI changes update root `CHANGELOG.md` in the same PR.
+7. **Candidate extraction is not admission, and admission is not authority.** Model output cannot choose source identity or truth class.
+8. **Current observations outrank recollection.** Current server-observed facts override conflicting lore or beliefs.
+9. **Client convenience never becomes authority.** Permissions, identities, targets, revisions and mutations remain server-owned.
+10. **Simulation before spectacle.** Prefer durable causal systems over one-off generated text.
+11. **Evidence layers remain explicit.** Unit, integration, GameTest, production candidate, exact release and installed evidence are separate claims.
+12. **Unknown CI changes fail closed.** Protected, unsafe and unclassified changes select the complete required matrix.
+13. **Compatibility work requires a supported-data reason.** Experimental pre-1.0 state is not automatically entitled to migration code.
+14. **Release identity is immutable.** Recovery may restore assets/metadata only from an existing verified tag commit and never moves the tag.
+15. **Changelog is part of delivery.** Notable runtime, persistence, config, release, security and permanent-CI changes update root `CHANGELOG.md` in the same PR.
+16. **Runtime behavior follows TDD.** Observe the intended RED before production implementation, then implement the smallest GREEN and re-run the complete selected gates.
 
 ---
 
@@ -56,8 +58,9 @@ release/recovery automation                            COMPLETE / VERSION-AWARE
 0.2.0 Memory 2.0 persistent-dialogue clean cutover      RELEASED / INSTALLED ACCEPTED
 legacy memory.json migration                           CANCELLED BY DESIGN
 controlled BELIEF admission contract                   COMPLETE / PR #123
-bounded inspectable claim extraction                   NEXT
-causal relationship reasons                            NEXT
+bounded PLAYER_TOLD claim extraction                   COMPLETE / PR #125
+trustworthy causal relationship memory                 NEXT
+FACT > BELIEF retrieval regression package             NEXT AFTER CAUSAL MEMORY
 long-horizon recall                                    LATER 0.2
 NPC-to-NPC knowledge transfer                          LATER 0.2
 provenance-aware rumors                                LATER 0.2
@@ -66,22 +69,21 @@ provenance-aware rumors                                LATER 0.2
 Immediate sequence:
 
 ```text
-bounded claim-candidate schema
-→ tests-first extraction contract
-→ fail-soft optional extractor integration
-→ exactly-once BELIEF persistence under retry/replay
-→ current FACT > conflicting BELIEF retrieval tests
-→ trustworthy causal relationship reasons
+causal relationship-reason domain contract
+→ tests-first source/provenance rules
+→ source-linked reason persistence
+→ replay/restart/contradiction coverage
+→ current FACT > conflicting BELIEF/recalled reason regression
 → long-horizon recall
 → NPC-to-NPC knowledge transfer
 → rumors with provenance, uncertainty and bounded distortion
 ```
 
-`VAI-CONCUR-004` remains deferred until two real graphical clients are available. It must remain `NOT TESTED`, but it does not block current product development because server-side concurrency semantics are already automated.
+`VAI-CONCUR-004` remains deferred until two real graphical clients are available. It stays `NOT TESTED`, but does not block current product development because server-side concurrency semantics are already automated.
 
 ---
 
-# Completed milestone — 0.1.x reliability and M11 automation
+# Completed platform — 0.1.x reliability and M11 automation
 
 The 0.1 line established the reliability/security platform on which later simulation work depends.
 
@@ -120,9 +122,9 @@ Historical exact details remain in root `CHANGELOG.md`, `docs/CHANGELOG.md`, and
 `0.2.0` begins the Memory 2.0 release line.
 
 ```text
-tag:                    0.2.0+1.21.1
-release commit:         e426f588efefa6aa48a6e536c4a998421bbda241
-installed candidate SHA:56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
+tag:                     0.2.0+1.21.1
+release commit:          e426f588efefa6aa48a6e536c4a998421bbda241
+installed candidate SHA: 56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
 ```
 
 Installed clean-state result:
@@ -192,11 +194,9 @@ NO dual persistent reads
 NO summary parsing to recover dialogue roles
 ```
 
-## Completed — controlled BELIEF admission contract
+## Completed — controlled BELIEF admission
 
-Merged through PR #123.
-
-Required truth contract:
+Merged through PR #123 / `fd7e9a1099cd73876acce8aaf99705b3763a28c6`.
 
 ```text
 SYSTEM_OBSERVED → FACT path only
@@ -205,102 +205,135 @@ NPC_TOLD        → BELIEF only
 INFERRED        → BELIEF only
 ```
 
-Implemented admission boundary:
+Implemented boundary:
 
-- `PLAYER_TOLD` requires a matching `PLAYER_TOLD` DIALOGUE source;
-- `NPC_TOLD` requires a matching `NPC_TOLD` DIALOGUE source;
-- `INFERRED` remains non-authoritative and retains explicit persisted source evidence;
+- `PLAYER_TOLD` requires matching `PLAYER_TOLD` DIALOGUE evidence;
+- `NPC_TOLD` requires matching `NPC_TOLD` DIALOGUE evidence;
+- `INFERRED` remains non-authoritative with explicit persisted source evidence;
 - `SYSTEM_OBSERVED` is rejected through the BELIEF API;
-- missing/blank/unsupported input fails closed;
-- source-event identity is derived from the persisted MemoryEvent;
-- exact replay is idempotent;
-- equivalent corroborating claims use existing deterministic source-union consolidation;
-- ordinary dialogue still creates no semantic entry unless a controlled producer supplies a claim candidate.
+- source-event identity comes from persisted evidence;
+- missing/blank/unsupported inputs fail closed;
+- replay is idempotent;
+- equivalent corroborating claims use deterministic source-union consolidation.
 
-TDD evidence is recorded in PR #123 and `docs/livingworld/SEMANTIC_INGESTION.md`.
+## Completed — bounded PLAYER_TOLD claim extraction
 
-## NEXT — bounded inspectable claim extraction
+Merged through PR #125 / `b60bcf3c296340946afb443da5cfb4c0d3a793a6`.
 
-### Goal
-
-Produce candidate semantic claims from dialogue/evidence without allowing an extractor or LLM to write authoritative knowledge directly.
-
-Required flow:
+The implementation deliberately reuses the existing structured OpenAI/OpenRouter reply rather than making a second extraction call.
 
 ```text
-persisted dialogue/evidence
-→ bounded candidate extractor
-→ inspectable candidate schema
+provider structured response
+→ sanitized visible message
+→ exact PLAYER_TOLD DIALOGUE persists
+→ bounded beliefCandidates strings
+→ verify current player belongs to source DIALOGUE
 → SemanticBeliefAdmissionPolicy
 → BELIEF persistence
 ```
 
-### Required contract
+Properties:
 
-The extraction layer must:
+- opt-in: `semanticBeliefExtractionEnabled=false` by default;
+- default limit `3`, hard limit `8` candidates per turn;
+- candidate statement hard bound `240` Unicode code points;
+- NFKC/whitespace/control normalization and deterministic deduplication;
+- provider supplies statement strings only;
+- server fixes owner, player, source event, BELIEF kind and `PLAYER_TOLD` provenance;
+- DIALOGUE must persist before semantic admission;
+- malformed/empty metadata fails soft without invalidating the visible NPC reply;
+- failed/empty provider response creates no BELIEF;
+- exact replay does not duplicate;
+- corroborating equivalent claims union source event IDs;
+- no AI→FACT path;
+- classic/Inworld paths remain outside this slice.
 
-- return an explicit bounded schema, never arbitrary storage mutations;
-- identify proposed statement, provenance and relevant related entities;
-- preserve the source MemoryEvent identity supplied by the server;
-- create no entry for empty/failed dialogue;
-- create no entry for provider failure;
-- fail soft on malformed extractor output;
-- remain safe under retry/replay;
-- never emit or promote FACT;
-- never bypass admission policy;
-- keep current observed world facts authoritative.
+TDD/review evidence is recorded in PR #125 and `docs/PROJECT_STATE.md`.
 
-### TDD slices
+### Exit criterion — met
 
-1. **RED — pure extraction contract**
-   - valid single candidate;
-   - no candidate;
-   - malformed candidate;
-   - overlong/unbounded candidate;
-   - unsupported provenance;
-   - duplicate/replayed response.
-2. **GREEN — minimal provider-independent candidate model/parser**
-3. **RED/GREEN — optional provider adapter**
-   - null/empty/error/timeout;
-   - bounded response;
-   - no hidden reasoning persistence.
-4. **Integration**
-   - candidate → admission → one semantic entry;
-   - retry does not duplicate;
-   - rejected candidate writes nothing;
-   - unrelated dialogue remains episodic only.
-5. **Retrieval precedence**
-   - current `SYSTEM_OBSERVED` FACT/context wins over a conflicting BELIEF.
-
-### Exit criterion
-
-VillAIgence can learn a bounded non-authoritative claim from controlled dialogue/evidence, preserve where that claim came from, survive retries/restart without duplication, and never confuse the learned claim with server truth.
+VillAIgence can learn a bounded non-authoritative claim explicitly attributed to the latest player dialogue, preserve where it came from, survive retries/restart without duplication, and never confuse that claim with server truth.
 
 ## NEXT — trustworthy causal relationship memory
 
 ### Goal
 
-Relationship history should record a causal reason only when the server has trustworthy evidence for one.
+Relationship history should record *why* a numeric relationship transition happened only when VillAIgence has inspectable source evidence for the explanation.
 
-Required properties:
+Current state already knows the exact server-applied transition:
 
-- numeric relationship transition and explanation remain distinct;
-- reason is bounded;
-- reason is tied to a validated server event or controlled conversational source;
-- exact before/after relationship state and source event IDs remain available;
-- free-form LLM text never becomes an authoritative causal explanation by itself;
-- replay does not duplicate relationship history;
-- reasons are queryable for future dialogue/personality behavior.
+```text
+before relationship state
+→ bounded server-applied delta
+→ after relationship state
+→ RELATIONSHIP_CHANGE MemoryEvent
+```
+
+What remains intentionally absent is a trustworthy causal explanation.
+
+### Required model
+
+Keep these concepts separate:
+
+```text
+relationship transition = server-observed numeric truth
+causal reason           = source-backed explanation with its own provenance
+```
+
+A reason may be authoritative only when the server actually knows the causal event. A told/inferred explanation remains non-authoritative even when it refers to the same transition.
+
+### TDD delivery slices
+
+1. **Domain/authority RED**
+   - no reason without explicit source evidence;
+   - free-form model reason alone is rejected;
+   - server-observed causal event may be represented as authoritative evidence;
+   - `PLAYER_TOLD`, `NPC_TOLD`, `INFERRED` explanation remains non-authoritative;
+   - transition before/after values remain unchanged.
+2. **Minimal GREEN domain**
+   - bounded reason representation;
+   - exact source event IDs;
+   - explicit provenance/authority classification;
+   - no persistence format ambiguity.
+3. **Persistence/replay RED→GREEN**
+   - exact replay is a no-op;
+   - distinct source evidence remains inspectable;
+   - restart preserves transition and reason history;
+   - corruption recovery remains bounded/fail-soft.
+4. **Contradiction/retrieval**
+   - conflicting explanations can remain representable rather than silently rewritten;
+   - current `SYSTEM_OBSERVED` FACT/context outranks conflicting BELIEF;
+   - reason history can inform dialogue without granting action authority.
+5. **Full delivery gate**
+   - root `CHANGELOG.md` `[Unreleased]` updated in the runtime PR;
+   - relevant common tests/GameTests;
+   - Fabric + NeoForge;
+   - production startup/restart and persistence recovery;
+   - security policy;
+   - production soak and release dry-run when selected;
+   - independent review before merge.
 
 ### Exit criterion
 
-An NPC can explain a relationship change using inspectable source-backed history rather than invented retrospective reasoning.
+An NPC can explain a relationship change from bounded source-backed history. The explanation's authority is inspectable, invented retrospective LLM reasoning cannot masquerade as fact, and retries/restart preserve the exact causal chain without duplication.
+
+## NEXT AFTER CAUSAL MEMORY — FACT > BELIEF retrieval regression package
+
+As Semantic and Relationship Memory becomes richer, make precedence executable rather than merely architectural documentation.
+
+Required scenarios:
+
+- current observed server FACT conflicts with recalled `PLAYER_TOLD` BELIEF → current FACT wins prompt framing;
+- current observed relationship state conflicts with stale explanation → current state wins;
+- multiple conflicting BELIEFs remain visible as uncertain claims without becoming FACT;
+- Operator Lore remains background context below current observation;
+- retrieval never leaks another NPC/player's private memory.
 
 ## Later 0.2 — long-horizon recall
 
 Add deterministic scenarios proving important memories survive realistic time, pressure and restart while weak memories decay as designed.
 
-Required evidence should include:
+Required evidence includes:
 
 - multi-session recall;
 - multi-day game-time ordering;
@@ -312,8 +345,6 @@ Required evidence should include:
 ## Later 0.2 — NPC-to-NPC knowledge transfer
 
 Use the existing `NPC_TOLD` admission contract.
-
-Target flow:
 
 ```text
 NPC A owns sourced knowledge
@@ -327,7 +358,7 @@ No global/omniscient knowledge distribution.
 
 ## Later 0.2 — rumors
 
-Build on NPC-to-NPC transfer with explicit uncertainty and distortion.
+Build on NPC-to-NPC transfer with explicit uncertainty and bounded distortion.
 
 Possible fields/semantics:
 
@@ -352,7 +383,7 @@ Memory 2.0 is complete when persistent NPC memory is:
 - restart-safe;
 - deterministic under replay;
 - able to learn controlled non-authoritative claims;
-- able to retain causal relationship history;
+- able to retain source-backed causal relationship history;
 - able to transfer knowledge between NPCs without omniscience;
 - able to represent rumors/contradictions without turning them into FACT;
 - independent of the removed raw conversation store.
@@ -381,18 +412,7 @@ aggression
 loyalty
 ```
 
-Pair state may include:
-
-```text
-friendship
-trust
-respect
-fear
-family
-rivalry
-romance
-grudges
-```
+Pair state may include friendship, trust, respect, fear, family, rivalry, romance and grudges.
 
 Personality is persistent game state, not a fresh LLM-generated profile on every conversation.
 
@@ -463,17 +483,7 @@ NPCs can pursue simple persistent goals autonomously without compromising server
 
 ## Goal
 
-Villages become persistent social/economic systems.
-
-Potential state:
-
-- population and households;
-- professions and work capacity;
-- resources and shortages;
-- safety and threats;
-- morale;
-- public knowledge/memory;
-- shared projects and needs.
+Villages become persistent social/economic systems with population, households, professions, resources, safety, morale, shared projects and public memory.
 
 ### Exit criterion
 
@@ -499,7 +509,7 @@ Faction/political state survives restart, is causally grounded in simulation eve
 
 Multi-session narratives grounded in persistent events, memories, relationships, settlements and factions.
 
-The system should not generate a story first and retrofit state afterward. Story is the human-readable consequence of simulation history.
+Story is the human-readable consequence of simulation history; the system must not generate a story first and retrofit state afterward.
 
 ### Exit criterion
 
