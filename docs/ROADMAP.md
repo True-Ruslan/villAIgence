@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation and validation state. Read root `CHANGELOG.md` for release/product history.
 >
-> Last reconciled: **2026-08-08**, after PR #125 merged bounded opt-in `PLAYER_TOLD` Semantic Memory extraction.
+> Last reconciled: **2026-08-08**, after PR #127 merged trustworthy causal relationship memory.
 
 ## Product vision
 
@@ -43,6 +43,7 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 14. **Release identity is immutable.** Recovery may restore assets/metadata only from an existing verified tag commit and never moves the tag.
 15. **Changelog is part of delivery.** Notable runtime, persistence, config, release, security and permanent-CI changes update root `CHANGELOG.md` in the same PR.
 16. **Runtime behavior follows TDD.** Observe the intended RED before production implementation, then implement the smallest GREEN and re-run the complete selected gates.
+17. **Causal history is not retrospective model narration.** A relationship cause records only source-backed process evidence the server can prove; dialogue text does not become FACT merely because a relationship changed during that turn.
 
 ---
 
@@ -59,8 +60,8 @@ release/recovery automation                            COMPLETE / VERSION-AWARE
 legacy memory.json migration                           CANCELLED BY DESIGN
 controlled BELIEF admission contract                   COMPLETE / PR #123
 bounded PLAYER_TOLD claim extraction                   COMPLETE / PR #125
-trustworthy causal relationship memory                 NEXT
-FACT > BELIEF retrieval regression package             NEXT AFTER CAUSAL MEMORY
+trustworthy causal relationship memory                 COMPLETE / PR #127
+FACT > BELIEF retrieval regression package             NEXT
 long-horizon recall                                    LATER 0.2
 NPC-to-NPC knowledge transfer                          LATER 0.2
 provenance-aware rumors                                LATER 0.2
@@ -69,11 +70,10 @@ provenance-aware rumors                                LATER 0.2
 Immediate sequence:
 
 ```text
-causal relationship-reason domain contract
-→ tests-first source/provenance rules
-→ source-linked reason persistence
-→ replay/restart/contradiction coverage
-→ current FACT > conflicting BELIEF/recalled reason regression
+current FACT > conflicting BELIEF / stale social-memory regression
+→ current relationship state > stale causal history regression
+→ Operator Lore precedence regression
+→ exact NPC/player mixed-source retrieval isolation
 → long-horizon recall
 → NPC-to-NPC knowledge transfer
 → rumors with provenance, uncertainty and bounded distortion
@@ -137,6 +137,8 @@ VAI-CONCUR-004:    NOT TESTED / DEFERRED
 
 The release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is a clean LivingWorld state; no legacy conversation importer or dual-reader is planned.
 
+PR #127 is merged after this release and remains `[Unreleased]`; its automated acceptance must not be represented as installed `0.2.0` evidence.
+
 ---
 
 # 0.2 — Memory 2.0
@@ -155,8 +157,10 @@ Relationship Memory   causal social history
 ## Implemented foundation
 
 - immutable episodic MemoryEvents;
-- DIALOGUE / OBSERVATION / ACTION / RELATIONSHIP_CHANGE;
+- DIALOGUE / OBSERVATION / ACTION / RELATIONSHIP_CHANGE / RELATIONSHIP_CAUSE;
 - structured text/voice DIALOGUE payloads;
+- structured exact before/after relationship-transition payloads;
+- source-linked deterministic dialogue-turn causal relationship events;
 - exact NPC/player isolation;
 - deterministic retrieval and idempotency;
 - bounded Working Memory;
@@ -165,7 +169,7 @@ Relationship Memory   causal social history
 - deterministic consolidation/source union;
 - deterministic pressure-based forgetting;
 - restart-safe world-local persistence;
-- current observed facts outrank conflicting recalled context.
+- current observed facts outrank conflicting recalled context as an architecture law, with an explicit end-to-end regression package next.
 
 ## Completed — persistent-dialogue clean cutover
 
@@ -254,80 +258,120 @@ TDD/review evidence is recorded in PR #125 and `docs/PROJECT_STATE.md`.
 
 VillAIgence can learn a bounded non-authoritative claim explicitly attributed to the latest player dialogue, preserve where it came from, survive retries/restart without duplication, and never confuse that claim with server truth.
 
-## NEXT — trustworthy causal relationship memory
+## Completed — trustworthy causal relationship memory
 
-### Goal
+Merged through PR #127 / `e020f54258d468fd37b0fa5ada5bbc8b6c7c2f77`.
 
-Relationship history should record *why* a numeric relationship transition happened only when VillAIgence has inspectable source evidence for the explanation.
+### Implemented model
 
-Current state already knows the exact server-applied transition:
-
-```text
-before relationship state
-→ bounded server-applied delta
-→ after relationship state
-→ RELATIONSHIP_CHANGE MemoryEvent
-```
-
-What remains intentionally absent is a trustworthy causal explanation.
-
-### Required model
-
-Keep these concepts separate:
+Relationship transition and causal linkage remain separate:
 
 ```text
-relationship transition = server-observed numeric truth
-causal reason           = source-backed explanation with its own provenance
+provider relationshipDelta proposal
+→ server validates/clamps/persists exact relationship state
+→ RELATIONSHIP_CHANGE
+  - SYSTEM_OBSERVED
+  - exact before/after RelationshipTransition
+
+successful visible reply
+→ exact DIALOGUE persisted
+
+exact same NPC/player/gameTime source pair
+→ RELATIONSHIP_CAUSE(DIALOGUE_TURN)
+  - relationshipChangeEventId
+  - evidenceEventId
+  - transitionSnapshot
 ```
 
-A reason may be authoritative only when the server actually knows the causal event. A told/inferred explanation remains non-authoritative even when it refers to the same transition.
+Authority properties:
 
-### TDD delivery slices
+- free-form model reason text is not part of the provider schema and cannot become an authoritative cause;
+- cause kind, source UUIDs, owner/player, transition state, provenance and confidence are server-owned;
+- both exact source events must already be present in world-local `memory2.json`;
+- source owner/player and `gameTime` must match exactly;
+- causal summary is deterministic/generic and does not copy dialogue prose;
+- `RELATIONSHIP_CAUSE` states only that the transition occurred during that dialogue turn;
+- dialogue content does not become FACT through causal linkage;
+- `RELATIONSHIP_CAUSE` is not automatically projected to Semantic Memory.
 
-1. **Domain/authority RED**
-   - no reason without explicit source evidence;
-   - free-form model reason alone is rejected;
-   - server-observed causal event may be represented as authoritative evidence;
-   - `PLAYER_TOLD`, `NPC_TOLD`, `INFERRED` explanation remains non-authoritative;
-   - transition before/after values remain unchanged.
-2. **Minimal GREEN domain**
-   - bounded reason representation;
-   - exact source event IDs;
-   - explicit provenance/authority classification;
-   - no persistence format ambiguity.
-3. **Persistence/replay RED→GREEN**
-   - exact replay is a no-op;
-   - distinct source evidence remains inspectable;
-   - restart preserves transition and reason history;
-   - corruption recovery remains bounded/fail-soft.
-4. **Contradiction/retrieval**
-   - conflicting explanations can remain representable rather than silently rewritten;
-   - current `SYSTEM_OBSERVED` FACT/context outranks conflicting BELIEF;
-   - reason history can inform dialogue without granting action authority.
-5. **Full delivery gate**
-   - root `CHANGELOG.md` `[Unreleased]` updated in the runtime PR;
-   - relevant common tests/GameTests;
-   - Fabric + NeoForge;
-   - production startup/restart and persistence recovery;
-   - security policy;
-   - production soak and release dry-run when selected;
-   - independent review before merge.
+Persistence/retrieval properties:
 
-### Exit criterion
+- deterministic cause IDs make replay idempotent;
+- result-bearing relationship ingestion rereads and returns the exact event actually retained in the store, including duplicate replay;
+- cause ordering deterministically follows its source events under bounded capacity;
+- source UUIDs plus transition snapshot survive restart inside the cause payload;
+- bounded retention may evict referenced source events, but query results expose them as unavailable rather than inventing replacements;
+- `RelationshipCausalHistory` filters exact NPC/player eligibility before limiting and resolves only exact source UUID/type/owner/participants;
+- causal history is queryable but is intentionally not injected into prompts yet.
 
-An NPC can explain a relationship change from bounded source-backed history. The explanation's authority is inspectable, invented retrospective LLM reasoning cannot masquerade as fact, and retries/restart preserve the exact causal chain without duplication.
+TDD/review hardening caught and fixed before merge:
 
-## NEXT AFTER CAUSAL MEMORY — FACT > BELIEF retrieval regression package
+- cause/source retention timestamp tie;
+- cross-turn relationship/dialogue linking;
+- replay API returning a reconstructed duplicate instead of the exact persisted event.
 
-As Semantic and Relationship Memory becomes richer, make precedence executable rather than merely architectural documentation.
+Final exact-head evidence:
+
+```text
+verified head:                           a027de8a69d4eef19b330b9e0d014e7c9b0ef6c7
+Repository security policy #1590:       SUCCESS / run 31251212282
+VillAIgence CI #1955:                   SUCCESS / run 31251212279
+VillAIgence Production Soak #107:       SUCCESS / run 31251212273
+VillAIgence GitHub Release #441:        SUCCESS / run 31251212289
+release publication job:                SKIPPED
+common/mock-provider suite:             511 tests / 0 FAIL
+independent review P0/P1/P2:            0 / 0 / 0
+```
+
+### Exit criterion — met for this slice
+
+VillAIgence can persist and query an exact relationship transition together with a deterministic server-authored link to the exact persisted dialogue turn during which the transition occurred, preserve source IDs/restart/replay behavior, and refuse to treat generated retrospective explanation as authoritative cause.
+
+More expressive psychological, told or inferred causal narratives remain a separate future provenance-aware design rather than an implicit extension of this authoritative path.
+
+## NEXT — FACT > BELIEF retrieval regression package
+
+As Semantic and Relationship Memory becomes richer, make precedence executable rather than merely architectural documentation before new recalled social history is injected into prompts.
 
 Required scenarios:
 
 - current observed server FACT conflicts with recalled `PLAYER_TOLD` BELIEF → current FACT wins prompt framing;
-- current observed relationship state conflicts with stale explanation → current state wins;
+- current observed relationship state conflicts with stale causal/recalled social history → current state wins;
 - multiple conflicting BELIEFs remain visible as uncertain claims without becoming FACT;
 - Operator Lore remains background context below current observation;
+- causal relationship linkage does not upgrade linked DIALOGUE prose into FACT;
+- mixed-source retrieval filters exact NPC/player ownership before limiting;
 - retrieval never leaks another NPC/player's private memory.
+
+### TDD delivery slices
+
+1. **Precedence contract RED**
+   - explicit current FACT vs `PLAYER_TOLD` BELIEF conflict;
+   - current relationship state vs stale causal history;
+   - current observation vs Operator Lore;
+   - no FACT promotion from repeated/confident BELIEF.
+2. **Isolation/order RED**
+   - exact NPC/player filter before limit across episodic/semantic/causal sources;
+   - deterministic ordering when multiple layers are eligible.
+3. **Minimal GREEN retrieval/framing**
+   - change only the retrieval/framing behavior that violates the explicit precedence contract;
+   - keep truth class/source identity server-owned.
+4. **Prompt regression package**
+   - prove current observations are framed as authoritative;
+   - beliefs/lore/history remain sourced and subordinate;
+   - no hidden generated reconciliation.
+5. **Full delivery gate**
+   - root `[Unreleased]` update for any runtime behavior change;
+   - relevant common/provider tests and GameTests;
+   - Fabric + NeoForge;
+   - production startup/restart and persistence recovery;
+   - repository security policy;
+   - soak/release dry-run when selected;
+   - independent exact-head review before merge.
+
+### Exit criterion
+
+Conflicting memory layers remain representable, but current server-observed truth deterministically controls prompt framing and behavior; retrieval remains exact-owner isolated, and no model/provider output decides which source is authoritative.
 
 ## Later 0.2 — long-horizon recall
 
