@@ -37,6 +37,13 @@ public final class RelationshipCauseMemoryAdapter {
                 relationshipChange.relationshipTransition()
         );
         UUID id = deterministicId(npcId, cause);
+        long latestSourceCreatedAt = Math.max(
+                relationshipChange.createdAtEpochMillis(),
+                dialogue.createdAtEpochMillis()
+        );
+        long causeCreatedAt = latestSourceCreatedAt == Long.MAX_VALUE
+                ? Long.MAX_VALUE
+                : latestSourceCreatedAt + 1L;
 
         return Optional.of(new MemoryEvent(
                 id,
@@ -46,7 +53,7 @@ public final class RelationshipCauseMemoryAdapter {
                 List.of(npcId, playerId),
                 MemoryEvent.Provenance.SYSTEM_OBSERVED,
                 Math.max(relationshipChange.gameTime(), dialogue.gameTime()),
-                Math.max(relationshipChange.createdAtEpochMillis(), dialogue.createdAtEpochMillis()),
+                causeCreatedAt,
                 55,
                 0,
                 100,
