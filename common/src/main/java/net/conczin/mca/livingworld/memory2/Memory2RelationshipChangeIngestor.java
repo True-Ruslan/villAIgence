@@ -200,8 +200,18 @@ public final class Memory2RelationshipChangeIngestor {
         );
         if (event.isEmpty()) return Optional.empty();
 
-        MemoryEvent memory = event.get();
-        MemoryEventStore.forWorld(worldRoot).append(memory, maxEventsPerNpc);
+        MemoryEvent proposed = event.get();
+        MemoryEventStore store = MemoryEventStore.forWorld(worldRoot);
+        store.append(proposed, maxEventsPerNpc);
+        Optional<MemoryEvent> persisted = store.getRecentMatching(
+                        proposed.ownerNpcId(),
+                        Integer.MAX_VALUE,
+                        candidate -> proposed.id().equals(candidate.id())
+                ).stream()
+                .findFirst();
+        if (persisted.isEmpty()) return Optional.empty();
+
+        MemoryEvent memory = persisted.get();
         ControlledSemanticMemoryIngestor.recordFactIfEnabled(
                 semanticEnabled,
                 worldRoot,
