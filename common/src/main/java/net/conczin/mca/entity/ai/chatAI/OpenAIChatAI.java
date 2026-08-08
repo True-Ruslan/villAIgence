@@ -396,10 +396,21 @@ public class OpenAIChatAI implements ChatAIStrategy {
             String msg,
             LivingWorldContextSnapshot snapshot
     ) {
-        return answer(server, player, villager, msg, snapshot, null);
+        return answerDetailed(server, player, villager, msg, snapshot, null).message();
     }
 
     public Optional<String> answer(
+            MinecraftServer server,
+            ServerPlayer player,
+            VillagerEntityMCA villager,
+            String msg,
+            LivingWorldContextSnapshot snapshot,
+            @Nullable AiRequestDeadline deadline
+    ) {
+        return answerDetailed(server, player, villager, msg, snapshot, deadline).message();
+    }
+
+    public SnapshotAnswer answerDetailed(
             MinecraftServer server,
             ServerPlayer player,
             VillagerEntityMCA villager,
@@ -441,7 +452,11 @@ public class OpenAIChatAI implements ChatAIStrategy {
                     applySnapshotCommand(server, player, villager, snapshot, response.answer.optionalCommand());
                     applySnapshotRelationshipDelta(snapshot, response.answer.relationshipDelta(), livingWorld);
                 }
-                return Optional.ofNullable(response.answer != null ? response.answer.message : null);
+                Optional<String> message = Optional.ofNullable(response.answer != null ? response.answer.message : null);
+                List<String> beliefCandidates = message.isPresent() && response.answer != null
+                        ? response.answer.beliefCandidates()
+                        : List.of();
+                return new SnapshotAnswer(message, beliefCandidates);
             }
             displaySnapshotError(server, player, response.error);
         } catch (Exception e) {
@@ -450,7 +465,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
                 if (player.isAlive()) player.displayClientMessage(Component.translatable("mca.ai_broken").withStyle(ChatFormatting.RED), false);
             });
         }
-        return Optional.empty();
+        return new SnapshotAnswer(Optional.empty(), List.of());
     }
 
     private static String buildSnapshotSystem(Config config, boolean isInHouse, LivingWorldContextSnapshot snapshot) {
@@ -689,6 +704,16 @@ public class OpenAIChatAI implements ChatAIStrategy {
             Answer answer,
             @Nullable ChatCompletionResponseParser.ParsedCompletion completion
     ) {
+    }
+
+    public record SnapshotAnswer(
+            Optional<String> message,
+            List<String> beliefCandidates
+    ) {
+        public SnapshotAnswer {
+            message = message == null ? Optional.empty() : message;
+            beliefCandidates = beliefCandidates == null ? List.of() : List.copyOf(beliefCandidates);
+        }
     }
 
     public record StructuredResponse(
