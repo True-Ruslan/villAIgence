@@ -34,8 +34,22 @@ class RelationshipCauseMemoryAdapterTest {
         assertEquals(change.id(), first.relationshipCause().relationshipChangeEventId());
         assertEquals(dialogue.id(), first.relationshipCause().evidenceEventId());
         assertEquals(change.relationshipTransition(), first.relationshipCause().transitionSnapshot());
+        assertTrue(first.createdAtEpochMillis() > change.createdAtEpochMillis());
+        assertTrue(first.createdAtEpochMillis() > dialogue.createdAtEpochMillis());
         assertFalse(first.summary().contains(dialogue.dialogue().playerMessage()));
         assertFalse(first.summary().contains(dialogue.dialogue().npcReply()));
+    }
+
+    @Test
+    void rejectsDifferentDialogueTurnForSameNpcAndPlayer() {
+        UUID npc = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        MemoryEvent change = relationshipChange(npc, player, 100L);
+        MemoryEvent previousDialogue = dialogue(npc, player, 99L, "older turn", "older reply");
+        MemoryEvent laterDialogue = dialogue(npc, player, 101L, "later turn", "later reply");
+
+        assertTrue(RelationshipCauseMemoryAdapter.toDialogueTurnCause(change, previousDialogue, player).isEmpty());
+        assertTrue(RelationshipCauseMemoryAdapter.toDialogueTurnCause(change, laterDialogue, player).isEmpty());
     }
 
     @Test
