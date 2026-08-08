@@ -1,8 +1,8 @@
 # VillAIgence Roadmap
 
-> **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation and validation state.
+> **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation and validation state. Read root `CHANGELOG.md` for release/product history.
 >
-> Last reconciled: **2026-08-07**. M11 Phases A–E remain complete at the automation layer. `0.1.26+1.21.1` remains the latest published release with verified immutable assets and installed acceptance of `5 PASS / 0 FAIL / 1 NOT TESTED`; `VAI-CONCUR-004` remains explicitly deferred. The current unreleased 0.2 package is the Memory 2.0 persistent-dialogue clean cutover in PR #119. The previously planned legacy `memory.json` migration is cancelled by design because the supported deployment is a clean-reset pre-1.0 test environment.
+> Last reconciled: **2026-08-08**, after PR #123 added the controlled Semantic Memory BELIEF admission boundary.
 
 ## Product vision
 
@@ -12,234 +12,162 @@ The target world contains NPCs that:
 
 - retain stable identity, memory, personality, voice and relationships;
 - know only what they observed, learned or were explicitly told;
+- distinguish authoritative facts from fallible beliefs and rumors;
 - communicate naturally by text and voice;
-- act through server-authoritative policy;
+- act only through server-authoritative policy;
 - form families, settlements, factions and social histories;
-- exchange facts, beliefs and rumors with provenance;
+- exchange information with provenance and uncertainty;
 - generate durable emergent stories rather than isolated AI tricks.
 
 > **VillAIgence — Giving villagers a mind of their own.**
 
-Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `livingworld` until an explicit migration is designed.
+Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `livingworld` until an explicit migration is justified and designed.
 
 ---
 
 # Architecture principles
 
-1. **LLM is not authority.** Server state is truth; the LLM proposes bounded dialogue or intent.
-2. **Identity outlives providers.** Changing provider/model must not regenerate NPC identity, memories, relationships or voice.
+1. **LLM is not authority.** Server state is truth; the model proposes bounded dialogue, claims or intent.
+2. **Identity outlives providers.** Changing model/provider must not regenerate NPC identity, memory, relationships or voice.
 3. **Fail soft without corruption.** Provider, voice, packet and auxiliary-store failures become controlled states.
-4. **Persistence is explicit and world-local.** Important data belongs under `<world>/livingworld/`.
-5. **Provenance layers stay separate.** Observations, operator lore, semantic knowledge and episodic memory are not interchangeable.
-6. **Client convenience never becomes authority.** Permissions, identities, targets, revisions and mutations are server-owned.
-7. **Simulation before spectacle.** Prefer durable causal systems over one-off generated text.
-8. **Evidence layers remain explicit.** Unit, integration, GameTest, production candidate, exact release and installed evidence are separate claims.
-9. **Unknown CI changes fail closed.** Protected, unsafe, unclassified and persistence-store changes select the complete required matrix.
-10. **Compatibility work must have a supported-data reason.** Pre-1.0 test data is not automatically entitled to a migration layer when a clean reset is an accepted deployment boundary.
-11. **Release recovery preserves immutable identity.** Recovery may restore metadata/assets only from an existing verified release tag commit and may never create, delete or move that tag.
-12. **Release recovery is version-aware.** The recovery controller must validate the matrix defined by the immutable target release, not impose the current branch's persistence-store count on historical tags.
+4. **Persistence is explicit and world-local.** Important state lives under `<world>/livingworld/`.
+5. **Provenance layers stay separate.** Observation, operator lore, episodic memory, FACT, BELIEF and rumor are not interchangeable.
+6. **Confidence is not authority.** BELIEF never becomes FACT because a model is confident.
+7. **Current observations outrank recollection.** Current server-observed facts override conflicting lore or beliefs.
+8. **Client convenience never becomes authority.** Permissions, identities, targets, revisions and mutations remain server-owned.
+9. **Simulation before spectacle.** Prefer durable causal systems over one-off generated text.
+10. **Evidence layers remain explicit.** Unit, integration, GameTest, production candidate, exact release and installed evidence are separate claims.
+11. **Unknown CI changes fail closed.** Protected, unsafe and unclassified changes select the complete required matrix.
+12. **Compatibility work requires a supported-data reason.** Experimental pre-1.0 state is not automatically entitled to migration code.
+13. **Release identity is immutable.** Recovery may restore assets/metadata only from an existing verified tag commit and never moves the tag.
+14. **Changelog is part of delivery.** Notable runtime, persistence, config, release, security and permanent-CI changes update root `CHANGELOG.md` in the same PR.
 
 ---
 
 # Current execution track
 
 ```text
-0.1.x reliability/security baseline                    COMPLETE
-Memory 2.0 foundation                                  SUBSTANTIALLY IMPLEMENTED
-Memory 2.0 persistent-dialogue clean cutover            COMPLETE AT AUTOMATION LAYER / PR #119
-legacy memory.json migration                            CANCELLED BY DESIGN
+0.1.x reliability/security/compatibility               COMPLETE
 MCA selective synchronization S1-S8                    COMPLETE
 Operator Lore S9-S10c                                  COMPLETE
-M11 Phases A-E                                          MERGED / AUTOMATION COMPLETE
-0.1.26 exact release gates                              COMPLETE
-0.1.26 installed canaries                              5 PASS / 0 FAIL / 1 NOT TESTED
-0.1.26 publication                                      COMPLETE
-release-recovery automation                             COMPLETE / VERSION-AWARE
-clean-world installed cutover acceptance                NEXT RELEASE-CANDIDATE BOUNDARY
-controlled BELIEF producers                             NEXT PRODUCT SLICE
+M11 Phases A-E                                         COMPLETE AT AUTOMATION LAYER
+release/recovery automation                            COMPLETE / VERSION-AWARE
+
+0.2.0 Memory 2.0 persistent-dialogue clean cutover      RELEASED / INSTALLED ACCEPTED
+legacy memory.json migration                           CANCELLED BY DESIGN
+controlled BELIEF admission contract                   COMPLETE / PR #123
+bounded inspectable claim extraction                   NEXT
+causal relationship reasons                            NEXT
+long-horizon recall                                    LATER 0.2
+NPC-to-NPC knowledge transfer                          LATER 0.2
+provenance-aware rumors                                LATER 0.2
 ```
 
 Immediate sequence:
 
 ```text
-finish exact-head PR #119 gates and independent review
-→ merge clean Memory 2.0 cutover without publishing
-→ build the next exact candidate when release work is authorized
-→ install on a clean test-world/LivingWorld state
-→ verify text + voice dialogue recall and same-world restart
-→ retain VAI-CONCUR-004 as deferred until two graphical clients exist
-→ implement controlled BELIEF producers
-→ implement trustworthy causal relationship reasons
-→ extend long-horizon recall
+bounded claim-candidate schema
+→ tests-first extraction contract
+→ fail-soft optional extractor integration
+→ exactly-once BELIEF persistence under retry/replay
+→ current FACT > conflicting BELIEF retrieval tests
+→ trustworthy causal relationship reasons
+→ long-horizon recall
+→ NPC-to-NPC knowledge transfer
+→ rumors with provenance, uncertainty and bounded distortion
 ```
+
+`VAI-CONCUR-004` remains deferred until two real graphical clients are available. It must remain `NOT TESTED`, but it does not block current product development because server-side concurrency semantics are already automated.
 
 ---
 
-# Completed milestone — M11 Phase E
+# Completed milestone — 0.1.x reliability and M11 automation
 
-Merged through PR #114 at:
+The 0.1 line established the reliability/security platform on which later simulation work depends.
 
-```text
-c51201d7a37b9d09c9a8cb490d1c56f3f6921c1f
-```
+Implemented and verified across the line:
 
-Phase E moved deterministic release risks into repeatable CI:
+- provider parsing and transport hardening;
+- bounded retries/deadlines/backpressure and exactly-once effects;
+- endpoint/credential/redirect policy;
+- deterministic text, voice and Operator Lore acceptance;
+- world-local persistence recovery;
+- selective MCA gameplay/navigation corrections;
+- exact production startup/restart and package identity;
+- risk-based Fabric GameTests;
+- Fabric + NeoForge build compatibility;
+- constrained-heap soak;
+- immutable release artifact verification;
+- version-aware recovery of incomplete GitHub Release publication.
 
-- configuration-cache-safe production staging;
-- duplicate UUID resurrection/replay rejection;
-- real death, portable grave, resurrection and restart lifecycle;
-- corrupt persistence backup/regeneration/idempotency matrix;
-- authenticated text ownership and exactly-once effects;
-- authenticated two-session Operator Lore conflict/retry;
-- real Simple Voice Chat Opus/loss/order/resource evidence;
-- gifts, fishing, mounted archer, water, obstacle, ladder and door GameTests;
-- fail-closed path-to-risk selector;
-- constrained-heap repeated concurrency and five-JVM production soak.
-
-Acceptance catalog:
+M11 Phase E completed the deterministic automation program:
 
 ```text
-34 total
+34 catalog scenarios
 28 AUTOMATED
 6 MANUAL_CANARY
 0 PLANNED
 ```
 
-The six manual scenarios are not missing deterministic tests; they require an installed environment, graphical rendering, physical microphone/UDP or subjective audible/spatial judgment.
+The remaining manual scenarios require installed graphical clients, a physical microphone/UDP path or subjective audible/spatial judgment rather than missing deterministic unit coverage.
+
+Historical exact details remain in root `CHANGELOG.md`, `docs/CHANGELOG.md`, and version-specific validation documents.
 
 ---
 
-# Completed release milestone — 0.1.26+1.21.1
+# Current official release — 0.2.0+1.21.1
 
-## Immutable identity
-
-```text
-tag:                         0.1.26+1.21.1
-release commit:              40ce7cb77e9b9178fd96fd91025cee22ba686dc0
-release PR:                  #115
-JAR SHA-256:                 5728f0f1a57b4c268df9b73603539f09ca30945a2ba251e72a5169ab45ae0a53
-dependency manifest SHA-256: b16a7b842776d44ed21cad1b56cee63aadc782ada457c108c5107c483aab5816
-```
-
-The final GitHub Release contains:
+`0.2.0` begins the Memory 2.0 release line.
 
 ```text
-villaigence-fabric-0.1.26+1.21.1.jar
-villaigence-fabric-0.1.26+1.21.1.jar.sha256
-villaigence-dependencies-0.1.26+1.21.1.txt
+tag:                    0.2.0+1.21.1
+release commit:         e426f588efefa6aa48a6e536c4a998421bbda241
+installed candidate SHA:56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
 ```
 
-## Automated release evidence
-
-The 0.1.26 release boundary passed:
-
-- version/tag and Minecraft-version contract;
-- repository security policy;
-- common and deterministic provider tests;
-- required Fabric GameTests;
-- Fabric and NeoForge builds;
-- exact production startup, stop/save and restart;
-- identity/inventory lifecycle evidence;
-- the historical six-case destructive persistence recovery matrix present at that immutable commit;
-- production Simple Voice Chat transport evidence;
-- distributable package smoke;
-- byte identity between production-accepted and packaged JAR.
-
-## Installed canary result
-
-The exact 0.1.26 candidate bytes installed on the operator server/client produced:
+Installed clean-state result:
 
 ```text
-VAI-BOOT-002    PASS
-VAI-NAV-001     PASS
-VAI-GAME-001    PASS
-VAI-GAME-003    PASS
-VAI-AI-006      PASS after Chat model switched to google/gemini-2.5-flash-lite
-VAI-CONCUR-004  NOT TESTED — no second graphical client available
-
-Total: 5 PASS / 0 FAIL / 1 NOT TESTED
+required:          7 PASS / 0 FAIL
+VAI-M2-INST-005:   NOT TESTED / AUTOMATED EVIDENCE ONLY
+VAI-CONCUR-004:    NOT TESTED / DEFERRED
 ```
 
-`VAI-CONCUR-004` is a recorded release limitation, not a hidden PASS. Automated authenticated two-session acceptance covers server authority, revision, response ownership, retained draft and reviewed retry, but not graphical two-client presentation.
-
-Canonical evidence:
-
-```text
-docs/livingworld/VALIDATION_0.1.26_INSTALLED_CANARIES.md
-docs/livingworld/VALIDATION_0.1.26_RELEASE_COMPLETE.md
-```
-
-## Publication outage and recovery
-
-A GitHub Actions service outage interrupted the original post-merge publication after the tag/Release record existed but before assets were complete. PR #116 introduced fail-closed recovery without moving the tag.
-
-```text
-recovery PR:             #116
-recovery control commit: ae551b81d221ce88ceebfce96b1038afa718da50
-recovery workflow:       VillAIgence Release Recovery #4
-recovery run id:         31154864224
-result:                  PASS
-```
-
-Recovery #4 rebuilt and tested the immutable release commit, restored the existing Release, downloaded the published assets again and compared them byte-for-byte. The recovered JAR reproduced the installed candidate SHA exactly.
-
-Current recovery control remains compatible with historical releases by validating that the target release produced a non-empty all-PASS matrix while the target commit's own tests define its exact store/case coverage.
+The release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is a clean LivingWorld state; no legacy conversation importer or dual-reader is planned.
 
 ---
 
-# Versioned product roadmap
+# 0.2 — Memory 2.0
 
-## 0.1.x — Reliability, security and compatibility
+## Goal
 
-Status: **0.1.26 release boundary complete**.
-
-Implemented and release-verified:
-
-- provider parsing and transport hardening;
-- bounded retries/deadlines and exactly-once effects;
-- endpoint/credential/redirect policy;
-- deterministic text, voice and Operator Lore acceptance;
-- world-local persistence recovery;
-- selective MCA gameplay corrections;
-- exact production startup/restart and package identity;
-- risk-based GameTests and bounded soak;
-- immutable release artifact verification;
-- fail-closed recovery of incomplete Release assets.
-
-Deferred installed boundary:
-
-- `VAI-CONCUR-004` real two-graphical-client Operator Lore conflict presentation.
-
-This deferred canary should be executed when two graphical clients are available, but it does not block current development because the limitation is explicit and server-side concurrency semantics are already automated.
-
-## 0.2 — Memory 2.0
-
-Goal: move from raw chat-history storage to bounded, layered, provenance-aware memory.
+Move from raw conversation history to bounded, layered, provenance-aware memory that can support social simulation without making the LLM omniscient or authoritative.
 
 ```text
-Working memory       recent turn-local context
-Episodic memory      meaningful events and dialogue
-Semantic memory      sourced FACT/BELIEF knowledge
-Relationship memory causal social history
+Working Memory        recent bounded prompt context
+Episodic Memory       meaningful events and dialogue
+Semantic Memory       sourced FACT/BELIEF knowledge
+Relationship Memory   causal social history
 ```
 
-### Implemented foundation
+## Implemented foundation
 
-- episodic events and explicit provenance;
-- text/voice DIALOGUE parity;
-- deterministic retrieval;
+- immutable episodic MemoryEvents;
+- DIALOGUE / OBSERVATION / ACTION / RELATIONSHIP_CHANGE;
+- structured text/voice DIALOGUE payloads;
+- exact NPC/player isolation;
+- deterministic retrieval and idempotency;
 - bounded Working Memory;
-- semantic FACT/BELIEF model;
-- controlled server-observed FACT ingestion;
-- consolidation/source union;
-- deterministic forgetting;
-- restart-safe world-local stores.
+- typed FACT/BELIEF semantic entries;
+- controlled `SYSTEM_OBSERVED` FACT ingestion;
+- deterministic consolidation/source union;
+- deterministic pressure-based forgetting;
+- restart-safe world-local persistence;
+- current observed facts outrank conflicting recalled context.
 
-### Current package — clean persistent-dialogue cutover
+## Completed — persistent-dialogue clean cutover
 
-The old migration plan has been replaced by a direct clean cutover because the supported deployment is an operator-only pre-1.0 test server that can be rebuilt without preserving experimental conversation history.
-
-Target storage flow:
+Released in `0.2.0+1.21.1`.
 
 ```text
 successful text/voice turn
@@ -251,108 +179,191 @@ next turn
 → exact NPC/player DIALOGUE retrieval
 → filter before limit
 → chronological user/assistant reconstruction
-→ Working Memory hard bounds
+→ Working Memory bounds
 → prompt
 ```
 
-Implemented cutover properties:
-
-- `memory2.json` is the only persistent dialogue-memory source;
-- new DIALOGUE events carry structured `DialogueExchange(playerMessage, npcReply)` data;
-- human-readable summaries remain episodic/diagnostic only and are never parsed back into prompt roles;
-- exact NPC and player isolation;
-- non-dialogue events cannot starve dialogue retrieval before the result limit;
-- old summary-only DIALOGUE events are ignored rather than guessed;
-- deterministic IDs keep replay idempotent;
-- legacy `ConversationMemoryStore`/`MemoryMessage` code and dedicated tests are removed;
-- the remaining `PersistentChatMemory` class is only a no-storage inherited-call-surface adapter and never opens `memory.json` or performs the persistent write;
-- production corruption/recovery moves to five current auxiliary stores: Memory 2.0, semantic memory, relationships, voices and Operator Lore;
-- nightly and release gates use the same five-store current matrix;
-- immutable historical release recovery remains target-version-aware.
-
-Explicit non-goals:
+Explicitly not part of current architecture:
 
 ```text
 NO legacy memory.json importer
 NO migration checkpoint ledger
 NO dual persistent reads
-NO summary parsing
-NO destructive legacy conversion
-NO claim that automated exact-JAR evidence equals installed clean-world acceptance
+NO summary parsing to recover dialogue roles
 ```
 
-Installed exit boundary for this package:
+## Completed — controlled BELIEF admission contract
 
-1. build an exact candidate after merge/release work is authorized;
-2. deploy it on a clean test-world/LivingWorld state;
-3. verify first text conversation is recalled on the next turn;
-4. verify voice produces the same DIALOGUE model;
-5. restart the same world and verify recall remains correct;
-6. verify NPC/player isolation;
-7. record installed evidence separately.
+Merged through PR #123.
 
-### NEXT — controlled BELIEF producers
-
-Goal: allow NPCs to learn claims without confusing them with server-observed facts.
-
-Required contract:
+Required truth contract:
 
 ```text
-PLAYER_TOLD → BELIEF
-NPC_TOLD    → BELIEF
-INFERRED    → BELIEF
-SYSTEM_OBSERVED only → FACT
+SYSTEM_OBSERVED → FACT path only
+PLAYER_TOLD     → BELIEF only
+NPC_TOLD        → BELIEF only
+INFERRED        → BELIEF only
 ```
 
-Recommended slices:
+Implemented admission boundary:
 
-1. **Admission contract**
-   - define which conversational claims are eligible for semantic belief extraction;
-   - require explicit provenance and source IDs;
-   - keep extraction bounded and inspectable;
-   - never let confidence alone upgrade a claim to FACT.
+- `PLAYER_TOLD` requires a matching `PLAYER_TOLD` DIALOGUE source;
+- `NPC_TOLD` requires a matching `NPC_TOLD` DIALOGUE source;
+- `INFERRED` remains non-authoritative and retains explicit persisted source evidence;
+- `SYSTEM_OBSERVED` is rejected through the BELIEF API;
+- missing/blank/unsupported input fails closed;
+- source-event identity is derived from the persisted MemoryEvent;
+- exact replay is idempotent;
+- equivalent corroborating claims use existing deterministic source-union consolidation;
+- ordinary dialogue still creates no semantic entry unless a controlled producer supplies a claim candidate.
 
-2. **Deterministic consolidation**
-   - identical/similar claims merge sources rather than multiplying blindly;
-   - conflicting claims remain representable;
-   - source union and confidence rules remain deterministic.
+TDD evidence is recorded in PR #123 and `docs/livingworld/SEMANTIC_INGESTION.md`.
 
-3. **Retrieval boundary**
-   - current observed world facts outrank conflicting beliefs;
-   - relevant beliefs can affect dialogue without becoming authoritative actions.
+## NEXT — bounded inspectable claim extraction
 
-4. **Failure/replay safety**
-   - provider retry does not duplicate semantic entries;
-   - failed/empty dialogue does not create beliefs;
-   - malformed extraction fails soft.
+### Goal
 
-### NEXT — causal relationship memory
+Produce candidate semantic claims from dialogue/evidence without allowing an extractor or LLM to write authoritative knowledge directly.
 
-Goal: relationship history should record a trustworthy reason when the server actually has one.
+Required flow:
+
+```text
+persisted dialogue/evidence
+→ bounded candidate extractor
+→ inspectable candidate schema
+→ SemanticBeliefAdmissionPolicy
+→ BELIEF persistence
+```
+
+### Required contract
+
+The extraction layer must:
+
+- return an explicit bounded schema, never arbitrary storage mutations;
+- identify proposed statement, provenance and relevant related entities;
+- preserve the source MemoryEvent identity supplied by the server;
+- create no entry for empty/failed dialogue;
+- create no entry for provider failure;
+- fail soft on malformed extractor output;
+- remain safe under retry/replay;
+- never emit or promote FACT;
+- never bypass admission policy;
+- keep current observed world facts authoritative.
+
+### TDD slices
+
+1. **RED — pure extraction contract**
+   - valid single candidate;
+   - no candidate;
+   - malformed candidate;
+   - overlong/unbounded candidate;
+   - unsupported provenance;
+   - duplicate/replayed response.
+2. **GREEN — minimal provider-independent candidate model/parser**
+3. **RED/GREEN — optional provider adapter**
+   - null/empty/error/timeout;
+   - bounded response;
+   - no hidden reasoning persistence.
+4. **Integration**
+   - candidate → admission → one semantic entry;
+   - retry does not duplicate;
+   - rejected candidate writes nothing;
+   - unrelated dialogue remains episodic only.
+5. **Retrieval precedence**
+   - current `SYSTEM_OBSERVED` FACT/context wins over a conflicting BELIEF.
+
+### Exit criterion
+
+VillAIgence can learn a bounded non-authoritative claim from controlled dialogue/evidence, preserve where that claim came from, survive retries/restart without duplication, and never confuse the learned claim with server truth.
+
+## NEXT — trustworthy causal relationship memory
+
+### Goal
+
+Relationship history should record a causal reason only when the server has trustworthy evidence for one.
 
 Required properties:
 
-- distinguish numeric relationship transition from causal explanation;
-- accept only bounded reasons tied to a validated server event or controlled conversational source;
-- do not invent authoritative reasons from free-form LLM text;
-- retain exact before/after relationship state and source event IDs;
-- make reason history queryable for future dialogue and personality systems.
+- numeric relationship transition and explanation remain distinct;
+- reason is bounded;
+- reason is tied to a validated server event or controlled conversational source;
+- exact before/after relationship state and source event IDs remain available;
+- free-form LLM text never becomes an authoritative causal explanation by itself;
+- replay does not duplicate relationship history;
+- reasons are queryable for future dialogue/personality behavior.
 
-### Later 0.2 work
+### Exit criterion
+
+An NPC can explain a relationship change using inspectable source-backed history rather than invented retrospective reasoning.
+
+## Later 0.2 — long-horizon recall
+
+Add deterministic scenarios proving important memories survive realistic time, pressure and restart while weak memories decay as designed.
+
+Required evidence should include:
+
+- multi-session recall;
+- multi-day game-time ordering;
+- retention under capacity pressure;
+- relationship-memory retrieval;
+- current observations outranking stale belief;
+- no cross-NPC/player leakage.
+
+## Later 0.2 — NPC-to-NPC knowledge transfer
+
+Use the existing `NPC_TOLD` admission contract.
+
+Target flow:
 
 ```text
-long-horizon / multi-day recall evidence
-→ NPC-to-NPC knowledge transfer
-→ rumor propagation with provenance and uncertainty
-→ bounded distortion / contradiction handling
-→ scaling evidence for larger populations
+NPC A owns sourced knowledge
+→ bounded social exchange
+→ NPC B receives explicit told claim
+→ NPC_TOLD BELIEF with source chain
+→ later retrieval
 ```
 
-0.2 exit criterion: persistent NPC memory is layered, bounded, provenance-aware, restart-safe, supports controlled non-authoritative knowledge transfer, and no longer depends on the experimental raw conversation store.
+No global/omniscient knowledge distribution.
 
-## 0.3 — Personality and NPC↔NPC social graph
+## Later 0.2 — rumors
 
-Goal: persistent bounded personality and social state between NPC pairs.
+Build on NPC-to-NPC transfer with explicit uncertainty and distortion.
+
+Possible fields/semantics:
+
+```text
+origin source
+speaker chain
+confidence
+uncertainty
+contradiction state
+distortion count / bounded transformation
+```
+
+A rumor remains non-authoritative even when repeated by many NPCs.
+
+## 0.2 exit criterion
+
+Memory 2.0 is complete when persistent NPC memory is:
+
+- layered;
+- bounded;
+- provenance-aware;
+- restart-safe;
+- deterministic under replay;
+- able to learn controlled non-authoritative claims;
+- able to retain causal relationship history;
+- able to transfer knowledge between NPCs without omniscience;
+- able to represent rumors/contradictions without turning them into FACT;
+- independent of the removed raw conversation store.
+
+---
+
+# 0.3 — Personality and NPC↔NPC social graph
+
+## Goal
+
+Persistent bounded personality plus pairwise social state that changes dialogue and behavior.
 
 Potential personality dimensions:
 
@@ -370,13 +381,34 @@ aggression
 loyalty
 ```
 
-NPC-pair state may include friendship, trust, respect, fear, family, rivalry, romance and grudges.
+Pair state may include:
 
-Exit criterion: two NPCs retain relationship history that affects dialogue, behavior and information exchange.
+```text
+friendship
+trust
+respect
+fear
+family
+rivalry
+romance
+grudges
+```
 
-## 0.4 — Knowledge propagation and rumors
+Personality is persistent game state, not a fresh LLM-generated profile on every conversation.
 
-Goal: a provenance-aware information ecosystem.
+### Exit criterion
+
+Two NPCs retain durable relationship/personality history that affects dialogue, decisions and information exchange after restart.
+
+---
+
+# 0.4 — Knowledge ecosystem and rumors
+
+## Goal
+
+Expand the 0.2 transfer primitives into settlement-scale provenance-aware information flow.
+
+Target knowledge classes may include:
 
 ```text
 OBSERVED
@@ -388,11 +420,17 @@ RUMOR
 UNKNOWN
 ```
 
-Exit criterion: information moves through a settlement without omniscient distribution and source history remains inspectable.
+### Exit criterion
 
-## 0.5 — Autonomous NPC agents
+Information moves through a settlement without omniscient distribution, conflicts remain representable, and source history remains inspectable.
 
-Goal: budgeted server-authoritative behavior.
+---
+
+# 0.5 — Autonomous NPC agents
+
+## Goal
+
+Budgeted server-authoritative behavior based on needs, goals, social context and remembered information.
 
 ```text
 perceive
@@ -404,25 +442,95 @@ perceive
 → remember
 ```
 
-The LLM proposes intent, never arbitrary Minecraft commands.
+The LLM may propose intent but never arbitrary Minecraft commands.
 
-## 0.6 — Settlement simulation
+Required controls:
 
-Goal: villages become social/economic systems with population, households, resources, professions, safety, morale and bounded public memory.
+- event-driven scheduling rather than per-tick LLM calls;
+- per-NPC/global budgets;
+- action whitelist/policy;
+- server-side target revalidation;
+- bounded retry/backpressure;
+- exactly-once effects.
 
-## 0.7 — Factions and politics
+### Exit criterion
 
-Goal: persistent alliances, disputes, leadership, laws and inter-settlement relations with server-owned consequences.
+NPCs can pursue simple persistent goals autonomously without compromising server authority or performance.
 
-## 0.8 — Emergent stories
+---
 
-Goal: multi-session narratives grounded in persistent events, relationships, settlements and faction state.
+# 0.6 — Settlement simulation
 
-## 0.9 — Performance, large servers and local models
+## Goal
 
-Goal: event-driven scheduling, global/per-NPC budgets, backpressure, profiling, large multiplayer soak and optional local models without identity migration.
+Villages become persistent social/economic systems.
 
-## 1.0 — Persistent Living Society
+Potential state:
+
+- population and households;
+- professions and work capacity;
+- resources and shortages;
+- safety and threats;
+- morale;
+- public knowledge/memory;
+- shared projects and needs.
+
+### Exit criterion
+
+Settlement state changes over time and meaningfully affects individual NPC goals and behavior.
+
+---
+
+# 0.7 — Factions and politics
+
+## Goal
+
+Persistent alliances, disputes, leadership, rules and inter-settlement relations with server-owned consequences.
+
+### Exit criterion
+
+Faction/political state survives restart, is causally grounded in simulation events, and changes NPC/settlement behavior.
+
+---
+
+# 0.8 — Emergent stories
+
+## Goal
+
+Multi-session narratives grounded in persistent events, memories, relationships, settlements and factions.
+
+The system should not generate a story first and retrofit state afterward. Story is the human-readable consequence of simulation history.
+
+### Exit criterion
+
+Players can return after multiple sessions and encounter explainable ongoing social narratives rooted in recorded world history.
+
+---
+
+# 0.9 — Performance, large servers and local models
+
+## Goal
+
+Scale the living society without turning AI into a per-NPC-per-tick cost center.
+
+Work includes:
+
+- event-driven scheduling;
+- global/per-NPC model budgets;
+- backpressure and cancellation;
+- cache/retrieval profiling;
+- large-population simulation soak;
+- multi-day stability evidence;
+- optional local models;
+- provider replacement without identity migration.
+
+### Exit criterion
+
+Large populations remain bounded in CPU, memory, provider calls and persistence growth under realistic server workloads.
+
+---
+
+# 1.0 — Persistent Living Society
 
 ```text
 NPC Identity
@@ -439,29 +547,39 @@ NPC Identity
 = VillAIgence
 ```
 
+1.0 means the systems above form one coherent persistent simulation, not merely a collection of AI features.
+
 ---
 
-# Milestone governance
+# Delivery and TDD governance
 
-A milestone is not complete merely because code compiles.
+A milestone is not complete because code compiles or one CI job is green.
 
-Required progression:
+Runtime behavior follows:
 
 ```text
 specification
-→ RED regression boundary
-→ minimal implementation
+→ RED regression/contract test
+→ observe intended RED
+→ minimal GREEN implementation
 → focused tests
-→ relevant regression tests
-→ Fabric + NeoForge
-→ package verification
+→ relevant regression suite
+→ Fabric + NeoForge where applicable
+→ production/server acceptance
 → security policy
-→ independent review
-→ exact candidate artifact
-→ installed acceptance where required
-→ canonical state update
+→ soak/release dry-run when selected
+→ independent diff review
+→ exact candidate / installed acceptance when required
+→ root CHANGELOG.md update
+→ PROJECT_STATE / ROADMAP reconciliation when delivery boundary changes
 ```
 
-Automated validation, exact-production candidate validation, exact-release validation and installed-server/client validation must always be reported separately.
+Rules:
 
-Release limitations must remain explicit. Deferred manual evidence must never be silently promoted to PASS by automated logical substitutes.
+1. Do not write production behavior before the intended RED has been observed.
+2. Do not weaken assertions merely to make CI green.
+3. Exact-release and installed evidence are separate from unit/automation evidence.
+4. Deferred manual evidence remains explicitly deferred.
+5. Significant product/runtime/persistence/config/release/security/permanent-CI changes update root `[Unreleased]` in the same PR.
+6. Release PRs move shipped `[Unreleased]` items into the exact version section rather than duplicating them.
+7. Before starting new work, reconcile these documents against live GitHub state.
