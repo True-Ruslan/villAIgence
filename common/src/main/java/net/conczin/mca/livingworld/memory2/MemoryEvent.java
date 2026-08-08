@@ -20,7 +20,8 @@ public record MemoryEvent(
         int emotionalWeight,
         int confidence,
         List<String> relationshipReasons,
-        DialogueExchange dialogue
+        DialogueExchange dialogue,
+        RelationshipTransition relationshipTransition
 ) {
     public MemoryEvent {
         if (id == null) throw new IllegalArgumentException("id is required");
@@ -40,8 +41,45 @@ public record MemoryEvent(
     }
 
     /**
+     * Source-compatible constructor for callers that already provide structured dialogue.
+     * Structured relationship transition data is absent unless explicitly supplied.
+     */
+    public MemoryEvent(
+            UUID id,
+            UUID ownerNpcId,
+            Type type,
+            String summary,
+            List<UUID> participants,
+            Provenance provenance,
+            long gameTime,
+            long createdAtEpochMillis,
+            int importance,
+            int emotionalWeight,
+            int confidence,
+            List<String> relationshipReasons,
+            DialogueExchange dialogue
+    ) {
+        this(
+                id,
+                ownerNpcId,
+                type,
+                summary,
+                participants,
+                provenance,
+                gameTime,
+                createdAtEpochMillis,
+                importance,
+                emotionalWeight,
+                confidence,
+                relationshipReasons,
+                dialogue,
+                null
+        );
+    }
+
+    /**
      * Source-compatible constructor for non-dialogue producers and historical tests.
-     * Structured dialogue is opt-in and absent for all other event types.
+     * Structured dialogue and relationship transition data are opt-in and absent by default.
      */
     public MemoryEvent(
             UUID id,
@@ -70,6 +108,7 @@ public record MemoryEvent(
                 emotionalWeight,
                 confidence,
                 relationshipReasons,
+                null,
                 null
         );
     }
@@ -109,6 +148,29 @@ public record MemoryEvent(
             }
             playerMessage = playerMessage.strip();
             npcReply = npcReply.strip();
+        }
+    }
+
+    /** Exact bounded server-applied relationship state before and after one transition. */
+    public record RelationshipTransition(
+            int beforeTrust,
+            int beforeRespect,
+            int beforeFear,
+            int beforeAffinity,
+            int afterTrust,
+            int afterRespect,
+            int afterFear,
+            int afterAffinity
+    ) {
+        public RelationshipTransition {
+            beforeTrust = clamp(beforeTrust, -100, 100);
+            beforeRespect = clamp(beforeRespect, -100, 100);
+            beforeFear = clamp(beforeFear, -100, 100);
+            beforeAffinity = clamp(beforeAffinity, -100, 100);
+            afterTrust = clamp(afterTrust, -100, 100);
+            afterRespect = clamp(afterRespect, -100, 100);
+            afterFear = clamp(afterFear, -100, 100);
+            afterAffinity = clamp(afterAffinity, -100, 100);
         }
     }
 
