@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation and validation state. Read root `CHANGELOG.md` for release/product history.
 >
-> Last reconciled: **2026-08-08**, after PR #129 merged FACT-over-BELIEF retrieval precedence and player-isolated prompt retrieval.
+> Last reconciled: **2026-08-08**, after PR #131 merged bounded long-horizon Memory 2.0 recall and durability-aware episodic retention.
 
 ## Product vision
 
@@ -46,6 +46,7 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 17. **Causal history is not retrospective model narration.** A relationship cause records only source-backed process evidence the server can prove; dialogue text does not become FACT merely because a relationship changed during that turn.
 18. **Player-scoped prompt memory is filtered before ranking.** Only current-player or NPC-global records may consume bounded prompt candidate slots; shared records remain eligible when the current player participates.
 19. **Prompt authority is structurally ordered.** Current observations render before Operator Lore, Semantic Memory and episodic/social history; provider output does not decide precedence.
+20. **Long-horizon recall remains hard-bounded.** Eligible memory uses a deterministic recent/durable split before the existing final ranker; durability never grants immortality and foreign memory consumes no prompt slots.
 
 ---
 
@@ -64,20 +65,20 @@ controlled BELIEF admission contract                   COMPLETE / PR #123
 bounded PLAYER_TOLD claim extraction                   COMPLETE / PR #125
 trustworthy causal relationship memory                 COMPLETE / PR #127
 FACT > BELIEF retrieval regression package             COMPLETE / PR #129
-long-horizon recall                                    NEXT
-NPC-to-NPC knowledge transfer                          LATER 0.2
+long-horizon recall                                    COMPLETE / PR #131
+NPC-to-NPC knowledge transfer                          NEXT
 provenance-aware rumors                                LATER 0.2
 ```
 
 Immediate sequence:
 
 ```text
-multi-session / multi-day recall contract
-→ bounded pressure + restart retention evidence
-→ player-isolation preservation under long horizon
-→ current observation > stale recollection regression under long horizon
-→ NPC-to-NPC knowledge transfer
-→ rumors with provenance, uncertainty and bounded distortion
+source-backed NPC→NPC dialogue/transfer contract
+→ exact NPC_TOLD admission for listener-owned BELIEF
+→ replay/restart/pressure + multi-NPC isolation regression
+→ current observation > transferred BELIEF preservation
+→ provenance-aware rumors
+→ uncertainty / contradiction / bounded distortion
 ```
 
 `VAI-CONCUR-004` remains deferred until two real graphical clients are available. It stays `NOT TESTED`, but does not block current product development because server-side concurrency semantics are already automated.
@@ -138,7 +139,7 @@ VAI-CONCUR-004:    NOT TESTED / DEFERRED
 
 The release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is a clean LivingWorld state; no legacy conversation importer or dual-reader is planned.
 
-PRs #127 and #129 are merged after this release and remain `[Unreleased]`; their automated acceptance must not be represented as installed `0.2.0` evidence.
+PRs #127, #129 and #131 are merged after this release and remain `[Unreleased]`; their automated acceptance must not be represented as installed `0.2.0` evidence.
 
 ---
 
@@ -163,8 +164,10 @@ Relationship Memory   causal social history
 - structured exact before/after relationship-transition payloads;
 - source-linked deterministic dialogue-turn causal relationship events;
 - exact NPC/player isolation;
-- exact current-player-or-NPC-global prompt eligibility before candidate limiting;
-- shared-scope eligibility when the current player participates alongside another entity;
+- exact current-player/NPC-global/shared prompt eligibility before candidate allocation;
+- deterministic dual-tier long-horizon selection at the existing hard candidate bound;
+- durability-aware bounded episodic/social pressure retention using authoritative Minecraft game time;
+- NPC-global memories remain fully relevant after eligibility;
 - deterministic retrieval and idempotency;
 - bounded Working Memory;
 - typed FACT/BELIEF semantic entries;
@@ -172,7 +175,8 @@ Relationship Memory   causal social history
 - deterministic consolidation/source union;
 - deterministic pressure-based forgetting;
 - restart-safe world-local persistence;
-- current observed facts structurally outrank Operator Lore, Semantic Memory and stale episodic/social history in snapshot prompt framing.
+- current observed facts structurally outrank Operator Lore, Semantic Memory and stale episodic/social history in snapshot prompt framing;
+- multi-session, multi-day, restart, pressure and mixed-scope regression evidence.
 
 ## Completed — persistent-dialogue clean cutover
 
@@ -330,7 +334,7 @@ Merged through PR #129 / `0f904315f890f588e33adce1a27620ed06a94457`.
 NPC-owned semantic / episodic memory
 → exact current-player-or-NPC-global eligibility
 → bounded candidate window
-→ unchanged deterministic ranking
+→ deterministic ranking
 → immutable snapshot prompt
 ```
 
@@ -341,7 +345,7 @@ Player-scope behavior:
 - foreign-player relationship-change and causal-history entries cannot consume candidate slots or enter another player's prompt;
 - NPC-global records remain eligible;
 - shared records remain eligible when the current player participates alongside another entity;
-- existing ranking weights and deterministic tie-breakers remain unchanged for eligible records.
+- ranker weights and deterministic tie-breakers stay server-owned and bounded.
 
 ### Implemented prompt authority
 
@@ -363,7 +367,7 @@ Properties:
 - Operator Lore remains background context;
 - conflicting BELIEFs remain BELIEF and are not silently resolved or promoted;
 - causal history does not upgrade dialogue prose into FACT;
-- the classic path retains `MemoryModule`, but its ContextProviders now share the same player-eligibility boundary;
+- the classic path retains `MemoryModule`, but its ContextProviders share the same player-eligibility boundary;
 - the obsolete `MixinOpenAIChatAI` prompt insertion was removed;
 - provider schema, retry/transport, action authority, relationship mutation, persistence format and config remain unchanged.
 
@@ -373,41 +377,132 @@ Final exact-head evidence is recorded in `docs/PROJECT_STATE.md` and PR #129.
 
 ### Exit criterion — met
 
-Current server-observed truth now deterministically controls snapshot prompt framing; foreign-player Memory 2.0 data is excluded before candidate limiting, eligible current-player/NPC-global/shared records stay bounded and deterministic, and no model/provider output decides visibility or truth precedence.
+Current server-observed truth deterministically controls snapshot prompt framing; foreign-player Memory 2.0 data is excluded before candidate allocation, eligible current-player/NPC-global/shared records stay bounded and deterministic, and no model/provider output decides visibility or truth precedence.
 
-## NEXT — long-horizon recall
+## Completed — long-horizon recall
+
+Merged through PR #131 / `9827a3b511421036c7ae6733fd4fabe4efc8e0c1`.
+
+### Implemented retrieval model
+
+At the existing hard prompt candidate bound:
+
+```text
+eligible memory
+→ 24 newest eligible records
++ 8 strongest durable eligible records
+→ deterministic UUID de-duplication
+→ existing domain ranker
+→ at most 6 prompt records
+```
+
+Properties:
+
+- eligibility precedes both recent and durable pools;
+- foreign-player and other-NPC memory consumes zero prompt slots;
+- current-player, NPC-global and shared current-player scopes remain eligible;
+- NPC-global records are fully relevant after eligibility;
+- Semantic Memory keeps its existing deterministic persistence retention;
+- ranker/result bounds stay finite and server-owned.
+
+### Implemented episodic/social pressure retention
+
+`MemoryEventStore` no longer evicts solely by oldest-first FIFO. Under bounded pressure it uses deterministic durability and authoritative Minecraft game-time decay.
+
+Durability inputs are persisted/server-owned only:
+
+```text
+importance
+confidence
+absolute emotional weight
+provenance
+event type
+gameTime age
+```
+
+Ordering intentionally makes ordinary DIALOGUE the weakest event tier while giving source-backed relationship history stronger bounded retention. No type is immortal; enough authoritative game time eventually overcomes durability.
+
+A candidate that is immediately rejected under pressure does not rewrite `memory2.json` when the retained state did not change.
+
+### Verification package
+
+Observed RED→GREEN gates separately proved:
+
+- retained-but-starved Semantic recall;
+- the pure bounded recent/durable selector;
+- FIFO episodic pressure loss;
+- the pure episodic retention policy;
+- rejected weak-append no-op persistence;
+- retained-but-starved episodic recall;
+- NPC-global relevance after eligibility.
+
+Preservation simulations additionally exercise:
+
+- multi-day authoritative game time;
+- multiple fresh-world persistence reloads;
+- exact survivor and prompt-context equality across sessions;
+- hundreds of Semantic + episodic records;
+- two NPCs, current/foreign players, NPC-global and shared scopes;
+- restart/pressure isolation;
+- no wall-clock-dependent assertions.
+
+Final exact-head evidence is recorded in `docs/PROJECT_STATE.md`, PR #131 and the canonical TDD ledger.
+
+### Exit criterion — met
+
+An NPC can retain and retrieve important Semantic and episodic/social memory across multi-session, multi-day game time, bounded pressure and restart while weak memory decays predictably, privacy remains exact, and current server-observed truth still outranks stale recollection.
+
+## NEXT — NPC-to-NPC knowledge transfer
+
+Use the existing `NPC_TOLD` BELIEF admission contract to introduce controlled information movement between NPCs without global/omniscient knowledge distribution.
 
 ### Goal
 
-Prove that Memory 2.0 remains useful and truthful across realistic temporal distance, multiple sessions, restart and bounded capacity pressure without introducing unbounded retention or weakening provenance/player isolation.
+```text
+NPC A owns sourced knowledge
+→ bounded server-authorized social exchange
+→ exact persisted evidence that A told B
+→ NPC B receives bounded claim text
+→ NPC_TOLD BELIEF with exact source/provenance chain
+→ later bounded retrieval
+```
 
 ### Required scenarios
 
-- important episodic and semantic memory survives multi-session recall;
-- multi-day authoritative game-time ordering remains deterministic;
-- restart preserves the expected survivors and retrieval order;
-- strong/important/corroborated knowledge survives pressure while weaker entries decay according to the existing deterministic retention policy;
-- current-player, NPC-global and shared-scope eligibility remains correct after pressure and restart;
-- current observed facts still outrank stale recalled belief/social history;
-- no cross-NPC/player leakage appears after long-running retention pressure.
+- source NPC has actual eligible sourced knowledge before it can tell another NPC;
+- the server records exact speaker, listener, source event and authoritative `gameTime`;
+- listener receives `NPC_TOLD` BELIEF only, never FACT;
+- wrong speaker/listener/source/time or missing persisted evidence fails closed;
+- one NPC learning a claim does not make unrelated NPCs know it;
+- repeated/retried delivery is idempotent;
+- distinct valid corroborating tells may union exact source history deterministically;
+- restart and long-horizon pressure preserve transferred knowledge according to existing bounded policies;
+- current observed FACT still outranks conflicting transferred BELIEF;
+- foreign-player/NPC prompt isolation remains unchanged.
 
 ### TDD delivery slices
 
-1. **Long-horizon contract RED**
-   - multi-session/multi-day game-time fixtures;
-   - restart round-trip;
-   - explicit expected survivors and retrieval order.
-2. **Pressure RED**
-   - bounded semantic/episodic capacity pressure;
-   - strong evidence must not be displaced incorrectly by newer weak evidence;
-   - player isolation remains correct while pressure is applied independently to several NPC/player scopes.
-3. **Minimal GREEN only where necessary**
-   - preserve current deterministic retention/retrieval policies when they already satisfy the contract;
-   - make focused changes only for observed failures.
-4. **Authority regression**
-   - current observation still overrides stale recalled context after long horizons;
-   - FACT/BELIEF and causal-process boundaries stay intact.
-5. **Full delivery gate**
+1. **Source-evidence contract RED**
+   - exact persisted NPC→NPC dialogue/exchange evidence;
+   - speaker/listener/source identity and time validation;
+   - missing/wrong source fails closed.
+2. **Admission/ownership RED**
+   - listener-owned `NPC_TOLD` BELIEF only;
+   - no FACT path and no global propagation;
+   - deterministic source chain.
+3. **Replay/restart RED**
+   - exact replay no duplication;
+   - corroborating sources union deterministically;
+   - restart preserves exact provenance.
+4. **Long-horizon/privacy preservation**
+   - transferred BELIEF survives when sufficiently durable under existing pressure bounds;
+   - unrelated NPC/player scopes remain isolated;
+   - current observations remain authoritative on conflict.
+5. **Minimal producer/wiring GREEN**
+   - reuse existing admission/persistence surfaces where possible;
+   - add no second provider call or provider-owned provenance metadata;
+   - no new storage/config unless an observed RED proves it necessary.
+6. **Full delivery gate**
    - common/provider tests and relevant GameTests;
    - Fabric + NeoForge;
    - production startup/restart and persistence recovery;
@@ -417,34 +512,20 @@ Prove that Memory 2.0 remains useful and truthful across realistic temporal dist
 
 ### Invariants
 
-- authoritative Minecraft game time, not wall-clock age, controls memory-time reasoning;
-- persistence remains hard-bounded;
-- no background LLM summarizer or unlimited history is introduced;
-- retrieval remains current-player/NPC-global eligible before candidate limiting;
-- current observations remain authoritative over stale recollection;
-- FACT/BELIEF provenance remains unchanged;
-- replay/restart stays deterministic;
-- no pre-0.2 `memory.json` migration or dual reader returns.
+- `NPC_TOLD` is always BELIEF, never FACT;
+- exact source identity is server-owned and must correspond to persisted evidence;
+- the model cannot choose speaker/listener UUIDs, source-event UUIDs, truth class, retention score or visibility;
+- no omniscient knowledge bus or implicit settlement-wide propagation;
+- existing long-horizon hard bounds and privacy eligibility remain intact;
+- current world observations outrank transferred recollection;
+- retry/replay/restart remain deterministic and idempotent;
+- no legacy `memory.json` migration/dual reader returns.
 
 ### Exit criterion
 
-An NPC can retain and retrieve the right important memories across multiple sessions, multi-day game time, capacity pressure and restart while weaker memory decays predictably, player isolation remains exact, and current observed truth still wins over stale recollection.
+NPC A can explicitly transmit a bounded sourced claim to NPC B; B persists it as inspectable `NPC_TOLD` BELIEF with exact server-backed provenance, unrelated NPCs do not learn it automatically, and the claim survives/retrieves under existing restart/pressure rules without becoming authoritative truth.
 
-## Later 0.2 — NPC-to-NPC knowledge transfer
-
-Use the existing `NPC_TOLD` admission contract.
-
-```text
-NPC A owns sourced knowledge
-→ bounded social exchange
-→ NPC B receives explicit told claim
-→ NPC_TOLD BELIEF with source chain
-→ later retrieval
-```
-
-No global/omniscient knowledge distribution.
-
-## Later 0.2 — rumors
+## Later 0.2 — provenance-aware rumors
 
 Build on NPC-to-NPC transfer with explicit uncertainty and bounded distortion.
 
