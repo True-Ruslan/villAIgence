@@ -17,7 +17,7 @@ class LongHorizonCandidateSelectorTest {
             .thenComparing(fixture -> fixture.id().toString(), Comparator.reverseOrder());
     private static final Comparator<Fixture> DURABLE_FIRST = Comparator
             .comparingInt(Fixture::durability).reversed()
-            .thenComparingLong(Fixture::gameTime).reversed()
+            .thenComparing(Comparator.comparingLong(Fixture::gameTime).reversed())
             .thenComparing(fixture -> fixture.id().toString());
 
     @Test
