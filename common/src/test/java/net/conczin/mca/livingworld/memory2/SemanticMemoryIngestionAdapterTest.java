@@ -67,6 +67,8 @@ class SemanticMemoryIngestionAdapterTest {
         assertTrue(SemanticMemoryIngestionAdapter.toFact(event(npc, participant,
                 MemoryEvent.Type.DIALOGUE, MemoryEvent.Provenance.SYSTEM_OBSERVED)).isEmpty());
         assertTrue(SemanticMemoryIngestionAdapter.toFact(event(npc, participant,
+                MemoryEvent.Type.RELATIONSHIP_CAUSE, MemoryEvent.Provenance.SYSTEM_OBSERVED)).isEmpty());
+        assertTrue(SemanticMemoryIngestionAdapter.toFact(event(npc, participant,
                 MemoryEvent.Type.ACTION, MemoryEvent.Provenance.PLAYER_TOLD)).isEmpty());
         assertTrue(SemanticMemoryIngestionAdapter.toFact(null).isEmpty());
     }
