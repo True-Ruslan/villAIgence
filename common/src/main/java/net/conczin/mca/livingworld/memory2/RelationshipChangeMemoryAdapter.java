@@ -37,6 +37,7 @@ public final class RelationshipChangeMemoryAdapter {
                 + ", respect=" + change.after().respect()
                 + ", fear=" + change.after().fear()
                 + ", affinity=" + change.after().affinity() + ".";
+        MemoryEvent.RelationshipTransition transition = transition(change.before(), change.after());
 
         return Optional.of(new MemoryEvent(
                 id,
@@ -50,8 +51,26 @@ public final class RelationshipChangeMemoryAdapter {
                 55,
                 0,
                 100,
-                List.of()
+                List.of(),
+                null,
+                transition
         ));
+    }
+
+    private static MemoryEvent.RelationshipTransition transition(
+            LivingWorldRelationshipState before,
+            LivingWorldRelationshipState after
+    ) {
+        return new MemoryEvent.RelationshipTransition(
+                before.trust(),
+                before.respect(),
+                before.fear(),
+                before.affinity(),
+                after.trust(),
+                after.respect(),
+                after.fear(),
+                after.affinity()
+        );
     }
 
     private static UUID deterministicId(
