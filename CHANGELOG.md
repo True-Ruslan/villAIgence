@@ -53,7 +53,7 @@ This is the **canonical changelog** for the project.
 ### Validation
 
 - Controlled BELIEF admission was developed with a tests-first RED/GREEN boundary in PR #123.
-- Bounded player-told BELIEF extraction in PR #125 is being developed through explicit RED/GREEN contract tests, with final exact-head CI/release dry-run required before merge.
+- Bounded player-told BELIEF extraction was developed through explicit RED/GREEN contract tests in PR #125; exact-head CI/release evidence is recorded in that PR.
 - Real two-graphical-client Operator Lore acceptance `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two graphical clients are available.
 
 ---
