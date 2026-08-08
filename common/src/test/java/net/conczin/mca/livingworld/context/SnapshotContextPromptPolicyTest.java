@@ -31,6 +31,32 @@ class SnapshotContextPromptPolicyTest {
     }
 
     @Test
+    void layeredPromptUsesFixedAuthorityOrderExactlyOnce() {
+        String prompt = SnapshotContextPromptPolicy.compose(
+                List.of("Observed weather: rain."),
+                List.of("Server-authored world lore:\nUsually sunny."),
+                List.of("BELIEF | provenance=PLAYER_TOLD | confidence=100 | statement=\"It is sunny.\""),
+                List.of("VERIFIED | provenance=SYSTEM_OBSERVED | type=RELATIONSHIP_CHANGE | confidence=100 | summary=\"Old trust state.\"")
+        );
+
+        int fact = prompt.indexOf("Observed weather: rain.");
+        int lore = prompt.indexOf("Usually sunny.");
+        int semantic = prompt.indexOf("It is sunny.");
+        int episodic = prompt.indexOf("Old trust state.");
+
+        assertTrue(fact >= 0);
+        assertTrue(lore > fact);
+        assertTrue(semantic > lore);
+        assertTrue(episodic > semantic);
+        assertEquals(fact, prompt.lastIndexOf("Observed weather: rain."));
+        assertEquals(lore, prompt.lastIndexOf("Usually sunny."));
+        assertEquals(semantic, prompt.lastIndexOf("It is sunny."));
+        assertEquals(episodic, prompt.lastIndexOf("Old trust state."));
+        assertTrue(prompt.contains("Current observed factual context wins on conflict"));
+        assertTrue(prompt.contains("BELIEF entries may be incomplete or false"));
+    }
+
+    @Test
     void operatorLoreIsInsertedBeforeStructuredResponseInstructions() {
         String basePrompt = "Observed factual context from the current Minecraft world.\n"
                 + "- Observed weather: rain.\n"
