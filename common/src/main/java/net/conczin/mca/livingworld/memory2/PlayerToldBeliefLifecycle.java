@@ -26,6 +26,7 @@ public final class PlayerToldBeliefLifecycle {
             int maxEntriesPerNpc
     ) {
         if (!enabled || worldRoot == null || sourceDialogue == null || playerId == null
+                || !sourceDialogue.participants().contains(playerId)
                 || candidates == null || candidates.isEmpty()) {
             return;
         }
