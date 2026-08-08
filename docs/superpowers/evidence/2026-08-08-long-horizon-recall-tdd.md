@@ -219,7 +219,7 @@ hard-bounded MemoryEventStore
 
 Preserved:
 
-- `MemoryRetriever` ranking weights unchanged;
+- `MemoryRetriever` ranking weights unchanged at this stage;
 - `32` / `6` bounds unchanged;
 - persistence format/config unchanged;
 - current-truth prompt authority unchanged.
@@ -244,7 +244,7 @@ Coverage:
 1. multi-day Semantic + episodic pressure over many `36_000`-tick decay steps;
 2. exact retained IDs and exact prompt-context equality across `session-a → session-b → session-c` fresh-world persistence-file round-trips;
 3. old durable Semantic and old important relationship memory remain recallable after >1 candidate window of newer weak history;
-4. foreign high-durability memory cannot consume recent/durable slots for the current player;
+4. foreign high-durability memory cannot consume recent/durable prompt-candidate slots for the current player;
 5. 240 Semantic + 240 episodic synthetic records exercise deterministic retention and candidate selection with forward vs reversed input order;
 6. no sleep or wall-clock-dependent assertion is used.
 
@@ -270,11 +270,85 @@ Observed on VillAIgence CI #2053 / run `31259388903`:
 
 - common/mock-provider tests — SUCCESS;
 - no production change was required;
-- full run was still executing when the canonical changelog/evidence documentation commits advanced the branch, so the final exact-head delivery gate below supersedes it.
+- full run was still executing when later evidence/test commits advanced the branch, so later exact-head gates supersede it.
+
+## RED 4 — NPC-global memory was eligible but under-ranked in player-scoped recall
+
+The mixed-scope simulation intentionally keeps NPC-global memory eligible. A test-only modeling correction then made the global Semantic fixture a genuine `SYSTEM_OBSERVED` FACT instead of an empty-scope told BELIEF:
+
+- test-only commit `91335ab4f6fb1b6b9a57d0f0386d9397d0fefb60`;
+- production source changed by this commit: **NO**.
+
+Observed CI #2069 / run `31259874079`:
+
+- production compile and test compile — PASS;
+- repository security before tests — PASS;
+- **544 tests / exactly 1 failed**;
+- exact failure: `LongHorizonMemorySimulationTest.foreignHighDurabilityMemoryConsumesNoRecentOrDurableSlotsAcrossMixedScopes`;
+- the failure showed an NPC-global Semantic memory was admitted by the eligibility boundary but could still lose final prompt selection because the player-scoped relevance calculation gave empty `relatedEntities` zero relevance.
+
+A second tests-only commit made the ranker contract explicit for both memory domains:
+
+- `997b5134c519d4f5cd2a200aed7f95cba55b6ae2` — `test: expose NPC-global relevance starvation`;
+- added only `NpcGlobalMemoryRelevanceTest`.
+
+Observed CI #2071 / run `31260072459`:
+
+- production compile and test compile — PASS;
+- repository security before tests — PASS;
+- **546 tests / exactly 3 failed**;
+- exact failures:
+  - mixed-scope long-horizon simulation;
+  - `npcGlobalSemanticMemoryHasFullRelevanceForPlayerScopedQuery`;
+  - `npcGlobalEpisodicMemoryHasFullParticipantRelevanceForPlayerScopedQuery`.
+
+Minimal Semantic-only fix:
+
+- commit `575d272b249dea8fbc5fe91f9fa7dd04957b15df`;
+- changed only `SemanticMemoryRetriever.relevanceScore(...)` so an entry with empty `relatedEntities` has full relevance for a player-scoped query.
+
+Observed CI #2073 / run `31260197193`:
+
+- Semantic NPC-global unit contract became GREEN;
+- **546 tests / exactly 2 failed**;
+- remaining failures were exactly the mixed-scope simulation and episodic NPC-global relevance contract.
+
+Minimal episodic-only fix:
+
+- commit `37af57a19374aee501a74b4f5f2146978f00dbd3`;
+- changed only `MemoryRetriever.relevanceScore(...)` so an event whose external participants are empty after removing its owner NPC is treated as NPC-global and fully relevant for a player-scoped query.
+
+This preserves the already-established eligibility boundary: foreign-only memory remains excluded before both candidate pools; the relevance change applies only to already-eligible NPC-global memory.
+
+## GREEN 4 — NPC-global relevance and final runtime head
+
+Exact runtime head before final evidence-only synchronization: `37af57a19374aee501a74b4f5f2146978f00dbd3`.
+
+Required workflows on that exact runtime head all completed successfully:
+
+- Repository security policy #1710 / run `31260204824` — SUCCESS;
+- VillAIgence CI #2075 / run `31260204839` — SUCCESS;
+- Production Soak #156 / run `31260204817` — SUCCESS;
+- GitHub Release dry-run #490 / run `31260204845` — SUCCESS;
+- release publication job — SKIPPED as required.
+
+Main CI #2075 verified:
+
+- common/mock-provider tests — SUCCESS;
+- risk catalog + required server GameTests — SUCCESS;
+- Fabric and NeoForge builds — SUCCESS;
+- production startup/restart acceptance — SUCCESS;
+- selected persistence recovery — SUCCESS, exactly five cases;
+- distributable package verification — SUCCESS;
+- production-accepted candidate JAR and final CI package were byte-identical at SHA256 `de6d5bf8fcae9f32214b813ccc499edd7289278bfcabb5c19d16f278cdd4d15d`.
+
+That SHA is **CI candidate evidence only** and must not be represented as the accepted official `0.2.0+1.21.1` release JAR.
+
+Production Soak #156 verified constrained authenticated concurrency, constrained staging and five production restart cycles. Repository security #1710 passed all security-policy stages.
 
 ## Authority / provenance preservation
 
-No new production prompt-authority code was required. Existing tests remained GREEN throughout implementation and already assert:
+No new production prompt-authority code was required. Existing tests remained GREEN and assert:
 
 - current observed facts structurally precede conflicting Operator Lore, Semantic BELIEF and episodic history;
 - current relationship state precedes stale `RELATIONSHIP_CHANGE` / `RELATIONSHIP_CAUSE` history;
@@ -282,17 +356,46 @@ No new production prompt-authority code was required. Existing tests remained GR
 - `RELATIONSHIP_CAUSE` does not promote linked DIALOGUE prose to FACT;
 - memory summaries remain data, never instructions.
 
-This satisfies the plan's authority-regression task as preservation evidence rather than manufacturing an unnecessary production change.
+Retention/retrieval inputs remain server-owned persisted fields. No provider/model call controls truth class, visibility, retention score, persistence capacity or candidate quota.
+
+## Independent base→runtime-head review
+
+Read-only review scope: base `b09924d7297775baabf577ca50dbcb65c22f0516` → runtime head `37af57a19374aee501a74b4f5f2146978f00dbd3`.
+
+Reviewed production surfaces include:
+
+- `LongHorizonCandidateSelector`;
+- `MemoryEventRetentionPolicy`;
+- `MemoryEventStore`;
+- `SemanticMemoryContextProvider`;
+- `Memory2ContextProvider`;
+- `SemanticMemoryRetriever`;
+- `MemoryRetriever`;
+- unchanged authority-critical `PlayerScopedMemoryEligibility` and persisted `MemoryEvent` invariants;
+- dialogue/relationship/cause adapters that author retention-relevant fields.
+
+Verdict:
+
+- P0: 0;
+- P1: 0;
+- P2: 0;
+- no blocking scope-creep, persistence-schema, public-config, provider-authority or privacy-boundary issue found;
+- unresolved review threads at review time: 0;
+- submitted PR reviews at review time: 0.
+
+Review limitation: this is source + exact GitHub automation evidence, not installed-client/manual evidence. Existing installed-evidence gaps therefore remain unchanged.
 
 ## Final exact-head delivery gate
 
-Pending after canonical changelog/evidence and PR-body synchronization. Required before merge:
+This evidence synchronization commit intentionally advances the branch after the fully-green runtime head above. Therefore the final merge gate is **not inherited** from `37af57a...`: the new evidence-only head must independently satisfy the same exact-head checks before PR #131 can be merged.
 
-- Repository security policy — SUCCESS;
-- full VillAIgence CI — SUCCESS;
-- Production Soak — SUCCESS;
-- GitHub Release dry-run — SUCCESS with publication skipped;
-- exact base→head review with no blocking P0/P1/P2 finding;
+Required before merge:
+
+- Repository security policy — SUCCESS on the new exact head;
+- full VillAIgence CI — SUCCESS on the new exact head;
+- Production Soak — SUCCESS on the new exact head;
+- GitHub Release dry-run — SUCCESS on the new exact head with publication skipped;
+- base→new-head review confirms the delta after `37af57a...` is evidence/documentation only;
 - no unresolved review thread;
-- PR body records all observed RED→GREEN evidence;
+- PR body records the complete observed RED→GREEN chain;
 - official installed release remains `0.2.0+1.21.1`.
