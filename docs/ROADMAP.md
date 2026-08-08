@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation and validation state. Read root `CHANGELOG.md` for release/product history.
 >
-> Last reconciled: **2026-08-08**, after PR #127 merged trustworthy causal relationship memory.
+> Last reconciled: **2026-08-08**, after PR #129 merged FACT-over-BELIEF retrieval precedence and player-isolated prompt retrieval.
 
 ## Product vision
 
@@ -44,6 +44,8 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 15. **Changelog is part of delivery.** Notable runtime, persistence, config, release, security and permanent-CI changes update root `CHANGELOG.md` in the same PR.
 16. **Runtime behavior follows TDD.** Observe the intended RED before production implementation, then implement the smallest GREEN and re-run the complete selected gates.
 17. **Causal history is not retrospective model narration.** A relationship cause records only source-backed process evidence the server can prove; dialogue text does not become FACT merely because a relationship changed during that turn.
+18. **Player-scoped prompt memory is filtered before ranking.** Only current-player or NPC-global records may consume bounded prompt candidate slots; shared records remain eligible when the current player participates.
+19. **Prompt authority is structurally ordered.** Current observations render before Operator Lore, Semantic Memory and episodic/social history; provider output does not decide precedence.
 
 ---
 
@@ -61,8 +63,8 @@ legacy memory.json migration                           CANCELLED BY DESIGN
 controlled BELIEF admission contract                   COMPLETE / PR #123
 bounded PLAYER_TOLD claim extraction                   COMPLETE / PR #125
 trustworthy causal relationship memory                 COMPLETE / PR #127
-FACT > BELIEF retrieval regression package             NEXT
-long-horizon recall                                    LATER 0.2
+FACT > BELIEF retrieval regression package             COMPLETE / PR #129
+long-horizon recall                                    NEXT
 NPC-to-NPC knowledge transfer                          LATER 0.2
 provenance-aware rumors                                LATER 0.2
 ```
@@ -70,11 +72,10 @@ provenance-aware rumors                                LATER 0.2
 Immediate sequence:
 
 ```text
-current FACT > conflicting BELIEF / stale social-memory regression
-→ current relationship state > stale causal history regression
-→ Operator Lore precedence regression
-→ exact NPC/player mixed-source retrieval isolation
-→ long-horizon recall
+multi-session / multi-day recall contract
+→ bounded pressure + restart retention evidence
+→ player-isolation preservation under long horizon
+→ current observation > stale recollection regression under long horizon
 → NPC-to-NPC knowledge transfer
 → rumors with provenance, uncertainty and bounded distortion
 ```
@@ -137,7 +138,7 @@ VAI-CONCUR-004:    NOT TESTED / DEFERRED
 
 The release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is a clean LivingWorld state; no legacy conversation importer or dual-reader is planned.
 
-PR #127 is merged after this release and remains `[Unreleased]`; its automated acceptance must not be represented as installed `0.2.0` evidence.
+PRs #127 and #129 are merged after this release and remain `[Unreleased]`; their automated acceptance must not be represented as installed `0.2.0` evidence.
 
 ---
 
@@ -162,6 +163,8 @@ Relationship Memory   causal social history
 - structured exact before/after relationship-transition payloads;
 - source-linked deterministic dialogue-turn causal relationship events;
 - exact NPC/player isolation;
+- exact current-player-or-NPC-global prompt eligibility before candidate limiting;
+- shared-scope eligibility when the current player participates alongside another entity;
 - deterministic retrieval and idempotency;
 - bounded Working Memory;
 - typed FACT/BELIEF semantic entries;
@@ -169,7 +172,7 @@ Relationship Memory   causal social history
 - deterministic consolidation/source union;
 - deterministic pressure-based forgetting;
 - restart-safe world-local persistence;
-- current observed facts outrank conflicting recalled context as an architecture law, with an explicit end-to-end regression package next.
+- current observed facts structurally outrank Operator Lore, Semantic Memory and stale episodic/social history in snapshot prompt framing.
 
 ## Completed — persistent-dialogue clean cutover
 
@@ -301,8 +304,7 @@ Persistence/retrieval properties:
 - cause ordering deterministically follows its source events under bounded capacity;
 - source UUIDs plus transition snapshot survive restart inside the cause payload;
 - bounded retention may evict referenced source events, but query results expose them as unavailable rather than inventing replacements;
-- `RelationshipCausalHistory` filters exact NPC/player eligibility before limiting and resolves only exact source UUID/type/owner/participants;
-- causal history is queryable but is intentionally not injected into prompts yet.
+- `RelationshipCausalHistory` filters exact NPC/player eligibility before limiting and resolves only exact source UUID/type/owner/participants.
 
 TDD/review hardening caught and fixed before merge:
 
@@ -310,18 +312,7 @@ TDD/review hardening caught and fixed before merge:
 - cross-turn relationship/dialogue linking;
 - replay API returning a reconstructed duplicate instead of the exact persisted event.
 
-Final exact-head evidence:
-
-```text
-verified head:                           a027de8a69d4eef19b330b9e0d014e7c9b0ef6c7
-Repository security policy #1590:       SUCCESS / run 31251212282
-VillAIgence CI #1955:                   SUCCESS / run 31251212279
-VillAIgence Production Soak #107:       SUCCESS / run 31251212273
-VillAIgence GitHub Release #441:        SUCCESS / run 31251212289
-release publication job:                SKIPPED
-common/mock-provider suite:             511 tests / 0 FAIL
-independent review P0/P1/P2:            0 / 0 / 0
-```
+Final exact-head evidence is recorded in `docs/PROJECT_STATE.md` and PR #127.
 
 ### Exit criterion — met for this slice
 
@@ -329,62 +320,115 @@ VillAIgence can persist and query an exact relationship transition together with
 
 More expressive psychological, told or inferred causal narratives remain a separate future provenance-aware design rather than an implicit extension of this authoritative path.
 
-## NEXT — FACT > BELIEF retrieval regression package
+## Completed — FACT > BELIEF retrieval precedence
 
-As Semantic and Relationship Memory becomes richer, make precedence executable rather than merely architectural documentation before new recalled social history is injected into prompts.
+Merged through PR #129 / `0f904315f890f588e33adce1a27620ed06a94457`.
 
-Required scenarios:
+### Implemented retrieval boundary
 
-- current observed server FACT conflicts with recalled `PLAYER_TOLD` BELIEF → current FACT wins prompt framing;
-- current observed relationship state conflicts with stale causal/recalled social history → current state wins;
-- multiple conflicting BELIEFs remain visible as uncertain claims without becoming FACT;
-- Operator Lore remains background context below current observation;
-- causal relationship linkage does not upgrade linked DIALOGUE prose into FACT;
-- mixed-source retrieval filters exact NPC/player ownership before limiting;
-- retrieval never leaks another NPC/player's private memory.
+```text
+NPC-owned semantic / episodic memory
+→ exact current-player-or-NPC-global eligibility
+→ bounded candidate window
+→ unchanged deterministic ranking
+→ immutable snapshot prompt
+```
+
+Player-scope behavior:
+
+- non-empty Semantic Memory scopes that omit the current player are excluded before the 32-candidate bound;
+- episodic/social events with external participants that omit the current player are excluded before the 32-candidate bound;
+- foreign-player relationship-change and causal-history entries cannot consume candidate slots or enter another player's prompt;
+- NPC-global records remain eligible;
+- shared records remain eligible when the current player participates alongside another entity;
+- existing ranking weights and deterministic tie-breakers remain unchanged for eligible records.
+
+### Implemented prompt authority
+
+Snapshot memory is no longer duplicated through `PlayerModule → MemoryModule` during immutable context capture. The snapshot renders dedicated layers exactly once:
+
+```text
+stable NPC/player descriptive context
+→ CURRENT OBSERVED WORLD FACTS
+→ Operator Lore
+→ Semantic Memory
+→ episodic / relationship social history
+→ structured-response / tool instructions
+```
+
+Properties:
+
+- current observations are authoritative for the turn;
+- current relationship state precedes stale `RELATIONSHIP_CHANGE` / `RELATIONSHIP_CAUSE` history;
+- Operator Lore remains background context;
+- conflicting BELIEFs remain BELIEF and are not silently resolved or promoted;
+- causal history does not upgrade dialogue prose into FACT;
+- the classic path retains `MemoryModule`, but its ContextProviders now share the same player-eligibility boundary;
+- the obsolete `MixinOpenAIChatAI` prompt insertion was removed;
+- provider schema, retry/transport, action authority, relationship mutation, persistence format and config remain unchanged.
+
+TDD boundaries were observed separately for semantic isolation, episodic/causal isolation, snapshot memory de-duplication, four-layer prompt composition, and direct OpenAI wiring. Independent review added preservation regressions for shared current-player scopes without requiring a production change.
+
+Final exact-head evidence is recorded in `docs/PROJECT_STATE.md` and PR #129.
+
+### Exit criterion — met
+
+Current server-observed truth now deterministically controls snapshot prompt framing; foreign-player Memory 2.0 data is excluded before candidate limiting, eligible current-player/NPC-global/shared records stay bounded and deterministic, and no model/provider output decides visibility or truth precedence.
+
+## NEXT — long-horizon recall
+
+### Goal
+
+Prove that Memory 2.0 remains useful and truthful across realistic temporal distance, multiple sessions, restart and bounded capacity pressure without introducing unbounded retention or weakening provenance/player isolation.
+
+### Required scenarios
+
+- important episodic and semantic memory survives multi-session recall;
+- multi-day authoritative game-time ordering remains deterministic;
+- restart preserves the expected survivors and retrieval order;
+- strong/important/corroborated knowledge survives pressure while weaker entries decay according to the existing deterministic retention policy;
+- current-player, NPC-global and shared-scope eligibility remains correct after pressure and restart;
+- current observed facts still outrank stale recalled belief/social history;
+- no cross-NPC/player leakage appears after long-running retention pressure.
 
 ### TDD delivery slices
 
-1. **Precedence contract RED**
-   - explicit current FACT vs `PLAYER_TOLD` BELIEF conflict;
-   - current relationship state vs stale causal history;
-   - current observation vs Operator Lore;
-   - no FACT promotion from repeated/confident BELIEF.
-2. **Isolation/order RED**
-   - exact NPC/player filter before limit across episodic/semantic/causal sources;
-   - deterministic ordering when multiple layers are eligible.
-3. **Minimal GREEN retrieval/framing**
-   - change only the retrieval/framing behavior that violates the explicit precedence contract;
-   - keep truth class/source identity server-owned.
-4. **Prompt regression package**
-   - prove current observations are framed as authoritative;
-   - beliefs/lore/history remain sourced and subordinate;
-   - no hidden generated reconciliation.
+1. **Long-horizon contract RED**
+   - multi-session/multi-day game-time fixtures;
+   - restart round-trip;
+   - explicit expected survivors and retrieval order.
+2. **Pressure RED**
+   - bounded semantic/episodic capacity pressure;
+   - strong evidence must not be displaced incorrectly by newer weak evidence;
+   - player isolation remains correct while pressure is applied independently to several NPC/player scopes.
+3. **Minimal GREEN only where necessary**
+   - preserve current deterministic retention/retrieval policies when they already satisfy the contract;
+   - make focused changes only for observed failures.
+4. **Authority regression**
+   - current observation still overrides stale recalled context after long horizons;
+   - FACT/BELIEF and causal-process boundaries stay intact.
 5. **Full delivery gate**
-   - root `[Unreleased]` update for any runtime behavior change;
-   - relevant common/provider tests and GameTests;
+   - common/provider tests and relevant GameTests;
    - Fabric + NeoForge;
    - production startup/restart and persistence recovery;
    - repository security policy;
-   - soak/release dry-run when selected;
-   - independent exact-head review before merge.
+   - constrained soak/release dry-run;
+   - independent exact-head review.
+
+### Invariants
+
+- authoritative Minecraft game time, not wall-clock age, controls memory-time reasoning;
+- persistence remains hard-bounded;
+- no background LLM summarizer or unlimited history is introduced;
+- retrieval remains current-player/NPC-global eligible before candidate limiting;
+- current observations remain authoritative over stale recollection;
+- FACT/BELIEF provenance remains unchanged;
+- replay/restart stays deterministic;
+- no pre-0.2 `memory.json` migration or dual reader returns.
 
 ### Exit criterion
 
-Conflicting memory layers remain representable, but current server-observed truth deterministically controls prompt framing and behavior; retrieval remains exact-owner isolated, and no model/provider output decides which source is authoritative.
-
-## Later 0.2 — long-horizon recall
-
-Add deterministic scenarios proving important memories survive realistic time, pressure and restart while weak memories decay as designed.
-
-Required evidence includes:
-
-- multi-session recall;
-- multi-day game-time ordering;
-- retention under capacity pressure;
-- relationship-memory retrieval;
-- current observations outranking stale belief;
-- no cross-NPC/player leakage.
+An NPC can retain and retrieve the right important memories across multiple sessions, multi-day game time, capacity pressure and restart while weaker memory decays predictably, player isolation remains exact, and current observed truth still wins over stale recollection.
 
 ## Later 0.2 — NPC-to-NPC knowledge transfer
 
@@ -428,6 +472,7 @@ Memory 2.0 is complete when persistent NPC memory is:
 - deterministic under replay;
 - able to learn controlled non-authoritative claims;
 - able to retain source-backed causal relationship history;
+- able to retain important memories across realistic temporal/pressure horizons;
 - able to transfer knowledge between NPCs without omniscience;
 - able to represent rumors/contradictions without turning them into FACT;
 - independent of the removed raw conversation store.
