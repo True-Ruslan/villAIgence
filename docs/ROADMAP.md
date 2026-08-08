@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation and validation state. Read root `CHANGELOG.md` for release/product history.
 >
-> Last reconciled: **2026-08-08**, after PR #131 merged bounded long-horizon Memory 2.0 recall and durability-aware episodic retention.
+> Last reconciled: **2026-08-09**, after PR #133 merged source-backed server-owned NPC-to-NPC knowledge transfer.
 
 ## Product vision
 
@@ -47,6 +47,7 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 18. **Player-scoped prompt memory is filtered before ranking.** Only current-player or NPC-global records may consume bounded prompt candidate slots; shared records remain eligible when the current player participates.
 19. **Prompt authority is structurally ordered.** Current observations render before Operator Lore, Semantic Memory and episodic/social history; provider output does not decide precedence.
 20. **Long-horizon recall remains hard-bounded.** Eligible memory uses a deterministic recent/durable split before the existing final ranker; durability never grants immortality and foreign memory consumes no prompt slots.
+21. **NPC-to-NPC transfer is evidence-backed, never implicit omniscience.** A listener can learn only through an exact server-owned transfer event from a speaker that already owns the selected persisted Semantic knowledge; transferred truth remains BELIEF/NPC_TOLD.
 
 ---
 
@@ -66,19 +67,20 @@ bounded PLAYER_TOLD claim extraction                   COMPLETE / PR #125
 trustworthy causal relationship memory                 COMPLETE / PR #127
 FACT > BELIEF retrieval regression package             COMPLETE / PR #129
 long-horizon recall                                    COMPLETE / PR #131
-NPC-to-NPC knowledge transfer                          NEXT
-provenance-aware rumors                                LATER 0.2
+NPC-to-NPC knowledge transfer                          COMPLETE / PR #133
+provenance-aware rumors                                NEXT
 ```
 
 Immediate sequence:
 
 ```text
-source-backed NPC→NPC dialogue/transfer contract
-→ exact NPC_TOLD admission for listener-owned BELIEF
-→ replay/restart/pressure + multi-NPC isolation regression
-→ current observation > transferred BELIEF preservation
-→ provenance-aware rumors
-→ uncertainty / contradiction / bounded distortion
+bounded provenance-chain representation
+→ exact multi-hop NPC_TOLD source-chain admission
+→ cycle/replay/restart/pressure bounds
+→ contradiction representation without truth promotion
+→ current observation > rumor preservation
+→ uncertainty / bounded distortion
+→ settlement-scale information flow without omniscience
 ```
 
 `VAI-CONCUR-004` remains deferred until two real graphical clients are available. It stays `NOT TESTED`, but does not block current product development because server-side concurrency semantics are already automated.
@@ -139,7 +141,7 @@ VAI-CONCUR-004:    NOT TESTED / DEFERRED
 
 The release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is a clean LivingWorld state; no legacy conversation importer or dual-reader is planned.
 
-PRs #127, #129 and #131 are merged after this release and remain `[Unreleased]`; their automated acceptance must not be represented as installed `0.2.0` evidence.
+PRs #127, #129, #131 and #133 are merged after this release and remain `[Unreleased]`; their automated acceptance must not be represented as installed `0.2.0` evidence.
 
 ---
 
@@ -175,6 +177,9 @@ Relationship Memory   causal social history
 - deterministic consolidation/source union;
 - deterministic pressure-based forgetting;
 - restart-safe world-local persistence;
+- exact read-only owner+UUID authority lookup for source-backed lifecycle validation;
+- source-backed listener-owned `NPC_TOLD` BELIEF transfer between NPCs;
+- explicit event-vs-semantic partial-retention outcomes for transfer;
 - current observed facts structurally outrank Operator Lore, Semantic Memory and stale episodic/social history in snapshot prompt framing;
 - multi-session, multi-day, restart, pressure and mixed-scope regression evidence.
 
@@ -452,92 +457,183 @@ Final exact-head evidence is recorded in `docs/PROJECT_STATE.md`, PR #131 and th
 
 An NPC can retain and retrieve important Semantic and episodic/social memory across multi-session, multi-day game time, bounded pressure and restart while weak memory decays predictably, privacy remains exact, and current server-observed truth still outranks stale recollection.
 
-## NEXT — NPC-to-NPC knowledge transfer
+## Completed — NPC-to-NPC knowledge transfer
 
-Use the existing `NPC_TOLD` BELIEF admission contract to introduce controlled information movement between NPCs without global/omniscient knowledge distribution.
+Merged through PR #133 / `aacfe19cccbc8fc03c7959956873d1bd777e6ee2`.
+
+The accepted first slice is deliberately a strict server-owned transfer primitive rather than autonomous visible NPC conversation.
+
+### Implemented transfer model
+
+```text
+speaker NPC A owns exact persisted Semantic FACT/BELIEF
+→ server selects source entry by exact owner + UUID
+→ authoritative exact reread validates immutable source snapshot
+→ canonical listener-owned DIALOGUE / NPC_TOLD evidence persists
+→ exact persisted evidence reread validates every canonical field
+→ existing BELIEF admission path
+→ listener NPC B receives BELIEF / NPC_TOLD
+→ retained post-consolidation entry must contain exact transfer-evidence UUID
+```
+
+Canonical evidence properties:
+
+```text
+ownerNpcId:             listener
+participants:           [listener, speaker]
+type:                   DIALOGUE
+provenance:             NPC_TOLD
+gameTime:               authoritative server gameTime
+createdAtEpochMillis:   0
+importance:             50
+emotionalWeight:        0
+confidence:             50
+dialogue payload:       null
+summary:                NPC told: <bounded normalized statement>
+```
+
+Authority/visibility properties:
+
+- caller does not provide arbitrary claim text, provenance, Semantic kind, scope, source-event IDs, importance or confidence;
+- source must already exist and be owned by the claimed speaker;
+- speaker FACT or BELIEF always becomes listener BELIEF/NPC_TOLD;
+- source FACT authority and original upstream provenance/source chain are not copied to listener authority;
+- listener semantic subject scope is the canonical source UUID set; speaker is not inserted merely because it was the provenance actor;
+- one transfer creates knowledge only for the listener, not unrelated NPCs;
+- raw transfer evidence does not masquerade as player Working Memory because it has no player-oriented `DialogueExchange`;
+- existing player-private/NPC-global/shared eligibility remains unchanged.
+
+Persistence/replay properties:
+
+- exact transfer evidence UUID is versioned and deterministic from listener, speaker, source Semantic entry and authoritative game time;
+- exact retry is byte-idempotent in both `memory2.json` and `semantic-memory.json`;
+- later transfer at another game time creates distinct evidence;
+- equivalent listener claims consolidate deterministically and union exact evidence UUIDs;
+- event pressure rejection returns `SOURCE_NOT_RETAINED` and creates no BELIEF;
+- semantic pressure rejection returns `BELIEF_NOT_RETAINED` while retaining the legitimate transfer event;
+- no distributed rollback fabricates/deletes a transfer event that actually occurred;
+- transfer participates in existing bounded retention/long-horizon retrieval and remains evictable.
+
+### Verification package
+
+Strict TDD observed:
+
+- compile RED for exact authority lookup APIs;
+- compile RED for canonical transfer adapter/policy contracts;
+- compile RED for lifecycle/result API;
+- behavioral RED after the lifecycle shell compiled: 557 common tests / exactly 2 expected transfer failures / 555 PASS;
+- minimal lifecycle GREEN;
+- preservation-only GREEN gates for invalid authority, replay/consolidation, pressure outcomes, fresh-root reload, privacy/Working Memory isolation and deterministic long-horizon multi-NPC simulation.
+
+Final exact-head evidence:
+
+```text
+verified head:                           864b7f7e263a0a9078c710416ceb680fa5affd88
+merge commit:                            aacfe19cccbc8fc03c7959956873d1bd777e6ee2
+Repository security policy #1758:       SUCCESS / run 31283523663
+VillAIgence CI #2123:                   SUCCESS / run 31283523664
+VillAIgence Production Soak #178:       SUCCESS / run 31283523656
+VillAIgence GitHub Release #512:        SUCCESS / run 31283523657
+release publication job:                SKIPPED
+independent runtime review P0/P1/P2:    0 / 0 / 0
+open review threads:                    0
+```
+
+### Exit criterion — met
+
+NPC A can explicitly transmit one bounded sourced claim to NPC B through a deterministic server-owned transfer event; B stores it as inspectable `NPC_TOLD` BELIEF, unrelated NPCs do not learn it automatically, retries/restart/pressure remain deterministic, and current server truth still outranks the transferred recollection.
+
+## NEXT — provenance-aware rumors
+
+Build on the accepted direct transfer primitive with bounded multi-hop provenance and explicit uncertainty, without weakening the FACT/BELIEF boundary.
 
 ### Goal
 
 ```text
-NPC A owns sourced knowledge
-→ bounded server-authorized social exchange
-→ exact persisted evidence that A told B
-→ NPC B receives bounded claim text
-→ NPC_TOLD BELIEF with exact source/provenance chain
-→ later bounded retrieval
+origin Semantic knowledge
+→ direct source-backed NPC→NPC transfer
+→ listener NPC_TOLD BELIEF
+→ later bounded retelling
+→ exact origin + speaker-hop provenance
+→ non-authoritative rumor state
+→ bounded retrieval / contradiction representation
 ```
 
-### Required scenarios
+### Required design decisions before implementation
 
-- source NPC has actual eligible sourced knowledge before it can tell another NPC;
-- the server records exact speaker, listener, source event and authoritative `gameTime`;
-- listener receives `NPC_TOLD` BELIEF only, never FACT;
-- wrong speaker/listener/source/time or missing persisted evidence fails closed;
-- one NPC learning a claim does not make unrelated NPCs know it;
-- repeated/retried delivery is idempotent;
-- distinct valid corroborating tells may union exact source history deterministically;
-- restart and long-horizon pressure preserve transferred knowledge according to existing bounded policies;
-- current observed FACT still outranks conflicting transferred BELIEF;
-- foreign-player/NPC prompt isolation remains unchanged.
+- minimal persistent representation for origin and transfer-hop chain;
+- hard maximum hop depth and serialized provenance size;
+- whether rumor is a distinct typed semantic class or remains BELIEF plus explicit bounded rumor metadata;
+- deterministic behavior when two chains corroborate the same claim;
+- cycle detection/canonicalization for `A→B→A`, repeated retells and replay;
+- representation of contradictions without provider-selected truth resolution;
+- how uncertainty may decay/change across hops without becoming authority.
 
-### TDD delivery slices
+### Required TDD scenarios
 
-1. **Source-evidence contract RED**
-   - exact persisted NPC→NPC dialogue/exchange evidence;
-   - speaker/listener/source identity and time validation;
-   - missing/wrong source fails closed.
-2. **Admission/ownership RED**
-   - listener-owned `NPC_TOLD` BELIEF only;
-   - no FACT path and no global propagation;
-   - deterministic source chain.
-3. **Replay/restart RED**
-   - exact replay no duplication;
-   - corroborating sources union deterministically;
-   - restart preserves exact provenance.
-4. **Long-horizon/privacy preservation**
-   - transferred BELIEF survives when sufficiently durable under existing pressure bounds;
-   - unrelated NPC/player scopes remain isolated;
-   - current observations remain authoritative on conflict.
-5. **Minimal producer/wiring GREEN**
-   - reuse existing admission/persistence surfaces where possible;
-   - add no second provider call or provider-owned provenance metadata;
-   - no new storage/config unless an observed RED proves it necessary.
-6. **Full delivery gate**
-   - common/provider tests and relevant GameTests;
+- A→B direct transfer keeps the exact PR #133 contract unchanged;
+- B can retell to C only knowledge B actually retains;
+- C retains exact origin and exact server-proven transfer hops;
+- fabricated/missing hop evidence fails closed;
+- cycles/replay cannot create unbounded chain growth or duplicate logical hops;
+- repeated/corroborated rumor remains BELIEF/non-authoritative and never becomes FACT;
+- contradictory rumors can coexist without generated winner selection;
+- one chain does not leak across unrelated NPC/player scopes;
+- restart and long-horizon pressure preserve bounded provenance deterministically;
+- current observed FACT still outranks every rumor/BELIEF;
+- no provider/model call controls source IDs, chain depth, truth class, visibility or retention.
+
+### Delivery order
+
+1. **Rumor provenance design/spec gate**
+   - define exact semantics, hard bounds and storage impact before code.
+2. **Representation RED**
+   - source chain absent from current direct-transfer Semantic model;
+   - prove the exact minimal new state required.
+3. **Multi-hop authority RED**
+   - source ownership + exact persisted hop evidence required at every retell.
+4. **Cycle/replay/corroboration RED**
+   - deterministic bounded chains and source union.
+5. **Contradiction/privacy/authority preservation**
+   - BELIEF/rumor remains below current server truth;
+   - player/NPC isolation remains pre-limit.
+6. **Pressure/restart simulation**
+   - multiple NPCs, multiple chains, cycles, contradictory claims, hundreds of unrelated records, no wall-clock assertions.
+7. **Full delivery gate**
+   - common/provider tests and selected GameTests;
    - Fabric + NeoForge;
-   - production startup/restart and persistence recovery;
-   - repository security policy;
-   - constrained soak/release dry-run;
+   - production startup/restart + persistence recovery;
+   - security + constrained soak + release dry-run;
    - independent exact-head review.
 
 ### Invariants
 
-- `NPC_TOLD` is always BELIEF, never FACT;
-- exact source identity is server-owned and must correspond to persisted evidence;
-- the model cannot choose speaker/listener UUIDs, source-event UUIDs, truth class, retention score or visibility;
-- no omniscient knowledge bus or implicit settlement-wide propagation;
-- existing long-horizon hard bounds and privacy eligibility remain intact;
-- current world observations outrank transferred recollection;
-- retry/replay/restart remain deterministic and idempotent;
-- no legacy `memory.json` migration/dual reader returns.
+- direct PR #133 transfer remains the trusted primitive;
+- rumor remains non-authoritative even after repetition/corroboration;
+- exact origin/hop identities are server-owned and correspond to persisted evidence;
+- provenance chain is hard-bounded and deterministic;
+- no implicit settlement-wide/global distribution;
+- current observed FACT outranks rumor/BELIEF;
+- existing candidate/result/long-horizon privacy bounds remain intact;
+- no legacy `memory.json` importer/dual reader returns.
 
 ### Exit criterion
 
-NPC A can explicitly transmit a bounded sourced claim to NPC B; B persists it as inspectable `NPC_TOLD` BELIEF with exact server-backed provenance, unrelated NPCs do not learn it automatically, and the claim survives/retrieves under existing restart/pressure rules without becoming authoritative truth.
+A sourced claim can move through more than one NPC with a bounded inspectable server-backed provenance chain, survive retry/restart/pressure deterministically, represent disagreement without invented truth, and remain explicitly non-authoritative.
 
-## Later 0.2 — provenance-aware rumors
+## Later 0.2 — uncertainty / contradiction / bounded distortion
 
-Build on NPC-to-NPC transfer with explicit uncertainty and bounded distortion.
+Once exact multi-hop provenance exists, model how fallible social information changes without granting the model authority.
 
-Possible fields/semantics:
+Possible semantics:
 
 ```text
 origin source
 speaker chain
-confidence
-uncertainty
+confidence / uncertainty
 contradiction state
-distortion count / bounded transformation
+distortion count
+bounded transformation budget
 ```
 
 A rumor remains non-authoritative even when repeated by many NPCs.
@@ -555,7 +651,7 @@ Memory 2.0 is complete when persistent NPC memory is:
 - able to retain source-backed causal relationship history;
 - able to retain important memories across realistic temporal/pressure horizons;
 - able to transfer knowledge between NPCs without omniscience;
-- able to represent rumors/contradictions without turning them into FACT;
+- able to represent bounded multi-hop provenance, rumors and contradictions without turning them into FACT;
 - independent of the removed raw conversation store.
 
 ---

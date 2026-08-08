@@ -2,7 +2,7 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md` when resuming work. Read root `CHANGELOG.md` for product/release history.
 >
-> Last reconciled: **2026-08-08**, after long-horizon Memory 2.0 recall merged through PR #131.
+> Last reconciled: **2026-08-09**, after source-backed NPC-to-NPC knowledge transfer merged through PR #133.
 >
 > Always distinguish source/unit evidence, common integration, server GameTests, production-candidate evidence, exact-release evidence, and installed operator server/client evidence.
 
@@ -17,14 +17,14 @@ Java:                               21
 primary distribution:               Fabric
 NeoForge:                           compile compatibility required
 
-latest product merge:               PR #131
-latest product merge commit:        9827a3b511421036c7ae6733fd4fabe4efc8e0c1
+latest product merge:               PR #133
+latest product merge commit:        aacfe19cccbc8fc03c7959956873d1bd777e6ee2
 latest official release:            0.2.0+1.21.1
 latest release commit:              e426f588efefa6aa48a6e536c4a998421bbda241
 installed 0.2.0 candidate JAR SHA:   56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
 
-next product slice:                 NPC-to-NPC knowledge transfer
-then:                               provenance-aware rumors
+next product slice:                 provenance-aware rumors
+then:                               uncertainty / contradiction / bounded distortion
 ```
 
 Current delivery state:
@@ -46,8 +46,8 @@ bounded PLAYER_TOLD claim extraction                   COMPLETE / PR #125
 trustworthy causal relationship memory                 COMPLETE / PR #127
 FACT > BELIEF retrieval regression package             COMPLETE / PR #129
 long-horizon recall                                    COMPLETE / PR #131
-NPC-to-NPC knowledge transfer                          NEXT
-provenance-aware rumors                                NOT IMPLEMENTED
+NPC-to-NPC knowledge transfer                          COMPLETE / PR #133
+provenance-aware rumors                                NEXT
 ```
 
 Installed boundaries that remain explicit:
@@ -59,7 +59,7 @@ VAI-CONCUR-004   NOT TESTED / DEFERRED
 
 Neither is represented as PASS.
 
-PRs #127, #129 and #131 are merged and fully automated on their exact source heads, but they are **not** part of the already-installed `0.2.0` release evidence. Do not describe causal relationship memory, FACT-over-BELIEF retrieval precedence or long-horizon recall as installed-release acceptance until a later release candidate is explicitly built and accepted.
+PRs #127, #129, #131 and #133 are merged and fully automated on their exact source heads, but they are **not** part of the already-installed `0.2.0` release evidence. Do not describe causal relationship memory, FACT-over-BELIEF retrieval precedence, long-horizon recall or NPC-to-NPC knowledge transfer as installed-release acceptance until a later release candidate is explicitly built and accepted.
 
 ---
 
@@ -107,6 +107,7 @@ NPC Identity
 21. Player-scoped prompt retrieval is an eligibility boundary, not a ranking preference: foreign-player Memory 2.0 data is excluded before candidate limiting.
 22. Immutable snapshot context renders exactly once in deterministic authority order: current observations, Operator Lore, Semantic Memory, then episodic/social history. Lower layers may disagree but cannot override current observed truth.
 23. Long-horizon recall is bounded and two-tiered: eligible memory is selected into recent and durable pools before the existing final ranker, while foreign-player and other-NPC data consume zero prompt-candidate slots and no memory class becomes immortal.
+24. NPC-to-NPC knowledge transfer is source-backed and server-owned: the speaker must own an exact persisted Semantic entry, the listener receives `NPC_TOLD` BELIEF only after exact transfer evidence persists and rereads successfully, and transfer never copies FACT authority or creates implicit global knowledge.
 
 Canonical AI/state flow:
 
@@ -133,6 +134,12 @@ persisted DIALOGUE/source evidence
 → server-owned provenance/source binding
 → BELIEF admission policy
 → BELIEF
+
+speaker-owned persisted Semantic FACT/BELIEF
+→ exact server-owned source lookup + authoritative reread
+→ exact listener-owned DIALOGUE / NPC_TOLD transfer evidence
+→ exact persisted evidence reread + validation
+→ listener-owned BELIEF / NPC_TOLD
 ```
 
 Relationship causal-history flow:
@@ -169,7 +176,7 @@ NPC-owned Memory 2.0 / Semantic Memory
 → provider
 ```
 
-The provider may suggest non-authoritative claim text and bounded numeric relationship delta. It never chooses memory visibility, truth class, source identity, causal-event identity, causal prose, precedence, retention score, candidate quota or gameplay authority.
+The provider may suggest non-authoritative claim text and bounded numeric relationship delta. It never chooses memory visibility, truth class, source identity, causal-event identity, transfer speaker/listener identity, causal prose, precedence, retention score, candidate quota or gameplay authority.
 
 ---
 
@@ -224,7 +231,7 @@ Current Semantic BELIEF extraction config:
 
 Extraction is opt-in. Hard candidate count is `8`; statements are bounded to `240` Unicode code points. Existing config version remains `2` and missing fields receive safe defaults.
 
-PRs #127, #129 and #131 introduce no new world file or public configuration. Causal structured payloads remain inside `memory2.json`; FACT-over-BELIEF precedence and long-horizon recall change retrieval/retention behavior without changing persistence format/version. No backfill or persistence-format migration is performed.
+PRs #127, #129, #131 and #133 introduce no new world file or public configuration. Causal structured payloads remain inside `memory2.json`; FACT-over-BELIEF precedence and long-horizon recall change retrieval/retention behavior without changing persistence format/version; NPC-to-NPC transfer reuses the existing `memory2.json` + `semantic-memory.json` contracts and adds exact read-only authority lookup APIs. No backfill or persistence-format migration is performed.
 
 ---
 
@@ -273,6 +280,7 @@ Implemented foundation:
 - DIALOGUE, OBSERVATION, ACTION, RELATIONSHIP_CHANGE and RELATIONSHIP_CAUSE;
 - deterministic UUID idempotency and ordering;
 - bounded per-NPC persistence and retrieval;
+- exact owner+UUID/predicate authority lookup for source-backed lifecycle validation;
 - text/voice DIALOGUE parity;
 - bounded Working Memory;
 - typed semantic FACT/BELIEF entries;
@@ -283,6 +291,8 @@ Implemented foundation:
 - bounded dual-tier long-horizon candidate selection with recent and durable quotas;
 - exact relationship before/after transition snapshots;
 - exact persisted source UUIDs for dialogue-trigger causal relationship history;
+- source-backed server-owned NPC-to-NPC transfer into listener `NPC_TOLD` BELIEF;
+- explicit `SOURCE_NOT_RETAINED` / `BELIEF_NOT_RETAINED` partial-retention outcomes;
 - exact current-player/NPC-global/shared eligibility before bounded episodic/Semantic prompt candidate selection;
 - NPC-global semantic and episodic memory treated as fully relevant after eligibility;
 - deterministic one-pass snapshot layering for facts, lore, Semantic Memory and episodic/social history;
@@ -516,6 +526,74 @@ open review threads:                    0
 
 The final runtime head before evidence-only synchronization also passed the same four gate families. Main CI and release dry-run cover common tests, risk/GameTests, Fabric + NeoForge, production startup/restart, persistence recovery, package verification and accepted/package JAR identity. This is source/candidate automation evidence, not installed `0.2.0` acceptance.
 
+### NPC-to-NPC knowledge transfer — PR #133
+
+Merged through PR #133 / `aacfe19cccbc8fc03c7959956873d1bd777e6ee2`.
+
+Implemented authoritative flow:
+
+```text
+exact persisted speaker Semantic entry
+→ exact owner+UUID authority lookup
+→ authoritative exact reread of immutable source snapshot
+→ canonical listener-owned DIALOGUE / NPC_TOLD evidence
+→ MemoryEventStore append
+→ exact listener evidence reread + full canonical validation
+→ existing SemanticBeliefAdmissionPolicy
+→ listener-owned BELIEF / NPC_TOLD
+→ retained post-consolidation verification containing exact transfer evidence UUID
+```
+
+Canonical transfer evidence is deterministic and server-owned:
+
+```text
+owner:                    listener NPC
+participants:             [listener, speaker]
+type:                     DIALOGUE
+provenance:               NPC_TOLD
+gameTime:                 authoritative Minecraft gameTime
+createdAtEpochMillis:     0
+importance/confidence:    50 / 50
+emotionalWeight:          0
+dialogue payload:         absent
+summary:                  NPC told: <bounded normalized statement>
+```
+
+Guarantees:
+
+- the caller selects only server-owned world/source/speaker/listener IDs and capacities; arbitrary claim text, provenance, truth class, scope, source IDs, importance and confidence are not public transfer inputs;
+- the source must be an exact persisted Semantic entry owned by the claimed speaker;
+- source FACT and source BELIEF are both transferable, but the listener always receives `BELIEF / NPC_TOLD`;
+- FACT authority and the speaker's upstream provenance/source-event chain are not copied to the listener;
+- subject scope is preserved canonically and the speaker is not injected into `relatedEntities`;
+- exact transfer retry is byte-idempotent for both memory stores;
+- a later transfer at a new authoritative `gameTime` creates distinct evidence and can consolidate exact source UUIDs into one logical listener BELIEF;
+- `SOURCE_NOT_RETAINED` means event pressure rejected the transfer evidence and no BELIEF is admitted;
+- `BELIEF_NOT_RETAINED` means the real transfer evidence remains but Semantic pressure did not retain the listener BELIEF; the evidence is not rolled back;
+- raw NPC→NPC transfer evidence has no player-oriented `DialogueExchange`, so it is not reconstructed as player Working Memory;
+- global/private/shared semantic scopes, foreign-player isolation and independent NPC-pair isolation remain exact;
+- transferred BELIEF participates in existing long-horizon retrieval and remains evictable under stronger deterministic pressure;
+- current observed truth still outranks transferred BELIEF;
+- no new persistence schema/file, public config, provider call, scheduler, autonomous visible NPC conversation, trust weighting, rumor propagation or migration was added.
+
+Observed strict TDD evidence included compile REDs for exact authority lookup and pure transfer contracts, then a behavioral lifecycle RED with **557 common tests / exactly 2 expected failures / 555 PASS** before the successful transfer implementation existed. Preservation-only GREEN stages then covered fail-closed authority, byte-idempotent replay, consolidation, partial-retention statuses, fresh-root reload, player Working Memory isolation, scope/privacy, independent NPC pairs, long-horizon recall and deterministic multi-NPC pressure.
+
+Final exact-head evidence:
+
+```text
+verified head:                           864b7f7e263a0a9078c710416ceb680fa5affd88
+merge commit:                            aacfe19cccbc8fc03c7959956873d1bd777e6ee2
+Repository security policy #1758:       SUCCESS / run 31283523663
+VillAIgence CI #2123:                   SUCCESS / run 31283523664
+VillAIgence Production Soak #178:       SUCCESS / run 31283523656
+VillAIgence GitHub Release #512:        SUCCESS / run 31283523657
+release publication job:                SKIPPED
+independent runtime review P0/P1/P2:    0 / 0 / 0
+open review threads:                    0
+```
+
+Main CI selected and passed common/mock-provider tests, Fabric + NeoForge GameTests/builds, exact production startup/restart, persistence recovery and package verification. Soak passed constrained-heap concurrency and five restart cycles. Release dry-run passed exact acceptance/recovery, loader/GameTest coverage and accepted-JAR/package identity while publication remained skipped. This is unreleased source/candidate evidence, not installed `0.2.0` acceptance.
+
 ## Operator Lore
 
 Implemented:
@@ -648,6 +726,22 @@ open review threads:                    0
 
 PR #131 additionally carries explicit observed RED→GREEN evidence for Semantic/episodic recall starvation, episodic pressure retention, no-op persistence writes and NPC-global relevance; its multi-session simulation verifies deterministic behavior across fresh persistence reloads and pressure without wall-clock assertions.
 
+PR #133 final exact-head evidence:
+
+```text
+verified head:                           864b7f7e263a0a9078c710416ceb680fa5affd88
+merge commit:                            aacfe19cccbc8fc03c7959956873d1bd777e6ee2
+Repository security policy #1758:       SUCCESS / run 31283523663
+VillAIgence CI #2123:                   SUCCESS / run 31283523664
+VillAIgence Production Soak #178:       SUCCESS / run 31283523656
+VillAIgence GitHub Release #512:        SUCCESS / run 31283523657
+release publication job:                SKIPPED
+independent runtime review P0/P1/P2:    0 / 0 / 0
+open review threads:                    0
+```
+
+PR #133 additionally carries explicit staged RED→GREEN evidence for exact authority lookup, canonical transfer evidence/policy APIs and behavioral source-backed lifecycle admission. Preservation coverage proves byte-idempotent retry, deterministic corroborating source union, explicit partial-retention outcomes, fresh-root reload, player/NPC isolation and long-horizon deterministic pressure without wall-clock assertions.
+
 ---
 
 # Current official release boundary — 0.2.0+1.21.1
@@ -682,7 +776,7 @@ Canonical installed evidence:
 docs/livingworld/VALIDATION_0.2.0_CLEAN_WORLD_INSTALLED.md
 ```
 
-PRs #127, #129 and #131 do not alter this installed-release claim. They are merged unreleased capability until a later release boundary is prepared and accepted.
+PRs #127, #129, #131 and #133 do not alter this installed-release claim. They are merged unreleased capability until a later release boundary is prepared and accepted.
 
 ---
 
@@ -705,7 +799,7 @@ permanent CI guarantees
 
 Release sections must distinguish automated, candidate, exact-release and installed/manual evidence. Deferred or failed acceptance remains explicit.
 
-PR #131 already updated root `[Unreleased]` in the runtime PR. This documentation handoff therefore changes only canonical state/roadmap documents and must not duplicate the product changelog entry.
+PR #133 already updated root `[Unreleased]` in the runtime PR. This documentation handoff therefore changes only canonical state/roadmap documents and must not duplicate the product changelog entry.
 
 ---
 
@@ -713,8 +807,8 @@ PR #131 already updated root `[Unreleased]` in the runtime PR. This documentatio
 
 1. `VAI-CONCUR-004` real two-graphical-client Operator Lore conflict presentation remains deferred.
 2. `VAI-M2-INST-005` real second-player installed isolation remains untested; automated current-player/NPC-global/shared-scope isolation exists before both recent/durable prompt allocation.
-3. Automatic `NPC_TOLD` production and NPC-to-NPC knowledge transfer remain the next Memory 2.0 product gap.
-4. Provenance-aware rumor propagation, uncertainty and bounded distortion remain future work after NPC-to-NPC transfer.
+3. Provenance-aware rumor propagation, explicit origin/speaker chains, uncertainty, contradiction and bounded distortion are the next Memory 2.0 product gap.
+4. The accepted NPC-to-NPC transfer primitive is intentionally server-invoked only; autonomous initiation, visible NPC↔NPC conversation presentation and voice are separate future product slices rather than implicit behavior in PR #133.
 5. Causal relationship history currently records deterministic `DIALOGUE_TURN` process linkage; richer psychological/told/inferred causal explanations intentionally remain outside the authority model and need a separate provenance-aware design if later desired.
 6. `RelationshipCausalHistory` provides resolved source-aware queries, while prompt context currently consumes bounded `RELATIONSHIP_CAUSE` through normal episodic/social retrieval rather than a dedicated resolved-causal prompt surface.
 7. `PersistentChatMemory` is a no-storage compatibility façade and may be removed when the inherited AI call surface is refactored.
@@ -725,53 +819,56 @@ PR #131 already updated root `[Unreleased]` in the runtime PR. This documentatio
 
 # Next optimal delivery step
 
-The next product slice is **NPC-to-NPC knowledge transfer through `NPC_TOLD` BELIEF**.
+The next product slice is **provenance-aware rumors built on the accepted source-backed NPC-to-NPC transfer primitive**.
 
-The Memory 2.0 stack now has source-bound BELIEF admission, causal relationship history, player-isolated FACT-over-BELIEF prompt framing, bounded long-horizon retention/retrieval and deterministic restart/pressure behavior. The next missing capability is controlled information movement between NPCs without omniscient/global knowledge distribution.
+Memory 2.0 now has source-bound FACT/BELIEF admission, causal relationship history, player-isolated FACT-over-BELIEF prompt framing, bounded long-horizon retention/retrieval and a deterministic exact-evidence NPC→NPC transfer primitive. The next missing capability is to preserve provenance and uncertainty across a bounded multi-hop social chain without letting repetition become authority or creating an omniscient knowledge bus.
 
 Required product boundary:
 
 ```text
-NPC A owns sourced knowledge
-→ bounded server-authorized social exchange
-→ explicit source event proving NPC A told NPC B
-→ NPC B receives a bounded claim
-→ NPC_TOLD BELIEF admitted with exact source/provenance chain
-→ later retrieval remains BELIEF
+origin knowledge / direct source
+→ explicit server-owned NPC→NPC transfer evidence
+→ listener NPC_TOLD BELIEF
+→ bounded later retelling
+→ explicit origin + speaker-chain provenance
+→ uncertainty / contradiction state retained as non-authoritative data
+→ later retrieval remains BELIEF/RUMOR, never FACT
 ```
 
-Recommended TDD progression:
+Recommended design/TDD progression:
 
 ```text
-NPC-to-NPC transfer contract/spec
-→ RED: NPC_TOLD admission requires exact persisted NPC→NPC dialogue/source evidence
-→ RED: wrong speaker/listener/source NPC/time fails closed
-→ RED: transfer creates BELIEF for listener only; never FACT and never global knowledge
-→ RED: replay/retry is idempotent and corroborating exact sources union deterministically
-→ RED: transferred knowledge survives restart/pressure/long-horizon recall under existing bounds
-→ RED: foreign-player/NPC visibility and current-truth precedence remain unchanged
-→ minimal server-owned producer/wiring only where observed tests fail
-→ deterministic multi-NPC propagation regression package
+rumor/provenance design spec
+→ decide minimal bounded provenance-chain representation and hard depth/size limits
+→ RED: direct transfer remains valid while multi-hop source chain is absent
+→ RED: A→B→C preserves exact origin + each server-proven transfer hop
+→ RED: repetition/corroboration never upgrades rumor/BELIEF to FACT
+→ RED: cycles/replay cannot grow source chains without bound or duplicate hops
+→ RED: contradictory rumors remain representable without provider-selected truth resolution
+→ RED: privacy eligibility, current-truth precedence, restart and long-horizon bounds remain unchanged
+→ minimal provenance-aware multi-hop producer/persistence extension only where observed tests fail
+→ deterministic multi-NPC/cycle/pressure/restart simulation
 → full selected CI / production / soak / release dry-run
 ```
 
 Required invariants:
 
-- `NPC_TOLD` remains BELIEF-only provenance;
-- speaker/listener/source identities come from exact persisted server evidence, not provider metadata;
-- no provider/model call chooses source UUID, truth class, persistence owner or visibility;
-- one NPC learning a claim does not make every NPC know it;
-- current observed FACT still outranks transferred BELIEF;
-- repeated/corroborated telling may affect confidence/source history only through explicit deterministic policy and never upgrades to FACT;
-- existing long-horizon bounds, retention, privacy and restart guarantees stay intact;
-- no new persistence format/config/migration is introduced unless an observed contract failure proves it necessary.
+- direct `NPC_TOLD` transfer from PR #133 remains the trustworthy primitive and is not weakened;
+- rumor/multi-hop data remains non-authoritative even when repeated or corroborated;
+- origin and each transfer hop must correspond to exact server-backed evidence rather than provider-supplied UUIDs;
+- provider/model output cannot choose truth class, source identity, speaker/listener identity, chain depth, visibility or retention;
+- provenance chains are bounded in depth and serialized size and are deterministic under replay/restart;
+- one NPC learning or repeating a rumor does not globally distribute it;
+- current observed FACT still outranks all rumor/BELIEF recollection;
+- existing `32` candidate / `24+8` long-horizon / `6` result bounds and player privacy eligibility stay intact;
+- no legacy `memory.json` migration/dual reader returns.
 
-After NPC-to-NPC knowledge transfer:
+After provenance-aware rumors:
 
 ```text
-provenance-aware rumors
-→ uncertainty / contradiction / bounded distortion
+uncertainty / contradiction / bounded distortion
 → settlement-scale information flow without omniscience
+→ relationship/trust effects on belief confidence as a separate social-epistemology slice
 ```
 
 Do not restore legacy `memory.json` migration unless a new supported-user requirement justifies a separate compatibility project.
