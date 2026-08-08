@@ -51,6 +51,14 @@ This is the **canonical changelog** for the project.
   - episodic durability uses server-owned importance, confidence, absolute emotional weight, provenance, event type and Minecraft `gameTime`; no wall-clock age or provider decision participates;
   - ordinary dialogue remains the least durable event tier, while `RELATIONSHIP_CAUSE` and `RELATIONSHIP_CHANGE` receive stronger bounded retention without becoming immortal;
   - a weak append that is immediately rejected under pressure does not rewrite `memory2.json` when the retained state is unchanged.
+- Source-backed server-owned NPC-to-NPC Semantic knowledge transfer:
+  - the caller selects an exact persisted speaker Semantic entry by server-owned IDs and cannot inject arbitrary claim text, provenance, truth class, scope, source IDs, importance or confidence;
+  - the speaker source is reread authoritatively before transfer evidence is constructed;
+  - transfer first persists exact listener-owned `DIALOGUE / NPC_TOLD` evidence with deterministic identity, then rereads and validates that exact evidence before BELIEF admission;
+  - speaker FACT or BELIEF always becomes listener `BELIEF / NPC_TOLD`, never listener FACT, and the speaker's upstream provenance/source chain is not copied as listener authority;
+  - semantic subject scope is preserved without automatically adding the speaker to `relatedEntities`;
+  - exact retry is idempotent, while a later transfer at another authoritative `gameTime` creates distinct evidence that may consolidate into the same logical BELIEF with deterministic source union;
+  - bounded pressure reports explicit `SOURCE_NOT_RETAINED` and `BELIEF_NOT_RETAINED` outcomes without fabricating evidence or rolling back a legitimate persisted transfer event.
 
 ### Changed
 
@@ -80,6 +88,7 @@ This is the **canonical changelog** for the project.
   - structured-response/tool instructions remain after all context layers;
   - conflicting BELIEFs remain non-authoritative and stale relationship history does not override the current server-observed relationship state.
 - Long-horizon recall changes no persistence format/version, public configuration, provider request/retry behavior, relationship mutation authority or release identity contract; it adds no legacy `memory.json` reader, embeddings/vector database, background summarizer or extra LLM memory-management call.
+- NPC-to-NPC knowledge transfer reuses the existing `memory2.json` / `semantic-memory.json` formats, retention policies, Semantic consolidation, player-visibility eligibility and `32` / `24+8` / `6` long-horizon bounds; it adds no provider call, public config, client authority, autonomous visible NPC conversation, multi-hop rumor propagation or legacy migration.
 
 ### Validation
 
@@ -89,7 +98,9 @@ This is the **canonical changelog** for the project.
 - FACT-over-BELIEF retrieval precedence in PR #129 uses separate observed RED/GREEN gates for semantic player isolation, episodic/social-history player isolation, snapshot memory de-duplication, four-layer prompt composition and direct provider wiring.
 - Long-horizon recall in PR #131 uses separate observed RED/GREEN gates for retained-but-starved Semantic recall, the pure bounded candidate selector, episodic FIFO pressure loss, the pure episodic retention policy, no-op rejected persistence writes and retained-but-starved episodic recall.
 - Long-horizon preservation evidence additionally exercises multi-day Minecraft game time, repeated persistence reloads, exact survivor/context equality, mixed two-NPC/two-player/shared-scope pressure and deterministic hundreds-of-record simulations without sleeps or wall-clock-dependent assertions.
-- Existing current-FACT/current-relationship-state precedence tests remain green with long-horizon retrieval; no production authority-layer change was required.
+- NPC-to-NPC knowledge transfer in PR #133 uses observed compile RED gates for exact store authority lookup, canonical evidence/policy APIs and lifecycle API; an additional behavioral RED compiled successfully and failed exactly the two source-backed transfer assertions before the lifecycle implementation was added.
+- PR #133 preservation coverage exercises fail-closed ownership/input boundaries, byte-idempotent replay, corroborating Semantic source union, explicit partial-retention outcomes, fresh-root reload, global/private/shared scope, player Working Memory isolation, independent NPC pairs and deterministic long-horizon multi-NPC pressure without wall-clock-dependent expected behavior.
+- Existing current-FACT/current-relationship-state precedence tests remain green with long-horizon retrieval; transferred entries remain explicitly `BELIEF | provenance=NPC_TOLD` and retain the existing current-observed-fact-wins prompt framing.
 - Real two-graphical-client Operator Lore acceptance `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two graphical clients are available.
 
 ---
