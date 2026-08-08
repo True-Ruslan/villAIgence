@@ -20,7 +20,15 @@ public final class SemanticMemoryRetriever {
 
     public static List<RankedSemanticMemory> retrieve(SemanticMemoryStore store, SemanticMemoryQuery query) {
         if (store == null || query == null) return List.of();
-        return store.getRecent(query.npcId(), query.candidateLimit()).stream()
+        return rankCandidates(store.getRecent(query.npcId(), query.candidateLimit()), query);
+    }
+
+    static List<RankedSemanticMemory> rankCandidates(
+            List<SemanticMemoryEntry> candidates,
+            SemanticMemoryQuery query
+    ) {
+        if (candidates == null || candidates.isEmpty() || query == null) return List.of();
+        return candidates.stream()
                 .map(entry -> rank(entry, query))
                 .sorted(RANKING)
                 .limit(query.maxResults())
