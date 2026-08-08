@@ -143,7 +143,7 @@ Consequences:
 
 ## Admission / validation boundary
 
-A dedicated provider-independent lifecycle, tentatively `RelationshipCauseLifecycle`, creates the event only when all conditions hold.
+A dedicated provider-independent `RelationshipCauseLifecycle` creates the event only when all conditions hold.
 
 Required checks:
 
@@ -238,31 +238,32 @@ Fail soft and never fabricate history.
 
 The current store remains bounded. This slice does not pin source events indefinitely.
 
-`RELATIONSHIP_CAUSE` retains its source UUIDs plus the small structured transition snapshot. A future reader may report a referenced source as unavailable if it has aged out. It must never replace missing source evidence with generated prose.
+`RELATIONSHIP_CAUSE` retains its source UUIDs plus the small structured transition snapshot. A reader reports a referenced source as unavailable if it has aged out. It must never replace missing source evidence with generated prose.
 
 Long-horizon linked-retention policy belongs to the later 0.2 recall/scaling milestone.
 
 ## Query surface
 
-Add a provider-independent read API for recent causal relationship history, scoped by exact NPC and player.
+Add a provider-independent `RelationshipCausalHistory` read API scoped by exact NPC and player.
 
-A resolved record exposes:
+A resolved `ResolvedRelationshipCause` exposes:
 
 ```text
 cause event
 cause kind
 exact before/after transition snapshot
 relationshipChangeEventId
-relationshipChangeEvent when still available
+optional relationshipChangeEvent when still available
 evidenceEventId
-evidence DIALOGUE when still available
+optional evidence DIALOGUE when still available
 ```
 
 Rules:
 
 - exact NPC/player filtering happens before result limiting;
-- newest eligible causes are selected, then returned in deterministic order suitable for callers;
-- dangling/malformed source references never become invented reasons;
+- eligible causes are ordered by the existing Memory 2.0 deterministic newest-first order (`gameTime`, then `createdAtEpochMillis`, then event UUID as the tie-breaker through the store comparator);
+- the API returns that newest-first order without a second implicit reorder;
+- dangling/malformed source references are surfaced only as unavailable optional sources, never as invented reasons;
 - the query API does not automatically inject causal history into prompts in this slice.
 
 This creates an inspectable foundation for later personality/dialogue use without silently changing current NPC behavior.
@@ -356,7 +357,7 @@ Tests require:
 Tests require:
 
 - exact NPC/player isolation before limiting;
-- deterministic recent-history ordering;
+- deterministic newest-first recent-history ordering;
 - restart persistence;
 - missing referenced source is surfaced as unavailable, never fabricated;
 - bounded store behavior remains intact.
