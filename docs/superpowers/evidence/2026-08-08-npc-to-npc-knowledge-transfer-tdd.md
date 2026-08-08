@@ -230,9 +230,42 @@ Observed CI:
 - `common + deterministic mock-provider tests` — **SUCCESS**.
 - Production change required: **NO**.
 
-## Final exact-head delivery evidence
+## Pre-final exact-head delivery evidence
 
-Pending evidence/changelog synchronization and the final exact-head mandatory matrix. Populate only from observed workflow results on the final documentation/runtime head.
+Runtime/changelog head: `2361d78369b00a013c6d108e0de21c57b3011d14`.
+
+Observed mandatory gates on that exact head:
+
+- Repository security policy #1756 / run `31282948687` — **SUCCESS**.
+- VillAIgence CI #2121 / run `31282948682` — **SUCCESS**.
+  - release-identity/preflight — PASS;
+  - full common + deterministic mock-provider tests — PASS;
+  - risk selector — PASS;
+  - selected server GameTests — Fabric + NeoForge PASS;
+  - selected Fabric build — PASS;
+  - selected NeoForge build — PASS;
+  - production acceptance contract tests — PASS;
+  - exact staged production startup/restart acceptance — PASS;
+  - selected persistence recovery matrix — PASS, not skipped;
+  - runtime-flow guardrails — PASS;
+  - release artifact identity check — PASS;
+  - distributable package verification — PASS.
+- Production Soak #177 / run `31282948675` — **SUCCESS**.
+  - constrained-heap runtime concurrency/staging — PASS;
+  - five production restart cycles — PASS.
+- GitHub Release dry-run #511 / run `31282948679` — **SUCCESS**.
+  - common tests, exact production acceptance, exact persistence recovery, server/client GameTests, Fabric + NeoForge builds, package construction and accepted-JAR/package byte-identity checks — PASS;
+  - `github-release` publication job — **SKIPPED as required**; no release was published.
+
+Independent base-to-head read-only review of `a20d6d0ebf5688e790fedeb3563f24f69e7e9c95..2361d78369b00a013c6d108e0de21c57b3011d14` found:
+
+- P0: 0;
+- P1: 0;
+- P2: 0;
+- unresolved PR review threads: 0;
+- no persistence-format/config/provider-authority/client-authority/ranking-boundary scope creep found.
+
+Because this evidence synchronization itself creates a new PR head, these pre-final results are not used as a substitute for the final exact-head re-gate. The final merge decision must use the workflow results attached to the evidence-sync head.
 
 ## Release boundary
 
