@@ -3,6 +3,7 @@ package net.conczin.mca.livingworld.memory2;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
@@ -127,6 +128,53 @@ class MemoryRetrieverTest {
     }
 
     @Test
+    void contextProviderRecallsOldImportantEventAfterNewerEligibleWindowAndReload() throws Exception {
+        Path firstWorld = tempDir.resolve("world-a");
+        UUID npc = UUID.fromString("00000000-0000-0000-0000-000000000601");
+        UUID player = UUID.fromString("00000000-0000-0000-0000-000000000602");
+        MemoryEventStore store = MemoryEventStore.forWorld(firstWorld);
+
+        UUID durableId = UUID.fromString("00000000-0000-0000-0000-000000000603");
+        MemoryEvent oldImportant = eventWithSummaryAndProvenance(
+                durableId,
+                npc,
+                MemoryEvent.Type.RELATIONSHIP_CHANGE,
+                Set.of(npc, player),
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                1L,
+                100,
+                100,
+                "old-important-relationship"
+        );
+        store.append(oldImportant, 64);
+        for (int i = 0; i < 40; i++) {
+            store.append(eventWithSummaryAndProvenance(
+                    new UUID(0L, 2_000L + i),
+                    npc,
+                    MemoryEvent.Type.DIALOGUE,
+                    Set.of(npc, player),
+                    MemoryEvent.Provenance.PLAYER_TOLD,
+                    200_000L + i,
+                    0,
+                    0,
+                    "new-weak-dialogue-" + i
+            ), 64);
+        }
+
+        assertTrue(store.getRecent(npc, 64).stream().anyMatch(value -> value.id().equals(durableId)));
+
+        Path secondWorld = tempDir.resolve("world-b");
+        Path source = firstWorld.resolve("livingworld").resolve("memory2.json");
+        Path target = secondWorld.resolve("livingworld").resolve("memory2.json");
+        Files.createDirectories(target.getParent());
+        Files.copy(source, target);
+
+        List<String> context = Memory2ContextProvider.load(secondWorld, npc, player, 200_100L);
+
+        assertTrue(context.stream().anyMatch(line -> line.contains("old-important-relationship")));
+    }
+
+    @Test
     void broadQueryTreatsAllCandidatesAsRelevant() {
         UUID npc = UUID.randomUUID();
         MemoryEventStore store = new MemoryEventStore(tempDir.resolve("memory2.json"));
@@ -235,15 +283,39 @@ class MemoryRetrieverTest {
             int confidence,
             String summary
     ) {
+        return eventWithSummaryAndProvenance(
+                id,
+                owner,
+                type,
+                participants,
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                gameTime,
+                importance,
+                confidence,
+                summary
+        );
+    }
+
+    private static MemoryEvent eventWithSummaryAndProvenance(
+            UUID id,
+            UUID owner,
+            MemoryEvent.Type type,
+            Set<UUID> participants,
+            MemoryEvent.Provenance provenance,
+            long gameTime,
+            int importance,
+            int confidence,
+            String summary
+    ) {
         return new MemoryEvent(
                 id,
                 owner,
                 type,
                 summary,
                 List.copyOf(participants),
-                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                provenance,
                 gameTime,
-                1_700_000_000_000L,
+                1_700_000_000_000L + gameTime,
                 importance,
                 0,
                 confidence,
