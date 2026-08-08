@@ -50,7 +50,7 @@ public final class SemanticMemoryRetriever {
     }
 
     static int relevanceScore(SemanticMemoryEntry entry, SemanticMemoryQuery query) {
-        if (query.relatedEntities().isEmpty()) return 100;
+        if (query.relatedEntities().isEmpty() || entry.relatedEntities().isEmpty()) return 100;
         boolean matches = entry.relatedEntities().stream().anyMatch(query.relatedEntities()::contains);
         return matches ? 100 : 0;
     }

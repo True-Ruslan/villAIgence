@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class MemoryEventStoreTest {
@@ -35,6 +36,113 @@ class MemoryEventStoreTest {
         MemoryEventStore reloaded = new MemoryEventStore(file);
         assertEquals(List.of(a30.id(), a20.id()), reloaded.getRecent(npcA, 10).stream().map(MemoryEvent::id).toList());
         assertEquals(List.of(b40.id()), reloaded.getRecent(npcB, 10).stream().map(MemoryEvent::id).toList());
+    }
+
+    @Test
+    void pressureKeepsOldImportantObservationOverNewerWeakDialogueAfterReload() {
+        UUID npc = UUID.fromString("00000000-0000-0000-0000-000000000401");
+        UUID player = UUID.fromString("00000000-0000-0000-0000-000000000402");
+        Path file = tempDir.resolve("memory2.json");
+        MemoryEventStore store = new MemoryEventStore(file);
+
+        MemoryEvent oldImportant = event(
+                "old-important-observation",
+                npc,
+                MemoryEvent.Type.OBSERVATION,
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                List.of(npc),
+                100L,
+                100,
+                100,
+                100
+        );
+        MemoryEvent middleWeakDialogue = event(
+                "middle-weak-dialogue",
+                npc,
+                MemoryEvent.Type.DIALOGUE,
+                MemoryEvent.Provenance.PLAYER_TOLD,
+                List.of(npc, player),
+                200L,
+                0,
+                0,
+                0
+        );
+        MemoryEvent newestWeakDialogue = event(
+                "newest-weak-dialogue",
+                npc,
+                MemoryEvent.Type.DIALOGUE,
+                MemoryEvent.Provenance.PLAYER_TOLD,
+                List.of(npc, player),
+                300L,
+                0,
+                0,
+                0
+        );
+
+        store.append(oldImportant, 2);
+        store.append(middleWeakDialogue, 2);
+        store.append(newestWeakDialogue, 2);
+
+        MemoryEventStore reloaded = new MemoryEventStore(file);
+        assertEquals(
+                List.of(newestWeakDialogue.id(), oldImportant.id()),
+                reloaded.getRecent(npc, 10).stream().map(MemoryEvent::id).toList()
+        );
+    }
+
+    @Test
+    void rejectedWeakAppendDoesNotRewriteEventFile() throws Exception {
+        UUID npc = UUID.fromString("00000000-0000-0000-0000-000000000411");
+        UUID player = UUID.fromString("00000000-0000-0000-0000-000000000412");
+        Path file = tempDir.resolve("memory2.json");
+        MemoryEventStore store = new MemoryEventStore(file);
+
+        MemoryEvent strongA = event(
+                "strong-a",
+                npc,
+                MemoryEvent.Type.OBSERVATION,
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                List.of(npc),
+                100L,
+                100,
+                100,
+                100
+        );
+        MemoryEvent strongB = event(
+                "strong-b",
+                npc,
+                MemoryEvent.Type.RELATIONSHIP_CHANGE,
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                List.of(npc, player),
+                200L,
+                100,
+                100,
+                100
+        );
+        MemoryEvent rejectedWeak = event(
+                "rejected-weak-dialogue",
+                npc,
+                MemoryEvent.Type.DIALOGUE,
+                MemoryEvent.Provenance.PLAYER_TOLD,
+                List.of(npc, player),
+                300L,
+                0,
+                0,
+                0
+        );
+
+        store.append(strongA, 2);
+        store.append(strongB, 2);
+        byte[] before = Files.readAllBytes(file);
+
+        store.append(rejectedWeak, 2);
+        byte[] after = Files.readAllBytes(file);
+
+        assertArrayEquals(before, after);
+        assertEquals(
+                List.of(strongB.id(), strongA.id()),
+                store.getRecent(npc, 10).stream().map(MemoryEvent::id).toList()
+        );
     }
 
     @Test
@@ -73,18 +181,42 @@ class MemoryEventStoreTest {
     }
 
     private static MemoryEvent event(String seed, UUID ownerNpcId, long gameTime) {
+        return event(
+                seed,
+                ownerNpcId,
+                MemoryEvent.Type.OBSERVATION,
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                List.of(ownerNpcId),
+                gameTime,
+                75,
+                20,
+                100
+        );
+    }
+
+    private static MemoryEvent event(
+            String seed,
+            UUID ownerNpcId,
+            MemoryEvent.Type type,
+            MemoryEvent.Provenance provenance,
+            List<UUID> participants,
+            long gameTime,
+            int importance,
+            int emotionalWeight,
+            int confidence
+    ) {
         return new MemoryEvent(
                 UUID.nameUUIDFromBytes(seed.getBytes(StandardCharsets.UTF_8)),
                 ownerNpcId,
-                MemoryEvent.Type.OBSERVATION,
+                type,
                 seed,
-                List.of(ownerNpcId),
-                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                participants,
+                provenance,
                 gameTime,
                 1_700_000_000_000L + gameTime,
-                75,
-                20,
-                100,
+                importance,
+                emotionalWeight,
+                confidence,
                 List.of()
         );
     }

@@ -51,10 +51,21 @@ public final class MemoryEventStore {
         boolean duplicate = events.stream().anyMatch(existing -> existing.id().equals(event.id()));
         if (duplicate) return;
 
+        List<MemoryEvent> before = List.copyOf(events);
         events.add(event);
-        events.sort(OLDEST_FIRST);
-        while (events.size() > safeMax) events.removeFirst();
-        save();
+        long nowGameTime = events.stream()
+                .mapToLong(MemoryEvent::gameTime)
+                .max()
+                .orElse(event.gameTime());
+        List<MemoryEvent> retained = MemoryEventRetentionPolicy.selectRetained(
+                events,
+                safeMax,
+                nowGameTime
+        );
+
+        events.clear();
+        events.addAll(retained);
+        if (!before.equals(retained)) save();
     }
 
     public synchronized List<MemoryEvent> getRecent(UUID npcId, int maxResults) {

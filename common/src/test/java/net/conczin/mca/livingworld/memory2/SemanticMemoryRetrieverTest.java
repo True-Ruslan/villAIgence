@@ -3,6 +3,7 @@ package net.conczin.mca.livingworld.memory2;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
@@ -124,6 +125,40 @@ class SemanticMemoryRetrieverTest {
         List<String> context = SemanticMemoryContextProvider.load(tempDir, npc, currentPlayer, 200L);
 
         assertTrue(context.stream().anyMatch(line -> line.contains("shared-current-player-belief")));
+    }
+
+    @Test
+    void contextProviderRecallsOldDurableSemanticMemoryAfterNewerEligibleWindowAndReload() throws Exception {
+        Path firstWorld = tempDir.resolve("world-a");
+        UUID npc = UUID.fromString("00000000-0000-0000-0000-000000000101");
+        UUID player = UUID.fromString("00000000-0000-0000-0000-000000000201");
+        SemanticMemoryStore store = SemanticMemoryStore.forWorld(firstWorld);
+
+        UUID durableId = UUID.fromString("00000000-0000-0000-0000-000000000301");
+        store.append(entry(durableId, npc, player, 1L, "old-durable-semantic", 100, 100), 64);
+        for (int i = 0; i < 40; i++) {
+            store.append(entry(
+                    new UUID(0L, 1_000L + i),
+                    npc,
+                    player,
+                    200_000L + i,
+                    "new-weak-semantic-" + i,
+                    0,
+                    0
+            ), 64);
+        }
+
+        assertTrue(store.getRecent(npc, 64).stream().anyMatch(value -> value.id().equals(durableId)));
+
+        Path secondWorld = tempDir.resolve("world-b");
+        Path source = firstWorld.resolve("livingworld").resolve("semantic-memory.json");
+        Path target = secondWorld.resolve("livingworld").resolve("semantic-memory.json");
+        Files.createDirectories(target.getParent());
+        Files.copy(source, target);
+
+        List<String> context = SemanticMemoryContextProvider.load(secondWorld, npc, player, 200_100L);
+
+        assertTrue(context.stream().anyMatch(line -> line.contains("old-durable-semantic")));
     }
 
     @Test

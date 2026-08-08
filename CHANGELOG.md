@@ -44,6 +44,13 @@ This is the **canonical changelog** for the project.
   - causal events are replay-idempotent and survive restart with their transition snapshot/source UUIDs intact even when bounded retention later removes referenced source events;
   - recent causal history can be queried with exact NPC/player isolation before limiting and without fabricating missing evidence;
   - free-form model explanations are never persisted as authoritative relationship causes, and causal events are not automatically promoted to Semantic FACT.
+- Bounded long-horizon Memory 2.0 recall:
+  - the normal 32-candidate prompt window reserves 24 slots for recent eligible memory and 8 for older durable eligible memory before the existing final ranker chooses at most 6 prompt entries;
+  - Semantic Memory reuses its existing deterministic durability/decay policy rather than introducing a second persistence policy;
+  - episodic/social Memory 2.0 now has deterministic game-time durability under capacity pressure so important older observations, actions and relationship history can survive weaker newer dialogue;
+  - episodic durability uses server-owned importance, confidence, absolute emotional weight, provenance, event type and Minecraft `gameTime`; no wall-clock age or provider decision participates;
+  - ordinary dialogue remains the least durable event tier, while `RELATIONSHIP_CAUSE` and `RELATIONSHIP_CHANGE` receive stronger bounded retention without becoming immortal;
+  - a weak append that is immediately rejected under pressure does not rewrite `memory2.json` when the retained state is unchanged.
 
 ### Changed
 
@@ -60,6 +67,11 @@ This is the **canonical changelog** for the project.
   - foreign-player Semantic Memory entries cannot consume candidate slots or enter another player's prompt;
   - foreign-player episodic, relationship-change and causal-history events are likewise excluded before ranking;
   - eligible current-player and NPC-global memories retain the existing deterministic ranking and hard bounds.
+- Long-horizon candidate selection preserves that same visibility boundary before **both** recent and durable allocation:
+  - foreign-player high-durability records consume zero durable slots;
+  - another NPC's memory consumes zero slots;
+  - NPC-global and shared current-player-plus-other-entity memory remain eligible;
+  - candidate/result limits remain `32` / `6`, and existing Semantic/episodic ranker weights are unchanged.
 - Snapshot prompt context is composed exactly once in deterministic authority order:
   - current observed world facts first and authoritative for the turn;
   - Operator Lore next as background context;
@@ -67,6 +79,7 @@ This is the **canonical changelog** for the project.
   - episodic and social-history Memory 2.0 last among memory layers;
   - structured-response/tool instructions remain after all context layers;
   - conflicting BELIEFs remain non-authoritative and stale relationship history does not override the current server-observed relationship state.
+- Long-horizon recall changes no persistence format/version, public configuration, provider request/retry behavior, relationship mutation authority or release identity contract; it adds no legacy `memory.json` reader, embeddings/vector database, background summarizer or extra LLM memory-management call.
 
 ### Validation
 
@@ -74,6 +87,9 @@ This is the **canonical changelog** for the project.
 - Bounded player-told BELIEF extraction was developed through explicit RED/GREEN contract tests in PR #125; exact-head CI/release evidence is recorded in that PR.
 - Causal relationship memory in PR #127 was developed through staged RED/GREEN contracts for structured transition state, persisted-source cause admission, result-bearing ChatAI orchestration and restart/eviction-safe query behavior; a full-history test exposed and drove a deterministic retention-ordering fix before final verification.
 - FACT-over-BELIEF retrieval precedence in PR #129 uses separate observed RED/GREEN gates for semantic player isolation, episodic/social-history player isolation, snapshot memory de-duplication, four-layer prompt composition and direct provider wiring.
+- Long-horizon recall in PR #131 uses separate observed RED/GREEN gates for retained-but-starved Semantic recall, the pure bounded candidate selector, episodic FIFO pressure loss, the pure episodic retention policy, no-op rejected persistence writes and retained-but-starved episodic recall.
+- Long-horizon preservation evidence additionally exercises multi-day Minecraft game time, repeated persistence reloads, exact survivor/context equality, mixed two-NPC/two-player/shared-scope pressure and deterministic hundreds-of-record simulations without sleeps or wall-clock-dependent assertions.
+- Existing current-FACT/current-relationship-state precedence tests remain green with long-horizon retrieval; no production authority-layer change was required.
 - Real two-graphical-client Operator Lore acceptance `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two graphical clients are available.
 
 ---
