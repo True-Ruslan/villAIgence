@@ -48,7 +48,7 @@ class StructuredAiBeliefCandidateMetadataTest {
     @Test
     void malformedJsonMessageRecoveryNeverRecoversCandidateMetadata() {
         StructuredAiResponseParser.ParsedResponse response = StructuredAiResponseParser.parse("""
-                {"message":"Вижу тебя.","beliefCandidates":[INVALID]}
+                {"message":"Вижу тебя.","beliefCandidates":[}
                 """);
 
         assertEquals("Вижу тебя.", response.message());
