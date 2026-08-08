@@ -52,7 +52,10 @@ public final class MemoryRetriever {
 
         if (!query.participants().isEmpty()) {
             dimensions++;
-            boolean matches = event.participants().stream().anyMatch(query.participants()::contains);
+            boolean npcGlobal = event.participants().stream()
+                    .noneMatch(id -> !event.ownerNpcId().equals(id));
+            boolean matches = npcGlobal
+                    || event.participants().stream().anyMatch(query.participants()::contains);
             if (matches) score += 100;
         }
 
