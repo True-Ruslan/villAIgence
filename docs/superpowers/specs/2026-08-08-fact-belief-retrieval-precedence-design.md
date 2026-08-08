@@ -14,11 +14,12 @@ Make the existing VillAIgence authority rule executable and regression-protected
 
 ```text
 current server-observed truth
-> remembered BELIEF
-> Operator Lore / stale recollection
+> all remembered/background context
 ```
 
-The implementation must guarantee this precedence before provider invocation rather than relying only on natural-language prompt instructions.
+Within the lower-authority context, Semantic BELIEF, Operator Lore and episodic/social history remain distinct provenance classes. This slice does not invent a truth-ranking between BELIEF and Operator Lore; their fixed rendering order is a composition rule, not a promotion of one into authoritative truth.
+
+The implementation must guarantee current-world precedence before provider invocation rather than relying only on natural-language prompt instructions.
 
 This slice also closes the current player-isolation weakness in episodic and semantic retrieval: memory associated only with another player must be ineligible for the current player's prompt, not merely receive a lower relevance score.
 
@@ -45,20 +46,20 @@ This is insufficient for privacy and exact player isolation.
 
 However `LivingWorldContextCapture.capture(...)` invokes `PlayerModule.apply(...)`, and `PlayerModule` currently invokes `MemoryModule.apply(...)`. This inserts episodic and semantic prompt sections into generic `contextLines` before the same snapshot separately stores the dedicated memory fields.
 
-The result is a hidden ordering dependency and a duplicated context path. The authoritative precedence is therefore not represented by one deterministic composition boundary.
+The direct snapshot prompt currently renders memory because of that side effect rather than because the dedicated snapshot fields have one canonical composition boundary. The result is hidden ordering, duplicate loading and no single executable precedence policy.
 
 ## Design principles
 
 1. **Server state is authority.** Current `worldFacts` remain the highest-authority factual context for the turn.
 2. **BELIEF is never promoted.** Confidence, score, repetition or recency never upgrades BELIEF to FACT.
 3. **Isolation is eligibility, not ranking.** Memory scoped only to another player must be excluded before candidate limiting and ranking.
-4. **NPC-global memory remains usable.** Entries/events with no player-specific association remain eligible for the NPC.
+4. **NPC-global memory remains usable.** Entries/events without an external player/entity scope remain eligible for the NPC.
 5. **Historical evidence is retained.** Conflicting or stale memories are not deleted or rewritten solely because current state disagrees with them.
-6. **Prompt composition is deterministic.** All snapshot context layers are rendered exactly once in a fixed authority order before provider invocation.
+6. **Prompt composition is deterministic.** All snapshot authority layers are rendered exactly once in a fixed order before provider invocation.
 7. **The provider does not decide precedence.** The LLM receives an already-structured context; it does not choose which source is authoritative.
 8. **No semantic contradiction detector in this slice.** No LLM, embeddings, vector search, fuzzy matching or generated conflict-resolution prose is introduced.
 9. **No persistence migration.** Existing Memory 2.0 / Semantic Memory stores and format versions remain unchanged.
-10. **Classic compatibility is preserved where practical.** The legacy/classic `PlayerModule` path may continue using `MemoryModule`; snapshot capture must stop using that side-effect path.
+10. **Classic compatibility is preserved.** The legacy/classic `PlayerModule.apply(...)` path may continue using `MemoryModule`; snapshot capture must use a no-memory player-context seam.
 
 ## Architecture
 
@@ -66,7 +67,7 @@ Target snapshot flow:
 
 ```text
 Minecraft/server state
-→ capture immutable stable NPC/player context
+→ capture immutable descriptive NPC/player context
 → capture CURRENT OBSERVED WORLD FACTS
 → capture Operator Lore
 → load exact-player-or-NPC-global Semantic Memory
@@ -76,10 +77,10 @@ Minecraft/server state
 → provider
 ```
 
-Required prompt authority order:
+Required prompt composition order:
 
 ```text
-stable personality / NPC context
+existing descriptive contextLines
 → CURRENT OBSERVED WORLD FACTS
 → Operator Lore
 → Semantic Memory
@@ -87,9 +88,11 @@ stable personality / NPC context
 → structured-response / command instructions
 ```
 
-The order expresses authority, not deletion. Lower-authority layers may contain conflicting historical statements, but the prompt must label them as remembered/background data and current observations remain authoritative for the turn.
+The order is deterministic. The authority guarantee is specifically that CURRENT OBSERVED WORLD FACTS outrank every lower remembered/background layer. Operator Lore, Semantic BELIEF and episodic history remain separate classes and are not converted into each other merely because one is rendered earlier.
 
 ## Player-scope eligibility
+
+Player visibility must be an explicit eligibility predicate and must not reuse relevance scoring as an access-control mechanism.
 
 ### Semantic Memory
 
@@ -102,28 +105,30 @@ An entry is eligible when all of the following hold:
    - `entry.relatedEntities` is empty; or
    - `playerId != null` and `entry.relatedEntities` contains `playerId`.
 
-An entry whose `relatedEntities` is non-empty and contains only other players/entities is ineligible for this current-player prompt.
+An entry whose `relatedEntities` is non-empty and does not contain the current player is ineligible for this current-player prompt.
+
+This is intentionally conservative. The current persisted model does not type each related UUID as "player", "NPC" or another role. Until a later provenance/scope model explicitly represents that distinction, a non-empty related-entity set that does not include the current player is not treated as NPC-global prompt data.
 
 Eligibility filtering occurs **before** candidate limiting and before ranking.
 
-This slice does not attempt semantic interpretation of arbitrary related entity UUIDs. The current player UUID is the only player-scope key used by this retrieval boundary.
-
 ### Episodic Memory 2.0
 
-For `Memory2ContextProvider.load(worldRoot, npcId, playerId, gameTime)`:
+For `Memory2ContextProvider.load(worldRoot, npcId, playerId, gameTime)` define:
+
+```text
+externalParticipants = event.participants - event.ownerNpcId
+```
 
 An event is eligible when all of the following hold:
 
 1. `event.ownerNpcId == npcId` through the existing store boundary; and
 2. either:
-   - the event has no participant other than its NPC owner / no external participant scope; or
-   - `playerId != null` and `event.participants` contains `playerId`.
+   - `externalParticipants` is empty; or
+   - `playerId != null` and `externalParticipants` contains `playerId`.
 
-Events associated with another player but not the current player are ineligible.
+An event whose external participants do not include the current player is ineligible. If the current player participates together with other entities, the event remains eligible because it is genuinely shared with that player.
 
 Eligibility filtering occurs **before** candidate limiting and before ranking.
-
-For events whose participant list contains the NPC owner plus the current player, current-player eligibility is satisfied. Events with no player-specific participant remain NPC-global and may be retrieved.
 
 ### Exact filtering before limits
 
@@ -150,16 +155,48 @@ owner isolation
 
 ## Retrieval API shape
 
-The implementation should preserve the current public provider APIs where possible:
+Preserve the current provider APIs:
 
 ```text
 Memory2ContextProvider.load(...)
 SemanticMemoryContextProvider.load(...)
 ```
 
-A focused store/query helper may be introduced if necessary to support predicate filtering before limiting. The preferred design is a reusable exact scoped retrieval seam rather than loading an unbounded store into the provider.
+Do not overload `MemoryQuery.participants` or `SemanticMemoryQuery.relatedEntities` with access-control semantics. They remain ranking/relevance inputs.
 
-The read path must remain bounded and deterministic.
+Instead introduce an explicit eligibility predicate seam while preserving source compatibility:
+
+```text
+MemoryRetriever.retrieve(store, query)
+→ delegates to retrieve(store, query, eligibility = acceptAll)
+
+MemoryRetriever.retrieve(store, query, eligibility)
+→ store exact-owner matching
+→ eligibility filter
+→ candidate limit
+→ rank/sort
+→ result limit
+```
+
+and equivalently for Semantic Memory:
+
+```text
+SemanticMemoryRetriever.retrieve(store, query)
+→ delegates to retrieve(store, query, eligibility = acceptAll)
+
+SemanticMemoryRetriever.retrieve(store, query, eligibility)
+→ exact-owner matching
+→ eligibility filter
+→ candidate limit
+→ rank/sort
+→ result limit
+```
+
+`MemoryEventStore` already has a matching/filtering retrieval seam and should be reused rather than loading unbounded history.
+
+`SemanticMemoryStore` should gain the analogous bounded `getRecentMatching(...)` read seam if needed. It must filter before `maxResults` and remain deterministic newest-first at the store boundary.
+
+The context providers own the server-selected player eligibility predicates. Callers/providers/clients do not supply arbitrary visibility predicates.
 
 No store schema change is required.
 
@@ -169,32 +206,34 @@ No store schema change is required.
 
 `LivingWorldContextCapture.capture(...)` must no longer cause `PlayerModule` to inject `MemoryModule` output into generic `contextLines`.
 
-Preferred source-compatible shape:
+Required source-compatible shape:
 
 - keep existing `PlayerModule.apply(...)` behavior for legacy/classic callers;
-- add a narrow player-context method or overload used by snapshot capture that applies player advancement/context information **without** `MemoryModule`;
-- snapshot capture continues loading `memoryContext` and `semanticMemoryContext` explicitly into their dedicated immutable fields.
+- extract/add a narrow player descriptive-context method used by snapshot capture that applies advancement/player context **without** `MemoryModule`;
+- `PlayerModule.apply(...)` may delegate to that descriptive method and then call `MemoryModule.apply(...)` for classic compatibility;
+- snapshot capture invokes only the no-memory descriptive method;
+- snapshot capture continues loading `memoryContext` and `semanticMemoryContext` explicitly into dedicated immutable fields.
 
-No memory load should occur twice for one snapshot turn.
+No episodic or Semantic Memory load should occur twice for one snapshot turn.
 
 ### Single layered prompt policy
 
-Extend or replace the current `SnapshotContextPromptPolicy` so that one deterministic policy composes the snapshot's authority-bearing layers.
-
-It must render:
+`SnapshotContextPromptPolicy` becomes the canonical renderer for all four dedicated snapshot authority layers:
 
 1. current observed facts;
 2. Operator Lore;
 3. Semantic Memory;
 4. episodic/relationship memory.
 
-The existing stable `contextLines` remain before these authority layers because they represent personality, traits, village/environment/player descriptive context rather than the separate Memory 2.0 authority classes.
+`OpenAIChatAI.buildSnapshotSystem(...)` keeps existing descriptive `contextLines` and language/age safety behavior, then delegates these four snapshot fields to `SnapshotContextPromptPolicy`, then appends structured-response/command instructions.
 
-Structured-response instructions remain after all context layers.
+The current `MixinOpenAIChatAI` return injection exists only to insert Operator Lore after prompt construction. Once direct layered composition is wired, that injection must be removed from the production path so lore cannot be duplicated. Removing that obsolete mixin registration is part of this focused refactor, not an unrelated cleanup.
+
+Provider transport, parsing, retries, credentials, request deadlines and response schema remain unchanged.
 
 ### Current observed relationship state
 
-Current relationship state is already appended to `worldFacts` during snapshot capture. Therefore it naturally outranks stale `RELATIONSHIP_CHANGE` or `RELATIONSHIP_CAUSE` history.
+Current relationship state is already appended to `worldFacts` during snapshot capture. Therefore it naturally appears in the authoritative current-observation section above stale `RELATIONSHIP_CHANGE` or `RELATIONSHIP_CAUSE` history.
 
 The implementation must not delete stale relationship history. It must only make the authority order explicit.
 
@@ -202,7 +241,7 @@ The implementation must not delete stale relationship history. It must only make
 
 `RELATIONSHIP_CAUSE` remains historical process evidence. This slice does not introduce a new causal-history prompt provider if the current episodic path does not already surface it.
 
-If it is retrieved through the current Memory 2.0 path, it remains below current relationship state and must not promote linked dialogue prose to FACT.
+If it is retrieved through the existing Memory 2.0 path, it remains below current relationship state and must not promote linked dialogue prose to FACT.
 
 No psychological interpretation is added.
 
@@ -248,7 +287,7 @@ High confidence or multiple corroborating BELIEF sources do not create FACT auth
 - If Semantic Memory retrieval fails, snapshot prompt remains usable without semantic memory.
 - If Operator Lore loading fails, current observations and other layers remain usable.
 - A retrieval error must not weaken current world facts or action validation.
-- Filtering must fail closed with respect to foreign-player memory: uncertainty about scope must not broaden visibility.
+- Filtering fails closed with respect to player visibility: unknown/non-empty scope that does not include the current player is not broadened into current-player context.
 - No provider failure changes persistent truth classes or source provenance.
 
 ## TDD acceptance plan
@@ -260,8 +299,9 @@ Production behavior must not change before the intended RED is observed.
 Tests must prove the current implementation fails these contracts:
 
 - a high-importance/high-confidence foreign-player semantic entry is excluded completely;
-- NPC-global semantic entries remain eligible;
+- NPC-global (`relatedEntities=[]`) semantic entries remain eligible;
 - exact current-player entries remain eligible;
+- a non-empty unrelated entity set is conservatively excluded;
 - foreign entries are filtered before candidate limit, so 32 foreign records cannot starve one eligible record;
 - result ordering among eligible records remains deterministic;
 - no FACT/BELIEF authority mutation occurs.
@@ -271,8 +311,9 @@ Tests must prove the current implementation fails these contracts:
 Tests must prove:
 
 - a high-score foreign-player event is excluded completely;
-- NPC-global event remains eligible;
+- an event with no external participant remains NPC-global and eligible;
 - current-player event remains eligible;
+- a shared event containing current player plus another entity remains eligible;
 - filtering occurs before candidate limit;
 - `RELATIONSHIP_CHANGE` / `RELATIONSHIP_CAUSE` for another player cannot leak into current-player context;
 - existing NPC-owner isolation remains intact.
@@ -282,14 +323,15 @@ Tests must prove:
 Tests must prove the current snapshot path violates the intended single-source composition boundary, then require:
 
 - snapshot capture player-context path does not invoke `MemoryModule`;
-- `memoryContext` and `semanticMemoryContext` are present only through dedicated snapshot fields;
-- prompt authority order is exactly:
+- `memoryContext` and `semanticMemoryContext` are rendered only from dedicated snapshot fields;
+- `SnapshotContextPromptPolicy` renders exact order:
   - observed facts;
   - Operator Lore;
   - Semantic Memory;
   - episodic memory;
-  - structured response instructions;
-- each durable memory section appears exactly once;
+- structured response instructions follow all four layers;
+- each durable memory/lore section appears exactly once;
+- obsolete `MixinOpenAIChatAI` lore insertion is absent from the active production path;
 - current relationship factual summary appears above stale relationship history.
 
 ### RED 4 — conflict regression package
@@ -302,7 +344,7 @@ End-to-end/policy tests must cover:
 - two conflicting BELIEFs remain BELIEF and neither becomes FACT;
 - causal relationship history does not make dialogue prose authoritative;
 - mixed NPC/player data cannot leak another player's private memory;
-- provider request body contains the fixed layered order.
+- provider request body contains the fixed layered order exactly once.
 
 ### Regression gates
 
@@ -342,7 +384,7 @@ This feature strengthens confidentiality between player-scoped NPC memories.
 
 Provider input must never include a Memory 2.0 / Semantic Memory record that is scoped only to a different player.
 
-The client does not select memory owner, player scope, rank, precedence or truth class.
+The client does not select memory owner, player scope, rank, precedence, eligibility predicate or truth class.
 
 The provider cannot override retrieval eligibility, source provenance or current-world authority.
 
@@ -358,6 +400,7 @@ The provider cannot override retrieval eligibility, source provenance or current
 - new causal psychological explanations;
 - NPC-to-NPC knowledge transfer;
 - rumor propagation;
+- typed related-entity role migration in this slice;
 - new persistence schema;
 - pre-0.2 legacy migration;
 - changing action authority or relationship mutation policy.
@@ -366,7 +409,7 @@ The provider cannot override retrieval eligibility, source provenance or current
 
 The slice is complete when VillAIgence can prove, with deterministic tests and exact-head CI evidence, that:
 
-1. current observed server state is rendered above and remains authoritative over remembered BELIEF, Operator Lore and stale relationship history;
+1. current observed server state is rendered above and remains authoritative over Semantic BELIEF, Operator Lore and stale episodic/relationship history;
 2. foreign-player episodic and semantic memories are excluded before candidate limiting and ranking;
 3. eligible current-player and NPC-global memories remain bounded and deterministic;
 4. snapshot memory is loaded and rendered exactly once through dedicated immutable layers;
