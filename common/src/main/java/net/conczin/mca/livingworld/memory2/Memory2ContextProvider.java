@@ -26,7 +26,13 @@ public final class Memory2ContextProvider {
                 CANDIDATE_LIMIT,
                 MAX_RESULTS
         );
-        List<RankedMemory> ranked = MemoryRetriever.retrieve(MemoryEventStore.forWorld(worldRoot), query);
+        MemoryEventStore store = MemoryEventStore.forWorld(worldRoot);
+        List<MemoryEvent> candidates = store.getRecentMatching(
+                npcId,
+                CANDIDATE_LIMIT,
+                event -> PlayerScopedMemoryEligibility.episodic(event, npcId, playerId)
+        );
+        List<RankedMemory> ranked = MemoryRetriever.rankCandidates(candidates, query);
         return MemoryContextFormatter.format(ranked);
     }
 }
