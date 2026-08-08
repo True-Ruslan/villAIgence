@@ -57,13 +57,17 @@ public class ChatAI {
      * @return {@code Optional.EMPTY} if answer couldn't be generated, Optional containing answer String otherwise.
      */
     public static Optional<String> answer(ServerPlayer player, VillagerEntityMCA villager, String msg) {
+        // Get villager-specific strategy
         ChatAIStrategy strategy = computeStrategyIfAbsent(villager.getUUID());
+
+        // Update the current conversation
         openConversation(player, villager);
 
         DialogueMemoryCoordinates memoryCoordinates = strategy instanceof OpenAIChatAI
                 ? captureDialogueMemoryCoordinates(player, villager)
                 : null;
 
+        // Get answer
         Optional<String> answer = strategy.answer(player, villager, msg);
         if (memoryCoordinates != null) {
             rememberMemory2Dialogue(memoryCoordinates, msg, answer);
@@ -245,9 +249,16 @@ public class ChatAI {
     /**
      * Checks if the message contains the name of any specific villagers and that villager is nearby. First match.
      * If not, checks if the player has a valid active conversation with a nearby villager.
+     *
+     * @param player The player in the conversation
+     * @param msg    The message
+     * @return {@code Optional.Empty} if no valid villager was found, Optional containing the VillagerEntityMCA object otherwise
      */
     public static Optional<VillagerEntityMCA> getVillagerForConversation(ServerPlayer player, String msg) {
+        // Get nearby villagers
         List<VillagerEntityMCA> nearbyVillagers = WorldUtils.getCloseEntities(player.level(), player, VILLAGER_SEARCH_RANGE, VillagerEntityMCA.class);
+
+        // Find name in message
         String normalizedMsg = normalizeString(msg);
         for (VillagerEntityMCA villager : nearbyVillagers) {
             String normalizedName = getName(villager);
@@ -258,11 +269,19 @@ public class ChatAI {
                 }
             }
         }
+
+        // Otherwise get current open conversation of player
         return getActiveConversationVillager(player);
     }
 
     /**
      * Checks if a player is in a conversation with a villager
+     *
+     * @param player   ServerPlayerEntity of the player to be checked
+     * @param villager VillagerEntityMCA entity of the villager to be checked
+     * @return {@code true} if all the following conditions are met: <p>
+     * 1. Villager is within {@value CONVERSATION_DISTANCE} blocks of the player<p>
+     * 2. Last conversation interaction with this villager wasn't longer than {@value CONVERSATION_TIME} ago
      */
     private static boolean isInConversationWith(ServerPlayer player, VillagerEntityMCA villager) {
         OpenConversation conversation = currentConversations.getOrDefault(player.getUUID(), new OpenConversation(villager.getUUID(), 0L));
@@ -270,9 +289,21 @@ public class ChatAI {
                && villager.level().getGameTime() < conversation.lastInteractionTime + CONVERSATION_TIME;
     }
 
+    /**
+     * Scans the local area in a {@value #VILLAGER_SEARCH_RANGE} block range of the player for a villager with searchName. <p>
+     * searchName is {@link #normalizeString normalized}.
+     *
+     * @param player     ServerPlayerEntity object of the reference player
+     * @param searchName Name of the villager
+     * @return Optional containing the VillagerEntityMCA of the first villager with the matching name, empty Optional otherwise
+     */
     public static Optional<VillagerEntityMCA> findVillagerInArea(ServerPlayer player, String searchName) {
         List<VillagerEntityMCA> entities = WorldUtils.getCloseEntities(player.level(), player, VILLAGER_SEARCH_RANGE, VillagerEntityMCA.class);
+
+        // Get specific villager
         String normalizedSearchName = normalizeString(searchName);
+
+        // Go through list, look for first match for name
         for (VillagerEntityMCA villager : entities) {
             String villagerName = getName(villager);
             if (normalizedSearchName.equals(villagerName)) {
@@ -282,6 +313,12 @@ public class ChatAI {
         return Optional.empty();
     }
 
+    /**
+     * Normalizes the String according to NFD and removes any accents, umlauts, etc.
+     *
+     * @param string The String to be normalized
+     * @see <a href="https://unicode.org/reports/tr15/#Examples">Unicode Normalization Forms</a>
+     */
     private static String normalizeString(String string) {
         return Normalizer.normalize(string, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT);
     }
@@ -289,6 +326,12 @@ public class ChatAI {
     private record DialogueMemoryCoordinates(Path worldRoot, UUID villagerId, UUID playerId, long gameTime) {
     }
 
+    /**
+     * Information needed to manage an open conversation.
+     *
+     * @param villagerUUID        UUID of villager the conversation is with
+     * @param lastInteractionTime Timestamp of last interaction with villager
+     */
     private record OpenConversation(UUID villagerUUID, Long lastInteractionTime) {
     }
 }
