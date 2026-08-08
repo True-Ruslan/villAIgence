@@ -35,6 +35,73 @@ class SemanticMemoryRetrieverTest {
     }
 
     @Test
+    void contextProviderFiltersForeignPlayerBeforeCandidateLimit() {
+        UUID npc = UUID.randomUUID();
+        UUID currentPlayer = UUID.randomUUID();
+        UUID foreignPlayer = UUID.randomUUID();
+        SemanticMemoryStore store = SemanticMemoryStore.forWorld(tempDir);
+
+        store.append(new SemanticMemoryEntry(
+                UUID.randomUUID(),
+                npc,
+                SemanticMemoryEntry.Kind.BELIEF,
+                "eligible-current-player",
+                List.of(currentPlayer),
+                MemoryEvent.Provenance.PLAYER_TOLD,
+                1L,
+                1_700_000_000_001L,
+                20,
+                30,
+                List.of(UUID.randomUUID())
+        ), 128);
+
+        for (int i = 0; i < 32; i++) {
+            store.append(new SemanticMemoryEntry(
+                    UUID.randomUUID(),
+                    npc,
+                    SemanticMemoryEntry.Kind.BELIEF,
+                    "foreign-" + i,
+                    List.of(foreignPlayer),
+                    MemoryEvent.Provenance.PLAYER_TOLD,
+                    100L + i,
+                    1_700_000_001_000L + i,
+                    100,
+                    100,
+                    List.of(UUID.randomUUID())
+            ), 128);
+        }
+
+        List<String> context = SemanticMemoryContextProvider.load(tempDir, npc, currentPlayer, 200L);
+
+        assertTrue(context.stream().anyMatch(line -> line.contains("eligible-current-player")));
+        assertTrue(context.stream().noneMatch(line -> line.contains("foreign-")));
+    }
+
+    @Test
+    void contextProviderKeepsNpcGlobalSemanticMemoryVisibleToCurrentPlayer() {
+        UUID npc = UUID.randomUUID();
+        UUID currentPlayer = UUID.randomUUID();
+        SemanticMemoryStore store = SemanticMemoryStore.forWorld(tempDir);
+        store.append(new SemanticMemoryEntry(
+                UUID.randomUUID(),
+                npc,
+                SemanticMemoryEntry.Kind.FACT,
+                "npc-global-fact",
+                List.of(),
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                100L,
+                1_700_000_000_100L,
+                80,
+                100,
+                List.of(UUID.randomUUID())
+        ), 64);
+
+        List<String> context = SemanticMemoryContextProvider.load(tempDir, npc, currentPlayer, 200L);
+
+        assertTrue(context.stream().anyMatch(line -> line.contains("npc-global-fact")));
+    }
+
+    @Test
     void contextProviderReturnsAtMostSixEntries() {
         UUID npc = UUID.randomUUID();
         UUID player = UUID.randomUUID();
