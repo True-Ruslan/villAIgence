@@ -20,7 +20,7 @@ speaker NPC A owns persisted Semantic knowledge
 → listener NPC B receives Semantic BELIEF
 ```
 
-The first slice is intentionally a low-level server-owned transfer primitive. It does not yet decide when NPCs should autonomously talk, generate visible NPC-to-NPC conversations, call an LLM, synthesize voice, propagate rumors, or distort claims.
+This is deliberately a low-level server-owned primitive. It does not yet decide when NPCs autonomously talk, generate visible NPC-to-NPC conversations, call an LLM, synthesize voice, propagate rumors, or distort claims.
 
 The purpose is to establish a provenance-safe foundation that later social simulation can invoke without inventing omniscient or provider-authoritative knowledge.
 
@@ -30,7 +30,7 @@ The implementation must preserve all current VillAIgence architecture laws, espe
 
 - Minecraft/server state is truth; the LLM/provider is never authority;
 - `FACT` requires `SYSTEM_OBSERVED` evidence;
-- `BELIEF` may use `PLAYER_TOLD`, `NPC_TOLD` or `INFERRED` provenance only;
+- `BELIEF` may use only `PLAYER_TOLD`, `NPC_TOLD` or `INFERRED` provenance;
 - confidence, repetition, retention and ranking never promote BELIEF to FACT;
 - current observed facts outrank Operator Lore, Semantic Memory and episodic/social recollection;
 - player-scoped prompt visibility is an eligibility boundary, not a ranking preference;
@@ -70,11 +70,11 @@ This slice does **not** add or authorize:
 
 The chosen approach is a **server-owned explicit transfer primitive**.
 
-Alternatives rejected for this slice:
+Rejected alternatives for this slice:
 
-1. **Immediate autonomous/visible NPC↔NPC LLM dialogue** — rejected because it mixes knowledge transfer with scheduling, provider budgets, presentation, voice and social behavior before provenance is proven.
-2. **Direct Semantic Memory copy** — rejected because it creates knowledge without exact persisted transfer evidence and risks copying truth authority or fabricating provenance.
-3. **Implicit proximity/social transfer without dialogue evidence** — rejected because it is semantically magical and makes source attribution weak.
+1. **Immediate autonomous/visible NPC↔NPC LLM dialogue** — mixes knowledge transfer with scheduling, provider budgets, presentation, voice and social behavior before provenance is proven.
+2. **Direct Semantic Memory copy** — creates knowledge without exact persisted transfer evidence and risks copying truth authority or fabricating provenance.
+3. **Implicit proximity/social transfer without dialogue evidence** — weakens source attribution and behaves like magical omniscience.
 
 Required flow:
 
@@ -84,7 +84,7 @@ SemanticMemoryStore
           │
           ▼
 NpcKnowledgeTransferLifecycle
-  validate speaker/listener/source
+  exact source lookup + authoritative reread
           │
           ▼
 NpcToldDialogueAdapter
@@ -114,7 +114,7 @@ SemanticMemoryStore
 
 The server owns every identity and provenance decision in this flow.
 
-## 5. Public lifecycle input
+## 5. Public lifecycle input and source authority
 
 The transfer lifecycle accepts only server-owned identifiers/state required to prove the transfer:
 
@@ -130,14 +130,25 @@ semanticCapacityPerNpc
 
 The caller does **not** provide arbitrary claim text, provenance, semantic kind, importance, confidence, related entities, source-event IDs, event UUIDs or listener Semantic entry IDs.
 
-The lifecycle resolves the exact `speakerSemanticEntryId` from the current world-local `SemanticMemoryStore` and requires:
+The lifecycle performs an exact `speakerSemanticEntryId` lookup in the current world-local `SemanticMemoryStore` and requires:
 
 - speaker and listener IDs are present;
 - `speakerNpcId != listenerNpcId`;
-- the semantic entry exists at transfer time;
-- the semantic entry owner is exactly `speakerNpcId`;
-- the semantic entry has a non-blank normalized statement;
-- the source remains the exact entry selected for this operation before evidence construction.
+- the semantic entry exists;
+- its owner is exactly `speakerNpcId`;
+- its normalized statement is non-blank.
+
+Immediately before evidence construction, the lifecycle performs an authoritative exact reread of the same source ID. The reread must still match the selected immutable source snapshot on identity-critical fields:
+
+- entry UUID;
+- owner NPC;
+- kind;
+- provenance;
+- normalized statement;
+- canonical semantic subject scope;
+- source-event UUID set.
+
+If the source disappeared, was consolidated away, or no longer matches that exact snapshot before evidence construction, the transfer returns `REJECTED` and writes no transfer evidence or listener BELIEF.
 
 No arbitrary statement injection is permitted through this primitive.
 
@@ -163,41 +174,50 @@ For listener B, the authoritative direct evidence is only:
 
 The listener does not inherit the speaker's original `FACT` status or original provenance class. Repetition, corroboration or high confidence cannot upgrade the transferred belief to FACT.
 
-The first slice also does not copy the speaker's upstream `sourceEventIds` into the listener's BELIEF. The listener Semantic BELIEF points to the exact NPC_TOLD transfer evidence event. Rich origin-chain propagation is reserved for the later provenance-aware rumor design.
+The first slice also does not copy the speaker's upstream `sourceEventIds` into the listener BELIEF. The listener BELIEF points to the exact NPC_TOLD transfer evidence event. Rich origin-chain propagation is reserved for the later provenance-aware rumor design.
 
 ## 7. NPC_TOLD evidence event
 
 A transfer is represented with the existing `MemoryEvent.Type.DIALOGUE`; no new event type or persistence schema is introduced.
 
-The event is listener-owned:
+The event is listener-owned and canonical:
 
 ```text
-ownerNpcId   = listenerNpcId
-type         = DIALOGUE
-participants = [listenerNpcId, speakerNpcId]
-provenance   = NPC_TOLD
-gameTime     = authoritativeGameTime
-dialogue     = null
-summary      = deterministic bounded server-authored representation of the transferred statement
-importance   = deterministic transfer-policy value
-confidence   = deterministic transfer-policy value
+ownerNpcId              = listenerNpcId
+type                    = DIALOGUE
+participants            = [listenerNpcId, speakerNpcId]
+provenance              = NPC_TOLD
+gameTime                = authoritativeGameTime
+createdAtEpochMillis    = 0
+importance              = 50
+emotionalWeight         = 0
+confidence              = 50
+relationshipReasons     = []
+dialogue                = null
+relationshipTransition  = null
+relationshipCause       = null
+summary                 = "NPC told: " + normalizedStatement
 ```
 
-Participant orientation is exact and intentional: listener first, speaker second. The lifecycle treats any differently oriented or differently scoped event as invalid transfer evidence even if it happens to contain the same UUIDs.
+`createdAtEpochMillis = 0` is deliberate for this synthetic server-owned transfer evidence. Transfer chronology is authoritative Minecraft `gameTime`; using wall clock would introduce an unnecessary replay/retention tie-break input. Existing store order still remains deterministic through `gameTime` and UUID.
+
+Participant orientation is exact and intentional: listener first, speaker second. Any differently oriented or differently scoped event is invalid transfer evidence even if it contains the same UUIDs.
 
 `dialogue == null` is deliberate. `DialogueExchange` is player-oriented (`playerMessage` / `npcReply`) and must not be reused by pretending one NPC is a player. Existing player Working Memory requires structured dialogue, so this server-side transfer event stays out of player user/assistant dialogue reconstruction.
 
-The summary is evidence text for the event, not a truth-upgrade path and not a parsing API. Admission uses the statement already resolved from the exact speaker Semantic entry; it must never recover authority by parsing arbitrary summary prose.
+The summary is evidence text, not a parsing authority. Admission uses the normalized statement already resolved from the exact speaker Semantic entry; it must never recover authority by parsing arbitrary summary prose.
 
 ### 7.1 Statement normalization and bound
 
 The transferred statement uses the same semantic normalization/boundary as current Semantic BELIEF ingestion: at most `240` Unicode code points after normalization.
 
-No provider paraphrase occurs. If the persisted speaker statement is longer because of older/internal construction, the transfer adapter applies the current semantic bound deterministically before both evidence summary construction and listener BELIEF admission.
+The canonical evidence summary is therefore at most `250` Unicode code points: the fixed ten-code-point prefix `NPC told: ` plus the bounded statement.
+
+No provider paraphrase occurs. If a persisted speaker statement is longer because of older/internal construction, the transfer adapter applies the current semantic bound deterministically before both evidence summary construction and listener BELIEF admission.
 
 ## 8. Deterministic evidence identity and replay
 
-Evidence UUID is deterministic under a dedicated versioned namespace, conceptually:
+Evidence UUID is deterministic under a dedicated versioned namespace:
 
 ```text
 npc-knowledge-transfer-v1
@@ -207,33 +227,23 @@ speakerSemanticEntryId
 authoritativeGameTime
 ```
 
-`createdAtEpochMillis` is **not** part of evidence identity or transfer authority.
+`createdAtEpochMillis` is not part of evidence identity or authority.
 
-This matters because `MemoryEventStore.append(...)` already de-duplicates by exact event UUID. An exact retry may construct a candidate at a later wall-clock instant, but it must resolve to the same event UUID, append no duplicate, and reread the retained persisted event as the authority for downstream admission.
+`MemoryEventStore.append(...)` already de-duplicates by exact event UUID. Exact retry therefore resolves to the same event UUID, appends no duplicate, and rereads the retained persisted event as downstream authority.
 
-Replay validation therefore compares authoritative transfer fields, not a newly sampled wall-clock timestamp:
-
-- event UUID;
-- owner/listener;
-- type;
-- exact participant orientation;
-- provenance;
-- authoritative `gameTime`;
-- deterministic normalized transfer statement/summary contract.
-
-`createdAtEpochMillis` remains metadata/order tie-break information only. Wall-clock time must not determine truth, transfer identity, retention durability or replay outcome.
+Replay validation compares all canonical transfer fields from section 7, including exact event UUID, owner, type, participant orientation, provenance, game time, fixed policy values and canonical summary.
 
 Required behavior:
 
 - exact same transfer retry → same evidence UUID;
 - exact same transfer retry → no duplicate `MemoryEvent`;
-- exact same transfer retry → no duplicate Semantic BELIEF/source;
+- exact same transfer retry → no duplicate logical Semantic BELIEF/source;
 - same source transferred at a different authoritative `gameTime` → a new evidence UUID/source event;
-- equivalent claims from distinct source events may consolidate using the existing Semantic consolidation/source-union behavior.
+- equivalent claims from distinct source events may consolidate through the existing Semantic consolidation/source-union behavior.
 
 ## 9. Evidence validation boundary
 
-Current generic `SemanticBeliefAdmissionPolicy` correctly requires `NPC_TOLD` to originate from `NPC_TOLD DIALOGUE`, but that check alone is not sufficient for NPC-to-NPC transfer because it does not prove exact speaker/listener orientation or source ownership.
+Current generic `SemanticBeliefAdmissionPolicy` correctly requires `NPC_TOLD` to originate from `NPC_TOLD DIALOGUE`, but that check alone does not prove exact speaker/listener orientation or source ownership.
 
 The new lifecycle/policy must strengthen the boundary before calling generic admission.
 
@@ -243,15 +253,20 @@ The exact persisted evidence must satisfy all of the following:
 - `speakerNpcId != listenerNpcId`;
 - `type == DIALOGUE`;
 - `provenance == NPC_TOLD`;
-- participants are exactly `[listenerNpcId, speakerNpcId]`;
+- participants are exactly `[listenerNpcId, speakerNpcId]` in that order;
 - `gameTime == authoritativeGameTime`;
+- `createdAtEpochMillis == 0`;
+- `importance == 50`;
+- `emotionalWeight == 0`;
+- `confidence == 50`;
+- structured dialogue/relationship payloads are absent;
 - evidence UUID equals the deterministic UUID for listener/speaker/source-entry/game-time;
-- evidence statement/summary contract corresponds to the normalized statement taken from the exact speaker Semantic entry;
-- the source Semantic entry used to construct the transfer belongs to `speakerNpcId`.
+- summary equals the exact canonical `NPC told: <normalizedStatement>` representation;
+- the authoritative source Semantic entry belongs to `speakerNpcId`.
 
 Only after exact persisted evidence passes this boundary may `SemanticBeliefAdmissionPolicy` produce a `SemanticBeliefSource`.
 
-The resulting source must remain listener-owned because generic admission derives BELIEF owner/time/source identity from the persisted evidence event.
+The resulting source remains listener-owned because generic admission derives BELIEF owner/time/source identity from the persisted evidence event.
 
 ## 10. Semantic scope and player visibility
 
@@ -275,22 +290,24 @@ speaker relatedEntities = [playerP, npcC]
 
 The speaker NPC is **not** automatically added to listener `relatedEntities`.
 
+Semantic scope equivalence is defined as the same normalized UUID set, not list insertion order. This matches existing semantic normalization/consolidation behavior and prevents consolidation order from changing visibility semantics.
+
 `relatedEntities` describes what/who the semantic knowledge concerns for prompt eligibility. Provenance identity belongs in the exact transfer evidence event. Mixing speaker identity into semantic subject scope would incorrectly alter player visibility.
 
-The raw transfer evidence event itself has participants `[listener, speaker]`. Under current player-scoped episodic eligibility it is not ordinary player dialogue/history because the current player is not an external participant. This is desired: player prompts consume the resulting scoped Semantic BELIEF, not a fabricated player conversation turn.
+The raw transfer evidence event has participants `[listener, speaker]`. Under current player-scoped episodic eligibility it is not ordinary player dialogue/history because the current player is not an external participant. Player prompts consume the resulting scoped Semantic BELIEF, not a fabricated player conversation turn.
 
-Foreign-player semantic memory must remain excluded before bounded prompt candidate allocation exactly as before this slice.
+Foreign-player semantic memory remains excluded before bounded prompt candidate allocation exactly as before this slice.
 
 ## 11. Transfer importance and confidence policy
 
-The first slice uses fixed deterministic server-owned transfer values:
+The first slice uses fixed deterministic server-owned values:
 
 ```text
 importance = 50
 confidence = 50
 ```
 
-These values characterize listener B's semantic memory of being told the statement. They do not inherit or restate the authority/confidence of speaker A's source entry.
+These values characterize listener B's memory of being told the statement. They do not inherit or restate the authority/confidence of speaker A's source entry.
 
 The first slice intentionally does not incorporate:
 
@@ -313,7 +330,7 @@ owner        = listenerNpcId
 kind         = BELIEF
 provenance   = NPC_TOLD
 statement    = normalized transferred statement
-related      = exact copied subject scope
+related      = copied canonical subject scope
 importance   = 50
 confidence   = 50
 sourceEvents = [exact NPC_TOLD evidence UUID]
@@ -323,13 +340,13 @@ The lifecycle must account for existing `SemanticMemoryConsolidator` behavior: a
 
 Success must **not** be defined as "candidate BELIEF UUID exists after append".
 
-Instead, after append the lifecycle must reread listener Semantic Memory and prove a retained compatible BELIEF exists whose:
+Instead, after append the lifecycle rereads listener Semantic Memory and proves a retained compatible BELIEF exists whose:
 
 - owner is the listener;
 - kind is `BELIEF`;
 - provenance is `NPC_TOLD`;
 - normalized statement matches;
-- semantic subject scope matches;
+- canonical semantic subject UUID set matches;
 - `sourceEventIds` contains the exact new NPC_TOLD evidence UUID.
 
 This supports both first admission and deterministic corroborating source union.
@@ -355,7 +372,9 @@ Requirements:
 - deterministic result;
 - safe empty result for missing/mismatched owner.
 
-The lifecycle must not use a bounded `getRecent(...)` query as an authority lookup because valid evidence/source may sit outside a recent window.
+The lifecycle must not use bounded `getRecent(...)` queries as authority lookups because valid evidence/source may sit outside a recent window.
+
+For post-admission consolidation validation, an internal exact compatible-entry query may scan the bounded listener store by semantic consolidation key plus exact source UUID containment. It must not rely on newest-window position or prompt ranking.
 
 ## 14. Cross-store write order and failure semantics
 
@@ -365,10 +384,10 @@ Required order:
 
 ```text
 1. resolve exact speaker Semantic source
-2. validate source ownership and transfer inputs
+2. authoritative exact reread + source snapshot validation
 3. construct deterministic NPC_TOLD evidence
 4. append evidence to MemoryEventStore
-5. reread exact evidence by owner + UUID
+5. reread exact evidence by listener owner + UUID
 6. validate exact persisted evidence contract
 7. run NPC_TOLD semantic admission
 8. append listener BELIEF to SemanticMemoryStore
@@ -393,10 +412,12 @@ Expected fail-closed input/authority failures return `REJECTED` without creating
 - `speaker == listener`;
 - missing source Semantic entry;
 - source entry owned by another NPC;
+- source disappeared or changed before the authoritative pre-write reread;
 - blank/invalid normalized statement;
 - mismatched persisted evidence identity/shape;
-- mismatched owner/participants/provenance/type/gameTime;
-- source no longer satisfying the exact authoritative transfer lookup contract.
+- mismatched owner/participants/provenance/type/gameTime/policy fields.
+
+If invalidity is discovered before step 4, no transfer evidence is written. If storage corruption or an impossible mismatch is discovered only after an evidence append/reread, the lifecycle fails closed and creates no BELIEF; it must not fabricate a replacement source.
 
 Expected rejection is not an uncaught exception path.
 
@@ -445,7 +466,7 @@ current server observation: "The bridge is destroyed"
 
 The current observed state remains authoritative and structurally precedes the transferred BELIEF in prompt composition.
 
-Multiple NPC_TOLD sources, high confidence, semantic retention or long-horizon recall cannot override current `SYSTEM_OBSERVED` truth.
+Multiple NPC_TOLD sources, fixed confidence, semantic retention or long-horizon recall cannot override current `SYSTEM_OBSERVED` truth.
 
 ## 17. Component boundaries
 
@@ -456,10 +477,10 @@ Pure deterministic construction only.
 Responsibilities:
 
 - normalize/bound statement;
-- construct server-authored transfer summary;
+- construct exact canonical server-authored transfer summary;
 - construct exact listener-owned DIALOGUE shape;
 - compute versioned deterministic evidence UUID;
-- set fixed transfer importance/confidence;
+- set deterministic metadata/policy fields from section 7;
 - never access stores, provider, client or world mutation APIs.
 
 ### 17.2 `NpcKnowledgeTransferPolicy`
@@ -471,6 +492,7 @@ Responsibilities:
 - validate speaker/listener/source ownership contract;
 - validate exact persisted transfer evidence shape;
 - expose fixed policy values/constants if kept centrally;
+- compare semantic scopes canonically as UUID sets;
 - never persist data;
 - never call an LLM;
 - never upgrade truth class.
@@ -481,12 +503,12 @@ Orchestration only.
 
 Responsibilities:
 
-- exact source lookup;
+- exact source lookup and authoritative pre-write reread;
 - invoke adapter/policy;
 - evidence append and exact reread;
 - controlled BELIEF admission;
-- Semantic append and retained-result reread;
-- map expected outcomes to the explicit result surface;
+- Semantic append and retained-compatible-result reread;
+- map expected outcomes to explicit result status;
 - preserve idempotency and cross-NPC isolation.
 
 ### 17.4 `NpcKnowledgeTransferResult`
@@ -505,6 +527,7 @@ Prove failure before implementation for:
 
 - exact speaker-owned Semantic source selection;
 - listener-owned `NPC_TOLD DIALOGUE` evidence;
+- exact canonical evidence fields from section 7;
 - listener receives BELIEF, never FACT;
 - `FACT → BELIEF` and `BELIEF → BELIEF` cases;
 - source semantic scope preserved.
@@ -515,12 +538,14 @@ Prove rejection for:
 
 - wrong source owner;
 - unknown source ID;
+- source disappearance/change before authoritative reread;
 - speaker/listener inversion;
 - same speaker/listener;
 - wrong participant orientation;
 - wrong provenance;
 - wrong event type;
 - wrong gameTime;
+- wrong fixed policy/canonical summary fields;
 - forged/prebuilt evidence not produced from the exact speaker source;
 - no partial listener BELIEF after rejection.
 
@@ -533,7 +558,8 @@ Prove:
 - exact retry → one logical Semantic BELIEF/source;
 - later transfer at a new gameTime → distinct evidence UUID;
 - equivalent later claim consolidates deterministically and unions exact source evidence;
-- result validation remains correct when consolidation changes retained Semantic entry UUID.
+- result validation remains correct when consolidation changes retained Semantic entry UUID;
+- semantic scope comparison is stable regardless of UUID list insertion order.
 
 ### RED 4 — pressure and partial-retention semantics
 
@@ -543,7 +569,8 @@ Prove:
 - evidence retained but listener BELIEF rejected by semantic pressure → `BELIEF_NOT_RETAINED`;
 - evidence is not rolled back in the second case;
 - unrelated NPC memory is unchanged;
-- weak rejected append does not cause unrelated persistence rewrite/corruption.
+- weak rejected append does not cause unrelated persistence rewrite/corruption;
+- wall-clock time cannot alter transfer-evidence retention tie behavior because transfer evidence uses deterministic metadata.
 
 ### RED 5 — restart/reload
 
@@ -561,7 +588,7 @@ Prove:
 
 - NPC-global source remains NPC-global for listener;
 - player-scoped source remains scoped to that exact player;
-- shared subject scope is preserved exactly;
+- shared subject scope is preserved as the same canonical UUID set;
 - speaker is not injected into semantic `relatedEntities`;
 - transfer A→B creates nothing for C;
 - independent D→C transfer cannot affect B;
@@ -633,20 +660,21 @@ Do not describe this slice as installed `0.2.0` acceptance. Installed evidence r
 The slice is complete only when all of the following are true:
 
 1. A listener BELIEF can be created only from an exact persisted Semantic entry owned by the claimed speaker.
-2. The exact transfer event is persisted before BELIEF admission and is listener-owned `DIALOGUE / NPC_TOLD` evidence.
-3. Speaker `FACT` or `BELIEF` always becomes listener `BELIEF / NPC_TOLD`, never FACT.
-4. The caller cannot inject arbitrary claim text, source-event IDs, provenance, owner, importance or confidence.
-5. Exact participant orientation is proven and fail-closed.
-6. The listener BELIEF preserves the source semantic subject scope without adding speaker to `relatedEntities`.
-7. Exact retry is idempotent across evidence and Semantic persistence, including after reload.
-8. Distinct later transfer creates distinct evidence and existing Semantic consolidation may deterministically union sources.
-9. Pressure returns explicit `SOURCE_NOT_RETAINED` / `BELIEF_NOT_RETAINED` outcomes without corrupting unrelated state.
-10. No rollback fabricates or deletes a legitimate persisted transfer event when Semantic retention rejects the BELIEF.
-11. Transferred memory participates in existing bounded retention/long-horizon recall and remains evictable.
-12. Foreign-player privacy and NPC isolation remain intact before candidate allocation.
-13. Current observed truth still outranks conflicting transferred BELIEF.
-14. No new provider call, persistence file, schema version, config field, client authority or legacy migration is introduced.
-15. Strict staged TDD evidence and the selected full validation gates are green on the exact implementation head before merge.
+2. The speaker source passes an exact authoritative pre-write reread before any transfer evidence is written.
+3. The transfer event is persisted before BELIEF admission and is exact listener-owned `DIALOGUE / NPC_TOLD` evidence.
+4. Speaker `FACT` or `BELIEF` always becomes listener `BELIEF / NPC_TOLD`, never FACT.
+5. The caller cannot inject arbitrary claim text, source-event IDs, provenance, owner, importance or confidence.
+6. Exact participant orientation and canonical evidence fields are proven fail-closed.
+7. Listener BELIEF preserves the source semantic subject UUID set without adding speaker to `relatedEntities`.
+8. Exact retry is idempotent across evidence and Semantic persistence, including after reload.
+9. Distinct later transfer creates distinct evidence and existing Semantic consolidation may deterministically union sources.
+10. Pressure returns explicit `SOURCE_NOT_RETAINED` / `BELIEF_NOT_RETAINED` outcomes without corrupting unrelated state.
+11. No rollback fabricates or deletes a legitimate persisted transfer event when Semantic retention rejects the BELIEF.
+12. Transferred memory participates in existing bounded retention/long-horizon recall and remains evictable.
+13. Foreign-player privacy and NPC isolation remain intact before candidate allocation.
+14. Current observed truth still outranks conflicting transferred BELIEF.
+15. No new provider call, persistence file, schema version, config field, client authority or legacy migration is introduced.
+16. Strict staged TDD evidence and the selected full validation gates are green on the exact implementation head before merge.
 
 ## 22. Follow-up slices
 
