@@ -1,0 +1,34 @@
+package net.conczin.mca.entity.ai.chatAI;
+
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class SnapshotLayeredPromptWiringPolicyTest {
+    @Test
+    void snapshotSystemUsesDirectFourLayerPolicyBeforeStructuredResponseInstructions() throws IOException {
+        String source = Files.readString(Path.of(
+                "src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java"));
+        String compact = source.replaceAll("\\s+", " ");
+
+        String layeredCall = "SnapshotContextPromptPolicy.compose( snapshot.worldFacts(), snapshot.operatorAuthoredContext(), snapshot.semanticMemoryContext(), snapshot.memoryContext() )";
+        int layered = compact.indexOf(layeredCall);
+        int structured = compact.indexOf("SemanticBeliefExtractionPrompt.requiresStructuredResponse", layered >= 0 ? layered : 0);
+
+        assertTrue(layered >= 0);
+        assertTrue(structured > layered);
+        assertFalse(source.contains("if (!snapshot.worldFacts().isEmpty())"));
+        assertFalse(source.contains("Observed factual context from the current Minecraft world. Treat these facts as authoritative for this turn"));
+    }
+
+    @Test
+    void obsoleteLoreMixinIsNotRegistered() throws IOException {
+        String mixins = Files.readString(Path.of("src/main/resources/mca.mixins.json"));
+        assertFalse(mixins.contains("MixinOpenAIChatAI"));
+    }
+}
