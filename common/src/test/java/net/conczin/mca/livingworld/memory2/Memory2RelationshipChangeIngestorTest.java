@@ -43,6 +43,28 @@ class Memory2RelationshipChangeIngestorTest {
     }
 
     @Test
+    void replayReturnsTheAlreadyPersistedEventRatherThanAReconstructedVariant() {
+        UUID npc = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        LivingWorldRelationshipChange change = LivingWorldRelationshipChange.between(
+                new LivingWorldRelationshipState(1, 2, 3, 4),
+                new LivingWorldRelationshipState(3, 1, 2, 5)
+        );
+
+        MemoryEvent first = Memory2RelationshipChangeIngestor.recordAndReturn(
+                tempDir, npc, player, 100L, change, 16, false, 16, 1_000L
+        ).orElseThrow();
+        MemoryEvent replay = Memory2RelationshipChangeIngestor.recordAndReturn(
+                tempDir, npc, player, 100L, change, 16, false, 16, 9_999L
+        ).orElseThrow();
+        MemoryEvent stored = MemoryEventStore.forWorld(tempDir).getRecent(npc, 16).getFirst();
+
+        assertEquals(1_000L, stored.createdAtEpochMillis());
+        assertEquals(first, stored);
+        assertEquals(stored, replay);
+    }
+
+    @Test
     void resultBearingDisabledAndUnchangedPathsReturnEmpty() {
         UUID npc = UUID.randomUUID();
         UUID player = UUID.randomUUID();
