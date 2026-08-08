@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -70,6 +71,13 @@ public final class MemoryEventStore {
 
     public synchronized List<MemoryEvent> getRecent(UUID npcId, int maxResults) {
         return getRecentMatching(npcId, maxResults, ignored -> true);
+    }
+
+    public synchronized Optional<MemoryEvent> findById(UUID npcId, UUID eventId) {
+        if (npcId == null || eventId == null) return Optional.empty();
+        List<MemoryEvent> events = data.eventsByNpc.get(npcId.toString());
+        if (events == null || events.isEmpty()) return Optional.empty();
+        return events.stream().filter(event -> eventId.equals(event.id())).findFirst();
     }
 
     synchronized List<MemoryEvent> getRecentMatching(
