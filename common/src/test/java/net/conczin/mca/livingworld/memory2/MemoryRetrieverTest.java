@@ -95,6 +95,22 @@ class MemoryRetrieverTest {
     }
 
     @Test
+    void contextProviderKeepsSharedEventVisibleWhenCurrentPlayerParticipates() {
+        UUID npc = UUID.randomUUID();
+        UUID currentPlayer = UUID.randomUUID();
+        UUID otherEntity = UUID.randomUUID();
+        MemoryEventStore store = MemoryEventStore.forWorld(tempDir);
+        store.append(eventWithSummary(
+                UUID.randomUUID(), npc, MemoryEvent.Type.ACTION,
+                Set.of(npc, currentPlayer, otherEntity), 100L, 80, 100, "shared-current-player-event"
+        ), 64);
+
+        List<String> context = Memory2ContextProvider.load(tempDir, npc, currentPlayer, 200L);
+
+        assertTrue(context.stream().anyMatch(line -> line.contains("shared-current-player-event")));
+    }
+
+    @Test
     void contextProviderExcludesForeignPlayerRelationshipCause() {
         UUID npc = UUID.randomUUID();
         UUID currentPlayer = UUID.randomUUID();
