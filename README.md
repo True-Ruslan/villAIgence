@@ -2,7 +2,7 @@
 
 **Vill-AI-gence** — *Giving villagers a mind of their own.*
 
-VillAIgence is an AI-driven Minecraft mod built on **Minecraft Comes Alive Reborn (MCA)** for **Minecraft 1.21.1**. It keeps MCA's human-like villagers, families and relationship systems, then adds persistent AI conversations, microphone input, memory, world context, social state, stable NPC voices and safe server-authoritative actions.
+VillAIgence is an AI-driven Minecraft mod built on **Minecraft Comes Alive Reborn (MCA)** for **Minecraft 1.21.1**. It keeps MCA's human-like villagers, families and relationship systems, then adds persistent AI conversations, microphone input, layered memory, world context, social state, stable NPC voices and safe server-authoritative actions.
 
 `LivingWorld` remains the name of the internal AI/living-world engine and its compatibility-sensitive paths. The public mod is **VillAIgence**.
 
@@ -10,11 +10,23 @@ VillAIgence is an AI-driven Minecraft mod built on **Minecraft Comes Alive Rebor
 
 > **Experimental software:** back up your world before installing or updating.
 
+## Current release
+
+The current official release line is **`0.2.0+1.21.1`**, which begins the Memory 2.0 clean-cutover line.
+
+See:
+
+- [CHANGELOG.md](CHANGELOG.md) — canonical product/release changelog;
+- [Project state](docs/PROJECT_STATE.md) — exact current implementation and validation state;
+- [Roadmap](docs/ROADMAP.md) — current development direction;
+- [Releases](../../releases) — published artifacts.
+
 ## What VillAIgence adds
 
 - AI conversations with individual NPCs;
 - microphone → STT → NPC AI → text and optional spatial TTS;
-- persistent dialogue memory;
+- persistent Memory 2.0 dialogue history;
+- semantic FACT/BELIEF memory with explicit provenance boundaries;
 - factual world-event context;
 - trust, respect, fear and affinity;
 - stable per-NPC voices based on UUID, gender and age pools;
@@ -66,6 +78,12 @@ export OPENROUTER_API_KEY="sk-or-v1-..."
 Keys may also be configured in `config/livingworld.json`, but environment variables are preferred. Never commit real credentials or distribute them in a client modpack.
 
 7. Start the server again.
+
+### Pre-0.2 data boundary
+
+`0.2.0` intentionally does **not** migrate the experimental pre-0.2 `<world>/livingworld/memory.json` conversation store.
+
+For this pre-1.0 development line, the supported Memory 2.0 rollout boundary is a clean LivingWorld state on a dedicated test world or offline world copy. Keep backups before changing versions. The old raw conversation store is not opened, imported or recreated by current runtime code.
 
 ## Client setup
 
@@ -130,6 +148,39 @@ player microphone
 
 Normal player-to-player Simple Voice Chat traffic remains unaffected.
 
+## Memory 2.0
+
+Current persistent dialogue flow:
+
+```text
+successful text/voice turn
+→ structured DIALOGUE MemoryEvent
+→ <world>/livingworld/memory2.json
+→ exact NPC/player recall on later turns
+```
+
+Semantic knowledge distinguishes authority explicitly:
+
+```text
+FACT   → SYSTEM_OBSERVED server evidence only
+BELIEF → PLAYER_TOLD / NPC_TOLD / INFERRED only
+```
+
+Confidence never upgrades BELIEF into FACT. Current observed server facts remain authoritative over conflicting recalled beliefs.
+
+Bounded `PLAYER_TOLD` BELIEF extraction exists after PR #125 but is deliberately **disabled by default**:
+
+```json
+{
+  "semanticBeliefExtractionEnabled": false,
+  "semanticBeliefMaxCandidatesPerTurn": 3
+}
+```
+
+When enabled, candidate statements reuse the existing structured chat response; VillAIgence does not make a second extraction request. The model supplies candidate text only. Server code owns the NPC, player, source DIALOGUE event, provenance and BELIEF kind, and persists the DIALOGUE before any semantic admission.
+
+See [Memory 2.0](docs/livingworld/MEMORY_2.md) and [Semantic ingestion](docs/livingworld/SEMANTIC_INGESTION.md).
+
 ## Persistent NPC voices
 
 VillAIgence assigns each NPC a stable voice identity based on its UUID, MCA gender and age bucket. The profile is stored in:
@@ -146,13 +197,27 @@ The internal LivingWorld engine stores persistent data under:
 
 ```text
 <world>/livingworld/
-├── memory.json
+├── memory2.json
+├── semantic-memory.json
 ├── events.json
 ├── relationships.json
-└── voices.json
+├── voices.json
+└── operator-lore.json
 ```
 
-Compatibility-sensitive paths intentionally keep the `livingworld` name. They are **not** renamed by the VillAIgence rebrand, so existing worlds and configs continue to work without migration.
+Current auxiliary corruption/recovery coverage includes:
+
+```text
+memory2.json
+semantic-memory.json
+relationships.json
+voices.json
+operator-lore.json
+```
+
+`events.json` is authoritative factual event history and has its own validation path.
+
+Compatibility-sensitive paths intentionally keep the `livingworld` name. The branding migration does not rename the config or current world-data root, but the pre-0.2 raw `memory.json` conversation format was intentionally retired as a separate clean-cutover decision.
 
 Configuration remains:
 
@@ -173,17 +238,17 @@ See:
 
 ## Compatibility identity
 
-VillAIgence is a new public product built on MCA, but this release deliberately preserves these internals:
+VillAIgence is a new public product built on MCA, but deliberately preserves these compatibility-sensitive internals:
 
 ```text
 mod id:            mca
 Java namespace:    net.conczin.mca
 config:            config/livingworld.json
-world data:        <world>/livingworld/
+world data root:   <world>/livingworld/
 internal engine:   LivingWorld
 ```
 
-This prevents a branding change from becoming a breaking world/config migration.
+These identifiers are not renamed merely for branding. Persistent schema changes still have their own explicit compatibility/rollout rules, such as the pre-1.0 Memory 2.0 clean cutover.
 
 ## AI diagnostics
 
@@ -243,10 +308,14 @@ Text replies are intentionally published before TTS, so a TTS failure or local T
 
 ## Documentation
 
+- [Project state](docs/PROJECT_STATE.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Changelog](CHANGELOG.md)
 - [Configuration](docs/livingworld/CONFIGURATION.md)
 - [AI diagnostics](docs/livingworld/DIAGNOSTICS.md)
 - [Voice and STT/TTS](docs/livingworld/VOICE.md)
-- [Persistent memory](docs/livingworld/MEMORY.md)
+- [Memory 2.0](docs/livingworld/MEMORY_2.md)
+- [Semantic ingestion](docs/livingworld/SEMANTIC_INGESTION.md)
 - [Factual events](docs/livingworld/EVENTS.md)
 - [Relationships](docs/livingworld/RELATIONSHIPS.md)
 - [Release process](docs/RELEASING.md)
@@ -267,7 +336,7 @@ VillAIgence remains licensed under **GPL-3.0** and retains attribution to MCA Re
 
 ## Contributing
 
-Keep changes scoped, test Fabric/NeoForge behavior where relevant, preserve server authority around AI actions/data, and do not change compatibility-sensitive `mca`/`livingworld` identities without an explicit migration design.
+Keep changes scoped, use TDD for runtime behavior, test Fabric/NeoForge behavior where relevant, preserve server authority around AI actions/data, update root `CHANGELOG.md` for notable delivery changes, and do not change compatibility-sensitive `mca`/`livingworld` identities without an explicit migration design.
 
 ## Credits
 
