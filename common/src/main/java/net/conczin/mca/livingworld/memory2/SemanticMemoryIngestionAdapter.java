@@ -17,7 +17,7 @@ public final class SemanticMemoryIngestionAdapter {
 
     public static Optional<SemanticMemoryEntry> toFact(MemoryEvent source) {
         if (!eligibleFact(source)) return Optional.empty();
-        String statement = normalizeAndLimit(source.summary());
+        String statement = normalizeAndLimitStatement(source.summary());
         if (statement.isBlank()) return Optional.empty();
 
         return Optional.of(new SemanticMemoryEntry(
@@ -37,7 +37,7 @@ public final class SemanticMemoryIngestionAdapter {
 
     public static SemanticMemoryEntry toBelief(SemanticBeliefSource source) {
         if (source == null) throw new IllegalArgumentException("source is required");
-        String statement = normalizeAndLimit(source.statement());
+        String statement = normalizeAndLimitStatement(source.statement());
         if (statement.isBlank()) throw new IllegalArgumentException("statement is required");
 
         return new SemanticMemoryEntry(
@@ -80,7 +80,7 @@ public final class SemanticMemoryIngestionAdapter {
         return UUID.nameUUIDFromBytes(canonical.toString().getBytes(StandardCharsets.UTF_8));
     }
 
-    private static String normalizeAndLimit(String value) {
+    static String normalizeAndLimitStatement(String value) {
         String normalized = normalizeWhitespace(value);
         if (normalized.codePointCount(0, normalized.length()) <= MAX_STATEMENT_CODE_POINTS) return normalized;
         int end = normalized.offsetByCodePoints(0, MAX_STATEMENT_CODE_POINTS);
