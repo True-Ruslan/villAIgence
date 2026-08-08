@@ -56,12 +56,24 @@ This is the **canonical changelog** for the project.
   - `semanticBeliefExtractionEnabled=false` by default;
   - `semanticBeliefMaxCandidatesPerTurn=3` by default and normalized to the bounded parser limit;
   - existing version-2 configs require no migration because missing fields receive safe defaults.
+- Player-scoped Memory 2.0 prompt retrieval now enforces exact current-player-or-NPC-global eligibility before bounded candidate selection:
+  - foreign-player Semantic Memory entries cannot consume candidate slots or enter another player's prompt;
+  - foreign-player episodic, relationship-change and causal-history events are likewise excluded before ranking;
+  - eligible current-player and NPC-global memories retain the existing deterministic ranking and hard bounds.
+- Snapshot prompt context is composed exactly once in deterministic authority order:
+  - current observed world facts first and authoritative for the turn;
+  - Operator Lore next as background context;
+  - Semantic Memory next with FACT/BELIEF provenance labels preserved;
+  - episodic and social-history Memory 2.0 last among memory layers;
+  - structured-response/tool instructions remain after all context layers;
+  - conflicting BELIEFs remain non-authoritative and stale relationship history does not override the current server-observed relationship state.
 
 ### Validation
 
 - Controlled BELIEF admission was developed with a tests-first RED/GREEN boundary in PR #123.
 - Bounded player-told BELIEF extraction was developed through explicit RED/GREEN contract tests in PR #125; exact-head CI/release evidence is recorded in that PR.
 - Causal relationship memory in PR #127 was developed through staged RED/GREEN contracts for structured transition state, persisted-source cause admission, result-bearing ChatAI orchestration and restart/eviction-safe query behavior; a full-history test exposed and drove a deterministic retention-ordering fix before final verification.
+- FACT-over-BELIEF retrieval precedence in PR #129 uses separate observed RED/GREEN gates for semantic player isolation, episodic/social-history player isolation, snapshot memory de-duplication, four-layer prompt composition and direct provider wiring.
 - Real two-graphical-client Operator Lore acceptance `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two graphical clients are available.
 
 ---
