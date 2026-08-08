@@ -37,6 +37,13 @@ This is the **canonical changelog** for the project.
   - malformed/empty candidate metadata fails soft and writes nothing;
   - duplicate candidates are normalized/deduplicated and bounded to at most 8 hard-limit candidates, with a default configured limit of 3;
   - the extraction path cannot create or promote FACT.
+- Trustworthy causal relationship memory in Memory 2.0:
+  - each new `RELATIONSHIP_CHANGE` retains the exact server-applied before/after trust, respect, fear and affinity state as structured data;
+  - a separate deterministic `RELATIONSHIP_CAUSE(DIALOGUE_TURN)` can link that exact transition to the exact persisted DIALOGUE event during which it occurred;
+  - source NPC/player identities and source event UUIDs are server-owned and validated against persisted world-local evidence;
+  - causal events are replay-idempotent and survive restart with their transition snapshot/source UUIDs intact even when bounded retention later removes referenced source events;
+  - recent causal history can be queried with exact NPC/player isolation before limiting and without fabricating missing evidence;
+  - free-form model explanations are never persisted as authoritative relationship causes, and causal events are not automatically promoted to Semantic FACT.
 
 ### Changed
 
@@ -54,6 +61,7 @@ This is the **canonical changelog** for the project.
 
 - Controlled BELIEF admission was developed with a tests-first RED/GREEN boundary in PR #123.
 - Bounded player-told BELIEF extraction was developed through explicit RED/GREEN contract tests in PR #125; exact-head CI/release evidence is recorded in that PR.
+- Causal relationship memory in PR #127 was developed through staged RED/GREEN contracts for structured transition state, persisted-source cause admission, result-bearing ChatAI orchestration and restart/eviction-safe query behavior; a full-history test exposed and drove a deterministic retention-ordering fix before final verification.
 - Real two-graphical-client Operator Lore acceptance `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two graphical clients are available.
 
 ---
