@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class MemoryEventStoreTest {
@@ -86,6 +87,61 @@ class MemoryEventStoreTest {
         assertEquals(
                 List.of(newestWeakDialogue.id(), oldImportant.id()),
                 reloaded.getRecent(npc, 10).stream().map(MemoryEvent::id).toList()
+        );
+    }
+
+    @Test
+    void rejectedWeakAppendDoesNotRewriteEventFile() throws Exception {
+        UUID npc = UUID.fromString("00000000-0000-0000-0000-000000000411");
+        UUID player = UUID.fromString("00000000-0000-0000-0000-000000000412");
+        Path file = tempDir.resolve("memory2.json");
+        MemoryEventStore store = new MemoryEventStore(file);
+
+        MemoryEvent strongA = event(
+                "strong-a",
+                npc,
+                MemoryEvent.Type.OBSERVATION,
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                List.of(npc),
+                100L,
+                100,
+                100,
+                100
+        );
+        MemoryEvent strongB = event(
+                "strong-b",
+                npc,
+                MemoryEvent.Type.RELATIONSHIP_CHANGE,
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                List.of(npc, player),
+                200L,
+                100,
+                100,
+                100
+        );
+        MemoryEvent rejectedWeak = event(
+                "rejected-weak-dialogue",
+                npc,
+                MemoryEvent.Type.DIALOGUE,
+                MemoryEvent.Provenance.PLAYER_TOLD,
+                List.of(npc, player),
+                300L,
+                0,
+                0,
+                0
+        );
+
+        store.append(strongA, 2);
+        store.append(strongB, 2);
+        byte[] before = Files.readAllBytes(file);
+
+        store.append(rejectedWeak, 2);
+        byte[] after = Files.readAllBytes(file);
+
+        assertArrayEquals(before, after);
+        assertEquals(
+                List.of(strongB.id(), strongA.id()),
+                store.getRecent(npc, 10).stream().map(MemoryEvent::id).toList()
         );
     }
 
