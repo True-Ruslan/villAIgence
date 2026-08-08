@@ -8,22 +8,28 @@ import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipDelta;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Defensive parser for LLM-visible structured responses.
  *
  * <p>The user-visible message is intentionally isolated from optional metadata so malformed
- * commands or relationship deltas can never leak raw JSON into chat or persistent memory.</p>
+ * commands, relationship deltas, or semantic candidates can never leak raw JSON into chat or
+ * persistent dialogue memory.</p>
  */
 public final class StructuredAiResponseParser {
     private StructuredAiResponseParser() {
     }
 
     public static ParsedResponse parse(@Nullable String content) {
-        if (content == null) return new ParsedResponse(null, "", null);
+        return parse(content, SemanticBeliefCandidateParser.DEFAULT_MAX_CANDIDATES);
+    }
+
+    public static ParsedResponse parse(@Nullable String content, int maxBeliefCandidates) {
+        if (content == null) return emptyResponse();
 
         String normalized = stripMarkdownFences(content).trim();
-        if (normalized.isEmpty()) return new ParsedResponse(null, "", null);
+        if (normalized.isEmpty()) return emptyResponse();
 
         int firstObjectStart = normalized.indexOf('{');
         JsonSpan json = findFirstJsonObject(normalized);
@@ -33,31 +39,46 @@ public final class StructuredAiResponseParser {
                 String message = stringField(object, "message");
                 String optionalCommand = stringField(object, "optionalCommand");
                 LivingWorldRelationshipDelta relationshipDelta = parseRelationshipDelta(object.get("relationshipDelta"));
+                List<String> beliefCandidates = parseBeliefCandidates(object.get("beliefCandidates"), maxBeliefCandidates);
 
                 if (message != null) {
-                    return new ParsedResponse(message.trim(), optionalCommand == null ? "" : optionalCommand.trim(), relationshipDelta);
+                    return new ParsedResponse(
+                            message.trim(),
+                            optionalCommand == null ? "" : optionalCommand.trim(),
+                            relationshipDelta,
+                            beliefCandidates
+                    );
                 }
             } else {
                 String recovered = recoverTopLevelMessage(json.json());
-                if (recovered != null) return new ParsedResponse(recovered.trim(), "", null);
+                if (recovered != null) return new ParsedResponse(recovered.trim(), "", null, List.of());
             }
 
             String prefix = normalized.substring(0, json.start()).trim();
-            if (!prefix.isEmpty()) return new ParsedResponse(prefix, "", null);
-            return new ParsedResponse(null, "", null);
+            if (!prefix.isEmpty()) return new ParsedResponse(prefix, "", null, List.of());
+            return emptyResponse();
         }
 
         if (firstObjectStart >= 0) {
             String malformedObject = normalized.substring(firstObjectStart);
             String recovered = recoverTopLevelMessage(malformedObject);
-            if (recovered != null) return new ParsedResponse(recovered.trim(), "", null);
+            if (recovered != null) return new ParsedResponse(recovered.trim(), "", null, List.of());
 
             String prefix = normalized.substring(0, firstObjectStart).trim();
-            if (!prefix.isEmpty()) return new ParsedResponse(prefix, "", null);
-            return new ParsedResponse(null, "", null);
+            if (!prefix.isEmpty()) return new ParsedResponse(prefix, "", null, List.of());
+            return emptyResponse();
         }
 
-        return new ParsedResponse(normalized, "", null);
+        return new ParsedResponse(normalized, "", null, List.of());
+    }
+
+    private static ParsedResponse emptyResponse() {
+        return new ParsedResponse(null, "", null, List.of());
+    }
+
+    private static List<String> parseBeliefCandidates(@Nullable JsonElement element, int maxBeliefCandidates) {
+        if (element == null || element.isJsonNull()) return List.of();
+        return SemanticBeliefCandidateParser.parse(element.toString(), maxBeliefCandidates);
     }
 
     private static String stripMarkdownFences(String content) {
@@ -221,8 +242,13 @@ public final class StructuredAiResponseParser {
     public record ParsedResponse(
             @Nullable String message,
             String optionalCommand,
-            @Nullable LivingWorldRelationshipDelta relationshipDelta
+            @Nullable LivingWorldRelationshipDelta relationshipDelta,
+            List<String> beliefCandidates
     ) {
+        public ParsedResponse {
+            optionalCommand = optionalCommand == null ? "" : optionalCommand;
+            beliefCandidates = beliefCandidates == null ? List.of() : List.copyOf(beliefCandidates);
+        }
     }
 
     private record JsonSpan(int start, int end, String json) {
