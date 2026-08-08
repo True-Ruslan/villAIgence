@@ -9,6 +9,7 @@ import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
 import net.conczin.mca.livingworld.memory2.Memory2DialogueLifecycle;
 import net.conczin.mca.livingworld.memory2.MemoryEvent;
 import net.conczin.mca.livingworld.memory2.PlayerToldBeliefLifecycle;
+import net.conczin.mca.livingworld.memory2.RelationshipCauseLifecycle;
 import net.conczin.mca.util.WorldUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -113,6 +114,25 @@ public class ChatAI {
                     answer
             );
             LivingWorldConfig config = LivingWorldConfig.getInstance();
+            if (sourceEvent.isPresent() && snapshotAnswer.relationshipChangeEvent().isPresent()) {
+                try {
+                    RelationshipCauseLifecycle.recordDialogueTurn(
+                            config.memory2Enabled,
+                            snapshot.worldRoot(),
+                            snapshotAnswer.relationshipChangeEvent().orElseThrow(),
+                            sourceEvent.orElseThrow(),
+                            snapshot.playerId(),
+                            config.memory2MaxEventsPerNpc
+                    );
+                } catch (RuntimeException e) {
+                    MCA.LOGGER.warn(
+                            "Unable to persist causal relationship memory for villager {} and player {}",
+                            snapshot.villagerId(),
+                            snapshot.playerId(),
+                            e
+                    );
+                }
+            }
             sourceEvent.ifPresent(source -> {
                 try {
                     PlayerToldBeliefLifecycle.recordCandidatesIfEnabled(
@@ -290,7 +310,7 @@ public class ChatAI {
     }
 
     /**
-     * Scans the local area in a {@value #VILLAGER_SEARCH_RANGE} block range of the player for a villager with searchName. <p>
+     * Scans the local area in a {@link #VILLAGER_SEARCH_RANGE} block range of the player for a villager with searchName. <p>
      * searchName is {@link #normalizeString normalized}.
      *
      * @param player     ServerPlayerEntity object of the reference player
