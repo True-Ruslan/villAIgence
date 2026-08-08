@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -71,6 +72,20 @@ public final class SemanticMemoryStore {
 
     public synchronized List<SemanticMemoryEntry> getRecent(UUID npcId, int maxResults) {
         return getRecentMatching(npcId, maxResults, ignored -> true);
+    }
+
+    public synchronized Optional<SemanticMemoryEntry> findById(UUID npcId, UUID entryId) {
+        if (npcId == null || entryId == null) return Optional.empty();
+        List<SemanticMemoryEntry> entries = data.entriesByNpc.get(npcId.toString());
+        if (entries == null || entries.isEmpty()) return Optional.empty();
+        return entries.stream().filter(entry -> entryId.equals(entry.id())).findFirst();
+    }
+
+    synchronized Optional<SemanticMemoryEntry> findMatching(UUID npcId, Predicate<SemanticMemoryEntry> predicate) {
+        if (npcId == null || predicate == null) return Optional.empty();
+        List<SemanticMemoryEntry> entries = data.entriesByNpc.get(npcId.toString());
+        if (entries == null || entries.isEmpty()) return Optional.empty();
+        return entries.stream().filter(predicate).findFirst();
     }
 
     synchronized List<SemanticMemoryEntry> getRecentMatching(
