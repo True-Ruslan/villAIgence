@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MemoryRetrieverTest {
     @TempDir
@@ -51,6 +52,62 @@ class MemoryRetrieverTest {
         assertEquals(50, ranked.getFirst().recencyScore());
         assertEquals(82, ranked.getFirst().totalScore());
         assertEquals(60, ranked.get(1).totalScore());
+    }
+
+    @Test
+    void contextProviderFiltersForeignPlayerEventsBeforeCandidateLimit() {
+        UUID npc = UUID.randomUUID();
+        UUID currentPlayer = UUID.randomUUID();
+        UUID foreignPlayer = UUID.randomUUID();
+        MemoryEventStore store = MemoryEventStore.forWorld(tempDir);
+
+        store.append(eventWithSummary(
+                UUID.randomUUID(), npc, MemoryEvent.Type.ACTION,
+                Set.of(npc, currentPlayer), 1L, 20, 30, "eligible-current-player"
+        ), 128);
+
+        for (int i = 0; i < 32; i++) {
+            store.append(eventWithSummary(
+                    UUID.randomUUID(), npc, MemoryEvent.Type.RELATIONSHIP_CHANGE,
+                    Set.of(npc, foreignPlayer), 100L + i, 100, 100, "foreign-" + i
+            ), 128);
+        }
+
+        List<String> context = Memory2ContextProvider.load(tempDir, npc, currentPlayer, 200L);
+
+        assertTrue(context.stream().anyMatch(line -> line.contains("eligible-current-player")));
+        assertTrue(context.stream().noneMatch(line -> line.contains("foreign-")));
+    }
+
+    @Test
+    void contextProviderKeepsNpcGlobalEventsVisibleToCurrentPlayer() {
+        UUID npc = UUID.randomUUID();
+        UUID currentPlayer = UUID.randomUUID();
+        MemoryEventStore store = MemoryEventStore.forWorld(tempDir);
+        store.append(eventWithSummary(
+                UUID.randomUUID(), npc, MemoryEvent.Type.OBSERVATION,
+                Set.of(npc), 100L, 80, 100, "npc-global-observation"
+        ), 64);
+
+        List<String> context = Memory2ContextProvider.load(tempDir, npc, currentPlayer, 200L);
+
+        assertTrue(context.stream().anyMatch(line -> line.contains("npc-global-observation")));
+    }
+
+    @Test
+    void contextProviderExcludesForeignPlayerRelationshipCause() {
+        UUID npc = UUID.randomUUID();
+        UUID currentPlayer = UUID.randomUUID();
+        UUID foreignPlayer = UUID.randomUUID();
+        MemoryEventStore store = MemoryEventStore.forWorld(tempDir);
+        store.append(eventWithSummary(
+                UUID.randomUUID(), npc, MemoryEvent.Type.RELATIONSHIP_CAUSE,
+                Set.of(npc, foreignPlayer), 100L, 100, 100, "foreign-causal-history"
+        ), 64);
+
+        List<String> context = Memory2ContextProvider.load(tempDir, npc, currentPlayer, 200L);
+
+        assertTrue(context.stream().noneMatch(line -> line.contains("foreign-causal-history")));
     }
 
     @Test
@@ -140,11 +197,33 @@ class MemoryRetrieverTest {
             int importance,
             int confidence
     ) {
+        return eventWithSummary(
+                id,
+                owner,
+                type,
+                participants,
+                gameTime,
+                importance,
+                confidence,
+                "memory-" + id
+        );
+    }
+
+    private static MemoryEvent eventWithSummary(
+            UUID id,
+            UUID owner,
+            MemoryEvent.Type type,
+            Set<UUID> participants,
+            long gameTime,
+            int importance,
+            int confidence,
+            String summary
+    ) {
         return new MemoryEvent(
                 id,
                 owner,
                 type,
-                "memory-" + id,
+                summary,
                 List.copyOf(participants),
                 MemoryEvent.Provenance.SYSTEM_OBSERVED,
                 gameTime,
