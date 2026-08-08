@@ -55,16 +55,26 @@ class LongHorizonMemorySimulationTest {
     }
 
     @Test
-    void foreignHighDurabilityMemoryConsumesNoRecentOrDurableSlots() {
+    void foreignHighDurabilityMemoryConsumesNoRecentOrDurableSlotsAcrossMixedScopes() {
         UUID npc = id(200);
         UUID currentPlayer = id(201);
         UUID foreignPlayer = id(202);
+        UUID otherNpc = id(203);
+        UUID otherEntity = id(204);
         Path world = tempDir.resolve("privacy-pressure");
 
         SemanticMemoryStore semantic = SemanticMemoryStore.forWorld(world);
         semantic.append(semanticBelief(
                 id(210), npc, currentPlayer, 1L,
                 "current-player-old-durable-semantic", 100, 100
+        ), 128);
+        semantic.append(semanticScopedBelief(
+                id(211), npc, List.of(currentPlayer, otherEntity), 2L,
+                "shared-current-player-old-durable-semantic", 95, 95
+        ), 128);
+        semantic.append(semanticBelief(
+                id(212), otherNpc, currentPlayer, 3L,
+                "other-npc-durable-semantic", 100, 100
         ), 128);
         for (int i = 0; i < 24; i++) {
             semantic.append(semanticBelief(
@@ -83,6 +93,14 @@ class LongHorizonMemorySimulationTest {
         episodic.append(relationshipChange(
                 id(220), npc, currentPlayer, 1L,
                 "current-player-old-important-relationship", 100, 100
+        ), 128);
+        episodic.append(action(
+                id(221), npc, List.of(npc, currentPlayer, otherEntity), 2L,
+                "shared-current-player-old-important-action", 95, 95
+        ), 128);
+        episodic.append(relationshipChange(
+                id(222), otherNpc, currentPlayer, 3L,
+                "other-npc-important-relationship", 100, 100
         ), 128);
         for (int i = 0; i < 24; i++) {
             episodic.append(dialogue(
@@ -107,11 +125,20 @@ class LongHorizonMemorySimulationTest {
         assertTrue(semanticContext.stream().anyMatch(
                 line -> line.contains("current-player-old-durable-semantic")
         ));
+        assertTrue(semanticContext.stream().anyMatch(
+                line -> line.contains("shared-current-player-old-durable-semantic")
+        ));
         assertTrue(semanticContext.stream().noneMatch(line -> line.contains("foreign-durable-semantic-")));
+        assertTrue(semanticContext.stream().noneMatch(line -> line.contains("other-npc-durable-semantic")));
+
         assertTrue(episodicContext.stream().anyMatch(
                 line -> line.contains("current-player-old-important-relationship")
         ));
+        assertTrue(episodicContext.stream().anyMatch(
+                line -> line.contains("shared-current-player-old-important-action")
+        ));
         assertTrue(episodicContext.stream().noneMatch(line -> line.contains("foreign-durable-relationship-")));
+        assertTrue(episodicContext.stream().noneMatch(line -> line.contains("other-npc-important-relationship")));
     }
 
     @Test
@@ -263,12 +290,26 @@ class LongHorizonMemorySimulationTest {
             int importance,
             int confidence
     ) {
+        return semanticScopedBelief(
+                id, npc, List.of(player), gameTime, statement, importance, confidence
+        );
+    }
+
+    private static SemanticMemoryEntry semanticScopedBelief(
+            UUID id,
+            UUID npc,
+            List<UUID> relatedEntities,
+            long gameTime,
+            String statement,
+            int importance,
+            int confidence
+    ) {
         return new SemanticMemoryEntry(
                 id,
                 npc,
                 SemanticMemoryEntry.Kind.BELIEF,
                 statement,
-                List.of(player),
+                relatedEntities,
                 MemoryEvent.Provenance.PLAYER_TOLD,
                 gameTime,
                 1_700_000_000_000L + gameTime,
@@ -302,6 +343,31 @@ class LongHorizonMemorySimulationTest {
                 List.of(),
                 null,
                 new MemoryEvent.RelationshipTransition(0, 0, 0, 0, 1, 0, 0, 0)
+        );
+    }
+
+    private static MemoryEvent action(
+            UUID id,
+            UUID npc,
+            List<UUID> participants,
+            long gameTime,
+            String summary,
+            int importance,
+            int confidence
+    ) {
+        return new MemoryEvent(
+                id,
+                npc,
+                MemoryEvent.Type.ACTION,
+                summary,
+                participants,
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                gameTime,
+                1_700_000_000_000L + gameTime,
+                importance,
+                50,
+                confidence,
+                List.of()
         );
     }
 
