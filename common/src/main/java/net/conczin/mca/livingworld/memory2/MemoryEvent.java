@@ -21,7 +21,8 @@ public record MemoryEvent(
         int confidence,
         List<String> relationshipReasons,
         DialogueExchange dialogue,
-        RelationshipTransition relationshipTransition
+        RelationshipTransition relationshipTransition,
+        RelationshipCause relationshipCause
 ) {
     public MemoryEvent {
         if (id == null) throw new IllegalArgumentException("id is required");
@@ -41,8 +42,47 @@ public record MemoryEvent(
     }
 
     /**
+     * Source-compatible constructor for callers that already provide structured relationship transition data.
+     * Structured causal data is absent unless explicitly supplied.
+     */
+    public MemoryEvent(
+            UUID id,
+            UUID ownerNpcId,
+            Type type,
+            String summary,
+            List<UUID> participants,
+            Provenance provenance,
+            long gameTime,
+            long createdAtEpochMillis,
+            int importance,
+            int emotionalWeight,
+            int confidence,
+            List<String> relationshipReasons,
+            DialogueExchange dialogue,
+            RelationshipTransition relationshipTransition
+    ) {
+        this(
+                id,
+                ownerNpcId,
+                type,
+                summary,
+                participants,
+                provenance,
+                gameTime,
+                createdAtEpochMillis,
+                importance,
+                emotionalWeight,
+                confidence,
+                relationshipReasons,
+                dialogue,
+                relationshipTransition,
+                null
+        );
+    }
+
+    /**
      * Source-compatible constructor for callers that already provide structured dialogue.
-     * Structured relationship transition data is absent unless explicitly supplied.
+     * Structured relationship transition and causal data are absent unless explicitly supplied.
      */
     public MemoryEvent(
             UUID id,
@@ -73,13 +113,14 @@ public record MemoryEvent(
                 confidence,
                 relationshipReasons,
                 dialogue,
+                null,
                 null
         );
     }
 
     /**
      * Source-compatible constructor for non-dialogue producers and historical tests.
-     * Structured dialogue and relationship transition data are opt-in and absent by default.
+     * Structured dialogue, relationship transition and causal data are opt-in and absent by default.
      */
     public MemoryEvent(
             UUID id,
@@ -108,6 +149,7 @@ public record MemoryEvent(
                 emotionalWeight,
                 confidence,
                 relationshipReasons,
+                null,
                 null,
                 null
         );
@@ -174,11 +216,31 @@ public record MemoryEvent(
         }
     }
 
+    /** Exact server-owned linkage from one relationship transition to its persisted evidence event. */
+    public record RelationshipCause(
+            CauseKind kind,
+            UUID relationshipChangeEventId,
+            UUID evidenceEventId,
+            RelationshipTransition transitionSnapshot
+    ) {
+        public RelationshipCause {
+            if (kind == null) throw new IllegalArgumentException("cause kind is required");
+            if (relationshipChangeEventId == null) throw new IllegalArgumentException("relationshipChangeEventId is required");
+            if (evidenceEventId == null) throw new IllegalArgumentException("evidenceEventId is required");
+            if (transitionSnapshot == null) throw new IllegalArgumentException("transitionSnapshot is required");
+        }
+    }
+
+    public enum CauseKind {
+        DIALOGUE_TURN
+    }
+
     public enum Type {
         DIALOGUE,
         OBSERVATION,
         ACTION,
-        RELATIONSHIP_CHANGE
+        RELATIONSHIP_CHANGE,
+        RELATIONSHIP_CAUSE
     }
 
     public enum Provenance {
