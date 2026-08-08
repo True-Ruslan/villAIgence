@@ -4,44 +4,27 @@
 
 **Goal:** Persist and query a deterministic server-authored causal link between an exact `RELATIONSHIP_CHANGE` event and the exact successful `DIALOGUE` turn during which that relationship transition occurred, without persisting model-generated reasons as authority.
 
-**Architecture:** Extend `MemoryEvent` with optional typed relationship-transition and relationship-cause payloads, then create a provider-independent cause lifecycle that validates persisted source events before appending a deterministic `RELATIONSHIP_CAUSE`. Preserve the existing numeric relationship mutation timing; carry the exact server-created relationship event through the internal snapshot result so `ChatAI` can create the cause only after exact DIALOGUE persistence succeeds.
+**Architecture:** First retain the exact server-applied before/after relationship state as a typed payload. Then add a separate `RELATIONSHIP_CAUSE` event admitted only from two already-persisted matching Memory 2.0 source events. Preserve current relationship mutation timing and carry only the server-created relationship event through `OpenAIChatAI.SnapshotAnswer`; `ChatAI` creates the cause only after exact DIALOGUE persistence succeeds.
 
-**Tech Stack:** Java 21, Fabric/NeoForge shared `common` module, JUnit 5, Gson-backed `MemoryEventStore`, Gradle, GitHub Actions.
+**Tech Stack:** Java 21, shared `common` module, JUnit 5, Gson `MemoryEventStore`, Gradle, GitHub Actions.
 
 ## Global Constraints
 
-- `RELATIONSHIP_CAUSE` records only the server-observed association that a validated relationship transition occurred during an exact persisted dialogue turn.
-- No free-form LLM reason text, provider reasoning, hidden chain-of-thought, player prose, or NPC prose may become an authoritative cause.
-- `RELATIONSHIP_CHANGE` remains `SYSTEM_OBSERVED` numeric server truth; causal history stays a separate event type.
-- Only `DIALOGUE_TURN` exists as a cause kind in this slice.
-- Source NPC/player IDs, source event IDs, transition snapshot, provenance, confidence, timestamps, and cause kind are server-owned.
-- Cause admission requires both exact source events to already exist in the current world-local `MemoryEventStore`.
-- Retry/replay must be deterministic and idempotent.
-- Existing 0.2 Memory 2.0 entries remain readable; no backfill, dual reader, or legacy `memory.json` migration is introduced.
-- `RELATIONSHIP_CAUSE` is not projected into Semantic Memory in this slice.
-- Query isolation is exact NPC/player filtering before limiting; results are newest-first with deterministic `gameTime`, `createdAtEpochMillis`, UUID ordering.
-- Root `CHANGELOG.md` `[Unreleased]` is updated in the runtime PR.
-- Every production change is preceded by an observed failing test.
+- `RELATIONSHIP_CAUSE` means only: this accepted transition occurred during this exact persisted dialogue turn.
+- No free-form provider/player/NPC explanation becomes an authoritative cause.
+- Cause kind is only `DIALOGUE_TURN` in this slice.
+- Owner/player IDs, source IDs, transition snapshot, provenance, confidence, timestamps, and cause kind are server-owned.
+- Both exact source events must already exist in the same world-local `MemoryEventStore` before cause admission.
+- Retry/replay is deterministic and idempotent.
+- Existing 0.2 entries remain readable; no backfill, dual reader, or legacy `memory.json` migration.
+- `RELATIONSHIP_CAUSE` is not automatically projected into Semantic Memory.
+- Query filtering by exact NPC/player happens before limiting; order is newest-first with existing deterministic Memory 2.0 ordering.
+- Root `CHANGELOG.md` `[Unreleased]` changes in the runtime PR.
+- No production code before an observed failing test for that behavior.
 
 ---
 
-## File map
-
-- Modify `common/src/main/java/net/conczin/mca/livingworld/memory2/MemoryEvent.java` — add optional typed transition/cause payloads and `RELATIONSHIP_CAUSE`.
-- Modify `common/src/main/java/net/conczin/mca/livingworld/memory2/RelationshipChangeMemoryAdapter.java` — populate exact before/after transition payload while preserving empty `relationshipReasons`.
-- Modify `common/src/main/java/net/conczin/mca/livingworld/memory2/Memory2RelationshipChangeIngestor.java` — add result-bearing ingestion API returning the exact persisted relationship event.
-- Create `common/src/main/java/net/conczin/mca/livingworld/memory2/RelationshipCauseMemoryAdapter.java` — pure deterministic validated source-pair to cause-event mapping.
-- Create `common/src/main/java/net/conczin/mca/livingworld/memory2/RelationshipCauseLifecycle.java` — verify exact persisted sources and append idempotently.
-- Create `common/src/main/java/net/conczin/mca/livingworld/memory2/ResolvedRelationshipCause.java` — immutable query result containing cause, transition snapshot, and optional resolved sources.
-- Create `common/src/main/java/net/conczin/mca/livingworld/memory2/RelationshipCausalHistory.java` — exact NPC/player causal-history retrieval.
-- Modify `common/src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java` — return the exact server-created relationship event in internal snapshot metadata.
-- Modify `common/src/main/java/net/conczin/mca/entity/ai/chatAI/ChatAI.java` — persist DIALOGUE first, then create causal link from exact returned source events.
-- Modify/add tests under `common/src/test/java/net/conczin/mca/livingworld/memory2/` and `common/src/test/java/net/conczin/mca/entity/ai/chatAI/`.
-- Modify `CHANGELOG.md` — document the new causal relationship-memory behavior under `[Unreleased]`.
-
----
-
-### Task 1: Typed relationship transition payload
+### Task 1: Retain exact relationship transitions
 
 **Files:**
 - Modify: `common/src/main/java/net/conczin/mca/livingworld/memory2/MemoryEvent.java`
@@ -49,121 +32,67 @@
 - Test: `common/src/test/java/net/conczin/mca/livingworld/memory2/RelationshipChangeMemoryAdapterTest.java`
 
 **Interfaces:**
-- Produces: `MemoryEvent.RelationshipTransition.from(LivingWorldRelationshipState before, LivingWorldRelationshipState after)` represented by eight bounded integer fields.
-- Produces: nullable `MemoryEvent.relationshipTransition()` for new relationship events; old deserialized events may return `null`.
-- Preserves: `relationshipReasons()` remains `List.of()` for authoritative relationship transitions.
+- Produces: `MemoryEvent.RelationshipTransition(int beforeTrust, int beforeRespect, int beforeFear, int beforeAffinity, int afterTrust, int afterRespect, int afterFear, int afterAffinity)`.
+- Produces: nullable `MemoryEvent.relationshipTransition()`; absent on historical/non-relationship events.
+- Preserves: `relationshipReasons()` remains empty for authoritative relationship changes.
 
-- [ ] **Step 1: Write the failing tests**
-
-Add assertions equivalent to:
+- [ ] **Step 1: Write failing tests** requiring:
 
 ```java
-assertEquals(new MemoryEvent.RelationshipTransition(10, 4, 1, 7, 12, 3, 0, 8), event.relationshipTransition());
+assertEquals(
+        new MemoryEvent.RelationshipTransition(10, 4, 1, 7, 12, 3, 0, 8),
+        event.relationshipTransition()
+);
 assertEquals(List.of(), event.relationshipReasons());
 ```
 
-Also construct a compatibility `MemoryEvent` through the existing source-compatible constructor and assert `relationshipTransition() == null`.
+Also require the current source-compatible `MemoryEvent` constructor to produce `relationshipTransition() == null`.
 
-- [ ] **Step 2: Run tests to verify RED**
-
-Run:
+- [ ] **Step 2: Verify RED**
 
 ```bash
 ./gradlew :common:test --tests net.conczin.mca.livingworld.memory2.RelationshipChangeMemoryAdapterTest
 ```
 
-Expected: compile/test failure because `MemoryEvent.RelationshipTransition` and `relationshipTransition()` do not exist.
+Expected: compile failure because `RelationshipTransition`/accessor are absent.
 
-- [ ] **Step 3: Implement the minimal typed payload**
+- [ ] **Step 3: Implement minimal production** by adding only `RelationshipTransition relationshipTransition` after `DialogueExchange dialogue` in `MemoryEvent`. Existing constructors delegate with `null`. Clamp each transition value to the same `[-100, 100]` relationship domain. `RelationshipChangeMemoryAdapter` constructs the payload only from `change.before()` / `change.after()`.
 
-Extend the record tail to:
-
-```java
-DialogueExchange dialogue,
-RelationshipTransition relationshipTransition,
-RelationshipCause relationshipCause
-```
-
-Keep source-compatible constructors that pass `null` for new payloads. Add:
-
-```java
-public record RelationshipTransition(
-        int beforeTrust, int beforeRespect, int beforeFear, int beforeAffinity,
-        int afterTrust, int afterRespect, int afterFear, int afterAffinity
-) {
-    public RelationshipTransition {
-        beforeTrust = clampRelationship(beforeTrust);
-        beforeRespect = clampRelationship(beforeRespect);
-        beforeFear = clampRelationship(beforeFear);
-        beforeAffinity = clampRelationship(beforeAffinity);
-        afterTrust = clampRelationship(afterTrust);
-        afterRespect = clampRelationship(afterRespect);
-        afterFear = clampRelationship(afterFear);
-        afterAffinity = clampRelationship(afterAffinity);
-    }
-}
-```
-
-`RelationshipChangeMemoryAdapter` derives this exclusively from `change.before()` and `change.after()`.
-
-- [ ] **Step 4: Run focused tests GREEN**
+- [ ] **Step 4: Verify GREEN** with the same focused command, then commit:
 
 ```bash
-./gradlew :common:test --tests net.conczin.mca.livingworld.memory2.RelationshipChangeMemoryAdapterTest
-```
-
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add common/src/main/java/net/conczin/mca/livingworld/memory2/MemoryEvent.java \
-        common/src/main/java/net/conczin/mca/livingworld/memory2/RelationshipChangeMemoryAdapter.java \
-        common/src/test/java/net/conczin/mca/livingworld/memory2/RelationshipChangeMemoryAdapterTest.java
-git commit -m "feat: retain structured relationship transitions"
+git commit -am "feat: retain structured relationship transitions"
 ```
 
 ---
 
-### Task 2: Deterministic cause adapter and persisted-source lifecycle
+### Task 2: Admit deterministic causal events from persisted sources
 
 **Files:**
+- Modify: `common/src/main/java/net/conczin/mca/livingworld/memory2/MemoryEvent.java`
 - Create: `common/src/main/java/net/conczin/mca/livingworld/memory2/RelationshipCauseMemoryAdapter.java`
 - Create: `common/src/main/java/net/conczin/mca/livingworld/memory2/RelationshipCauseLifecycle.java`
-- Modify: `common/src/main/java/net/conczin/mca/livingworld/memory2/MemoryEvent.java`
 - Create: `common/src/test/java/net/conczin/mca/livingworld/memory2/RelationshipCauseMemoryAdapterTest.java`
 - Create: `common/src/test/java/net/conczin/mca/livingworld/memory2/RelationshipCauseLifecycleTest.java`
 
 **Interfaces:**
-- Produces: `MemoryEvent.Type.RELATIONSHIP_CAUSE`.
-- Produces: `MemoryEvent.RelationshipCause(CauseKind kind, UUID relationshipChangeEventId, UUID evidenceEventId, RelationshipTransition transitionSnapshot)`.
-- Produces: `MemoryEvent.CauseKind.DIALOGUE_TURN` only.
-- Produces: `RelationshipCauseLifecycle.recordDialogueTurn(boolean enabled, Path worldRoot, MemoryEvent relationshipChange, MemoryEvent dialogue, UUID playerId, int maxEventsPerNpc) -> Optional<MemoryEvent>`.
+- Add `MemoryEvent.Type.RELATIONSHIP_CAUSE`.
+- Add `MemoryEvent.CauseKind.DIALOGUE_TURN`.
+- Add `MemoryEvent.RelationshipCause(CauseKind kind, UUID relationshipChangeEventId, UUID evidenceEventId, RelationshipTransition transitionSnapshot)` and nullable `relationshipCause()` payload.
+- Produce `RelationshipCauseMemoryAdapter.toDialogueTurnCause(MemoryEvent relationshipChange, MemoryEvent dialogue, UUID playerId) -> Optional<MemoryEvent>`.
+- Produce `RelationshipCauseLifecycle.recordDialogueTurn(boolean enabled, Path worldRoot, MemoryEvent relationshipChange, MemoryEvent dialogue, UUID playerId, int maxEventsPerNpc) -> Optional<MemoryEvent>`.
 
-- [ ] **Step 1: Write adapter RED tests**
-
-Tests must require a valid pair to create exactly:
+- [ ] **Step 1: Write adapter RED tests**. A valid pair must yield `RELATIONSHIP_CAUSE`, `SYSTEM_OBSERVED`, confidence 100, exact source IDs and exact copied transition snapshot. Summary must be exactly generic and must not contain dialogue text. Reject wrong owner/player/type, missing transition, and missing owner/player participants.
 
 ```java
-MemoryEvent cause = RelationshipCauseMemoryAdapter.toDialogueTurnCause(change, dialogue, player).orElseThrow();
-assertEquals(MemoryEvent.Type.RELATIONSHIP_CAUSE, cause.type());
-assertEquals(MemoryEvent.Provenance.SYSTEM_OBSERVED, cause.provenance());
-assertEquals(100, cause.confidence());
-assertEquals(MemoryEvent.CauseKind.DIALOGUE_TURN, cause.relationshipCause().kind());
+assertEquals("Relationship change occurred during dialogue with player.", cause.summary());
 assertEquals(change.id(), cause.relationshipCause().relationshipChangeEventId());
 assertEquals(dialogue.id(), cause.relationshipCause().evidenceEventId());
-assertEquals(change.relationshipTransition(), cause.relationshipCause().transitionSnapshot());
-assertFalse(cause.summary().contains(dialogue.dialogue().playerMessage()));
-assertFalse(cause.summary().contains(dialogue.dialogue().npcReply()));
 ```
 
-Reject wrong owner, wrong player, non-`RELATIONSHIP_CHANGE`, non-`DIALOGUE`, missing transition payload, null IDs, or source events that do not contain both owner NPC and player.
+- [ ] **Step 2: Write lifecycle RED tests**. Persist matching sources, require one cause; replay must stay one. Pass an otherwise valid but unpersisted source event and require no cause.
 
-- [ ] **Step 2: Write lifecycle RED tests**
-
-Persist matching sources into `MemoryEventStore`, call `recordDialogueTurn`, and require one idempotent cause. Then pass an otherwise valid but unpersisted source object and require no write.
-
-- [ ] **Step 3: Run tests to verify RED**
+- [ ] **Step 3: Verify RED**
 
 ```bash
 ./gradlew :common:test \
@@ -173,61 +102,42 @@ Persist matching sources into `MemoryEventStore`, call `recordDialogueTurn`, and
 
 Expected: compile failure because cause types/classes are absent.
 
-- [ ] **Step 4: Implement minimal adapter**
-
-Use deterministic ID namespace `memory2-relationship-cause-v1` and canonical input:
+- [ ] **Step 4: Implement minimal production**. Deterministic UUID input is:
 
 ```text
-namespace\nownerNpcId\nrelationshipChangeEventId\nevidenceEventId\nDIALOGUE_TURN
+memory2-relationship-cause-v1
+ownerNpcId
+relationshipChangeEventId
+evidenceEventId
+DIALOGUE_TURN
 ```
 
-Create generic summary only:
+`RelationshipCauseLifecycle` verifies both exact UUIDs are currently persisted under the owner using `MemoryEventStore.getRecentMatching` before append. It never reconstructs missing sources from summaries or provider output.
 
-```text
-Relationship change occurred during dialogue with player.
-```
-
-Copy only the structured transition snapshot from the relationship event.
-
-- [ ] **Step 5: Implement lifecycle persisted-source validation**
-
-Use `MemoryEventStore.forWorld(worldRoot).getRecentMatching(...)` to prove both exact source UUIDs are currently stored under the same owner before appending the cause. Never reconstruct missing sources from summaries/provider output.
-
-- [ ] **Step 6: Run focused tests GREEN**
-
-Run the Task 2 command again. Expected: PASS.
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 5: Verify GREEN**, then commit:
 
 ```bash
-git add common/src/main/java/net/conczin/mca/livingworld/memory2/MemoryEvent.java \
-        common/src/main/java/net/conczin/mca/livingworld/memory2/RelationshipCauseMemoryAdapter.java \
-        common/src/main/java/net/conczin/mca/livingworld/memory2/RelationshipCauseLifecycle.java \
-        common/src/test/java/net/conczin/mca/livingworld/memory2/RelationshipCauseMemoryAdapterTest.java \
-        common/src/test/java/net/conczin/mca/livingworld/memory2/RelationshipCauseLifecycleTest.java
+git add common/src/main/java/net/conczin/mca/livingworld/memory2 common/src/test/java/net/conczin/mca/livingworld/memory2
 git commit -m "feat: persist validated relationship causes"
 ```
 
 ---
 
-### Task 3: Result-bearing relationship ingestion and exact ChatAI orchestration
+### Task 3: Carry the exact relationship event through ChatAI orchestration
 
 **Files:**
 - Modify: `common/src/main/java/net/conczin/mca/livingworld/memory2/Memory2RelationshipChangeIngestor.java`
 - Modify: `common/src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java`
 - Modify: `common/src/main/java/net/conczin/mca/entity/ai/chatAI/ChatAI.java`
 - Modify: `common/src/test/java/net/conczin/mca/livingworld/memory2/Memory2RelationshipChangeIngestorTest.java`
-- Modify/create focused `OpenAIChatAI`/`ChatAI` structural or orchestration tests following existing package conventions.
+- Modify/create focused `OpenAIChatAI` / `ChatAI` contract tests in their existing test package.
 
 **Interfaces:**
-- Produces: `Memory2RelationshipChangeIngestor.recordAndReturnIfEnabled(...) -> Optional<MemoryEvent>`.
-- Produces: `Memory2RelationshipChangeIngestor.recordAndReturn(...) -> Optional<MemoryEvent>`.
-- Preserves existing `void record*` methods by delegating and ignoring the return.
-- Extends internal `OpenAIChatAI.SnapshotAnswer` with `Optional<MemoryEvent> relationshipChangeEvent` while preserving compatibility constructors used by current tests.
+- Add `recordAndReturnIfEnabled(...) -> Optional<MemoryEvent>` and `recordAndReturn(...) -> Optional<MemoryEvent>`; existing void methods delegate and ignore the result.
+- `OpenAIChatAI.applySnapshotRelationshipDelta(...) -> Optional<MemoryEvent>`.
+- `OpenAIChatAI.SnapshotAnswer` gains server-only `Optional<MemoryEvent> relationshipChangeEvent`, with compatibility constructor(s) for existing tests/callers.
 
-- [ ] **Step 1: Write ingestion RED test**
-
-Require:
+- [ ] **Step 1: Write ingestion RED test**:
 
 ```java
 MemoryEvent persisted = Memory2RelationshipChangeIngestor.recordAndReturn(
@@ -236,175 +146,108 @@ MemoryEvent persisted = Memory2RelationshipChangeIngestor.recordAndReturn(
 assertEquals(persisted.id(), MemoryEventStore.forWorld(tempDir).getRecent(npc, 16).getFirst().id());
 ```
 
-Disabled/unchanged/null-world cases return `Optional.empty()`.
+Disabled/unchanged/null-world paths return empty.
 
-- [ ] **Step 2: Write orchestration RED tests**
-
-Require the snapshot path to carry only the server-created relationship event; no structured provider field may supply relationship source UUID/cause reason. Require `ChatAI` source ordering:
+- [ ] **Step 2: Write orchestration RED tests** requiring this order:
 
 ```text
-answerDetailed -> exact relationship event
-Memory2DialogueLifecycle.recordSuccessful -> exact dialogue event
+answerDetailed -> server-created RELATIONSHIP_CHANGE metadata
+Memory2DialogueLifecycle.recordSuccessful -> exact DIALOGUE
 RelationshipCauseLifecycle.recordDialogueTurn -> cause
 PlayerToldBeliefLifecycle.recordCandidatesIfEnabled -> beliefs
 ```
 
-No relationship event or failed DIALOGUE persistence means no cause admission.
+Also assert there is no structured provider field for a cause UUID or free-form relationship reason.
 
-- [ ] **Step 3: Run tests to verify RED**
+- [ ] **Step 3: Verify RED**
 
 ```bash
 ./gradlew :common:test --tests net.conczin.mca.livingworld.memory2.Memory2RelationshipChangeIngestorTest
 ./gradlew :common:test --tests '*ChatAI*'
 ```
 
-Expected: failures because result-bearing APIs and causal orchestration do not yet exist.
+- [ ] **Step 4: Implement minimal production**. `Memory2RelationshipChangeIngestor` appends and returns the same adapter-created event; Semantic FACT ingestion reuses it. `OpenAIChatAI` returns the optional server-created event but does not change provider parsing. `ChatAI` calls `RelationshipCauseLifecycle` only after `rememberMemory2Dialogue` returns the exact persisted DIALOGUE. Cause-persistence failure is logged and does not roll back numeric relationship state.
 
-- [ ] **Step 4: Implement result-bearing ingestion**
-
-Append first, then return exactly the event produced by `RelationshipChangeMemoryAdapter`. Semantic FACT ingestion keeps using that same event. Existing void methods delegate to the new result-bearing methods.
-
-- [ ] **Step 5: Implement OpenAI snapshot metadata**
-
-Change `applySnapshotRelationshipDelta(...)` to return `Optional<MemoryEvent>`. It returns empty for disabled/null/no-change/persistence failure. Put this optional into `SnapshotAnswer`; provider parsing remains unchanged.
-
-- [ ] **Step 6: Implement ChatAI causal ordering**
-
-After `rememberMemory2Dialogue(...)` returns the exact DIALOGUE event, call:
-
-```java
-if (sourceEvent.isPresent() && snapshotAnswer.relationshipChangeEvent().isPresent()) {
-    RelationshipCauseLifecycle.recordDialogueTurn(
-            config.memory2Enabled,
-            snapshot.worldRoot(),
-            snapshotAnswer.relationshipChangeEvent().orElseThrow(),
-            sourceEvent.orElseThrow(),
-            snapshot.playerId(),
-            config.memory2MaxEventsPerNpc
-    );
-}
-```
-
-Wrap auxiliary persistence failure using the existing bounded warning pattern. Do not roll back the already-persisted numeric relationship state.
-
-- [ ] **Step 7: Run focused tests GREEN**
-
-Run the Task 3 commands again. Expected: PASS.
-
-- [ ] **Step 8: Commit**
+- [ ] **Step 5: Verify GREEN**, then commit:
 
 ```bash
-git add common/src/main/java/net/conczin/mca/livingworld/memory2/Memory2RelationshipChangeIngestor.java \
-        common/src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java \
-        common/src/main/java/net/conczin/mca/entity/ai/chatAI/ChatAI.java \
-        common/src/test/java/net/conczin/mca/livingworld/memory2/Memory2RelationshipChangeIngestorTest.java \
-        common/src/test/java/net/conczin/mca/entity/ai/chatAI
+git add common/src/main/java/net/conczin/mca/entity/ai/chatAI \
+        common/src/main/java/net/conczin/mca/livingworld/memory2 \
+        common/src/test/java/net/conczin/mca
 git commit -m "feat: link relationship changes to dialogue turns"
 ```
 
 ---
 
-### Task 4: Queryable causal history and restart behavior
+### Task 4: Query causal history and survive restart/source eviction
 
 **Files:**
 - Create: `common/src/main/java/net/conczin/mca/livingworld/memory2/ResolvedRelationshipCause.java`
 - Create: `common/src/main/java/net/conczin/mca/livingworld/memory2/RelationshipCausalHistory.java`
 - Create: `common/src/test/java/net/conczin/mca/livingworld/memory2/RelationshipCausalHistoryTest.java`
-- Modify if needed: `common/src/test/java/net/conczin/mca/livingworld/memory2/MemoryEventStoreTest.java`
 
 **Interfaces:**
-- Produces: `RelationshipCausalHistory.getRecent(Path worldRoot, UUID npcId, UUID playerId, int maxResults) -> List<ResolvedRelationshipCause>`.
-- Produces `ResolvedRelationshipCause(MemoryEvent causeEvent, MemoryEvent.RelationshipTransition transition, UUID relationshipChangeEventId, Optional<MemoryEvent> relationshipChangeEvent, UUID evidenceEventId, Optional<MemoryEvent> evidenceEvent)`.
+- `RelationshipCausalHistory.getRecent(Path worldRoot, UUID npcId, UUID playerId, int maxResults) -> List<ResolvedRelationshipCause>`.
+- `ResolvedRelationshipCause(MemoryEvent causeEvent, MemoryEvent.RelationshipTransition transition, UUID relationshipChangeEventId, Optional<MemoryEvent> relationshipChangeEvent, UUID evidenceEventId, Optional<MemoryEvent> evidenceEvent)`.
 
-- [ ] **Step 1: Write query RED tests**
+- [ ] **Step 1: Write RED tests** covering exact NPC/player isolation before limit, newest-first deterministic order, restart deserialization, and source eviction where source optionals become empty but IDs/transition snapshot remain intact.
 
-Create causes for multiple NPC/player pairs and require exact filtering before limit. Require newest-first deterministic order. After source eviction, require returned optionals empty while IDs and transition snapshot remain intact.
-
-- [ ] **Step 2: Write restart RED test**
-
-Persist source/cause data, instantiate a fresh store view from the same file path using the package-visible constructor or existing recovery-test pattern, then assert the cause payload and source IDs deserialize unchanged.
-
-- [ ] **Step 3: Run tests to verify RED**
+- [ ] **Step 2: Verify RED**
 
 ```bash
 ./gradlew :common:test --tests net.conczin.mca.livingworld.memory2.RelationshipCausalHistoryTest
 ```
 
-Expected: compile failure because query types are absent.
+- [ ] **Step 3: Implement minimal query**. Read only `RELATIONSHIP_CAUSE` events containing exact owner/player participants, limit after filtering, and resolve referenced source events by exact UUID/type/owner. Missing references remain `Optional.empty()`; never synthesize prose.
 
-- [ ] **Step 4: Implement query**
-
-Filter `RELATIONSHIP_CAUSE` events by exact owner + player participant first, then newest-first limit. Resolve referenced events only by exact UUID/type/owner from the current store. Missing references remain `Optional.empty()`.
-
-- [ ] **Step 5: Run focused tests GREEN**
-
-Run the Task 4 command again. Expected: PASS.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 4: Verify GREEN**, then commit:
 
 ```bash
-git add common/src/main/java/net/conczin/mca/livingworld/memory2/ResolvedRelationshipCause.java \
-        common/src/main/java/net/conczin/mca/livingworld/memory2/RelationshipCausalHistory.java \
-        common/src/test/java/net/conczin/mca/livingworld/memory2/RelationshipCausalHistoryTest.java
+git add common/src/main/java/net/conczin/mca/livingworld/memory2 \
+        common/src/test/java/net/conczin/mca/livingworld/memory2
 git commit -m "feat: query causal relationship history"
 ```
 
 ---
 
-### Task 5: Truth-boundary regression, changelog, and complete verification
+### Task 5: Truth-boundary regression and exact-head verification
 
 **Files:**
-- Modify/create structural regression tests in `common/src/test/java/net/conczin/mca/livingworld/memory2/` and `common/src/test/java/net/conczin/mca/entity/ai/chatAI/`.
+- Modify/create relevant relationship/semantic/chat structural tests.
 - Modify: `CHANGELOG.md`
 
-**Interfaces:**
-- Preserves: structured provider response contains numeric `relationshipDelta` but no free-form relationship-cause/reason field.
-- Preserves: `RelationshipChangeMemoryAdapter` writes `List.of()` into legacy `relationshipReasons`.
-- Preserves: `ControlledSemanticMemoryIngestor` does not admit `RELATIONSHIP_CAUSE` as an automatic Semantic FACT.
+**Interfaces preserved:**
+- provider response may propose bounded numeric `relationshipDelta`, but no cause/reason authority field;
+- `relationshipReasons` remains empty for `RELATIONSHIP_CHANGE`;
+- `RELATIONSHIP_CAUSE` is not automatically Semantic FACT eligible;
+- classic/Inworld paths remain outside this slice.
 
-- [ ] **Step 1: Add regression tests before any hardening production edit**
+- [ ] **Step 1: Add regression tests first** for those four boundaries. Any discovered regression gets its own observed RED before production hardening.
 
-Use structural/source contract tests already established in the repository to assert:
-
-```text
-no relationshipReason / causeReason provider field
-relationshipReasons remains empty for RELATIONSHIP_CHANGE
-RELATIONSHIP_CAUSE is not Semantic FACT eligible
-classic/Inworld answer paths do not invoke RelationshipCauseLifecycle
-```
-
-- [ ] **Step 2: Run focused regression tests**
+- [ ] **Step 2: Run focused regressions**
 
 ```bash
 ./gradlew :common:test --tests '*Relationship*' --tests '*Semantic*' --tests '*ChatAI*'
 ```
 
-Expected: PASS unless a real boundary regression is exposed; any RED here must be fixed minimally with another explicit TDD cycle.
+- [ ] **Step 3: Update root `CHANGELOG.md` `[Unreleased]`** with deterministic dialogue-to-relationship causal history, source UUID linkage, retry/restart behavior, and explicit rejection of model-generated authoritative reasons.
 
-- [ ] **Step 3: Update canonical changelog**
-
-Under root `[Unreleased]`, add one concise product entry describing deterministic server-authored dialogue-to-relationship causal history, source UUID linkage, retry/restart persistence, and the explicit prohibition on model-generated authoritative reasons.
-
-- [ ] **Step 4: Run complete local/shared verification**
+- [ ] **Step 4: Run complete verification**
 
 ```bash
 ./gradlew :common:test
 ./gradlew build
 ```
 
-Then use repository CI selectors for runtime + Memory 2.0 persistence changes and require the exact PR head to pass security, required GameTests, Fabric/NeoForge, startup/restart, persistence recovery, package smoke, production soak, and release dry-run with publication skipped.
+Then require exact PR head success for repository security, selected server GameTests, Fabric + NeoForge builds, startup/restart acceptance, five-store persistence recovery, package smoke, production soak, and GitHub Release dry-run with publication skipped.
 
-- [ ] **Step 5: Independent diff review**
+- [ ] **Step 5: Independent exact-head review** for authority leakage, source mismatch, replay duplication, persistence compatibility, accidental prompt behavior changes, and P0/P1/P2 findings. Fix valid findings through a new RED/GREEN cycle.
 
-Review exact-head diff for authority leakage, source mismatches, retry duplication, persistence compatibility, accidental prompt behavior changes, and unresolved P0/P1/P2 findings. Fix any valid finding through a new RED/GREEN cycle.
-
-- [ ] **Step 6: Commit final docs/hardening**
+- [ ] **Step 6: Commit final changelog/hardening**
 
 ```bash
 git add CHANGELOG.md common/src/test/java
 git commit -m "docs: record causal relationship memory"
 ```
 
-- [ ] **Step 7: Merge only exact verified head**
-
-Before squash merge, verify the PR head SHA has not moved since all required gates/review completed. Merge with exact expected head SHA and then reconcile `docs/PROJECT_STATE.md` / `docs/ROADMAP.md` in a separate documentation-only handoff PR if the repository governance continues to prefer that pattern.
+- [ ] **Step 7: Merge only the verified exact head SHA**, then reconcile `docs/PROJECT_STATE.md` / `docs/ROADMAP.md` in a separate docs-only handoff PR if current repository governance remains unchanged.
