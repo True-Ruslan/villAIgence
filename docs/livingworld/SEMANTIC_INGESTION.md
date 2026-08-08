@@ -4,21 +4,18 @@
 
 Semantic Memory ingestion is an active Memory 2.0 subsystem.
 
-Implemented layers now include:
+Implemented layers include:
 
 - controlled server-observed FACT production;
 - explicit provenance-safe BELIEF sources;
 - deterministic consolidation/source union;
 - deterministic pressure-based forgetting;
-- controlled BELIEF admission from explicit persisted source evidence.
+- controlled BELIEF admission from explicit persisted source evidence;
+- opt-in bounded `PLAYER_TOLD` claim extraction from the existing structured chat response.
 
-Automatic free-form LLM claim extraction is still not implemented.
+The extraction path is advisory and non-authoritative. It does not create FACT and does not make a second provider request.
 
-## Purpose
-
-Semantic Memory must allow NPCs to remember knowledge without confusing conversation, inference, or model output with authoritative Minecraft truth.
-
-Canonical truth boundary:
+## Truth boundary
 
 ```text
 FACT   -> SYSTEM_OBSERVED only
@@ -26,6 +23,8 @@ BELIEF -> PLAYER_TOLD | NPC_TOLD | INFERRED only
 ```
 
 Confidence never upgrades BELIEF into FACT.
+
+Current observed world facts remain authoritative when they conflict with recalled beliefs.
 
 ---
 
@@ -113,14 +112,100 @@ Rejected admission writes nothing.
 
 ---
 
-## Persistence producer
+## Opt-in PLAYER_TOLD extraction
 
-`ControlledSemanticBeliefProducer.recordIfEnabled(...)` performs:
+The next Memory 2.0 layer uses the existing structured OpenAI/OpenRouter Chat response. It does **not** issue a second model request.
+
+When enabled, the structured response may contain:
+
+```json
+{
+  "message": "natural NPC reply",
+  "optionalCommand": "",
+  "relationshipDelta": null,
+  "beliefCandidates": [
+    "short durable claim explicitly asserted by the latest player message"
+  ]
+}
+```
+
+The model controls only candidate statement text. It does not control semantic authority metadata.
+
+Server-owned code fixes:
 
 ```text
-explicit persisted MemoryEvent
-+ bounded claim candidate
-+ explicit BELIEF provenance
+owner NPC UUID
+current player UUID
+provenance = PLAYER_TOLD
+source = the exact persisted DIALOGUE MemoryEvent
+kind = BELIEF
+```
+
+Required order:
+
+```text
+provider returns one structured answer
+-> visible message is sanitized
+-> successful DIALOGUE is persisted to memory2.json
+-> exact persisted DIALOGUE MemoryEvent is returned to the lifecycle
+-> bounded candidate strings are admitted as PLAYER_TOLD BELIEF
+-> semantic-memory.json
+```
+
+If DIALOGUE persistence fails or no successful visible answer exists, no semantic BELIEF candidate is persisted.
+
+### Configuration
+
+Extraction is deliberately disabled by default:
+
+```json
+{
+  "semanticBeliefExtractionEnabled": false,
+  "semanticBeliefMaxCandidatesPerTurn": 3
+}
+```
+
+Hard limits:
+
+```text
+max candidates per turn: 8
+max candidate statement: 240 Unicode code points
+```
+
+Existing config version remains `2`. Missing fields receive safe defaults; no config migration is required.
+
+### Candidate parser
+
+`SemanticBeliefCandidateParser`:
+
+- accepts only a JSON array of strings;
+- fails closed to an empty list for null, blank, malformed or non-array input;
+- ignores non-string elements;
+- Unicode-normalizes with NFKC;
+- collapses whitespace/control characters;
+- truncates by Unicode code points;
+- deduplicates normalized candidates while preserving order;
+- clamps candidate count to the hard maximum.
+
+### Prompt contract
+
+`SemanticBeliefExtractionPrompt` asks for only short durable claims explicitly asserted by the **latest player message**.
+
+It explicitly requires `[]` for greetings, questions, commands, transient chatter or when no useful durable claim is present, and forbids provenance/source/truth/FACT metadata in model output.
+
+The extraction prompt is added only when both Memory 2.0 and semantic belief extraction are enabled.
+
+---
+
+## Persistence producer
+
+`PlayerToldBeliefLifecycle` feeds provider-supplied statement text into the already-existing controlled admission path:
+
+```text
+candidate statement
++ exact persisted PLAYER_TOLD DIALOGUE event
++ server-owned player UUID
+-> ControlledSemanticBeliefProducer
 -> SemanticBeliefAdmissionPolicy
 -> SemanticBeliefSource
 -> ControlledSemanticMemoryIngestor
@@ -128,36 +213,25 @@ explicit persisted MemoryEvent
 -> semantic-memory.json
 ```
 
-The producer is disabled/no-op when Memory 2.0 semantic ingestion is disabled or no world root is available.
-
 Exact replay remains idempotent through deterministic semantic identity and store replay handling.
 
-Equivalent corroborating claims from distinct source events pass through the existing deterministic consolidation pipeline and union their source UUIDs rather than multiplying identical entries.
+Equivalent corroborating claims from distinct source events pass through the deterministic consolidation pipeline and union their source UUIDs rather than multiplying identical entries.
 
 ---
 
 ## Dialogue boundary
 
-Ordinary dialogue still does **not** automatically become Semantic Memory merely because a DIALOGUE event exists.
+Dialogue is still episodic by default.
 
 ```text
 DIALOGUE MemoryEvent
 -> episodic memory
--> no semantic entry unless a controlled producer supplies an explicit claim candidate
+-> no semantic entry while extraction is disabled
 ```
 
-The mod still does not ask an LLM to decide that arbitrary dialogue text is true.
+When extraction is enabled, only explicit bounded candidate metadata may feed the controlled BELIEF path. The raw NPC reply is never itself treated as truth, and the model cannot create a FACT.
 
-A future extraction layer must remain separate from admission:
-
-```text
-conversation/evidence
--> bounded inspectable candidate extraction
--> admission policy
--> BELIEF persistence
-```
-
-Extraction failure, malformed output, provider failure, or an empty candidate must create no semantic entry.
+Classic/Inworld paths remain outside this extraction slice.
 
 ---
 
@@ -175,75 +249,65 @@ semantic-belief-v1
 + sorted source event UUIDs
 ```
 
-The Semantic Memory store then applies the existing deterministic consolidation policy. Equivalent entries with compatible owner/kind/provenance/statement/related-entity boundaries union source evidence. Confidence is not artificially promoted by consolidation.
-
----
-
-## Bounds
-
-- statements are normalized for whitespace/control characters;
-- persisted semantic statements are capped at 240 Unicode code points;
-- importance and confidence remain bounded 0..100;
-- semantic retention remains bounded per NPC;
-- source evidence is explicit;
-- `semantic-memory.json` remains the current world-local semantic store;
-- no embeddings or vector database are required by this contract.
+The Semantic Memory store then applies deterministic consolidation. Equivalent entries with compatible owner/kind/provenance/statement/related-entity boundaries union source evidence. Confidence is not artificially promoted by consolidation.
 
 ---
 
 ## Security and authority properties
 
-The controlled BELIEF path does not:
+The controlled BELIEF/extraction path does not:
 
 - create FACT from dialogue;
-- accept `SYSTEM_OBSERVED` as a BELIEF provenance;
+- accept `SYSTEM_OBSERVED` as BELIEF provenance;
+- let the model choose owner/player/source UUIDs;
+- let the model choose truth labels;
 - change Minecraft state;
 - authorize server actions;
 - infer truth from confidence;
-- expose provider reasoning;
-- call an external provider itself.
+- persist provider hidden reasoning;
+- make a second provider request for extraction.
 
-Current observed world facts remain authoritative when they conflict with recalled beliefs.
+Malformed extraction metadata fails soft and cannot invalidate an otherwise valid visible NPC reply.
 
 ---
 
-## TDD evidence for controlled BELIEF admission
+## TDD evidence
 
-PR #123 established a tests-first RED boundary before production classes existed.
+### Controlled BELIEF admission — PR #123
 
-RED production head predecessor:
+Tests-only RED head:
 
 ```text
 1b8818e34208211c0631a3d852b5fd2e9409743d
 ```
 
-Production Soak #52 reached `:common:compileTestJava` and failed on the intentionally missing:
+Production Soak #52 reached `:common:compileTestJava` and failed on intentionally missing `SemanticBeliefAdmissionPolicy` and `ControlledSemanticBeliefProducer` production APIs. Final PR #123 exact-head security, CI, production soak and release dry-run all passed before merge.
 
-```text
-SemanticBeliefAdmissionPolicy
-ControlledSemanticBeliefProducer
-```
+### PLAYER_TOLD extraction — PR #125
 
-The repository/soak contract checks before compilation passed, confirming the failure was the intended missing-feature RED rather than an infrastructure failure.
+The feature is developed tests-first from parser/structured-metadata contracts before production wiring. Required final acceptance includes:
 
-Initial GREEN production head:
+- parser bounds/normalization/deduplication;
+- structured-response metadata isolation;
+- safe disabled defaults and config normalization;
+- persisted DIALOGUE source identity returned to the semantic lifecycle;
+- one semantic write path only after successful DIALOGUE persistence;
+- provider retry/replay idempotency;
+- no AI-to-FACT path;
+- no second provider request;
+- retained voice deadline/commit ordering policy;
+- final exact-head repository security, main CI, production soak and release dry-run.
 
-```text
-3da22729bcf2b8f981a1935dea69bff27b81bb22
-```
-
-On that exact head, `Run common and deterministic mock-provider tests` passed in VillAIgence CI #1834 before documentation commits were added.
-
-Final exact-head validation must be recorded in PR #123 after all documentation and review changes are complete.
+Final exact-head run IDs are recorded in PR #125 after all changes are complete.
 
 ---
 
 ## Remaining 0.2 work
 
-The next semantic-memory steps remain:
+After bounded player-told extraction, the next semantic/social-memory steps are:
 
-1. a bounded inspectable claim-extraction contract that can feed the admission API without granting authority to the provider;
-2. trustworthy causal relationship-change reasons tied to validated source events;
+1. trustworthy causal relationship-change reasons tied to validated source events;
+2. retrieval precedence regression scenarios for current FACT/context over conflicting BELIEF;
 3. long-horizon recall scenarios;
 4. NPC-to-NPC knowledge transfer using the `NPC_TOLD` contract;
 5. provenance-aware rumor propagation with uncertainty and bounded distortion.
