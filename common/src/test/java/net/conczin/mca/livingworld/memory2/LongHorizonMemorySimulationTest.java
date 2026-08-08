@@ -72,8 +72,12 @@ class LongHorizonMemorySimulationTest {
                 id(211), npc, List.of(currentPlayer, otherEntity), 2L,
                 "shared-current-player-old-durable-semantic", 95, 95
         ), 128);
+        semantic.append(semanticScopedBelief(
+                id(213), npc, List.of(), 3L,
+                "npc-global-old-durable-semantic", 90, 90
+        ), 128);
         semantic.append(semanticBelief(
-                id(212), otherNpc, currentPlayer, 3L,
+                id(212), otherNpc, currentPlayer, 4L,
                 "other-npc-durable-semantic", 100, 100
         ), 128);
         for (int i = 0; i < 24; i++) {
@@ -98,8 +102,12 @@ class LongHorizonMemorySimulationTest {
                 id(221), npc, List.of(npc, currentPlayer, otherEntity), 2L,
                 "shared-current-player-old-important-action", 95, 95
         ), 128);
+        episodic.append(action(
+                id(223), npc, List.of(npc), 3L,
+                "npc-global-old-important-action", 90, 90
+        ), 128);
         episodic.append(relationshipChange(
-                id(222), otherNpc, currentPlayer, 3L,
+                id(222), otherNpc, currentPlayer, 4L,
                 "other-npc-important-relationship", 100, 100
         ), 128);
         for (int i = 0; i < 24; i++) {
@@ -128,6 +136,9 @@ class LongHorizonMemorySimulationTest {
         assertTrue(semanticContext.stream().anyMatch(
                 line -> line.contains("shared-current-player-old-durable-semantic")
         ));
+        assertTrue(semanticContext.stream().anyMatch(
+                line -> line.contains("npc-global-old-durable-semantic")
+        ));
         assertTrue(semanticContext.stream().noneMatch(line -> line.contains("foreign-durable-semantic-")));
         assertTrue(semanticContext.stream().noneMatch(line -> line.contains("other-npc-durable-semantic")));
 
@@ -136,6 +147,9 @@ class LongHorizonMemorySimulationTest {
         ));
         assertTrue(episodicContext.stream().anyMatch(
                 line -> line.contains("shared-current-player-old-important-action")
+        ));
+        assertTrue(episodicContext.stream().anyMatch(
+                line -> line.contains("npc-global-old-important-action")
         ));
         assertTrue(episodicContext.stream().noneMatch(line -> line.contains("foreign-durable-relationship-")));
         assertTrue(episodicContext.stream().noneMatch(line -> line.contains("other-npc-important-relationship")));
