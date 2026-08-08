@@ -25,7 +25,13 @@ public final class SemanticMemoryContextProvider {
                 CANDIDATE_LIMIT,
                 MAX_RESULTS
         );
-        List<RankedSemanticMemory> ranked = SemanticMemoryRetriever.retrieve(SemanticMemoryStore.forWorld(worldRoot), query);
+        SemanticMemoryStore store = SemanticMemoryStore.forWorld(worldRoot);
+        List<SemanticMemoryEntry> candidates = store.getRecentMatching(
+                npcId,
+                CANDIDATE_LIMIT,
+                entry -> PlayerScopedMemoryEligibility.semantic(entry, npcId, playerId)
+        );
+        List<RankedSemanticMemory> ranked = SemanticMemoryRetriever.rankCandidates(candidates, query);
         return SemanticMemoryContextFormatter.format(ranked);
     }
 }

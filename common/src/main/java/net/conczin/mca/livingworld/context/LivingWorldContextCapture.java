@@ -50,7 +50,7 @@ public final class LivingWorldContextCapture {
         RelationModule.apply(context, villager, player);
         VillageModule.apply(context, villager, player);
         EnvironmentModule.apply(context, villager, player);
-        PlayerModule.apply(context, villager, player);
+        PlayerModule.applySnapshotContext(context, villager, player);
 
         BlockPos position = villager.blockPosition();
         String dimension = villager.level().dimension().location().toString();

@@ -20,7 +20,12 @@ public final class MemoryRetriever {
 
     public static List<RankedMemory> retrieve(MemoryEventStore store, MemoryQuery query) {
         if (store == null || query == null) return List.of();
-        return store.getRecent(query.npcId(), query.candidateLimit()).stream()
+        return rankCandidates(store.getRecent(query.npcId(), query.candidateLimit()), query);
+    }
+
+    static List<RankedMemory> rankCandidates(List<MemoryEvent> candidates, MemoryQuery query) {
+        if (candidates == null || candidates.isEmpty() || query == null) return List.of();
+        return candidates.stream()
                 .map(event -> rank(event, query))
                 .sorted(RANKING)
                 .limit(query.maxResults())

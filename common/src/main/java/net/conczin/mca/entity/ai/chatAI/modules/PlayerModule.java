@@ -23,6 +23,11 @@ public class PlayerModule {
     );
 
     public static void apply(List<String> input, VillagerEntityMCA villager, ServerPlayer player) {
+        applySnapshotContext(input, villager, player);
+        MemoryModule.apply(input, villager, player);
+    }
+
+    public static void applySnapshotContext(List<String> input, VillagerEntityMCA villager, ServerPlayer player) {
         List<String> list = advancements.entrySet().stream()
                 .filter(entry -> {
                     AdvancementHolder advancement = Objects.requireNonNull(player.getServer()).getAdvancements().get(entry.getKey());
@@ -41,7 +46,5 @@ public class PlayerModule {
                 input.add(advancement + " ");
             }
         }
-
-        MemoryModule.apply(input, villager, player);
     }
 }

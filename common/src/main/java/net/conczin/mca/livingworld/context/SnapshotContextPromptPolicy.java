@@ -1,10 +1,11 @@
 package net.conczin.mca.livingworld.context;
 
+import net.conczin.mca.livingworld.memory2.MemoryContextFormatter;
+import net.conczin.mca.livingworld.memory2.SemanticMemoryContextFormatter;
+
 import java.util.List;
 
-/**
- * Loader-independent prompt policy for observed facts and explicit server/operator-authored lore.
- */
+/** Loader-independent deterministic prompt policy for snapshot authority layers. */
 public final class SnapshotContextPromptPolicy {
     private static final String STRUCTURED_RESPONSE_MARKER = "\nThe reply MUST be in this JSON format:";
 
@@ -12,9 +13,20 @@ public final class SnapshotContextPromptPolicy {
     }
 
     public static String compose(List<String> worldFacts, List<String> operatorAuthoredContext) {
+        return compose(worldFacts, operatorAuthoredContext, List.of(), List.of());
+    }
+
+    public static String compose(
+            List<String> worldFacts,
+            List<String> operatorAuthoredContext,
+            List<String> semanticMemoryContext,
+            List<String> episodicMemoryContext
+    ) {
         StringBuilder builder = new StringBuilder();
         appendObservedFacts(builder, worldFacts);
         appendOperatorLore(builder, operatorAuthoredContext);
+        builder.append(SemanticMemoryContextFormatter.promptSection(semanticMemoryContext));
+        builder.append(MemoryContextFormatter.promptSection(episodicMemoryContext));
         return builder.toString();
     }
 

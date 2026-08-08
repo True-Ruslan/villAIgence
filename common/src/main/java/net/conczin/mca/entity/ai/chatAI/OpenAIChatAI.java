@@ -26,6 +26,7 @@ import net.conczin.mca.livingworld.ai.SemanticBeliefCandidateParser;
 import net.conczin.mca.livingworld.ai.SemanticBeliefExtractionPrompt;
 import net.conczin.mca.livingworld.ai.StructuredAiResponseParser;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
+import net.conczin.mca.livingworld.context.SnapshotContextPromptPolicy;
 import net.conczin.mca.livingworld.memory.PersistentChatMemory;
 import net.conczin.mca.livingworld.memory2.Memory2RelationshipChangeIngestor;
 import net.conczin.mca.livingworld.memory2.MemoryEvent;
@@ -501,10 +502,12 @@ public class OpenAIChatAI implements ChatAIStrategy {
         } else {
             systemBuilder.append('\n');
         }
-        if (!snapshot.worldFacts().isEmpty()) {
-            systemBuilder.append("\nObserved factual context from the current Minecraft world. Treat these facts as authoritative for this turn. Data not listed here is unknown, not false:\n");
-            for (String fact : snapshot.worldFacts()) systemBuilder.append("- ").append(fact).append('\n');
-        }
+        systemBuilder.append(SnapshotContextPromptPolicy.compose(
+                snapshot.worldFacts(),
+                snapshot.operatorAuthoredContext(),
+                snapshot.semanticMemoryContext(),
+                snapshot.memoryContext()
+        ));
 
         LivingWorldConfig livingWorld = LivingWorldConfig.getInstance();
         boolean relationshipEnabled = livingWorld.relationshipStateEnabled;

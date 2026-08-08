@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Predicate;
 
 /** World-local bounded persistent store for typed semantic Memory 2.0 entries. */
 public final class SemanticMemoryStore {
@@ -69,10 +70,19 @@ public final class SemanticMemoryStore {
     }
 
     public synchronized List<SemanticMemoryEntry> getRecent(UUID npcId, int maxResults) {
-        if (npcId == null || maxResults <= 0) return List.of();
+        return getRecentMatching(npcId, maxResults, ignored -> true);
+    }
+
+    synchronized List<SemanticMemoryEntry> getRecentMatching(
+            UUID npcId,
+            int maxResults,
+            Predicate<SemanticMemoryEntry> predicate
+    ) {
+        if (npcId == null || maxResults <= 0 || predicate == null) return List.of();
         List<SemanticMemoryEntry> entries = data.entriesByNpc.get(npcId.toString());
         if (entries == null || entries.isEmpty()) return List.of();
         return entries.stream()
+                .filter(predicate)
                 .sorted(NEWEST_FIRST)
                 .limit(maxResults)
                 .toList();
