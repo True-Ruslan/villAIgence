@@ -28,6 +28,7 @@ import net.conczin.mca.livingworld.ai.StructuredAiResponseParser;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
 import net.conczin.mca.livingworld.memory.PersistentChatMemory;
 import net.conczin.mca.livingworld.memory2.Memory2RelationshipChangeIngestor;
+import net.conczin.mca.livingworld.memory2.MemoryEvent;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipChange;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipDelta;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipStore;
@@ -446,17 +447,18 @@ public class OpenAIChatAI implements ChatAIStrategy {
             String token = provider.usePlayerNameAsToken() ? snapshot.playerName() : provider.apiKey();
             Answer response = post(provider, body.toString(), token, deadline);
             if (response.error == null) {
+                Optional<MemoryEvent> relationshipChangeEvent = Optional.empty();
                 if (response.answer != null) {
                     String assistantMessage = response.answer.message != null ? response.answer.message : "...";
                     rememberDialogue(snapshot, msg, assistantMessage, pastDialogue, persistent, livingWorld);
                     applySnapshotCommand(server, player, villager, snapshot, response.answer.optionalCommand());
-                    applySnapshotRelationshipDelta(snapshot, response.answer.relationshipDelta(), livingWorld);
+                    relationshipChangeEvent = applySnapshotRelationshipDelta(snapshot, response.answer.relationshipDelta(), livingWorld);
                 }
                 Optional<String> message = Optional.ofNullable(response.answer != null ? response.answer.message : null);
                 List<String> beliefCandidates = message.isPresent() && response.answer != null
                         ? response.answer.beliefCandidates()
                         : List.of();
-                return new SnapshotAnswer(message, beliefCandidates);
+                return new SnapshotAnswer(message, beliefCandidates, relationshipChangeEvent);
             }
             displaySnapshotError(server, player, response.error);
         } catch (Exception e) {
@@ -465,7 +467,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
                 if (player.isAlive()) player.displayClientMessage(Component.translatable("mca.ai_broken").withStyle(ChatFormatting.RED), false);
             });
         }
-        return new SnapshotAnswer(Optional.empty(), List.of());
+        return new SnapshotAnswer(Optional.empty(), List.of(), Optional.empty());
     }
 
     private static String buildSnapshotSystem(Config config, boolean isInHouse, LivingWorldContextSnapshot snapshot) {
@@ -567,12 +569,12 @@ public class OpenAIChatAI implements ChatAIStrategy {
         });
     }
 
-    private static void applySnapshotRelationshipDelta(
+    private static Optional<MemoryEvent> applySnapshotRelationshipDelta(
             LivingWorldContextSnapshot snapshot,
             @Nullable LivingWorldRelationshipDelta proposed,
             LivingWorldConfig config
     ) {
-        if (!config.relationshipStateEnabled || proposed == null) return;
+        if (!config.relationshipStateEnabled || proposed == null) return Optional.empty();
 
         LivingWorldRelationshipChange change;
         try {
@@ -585,12 +587,12 @@ public class OpenAIChatAI implements ChatAIStrategy {
         } catch (RuntimeException e) {
             MCA.LOGGER.warn("Unable to persist LivingWorld relationship delta for villager {} and player {}",
                     snapshot.villagerId(), snapshot.playerId(), e);
-            return;
+            return Optional.empty();
         }
 
-        if (!change.changed()) return;
+        if (!change.changed()) return Optional.empty();
         try {
-            Memory2RelationshipChangeIngestor.recordIfEnabled(
+            return Memory2RelationshipChangeIngestor.recordAndReturnIfEnabled(
                     config.memory2Enabled,
                     snapshot.worldRoot(),
                     snapshot.villagerId(),
@@ -603,6 +605,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
         } catch (RuntimeException e) {
             MCA.LOGGER.warn("Unable to persist Memory 2.0 relationship change for villager {} and player {}",
                     snapshot.villagerId(), snapshot.playerId(), e);
+            return Optional.empty();
         }
     }
 
@@ -708,11 +711,17 @@ public class OpenAIChatAI implements ChatAIStrategy {
 
     public record SnapshotAnswer(
             Optional<String> message,
-            List<String> beliefCandidates
+            List<String> beliefCandidates,
+            Optional<MemoryEvent> relationshipChangeEvent
     ) {
         public SnapshotAnswer {
             message = message == null ? Optional.empty() : message;
             beliefCandidates = beliefCandidates == null ? List.of() : List.copyOf(beliefCandidates);
+            relationshipChangeEvent = relationshipChangeEvent == null ? Optional.empty() : relationshipChangeEvent;
+        }
+
+        public SnapshotAnswer(Optional<String> message, List<String> beliefCandidates) {
+            this(message, beliefCandidates, Optional.empty());
         }
     }
 

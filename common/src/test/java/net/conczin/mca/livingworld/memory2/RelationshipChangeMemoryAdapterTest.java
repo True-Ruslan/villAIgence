@@ -9,6 +9,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RelationshipChangeMemoryAdapterTest {
@@ -40,9 +41,34 @@ class RelationshipChangeMemoryAdapterTest {
         assertEquals(100, event.confidence());
         assertEquals(List.of(), event.relationshipReasons());
         assertEquals(
+                new MemoryEvent.RelationshipTransition(10, 4, 1, 7, 12, 3, 0, 8),
+                event.relationshipTransition()
+        );
+        assertEquals(
                 "Relationship with player changed: trust +2, respect -1, fear -1, affinity +1; now trust=12, respect=3, fear=0, affinity=8.",
                 event.summary()
         );
+    }
+
+    @Test
+    void existingNonRelationshipConstructorLeavesStructuredTransitionAbsent() {
+        UUID npc = UUID.randomUUID();
+        MemoryEvent event = new MemoryEvent(
+                UUID.randomUUID(),
+                npc,
+                MemoryEvent.Type.OBSERVATION,
+                "Observed rain.",
+                List.of(npc),
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                10L,
+                20L,
+                30,
+                0,
+                100,
+                List.of()
+        );
+
+        assertNull(event.relationshipTransition());
     }
 
     @Test
