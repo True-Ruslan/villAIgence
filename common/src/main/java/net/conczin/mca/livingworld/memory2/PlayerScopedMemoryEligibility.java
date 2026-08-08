@@ -12,4 +12,12 @@ public final class PlayerScopedMemoryEligibility {
         if (entry.relatedEntities().isEmpty()) return true;
         return playerId != null && entry.relatedEntities().contains(playerId);
     }
+
+    public static boolean episodic(MemoryEvent event, UUID npcId, UUID playerId) {
+        if (event == null || npcId == null || !npcId.equals(event.ownerNpcId())) return false;
+        boolean hasExternalParticipant = event.participants().stream()
+                .anyMatch(id -> !npcId.equals(id));
+        if (!hasExternalParticipant) return true;
+        return playerId != null && event.participants().contains(playerId);
+    }
 }
