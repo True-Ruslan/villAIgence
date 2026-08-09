@@ -1,6 +1,7 @@
 package net.conczin.mca.livingworld.context;
 
 import net.conczin.mca.livingworld.memory2.MemoryContextFormatter;
+import net.conczin.mca.livingworld.memory2.SemanticContradictionContextFormatter;
 import net.conczin.mca.livingworld.memory2.SemanticMemoryContextFormatter;
 
 import java.util.List;
@@ -13,7 +14,7 @@ public final class SnapshotContextPromptPolicy {
     }
 
     public static String compose(List<String> worldFacts, List<String> operatorAuthoredContext) {
-        return compose(worldFacts, operatorAuthoredContext, List.of(), List.of());
+        return compose(worldFacts, operatorAuthoredContext, List.of(), List.of(), List.of());
     }
 
     public static String compose(
@@ -22,10 +23,27 @@ public final class SnapshotContextPromptPolicy {
             List<String> semanticMemoryContext,
             List<String> episodicMemoryContext
     ) {
+        return compose(
+                worldFacts,
+                operatorAuthoredContext,
+                semanticMemoryContext,
+                List.of(),
+                episodicMemoryContext
+        );
+    }
+
+    public static String compose(
+            List<String> worldFacts,
+            List<String> operatorAuthoredContext,
+            List<String> semanticMemoryContext,
+            List<String> contradictionContext,
+            List<String> episodicMemoryContext
+    ) {
         StringBuilder builder = new StringBuilder();
         appendObservedFacts(builder, worldFacts);
         appendOperatorLore(builder, operatorAuthoredContext);
         builder.append(SemanticMemoryContextFormatter.promptSection(semanticMemoryContext));
+        builder.append(SemanticContradictionContextFormatter.promptSection(contradictionContext));
         builder.append(MemoryContextFormatter.promptSection(episodicMemoryContext));
         return builder.toString();
     }
