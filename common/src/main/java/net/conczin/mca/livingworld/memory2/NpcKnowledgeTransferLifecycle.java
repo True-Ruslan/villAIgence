@@ -29,6 +29,7 @@ public final class NpcKnowledgeTransferLifecycle {
         int safeMemoryCapacity = Math.max(1, memory2CapacityPerNpc);
         int safeSemanticCapacity = Math.max(1, semanticCapacityPerNpc);
         SemanticMemoryStore semanticStore = SemanticMemoryStore.forWorld(worldRoot);
+        MemoryEventStore eventStore = MemoryEventStore.forWorld(worldRoot);
 
         Optional<SemanticMemoryEntry> firstLookup = semanticStore.findById(
                 speakerNpcId,
@@ -56,12 +57,6 @@ public final class NpcKnowledgeTransferLifecycle {
         String normalizedStatement = SemanticMemoryIngestionAdapter.normalizeAndLimitStatement(
                 source.statement()
         );
-
-        if (source.kind() == SemanticMemoryEntry.Kind.BELIEF
-                && source.provenance() == MemoryEvent.Provenance.NPC_TOLD) {
-            return result(NpcKnowledgeTransferResult.Status.PROVENANCE_UNAVAILABLE, null, null);
-        }
-
         long safeGameTime = Math.max(0L, authoritativeGameTime);
         UUID evidenceId = KnowledgeTransferProvenancePolicy.deterministicEvidenceId(
                 speakerNpcId,
@@ -69,12 +64,37 @@ public final class NpcKnowledgeTransferLifecycle {
                 speakerSemanticEntryId,
                 safeGameTime
         );
-        Optional<KnowledgeTransferProvenance> provenance = KnowledgeTransferProvenanceFactory.firstHop(
-                source,
-                listenerNpcId,
-                evidenceId,
-                safeGameTime
-        );
+
+        Optional<KnowledgeTransferProvenance> provenance;
+        if (source.kind() == SemanticMemoryEntry.Kind.BELIEF
+                && source.provenance() == MemoryEvent.Provenance.NPC_TOLD) {
+            Optional<KnowledgeTransferProvenanceResolver.ResolvedSource> resolved =
+                    KnowledgeTransferProvenanceResolver.resolve(eventStore, source);
+            if (resolved.isEmpty()) {
+                return result(NpcKnowledgeTransferResult.Status.PROVENANCE_UNAVAILABLE, null, null);
+            }
+            KnowledgeTransferProvenance selectedLineage = resolved.get().provenance();
+            if (KnowledgeTransferProvenancePolicy.wouldCycle(selectedLineage, listenerNpcId)) {
+                return result(NpcKnowledgeTransferResult.Status.PROVENANCE_CYCLE, null, null);
+            }
+            if (KnowledgeTransferProvenancePolicy.atHopLimit(selectedLineage)) {
+                return result(NpcKnowledgeTransferResult.Status.PROVENANCE_LIMIT_REACHED, null, null);
+            }
+            provenance = KnowledgeTransferProvenanceFactory.appendHop(
+                    selectedLineage,
+                    source,
+                    listenerNpcId,
+                    evidenceId,
+                    safeGameTime
+            );
+        } else {
+            provenance = KnowledgeTransferProvenanceFactory.firstHop(
+                    source,
+                    listenerNpcId,
+                    evidenceId,
+                    safeGameTime
+            );
+        }
         if (provenance.isEmpty()) {
             return result(NpcKnowledgeTransferResult.Status.REJECTED, null, null);
         }
@@ -92,7 +112,6 @@ public final class NpcKnowledgeTransferLifecycle {
         }
         MemoryEvent evidence = constructedEvidence.get();
 
-        MemoryEventStore eventStore = MemoryEventStore.forWorld(worldRoot);
         eventStore.append(evidence, safeMemoryCapacity);
         Optional<MemoryEvent> persistedEvidence = eventStore.findById(listenerNpcId, evidence.id());
         if (persistedEvidence.isEmpty()) {
