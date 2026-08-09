@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation/validation state. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for detailed TDD evidence.
 >
-> Last reconciled: **2026-08-09**, after PR #137 merged deterministic Semantic contradiction representation without truth promotion.
+> Last reconciled: **2026-08-09**, after PR #139 merged contradiction-aware prompt context without truth arbitration.
 
 ## Product vision
 
@@ -12,11 +12,11 @@ The target world contains NPCs that:
 
 - retain stable identity, memory, personality, voice and relationships;
 - know only what they observed, learned or were explicitly told;
-- distinguish authoritative facts from fallible beliefs, rumors and disagreement;
+- distinguish authoritative facts from fallible beliefs, rumors, disagreement and uncertainty;
 - communicate naturally by text and voice;
 - act only through server-authoritative policy;
 - form families, settlements, factions and social histories;
-- exchange information with bounded provenance and uncertainty;
+- exchange information with bounded provenance and fallibility;
 - generate durable emergent stories rooted in simulation state rather than isolated AI tricks.
 
 > **VillAIgence — Giving villagers a mind of their own.**
@@ -27,14 +27,14 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 
 # Architecture principles
 
-1. **LLM is not authority.** Server state is truth; the model may propose bounded dialogue/claims/intent only through explicit contracts.
+1. **LLM is not authority.** Server state is truth; the model may propose bounded dialogue, claims or intent only through explicit contracts.
 2. **Identity outlives providers.** Changing model/provider must not regenerate NPC identity, memory, relationships or voice.
 3. **Fail soft without corruption.** Provider, voice, packet and auxiliary-store failures become controlled states.
 4. **Persistence is explicit and world-local.** Important state lives under `<world>/livingworld/`.
-5. **Provenance layers stay separate.** Observation, Operator Lore, episodic memory, FACT, BELIEF, rumor and contradiction metadata are not interchangeable.
-6. **Confidence is not authority.** BELIEF never becomes FACT because of model confidence, repetition or corroboration count.
+5. **Provenance layers stay separate.** Observation, Operator Lore, episodic memory, FACT, BELIEF, rumor, disagreement and uncertainty are not interchangeable.
+6. **Confidence is not authority.** BELIEF never becomes FACT because of model confidence, repetition, corroboration count or rumor depth.
 7. **Candidate extraction is not admission, and admission is not authority.** Model output cannot choose source identity or truth class.
-8. **Current observations outrank recollection.** Current server-observed facts override conflicting lore/beliefs for current-world truth.
+8. **Current observations outrank recollection.** Current server-observed facts override conflicting lore/beliefs/disagreement for current-world truth.
 9. **Client convenience never becomes authority.** Permissions, identities, targets, revisions and mutations remain server-owned.
 10. **Simulation before spectacle.** Prefer durable causal systems over one-off generated text.
 11. **Evidence layers remain explicit.** Unit, integration, GameTest, production candidate, exact release and installed evidence are separate claims.
@@ -44,14 +44,16 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 15. **Changelog is part of delivery.** Notable runtime/persistence/config/release/security/permanent-CI changes update root `CHANGELOG.md` in the same PR.
 16. **Runtime behavior follows TDD.** Observe intended RED before production implementation, then implement smallest GREEN and re-run complete selected gates.
 17. **Causal history is not retrospective model narration.** Server-proven process linkage does not make dialogue prose true.
-18. **Player-scoped prompt memory is filtered before ranking/allocation.** Foreign-player memory consumes zero bounded slots.
-19. **Prompt authority is structurally ordered.** Current observations precede Operator Lore, Semantic Memory and episodic/social history.
+18. **Player-scoped memory is filtered before ranking/allocation.** Foreign-player data consumes zero bounded slots.
+19. **Prompt authority is structurally ordered.** Current observations precede Operator Lore, Semantic Memory, live disagreement context and episodic/social history.
 20. **Long-horizon recall remains hard-bounded.** Recent/durable selection is deterministic and no memory becomes immortal.
 21. **NPC-to-NPC transfer is evidence-backed, never implicit omniscience.** Listener knowledge requires exact speaker-owned persisted source evidence and remains `BELIEF/NPC_TOLD` downstream.
 22. **Rumor ancestry is bounded process evidence, not truth authority.** Multi-hop retelling carries immutable server-backed v2 ancestry capped at eight hops.
 23. **Canonical ancestry selection is listener-independent.** Cycle/limit rejection does not trigger a lower-branch fallback chosen for the destination.
 24. **Contradiction is disagreement metadata, not a verdict.** Recording two conflicting retained claims never selects a winner, promotes FACT, mutates confidence or deletes either claim.
 25. **Historical contradiction evidence cannot resurrect forgotten claim text.** Resolved disagreement exists only while both logical claims remain live and player-eligible.
+26. **Disagreement prompt context is a bounded data layer.** At most four live relations are rendered using the same Semantic text safety rules, and the layer does not alter truth class or provider authority.
+27. **Future uncertainty must model fallibility, not authority.** Any uncertainty/distortion mechanism must preserve exact source history, stay bounded/deterministic under replay, and never let repetition become truth.
 
 ---
 
@@ -74,50 +76,20 @@ long-horizon recall                                    COMPLETE / PR #131
 NPC-to-NPC knowledge transfer                          COMPLETE / PR #133
 bounded multi-hop rumor provenance                     COMPLETE / PR #135
 Semantic contradiction representation                  COMPLETE / PR #137
-contradiction-aware prompt context                     NEXT
+contradiction-aware prompt context                     COMPLETE / PR #139
+uncertainty / bounded distortion                       NEXT
 ```
 
 Immediate sequence:
 
 ```text
-contradiction-aware prompt context without truth arbitration
-→ uncertainty / bounded distortion
+uncertainty / bounded distortion
 → bounded contradiction candidate/producer policy where justified
 → settlement-scale information flow without omniscience
 → relationship/trust effects on belief confidence as separate social epistemology
 ```
 
 `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two real graphical clients are available. It does not block current product development because server-side concurrency semantics are automated.
-
----
-
-# Completed platform — 0.1.x and M11
-
-The 0.1 line established the reliability/security platform used by later simulation work:
-
-- provider parsing/transport hardening;
-- bounded retries/deadlines/backpressure and exactly-once effects;
-- endpoint/credential/redirect policy;
-- deterministic text/voice/Operator Lore acceptance;
-- world-local persistence recovery;
-- selective MCA gameplay/navigation corrections;
-- exact production startup/restart and package identity;
-- risk-based Fabric GameTests;
-- Fabric + NeoForge compatibility;
-- constrained-heap soak;
-- immutable release artifact verification;
-- version-aware recovery of incomplete GitHub Release publication.
-
-Acceptance catalog:
-
-```text
-34 total scenarios
-28 AUTOMATED
-6 MANUAL_CANARY
-0 PLANNED
-```
-
-The remaining manual scenarios require installed graphical clients, physical microphone/UDP paths or subjective audible/spatial judgment rather than missing deterministic unit coverage.
 
 ---
 
@@ -137,9 +109,9 @@ VAI-M2-INST-005:   NOT TESTED / AUTOMATED EVIDENCE ONLY
 VAI-CONCUR-004:    NOT TESTED / DEFERRED
 ```
 
-The release intentionally removed the experimental raw `memory.json` conversation store. The accepted pre-1.0 rollout boundary is clean LivingWorld state; no legacy conversation importer/dual reader is planned.
+The release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is clean-state; no legacy conversation importer or dual reader is planned.
 
-PRs #127, #129, #131, #133, #135 and #137 are merged after this release and remain `[Unreleased]`; their automated acceptance must not be represented as installed `0.2.0` evidence.
+PRs #127, #129, #131, #133, #135, #137 and #139 are merged after this release and remain `[Unreleased]` source capabilities. Their automated evidence must not be represented as installed `0.2.0` acceptance.
 
 ---
 
@@ -147,39 +119,43 @@ PRs #127, #129, #131, #133, #135 and #137 are merged after this release and rema
 
 ## Goal
 
-Move from raw conversation history to bounded, layered, provenance-aware memory that supports social simulation without making the LLM omniscient or authoritative.
+Move from raw conversation history to bounded, layered, provenance-aware and fallibility-aware memory that can support social simulation without making the LLM omniscient or authoritative.
 
 ```text
-Working Memory          recent bounded dialogue context
-Episodic Memory         meaningful events and dialogue
-Semantic Memory         sourced FACT/BELIEF knowledge
-Relationship Memory     source-backed causal social history
-Rumor Provenance        bounded server-backed social ancestry
-Contradiction Evidence  bounded disagreement metadata between live claims
+Working Memory        recent bounded prompt context
+Episodic Memory       meaningful events/dialogue
+Semantic Memory       sourced FACT/BELIEF knowledge
+Relationship Memory   causal social history
+Rumor Provenance      bounded server-backed ancestry
+Disagreement Context  live contradiction relation without verdict
+Uncertainty            NEXT: bounded fallibility without truth promotion
 ```
 
-## Foundation now implemented
+## Implemented foundation
 
 - immutable episodic MemoryEvents;
-- structured DIALOGUE / relationship transition / causal payloads;
+- structured text/voice DIALOGUE payloads;
+- exact relationship-transition and causal source linkage;
 - exact NPC/player isolation;
-- bounded Working Memory;
+- current-player/NPC-global/shared eligibility before bounded allocation;
+- bounded recent/durable long-horizon selection;
+- deterministic pressure retention using authoritative Minecraft game time;
 - typed FACT/BELIEF Semantic Memory;
-- controlled server-observed FACT ingestion;
-- deterministic Semantic consolidation/source union;
-- bounded deterministic forgetting;
-- long-horizon recent/durable retrieval;
-- current-player/NPC-global/shared eligibility before candidate allocation;
-- exact relationship-cause source linkage;
-- exact NPC-to-NPC source-backed transfer;
-- bounded immutable 8-hop rumor ancestry;
-- listener-independent canonical rumor branch selection;
-- stable logical Semantic claim identity across source-union consolidation;
-- structured deterministic Semantic contradiction process evidence;
-- live contradiction resolution without forgotten-text resurrection;
-- current observed FACT authority preserved across all memory layers.
-
----
+- controlled `SYSTEM_OBSERVED` FACT ingestion;
+- source-backed BELIEF admission;
+- deterministic consolidation/source union and forgetting;
+- exact source-backed NPC-to-NPC transfer;
+- immutable acyclic v2 rumor ancestry capped at eight hops;
+- listener-independent deterministic ancestry selection;
+- deterministic `SEMANTIC_CONTRADICTION` process evidence without duplicate claim prose;
+- stable logical claim identity that survives source-union consolidation;
+- live resolved disagreement that disappears when either claim is forgotten;
+- privacy eligibility before contradiction result limiting;
+- dedicated contradiction-aware prompt context hard-bounded to four relations;
+- shared safe Semantic claim rendering for ordinary Semantic and disagreement context;
+- immutable server-thread snapshot capture of disagreement context;
+- deterministic five-layer prompt order preserving current observed truth authority;
+- fresh-root/replay/restart/pressure/privacy/prompt-injection regressions.
 
 ## Completed — persistent-dialogue clean cutover
 
@@ -189,19 +165,16 @@ Released in `0.2.0+1.21.1`.
 successful text/voice turn
 → structured DIALOGUE MemoryEvent
 → memory2.json
-→ exact NPC/player retrieval before limit
-→ chronological bounded Working Memory
+→ exact NPC/player retrieval
+→ bounded Working Memory
+→ prompt
 ```
 
-No legacy `memory.json` importer, migration checkpoint, dual reader or summary parsing is part of current architecture.
+No legacy `memory.json` importer, migration checkpoint ledger or dual persistent read exists.
 
-### Exit criterion — met
+## Completed — controlled BELIEF admission / extraction
 
-Text and voice dialogue survive restart as structured Memory 2.0 data and reconstruct bounded Working Memory without the removed raw conversation store.
-
----
-
-## Completed — controlled BELIEF admission — PR #123
+Merged through PRs #123 and #125.
 
 ```text
 SYSTEM_OBSERVED → FACT path only
@@ -210,352 +183,227 @@ NPC_TOLD        → BELIEF only
 INFERRED        → BELIEF only
 ```
 
-Source identity comes from persisted evidence. Replay is idempotent; equivalent sourced claims use deterministic consolidation.
+Provider candidate text is not authority. The server binds exact owner/player/source/provenance/kind, persists DIALOGUE first, bounds/normalizes candidates and rejects unsupported source relationships.
 
-### Exit criterion — met
+## Completed — causal relationship memory
 
-Non-authoritative claims can be admitted only through exact source contracts and cannot cross the FACT authority boundary.
+Merged through PR #127.
 
----
+The server persists exact relationship before/after transition separately from deterministic `RELATIONSHIP_CAUSE(DIALOGUE_TURN)` linkage. Free-form model psychology does not become authoritative cause or Semantic FACT.
 
-## Completed — bounded PLAYER_TOLD extraction — PR #125
+## Completed — FACT > BELIEF prompt precedence
 
-The existing structured OpenAI/OpenRouter reply may carry bounded statement candidates. The server binds NPC/player/source/provenance/kind, persists DIALOGUE first, normalizes/deduplicates/bounds claims and never creates FACT through this path.
+Merged through PR #129.
 
-### Exit criterion — met
+Current observations render before Operator Lore and memory. Foreign-player Semantic/episodic/social records are excluded before bounded candidate allocation. Provider output never chooses visibility or precedence.
 
-A bounded player-told claim can be learned with exact source attribution and retry/restart safety without a second provider call.
+## Completed — long-horizon recall
 
----
-
-## Completed — causal relationship memory — PR #127
-
-`RELATIONSHIP_CHANGE` stores exact server-applied before/after state. `RELATIONSHIP_CAUSE(DIALOGUE_TURN)` links the transition to exact persisted same-turn DIALOGUE evidence. Generated retrospective explanation is never authoritative cause.
-
-### Exit criterion — met
-
-Relationship history can retain source-backed process causality without turning conversation prose into server truth.
-
----
-
-## Completed — FACT > BELIEF prompt precedence — PR #129
-
-Prompt authority:
+Merged through PR #131.
 
 ```text
-current observed world facts
-→ Operator Lore
-→ Semantic Memory
-→ episodic/social history
-→ structured-response/tool instructions
+eligible memory
+→ 24 newest
++ 8 strongest durable
+→ deterministic UUID de-duplication
+→ existing domain ranker
+→ at most 6 prompt entries
 ```
 
-Foreign-player memory is excluded before bounded allocation. Shared current-player/NPC-global records remain eligible.
+No memory class is immortal. Durability remains server-owned and bounded.
 
-### Exit criterion — met
+## Completed — NPC-to-NPC transfer
 
-Current server-observed truth structurally controls prompt framing and provider output does not decide memory visibility/authority.
+Merged through PR #133.
 
----
+Exact speaker-owned persisted Semantic FACT/BELIEF can be transferred only through server-owned evidence. Listener always receives `BELIEF/NPC_TOLD`; FACT authority is never copied.
 
-## Completed — long-horizon recall — PR #131
+## Completed — bounded multi-hop rumors
 
-Normal candidate allocation:
+Merged through PR #135.
+
+Each new v2 direct transfer carries one immutable origin plus ordered source-backed hops. The chain is acyclic, listener-independent in branch selection and capped at exactly eight hops. Every downstream claim remains BELIEF/NPC_TOLD.
+
+## Completed — Semantic contradiction representation
+
+Merged through PR #137 / `afcd4f52187e1e419326abf9ae1ae7ac587f2064`.
 
 ```text
-24 newest eligible
-+ 8 strongest durable eligible
-→ deterministic de-duplication
-→ existing ranker
-→ at most 6 prompt records
+exact retained claim A
++ exact retained claim B
+→ canonical structured SEMANTIC_CONTRADICTION evidence
+→ no winner / no truth promotion
+→ live history only while both logical claims remain retained
 ```
 
-Retention uses server-owned persisted attributes plus authoritative Minecraft game time. No class is immortal.
+The process event stores no duplicate claim prose. It cannot be projected into Semantic FACT and is excluded from generic episodic prompt retrieval.
 
-### Exit criterion — met
+## Completed — contradiction-aware prompt context
 
-Important memory can survive realistic multi-session pressure/restart while weak memory decays predictably and privacy stays exact.
-
----
-
-## Completed — NPC-to-NPC knowledge transfer — PR #133
+Merged through PR #139 / `05dac0eaff408c13bf02ddd25d98acefd4f9cf13`.
 
 ```text
-exact speaker-owned Semantic source
-→ authoritative reread
-→ listener-owned NPC_TOLD evidence
-→ exact reread/validation
-→ listener BELIEF/NPC_TOLD
-```
-
-The caller cannot inject claim text/truth class/provenance/scope/source IDs. FACT authority is never copied to the listener. Transfer is deterministic, bounded and retry-safe.
-
-### Exit criterion — met
-
-One NPC can explicitly transmit sourced knowledge to another without global distribution or truth promotion.
-
----
-
-## Completed — bounded multi-hop rumor provenance — PR #135
-
-Every new v2 direct transfer may carry immutable ancestry:
-
-```text
-Origin
-  origin NPC / Semantic entry / kind / provenance / statement / scope
-
-Hop[]
-  speaker / listener / speaker Semantic entry / evidence UUID / gameTime
+retained canonical contradiction evidence
++ both live logical Semantic claims
++ current-player eligibility
+→ resolved disagreement history
+→ max 4 relations
+→ shared Semantic-safe statement renderer
+→ immutable snapshot disagreement layer
+→ prompt after Semantic Memory, before episodic/social history
 ```
 
 Properties:
 
-- first-hop origins are restricted to accepted FACT/BELIEF provenance combinations;
-- `NPC_TOLD` cannot reset origin;
-- downstream claims remain BELIEF/NPC_TOLD;
-- lineage max = 8 hops;
-- cycles rejected;
-- canonical branch = `gameTime DESC → evidence UUID ASC`;
-- resolver has no listener input;
-- no listener-dependent fallback;
-- Semantic source IDs remain direct-only;
-- older physical hop eviction does not mutate later immutable ancestry snapshot;
-- loss of current direct evidence blocks further propagation;
-- privacy/restart/pressure remain deterministic.
-
-Exact-head product evidence:
-
-```text
-verified head:                           d2d487d980c7ffe9819e3250489519005fd6767c
-merge commit:                            f1fdee1fa1cd0b3a04a2f33357d50d7ae4c1a6d7
-security / CI / soak / release dry-run:  SUCCESS / SUCCESS / SUCCESS / SUCCESS
-release publication:                     SKIPPED
-independent review P0/P1/P2:             0 / 0 / 0
-```
-
-### Exit criterion — met
-
-A claim can traverse multiple NPCs with bounded inspectable server-backed ancestry and remain explicitly non-authoritative.
-
----
-
-## Completed — deterministic Semantic contradiction representation — PR #137
-
-Merged through PR #137 / `afcd4f52187e1e419326abf9ae1ae7ac587f2064`.
-
-This slice implements disagreement **representation/lifecycle/query**, not automatic natural-language detection and not prompt truth arbitration.
-
-### Stable logical claim identity
-
-`SemanticMemoryIdentity` reuses existing consolidation semantics:
-
-```text
-owner
-+ kind
-+ provenance
-+ canonical NFKC/lowercase/whitespace statement
-+ canonical sorted unique semantic subject scope
-```
-
-Source-event IDs do not affect the logical identity, so a claim survives deterministic source-union consolidation. Existing consolidated Semantic entry IDs remain byte-compatible.
-
-### Structured process evidence
-
-A new `SEMANTIC_CONTRADICTION / SYSTEM_OBSERVED` MemoryEvent may contain two canonical `ClaimSnapshot`s:
-
-```text
-logicalClaimId
-exact detectedSemanticEntryId
-kind
-provenance
-canonical relatedEntities
-```
-
-The contradiction event intentionally stores **no copy of source claim prose**.
-
-Deterministic `semantic-contradiction-v1` identity binds owner + both full canonical ordered snapshots + authoritative game time. Reversing A/B therefore preserves identity, while snapshot mutation fails integrity validation.
-
-`SYSTEM_OBSERVED` applies only to the fact that the server recorded a relation between two retained claims. It does **not** make either claim true.
-
-### Exact lifecycle
-
-```text
-exact A/B Semantic IDs
-→ owner-scoped exact reads + authoritative rereads
-→ distinct logical claims / same canonical scope
-→ canonical contradiction event
-→ append + exact reread + integrity validation
-→ RECORDED / explicit controlled status
-```
-
-Statuses include:
-
-```text
-RECORDED
-REJECTED
-SOURCE_NOT_RETAINED
-SCOPE_MISMATCH
-SAME_CLAIM
-EVENT_NOT_RETAINED
-```
-
-Exact replay is byte-idempotent. Later detection time produces distinct bounded evidence. Event pressure never mutates either Semantic source claim.
-
-### Live history and forgetting
-
-`SemanticContradictionHistory`:
-
-- resolves current claims by stable logical identity;
-- survives source-union consolidation replacing a concrete entry ID;
-- requires kind/provenance/scope consistency;
-- filters current-player/NPC-global/shared eligibility before limiting;
-- ignores malformed contradiction evidence fail-closed;
-- stops resolving if either logical claim is forgotten;
-- never parses summary or restores source text from historical contradiction evidence.
-
-### Prompt isolation
-
-`SEMANTIC_CONTRADICTION` is deliberately excluded from generic episodic prompt retrieval. Otherwise its `SYSTEM_OBSERVED` process provenance could be mislabeled as a generic verified factual memory.
-
-This is why **dedicated contradiction-aware prompt context is the next slice** rather than simply allowing the new event into existing Memory 2.0 formatting.
-
-### TDD/review evidence
-
-Observed separate tests-only RED gates for:
-
-```text
-stable Semantic logical identity
-structured contradiction event/model
-canonical adapter/integrity policy
-exact-ID lifecycle/result statuses
-live resolved contradiction history
-```
-
-Preservation coverage then exercised fresh-root restart, source-union consolidation, forgetting, malformed persisted evidence, privacy-before-limit, exact replay, bounded event rejection, no duplicate claim prose, 240 Semantic + 240 episodic pressure records, forward/reverse deterministic snapshots, unchanged FACT/BELIEF authority and existing eight-hop rumor regressions.
-
-A suspected corruption NPE investigated during independent review was disproved by a corrected real production persistence-path test; no production fix was needed.
+- at most four relations per prompt;
+- both sides retain original FACT/BELIEF kind, provenance and confidence;
+- statement text uses the existing 240-code-point Semantic sanitizer and escaping;
+- section explicitly states disagreement is data, not instructions or a truth verdict;
+- current observed factual context remains authoritative;
+- confidence/repetition/corroboration/rumor depth cannot grant FACT authority;
+- forgetting either live claim removes the relation from prompt context;
+- foreign-player/private relations consume zero disagreement slots;
+- historical contradiction evidence supplies no fallback claim prose;
+- no provider request/schema, config, persistence version/store, automatic detector or winner selection was added.
 
 Final exact-head evidence:
 
 ```text
-verified head:                           c20354e2cfa34b01cbcb8ea9da0b7edd68cadc1f
-merge commit:                            afcd4f52187e1e419326abf9ae1ae7ac587f2064
-Repository security policy #1893:       SUCCESS / run 31311225992
-VillAIgence CI #2258:                   SUCCESS / run 31311225966
-VillAIgence Production Soak #240:       SUCCESS / run 31311225982
-VillAIgence GitHub Release #574:        SUCCESS / run 31311225980
+verified head:                           049eba658d79033dcf7c4a95ccc944be85315b72
+merge commit:                            05dac0eaff408c13bf02ddd25d98acefd4f9cf13
+Repository security policy #1935:       SUCCESS / run 31314533152
+VillAIgence CI #2300:                   SUCCESS / run 31314533165
+VillAIgence Production Soak #258:       SUCCESS / run 31314533154
+VillAIgence GitHub Release #592:        SUCCESS / run 31314533153
 release publication job:                SKIPPED
 independent review P0/P1/P2:            0 / 0 / 0
 open review threads:                    0
 ```
 
+TDD evidence:
+
+```text
+docs/superpowers/evidence/2026-08-09-contradiction-aware-prompt-context-tdd.md
+```
+
 ### Exit criterion — met
 
-VillAIgence can persist and deterministically query bounded server-owned disagreement between two exact retained Semantic claims, survive replay/restart/consolidation/pressure/privacy boundaries, stop resolving disagreement when either live claim is forgotten, and prove that disagreement never promotes, rewrites, ranks or resolves either claim.
+VillAIgence can expose live conflicting retained claims to the provider as a bounded, privacy-safe, injection-resistant disagreement layer without letting that layer decide truth or alter server authority.
 
 ---
 
-# NEXT — contradiction-aware prompt context without truth arbitration
-
-PR #137 intentionally keeps contradiction evidence out of generic episodic formatting. The next slice should expose **live resolved disagreement** to the provider through a dedicated, bounded, non-authoritative context layer.
+# NEXT — uncertainty / bounded distortion
 
 ## Goal
 
-```text
-live resolved contradiction relation
-→ exact current-player/NPC-global/shared eligibility
-→ deterministic bounded selection
-→ dedicated contradiction prompt section
-→ both current retained claims visible as disagreement
-→ current SYSTEM_OBSERVED facts rendered earlier and declared authoritative
-→ no winner / promotion / confidence mutation
-```
+Model how fallible social information becomes less certain or changes across retellings **without granting the LLM authority and without losing inspectable source history**.
 
-The provider should understand that the NPC has conflicting recollections while never being asked to decide Minecraft/server truth.
-
-## Required design decisions
-
-- exact prompt schema/wording for disagreement;
-- hard candidate/result bounds for contradiction context;
-- whether duplicate relations sharing one logical claim are deduplicated/clustered before formatting;
-- deterministic ordering relative to Semantic Memory and episodic/social history;
-- how to avoid re-rendering the same claim prose excessively;
-- how the layer states that current observed facts remain authoritative;
-- how malformed/forgotten relations contribute zero prompt context;
-- how prompt text is kept inert data rather than instructions/tool authority.
-
-## Required TDD scenarios
-
-1. generic `Memory2ContextProvider` continues excluding `SEMANTIC_CONTRADICTION`;
-2. dedicated contradiction provider returns both **live retained** source claims, not event summary text;
-3. current server FACT appears structurally before contradiction context and remains authoritative;
-4. contradiction context never changes source kind/provenance/confidence;
-5. foreign-player contradiction consumes zero candidate/result slots;
-6. private/shared/global visibility remains exact;
-7. forgotten or malformed relations produce zero context;
-8. source-union consolidation still resolves current logical claims;
-9. repeated relation evidence cannot create unbounded duplicate prompt lines;
-10. selection has explicit hard bounds and deterministic tie-breakers;
-11. user-controlled remembered claim text is safely framed as data, not provider instructions;
-12. restart/pressure/multi-NPC simulations remain deterministic;
-13. existing Semantic `32` / `24+8` / `6` bounds and eight-hop rumor ancestry remain unchanged unless a separate measured design proves change necessary.
-
-## Recommended implementation order
+Target conceptual flow:
 
 ```text
-prompt semantics/spec gate
-→ pure bounded contradiction-context selector RED
-→ live resolver-to-context adapter RED
-→ privacy/filter-before-limit RED
-→ snapshot layer ordering/authority RED
-→ prompt injection/inert-data hardening RED
-→ restart/pressure/dedup simulation
-→ exact-head security / CI / soak / release dry-run
+exact source-backed claim
+→ immutable provenance
+→ deterministic server-owned uncertainty state
+→ optional strictly bounded transformation step
+→ transformed downstream BELIEF
+→ original source/history remains inspectable
+→ current SYSTEM_OBSERVED FACT remains authoritative
 ```
 
-## Invariants
+The goal is not to make rumors randomly wrong. The goal is to represent controlled fallibility with deterministic state, explicit budgets and auditable source history.
 
-- contradiction context is recollection/disagreement, not server truth;
-- no model-selected winner;
-- no FACT promotion or BELIEF mutation;
-- current SYSTEM_OBSERVED state remains structurally authoritative;
-- source claim text comes from live retained Semantic entries only;
-- historical contradiction event stores no prose and cannot resurrect forgotten text;
-- provider/model cannot choose contradiction IDs, source IDs, visibility, retention or truth class;
-- hard bounds prevent all-pairs prompt growth;
-- no new store, public config, provider request, migration or legacy reader.
+## Design decisions required before implementation
+
+1. **Uncertainty ownership**
+   - Semantic BELIEF field, transfer evidence field, or separate derived immutable layer?
+   - Must not weaken FACT/BELIEF authority semantics.
+
+2. **Deterministic evolution**
+   - Which server-owned inputs change uncertainty across hops?
+   - Hop count alone must not become an arbitrary truth score.
+   - Wall-clock time and provider mood must not affect replay determinism.
+
+3. **Confidence versus uncertainty**
+   - Existing confidence is not authority.
+   - Define whether uncertainty is independent, complementary or replaces some use of confidence.
+   - Repetition/corroboration spam must not become an escalation exploit.
+
+4. **Bounded transformation representation**
+   - Preserve exact original/source claim.
+   - Store transformed statement only through an explicit bounded contract.
+   - Cap Unicode length, transformation count, total ancestry growth and rate.
+
+5. **Provider involvement**
+   - Prefer deterministic server policy where semantics permit.
+   - If a provider may suggest wording, it supplies bounded candidate text only; server owns whether transformation is allowed, source identity, budgets, provenance and final persistence.
+   - No second provider request unless a separate measured design proves it necessary.
+
+6. **Contradiction interaction**
+   - Existing contradiction means disagreement, not which side is weaker.
+   - Uncertainty may be displayed alongside disagreement but must not silently select a winner.
+
+7. **Privacy and prompt allocation**
+   - current-player/NPC-global/shared eligibility before any uncertainty/distortion candidate allocation;
+   - foreign-player uncertainty metadata consumes zero prompt slots.
+
+8. **Replay / restart / pressure**
+   - exact replay idempotent;
+   - restart/fresh-root state equal;
+   - pressure cannot leave unsupported transformed claims or detached authority metadata;
+   - forgetting policy remains bounded and deterministic.
+
+## Required TDD progression
+
+```text
+specification / authority gate
+→ RED: pure uncertainty model + validation
+→ RED: deterministic provenance-hop evolution
+→ RED: bounded transformed-claim representation
+→ RED: original source/history always inspectable
+→ RED: transformation never promotes BELIEF to FACT
+→ RED: contradiction interaction has no winner
+→ RED: replay/restart/pressure exactness
+→ RED: privacy-before-allocation
+→ RED: prompt rendering and injection safety
+→ deterministic multi-NPC long-chain simulation
+→ full exact-head delivery gates
+```
+
+## Required invariants
+
+- current `SYSTEM_OBSERVED` FACT remains authoritative;
+- every transformed social claim remains BELIEF unless a separate real server observation creates a FACT through the existing FACT path;
+- exact rumor provenance from PR #135 remains inspectable;
+- contradiction representation from PR #137 and prompt layer from PR #139 remain truth-neutral;
+- no unbounded text/DAG/state growth;
+- no repetition-to-truth exploit;
+- no implicit global knowledge distribution;
+- existing `32` candidate / `24+8` / `6` memory bounds and `4` disagreement bound stay unchanged unless a separately measured design explicitly changes them;
+- no legacy `memory.json` importer/dual reader returns.
 
 ### Exit criterion
 
-The provider can receive bounded, privacy-safe, inspectable live disagreement context that improves conversational awareness while current server-observed truth remains structurally authoritative and no contradiction is silently resolved.
+A sourced rumor can carry an explicit bounded uncertainty state and, where the policy permits, undergo a bounded inspectable transformation across retellings while preserving original provenance, replay/restart determinism, player privacy and the rule that only server-observed FACT is authoritative.
 
 ---
 
-# Later 0.2 — uncertainty / bounded distortion
+# Later 0.2 — bounded contradiction producer policy
 
-After contradiction-aware prompt context, model how fallible social information may change across exact provenance chains without granting the model authority.
+Contradiction representation and prompt consumption are complete, but ordinary ingestion does not automatically classify claim pairs.
 
-Potential semantics:
+A future producer/detector slice may be justified after uncertainty semantics are stable. It must be a separate bounded server-owned producer, not an LLM truth arbiter and not an unbounded all-pairs scan.
 
-```text
-origin source
-speaker chain
-confidence / uncertainty
-contradiction state
-distortion count
-bounded transformation budget
-```
+Possible requirements:
 
-Questions requiring explicit design:
+- candidate selection before pair evaluation;
+- strict maximum comparisons per admission/turn;
+- normalized equivalence filtered before opposition classification;
+- exact source/server identity binding;
+- no provider-selected relation UUIDs or winner;
+- idempotent/restart-safe process evidence;
+- no quadratic persistent graph growth.
 
-- deterministic/server-owned uncertainty evolution versus bounded provider suggestions;
-- how transformed statements retain inspectable origin history;
-- hard hop/size/rate budgets for distortion;
-- how relationship/trust influences confidence without becoming truth authority;
-- how to prevent repetition/corroboration from becoming a confidence-escalation exploit;
-- where an automatic contradiction candidate producer belongs without letting model output become authority.
-
-A rumor remains non-authoritative even when repeated by many NPCs.
+Do not implement this implicitly inside the uncertainty slice unless a design review demonstrates a necessary coupling.
 
 ---
 
@@ -572,9 +420,9 @@ Memory 2.0 is complete when persistent NPC memory is:
 - able to retain source-backed causal relationship history;
 - able to retain important memories across realistic temporal/pressure horizons;
 - able to transfer knowledge between NPCs without omniscience;
-- able to preserve bounded exact multi-hop rumor ancestry;
-- able to represent and surface contradiction without turning disagreement into FACT;
-- able to model bounded uncertainty/distortion without provider truth authority;
+- able to preserve exact bounded multi-hop rumor ancestry;
+- able to represent and safely prompt live contradictions without truth arbitration;
+- able to represent uncertainty/bounded fallibility without turning it into FACT;
 - independent of the removed raw conversation store.
 
 ---
@@ -585,23 +433,9 @@ Memory 2.0 is complete when persistent NPC memory is:
 
 Persistent bounded personality plus pairwise social state that changes dialogue and behavior.
 
-Potential dimensions:
+Potential dimensions include temperament, values, goals, fears, speech style, morality, ambition, curiosity, sociability, aggression and loyalty. Pair state may include friendship, trust, respect, fear, family, rivalry, romance and grudges.
 
-```text
-temperament
-values
-goals
-fears
-speech style
-morality
-ambition
-curiosity
-sociability
-aggression
-loyalty
-```
-
-Pair state may include friendship, trust, respect, fear, family, rivalry, romance and grudges.
+Personality is persistent game state, not a fresh LLM-generated profile on every conversation.
 
 ### Exit criterion
 
@@ -613,25 +447,13 @@ Two NPCs retain durable relationship/personality history that affects dialogue, 
 
 ## Goal
 
-Expand the 0.2 transfer/provenance/contradiction primitives into settlement-scale information flow without omniscient distribution.
+Expand 0.2 transfer/provenance/contradiction/uncertainty primitives into settlement-scale information flow without omniscient distribution.
 
-Potential knowledge classes:
-
-```text
-OBSERVED
-TOLD_BY_PLAYER
-TOLD_BY_NPC
-OFFICIAL
-INFERRED
-RUMOR
-UNKNOWN
-```
-
-This milestone is about distribution/social topology, not weakening the 0.2 FACT/BELIEF authority model.
+Target knowledge classes may include observed, player-told, NPC-told, official, inferred, rumor and unknown semantics while preserving the established FACT/BELIEF authority boundary.
 
 ### Exit criterion
 
-Information moves through a settlement without omniscient distribution, conflicts remain representable and source history remains inspectable.
+Information moves through a settlement, conflicting and uncertain claims remain inspectable, and source history remains bounded.
 
 ---
 
@@ -651,23 +473,13 @@ perceive
 → remember
 ```
 
-The LLM may propose intent but never arbitrary Minecraft commands.
-
-Required controls include event-driven scheduling, per-NPC/global budgets, action whitelist/policy, server-side target revalidation, bounded retry/backpressure and exactly-once effects.
-
-### Exit criterion
-
-NPCs pursue simple persistent goals autonomously without compromising server authority or performance.
+The LLM may propose intent but never arbitrary Minecraft commands. Required controls include event-driven scheduling, per-NPC/global budgets, action allowlists, server target revalidation and exactly-once effects.
 
 ---
 
 # 0.6 — Settlement simulation
 
-Villages become persistent social/economic systems with population, households, professions, resources, safety, morale, shared projects and public memory.
-
-### Exit criterion
-
-Settlement state changes over time and meaningfully affects individual NPC goals and behavior.
+Persistent population, households, professions, resources, safety, morale, shared projects and public memory that affect individual NPC behavior.
 
 ---
 
@@ -675,38 +487,17 @@ Settlement state changes over time and meaningfully affects individual NPC goals
 
 Persistent alliances, disputes, leadership, rules and inter-settlement relations with server-owned consequences.
 
-### Exit criterion
-
-Faction/political state survives restart, is grounded in simulation evidence and changes NPC/settlement behavior.
-
 ---
 
 # 0.8 — Emergent stories
 
-Multi-session narratives grounded in persistent events, memories, relationships, settlements and factions. Story remains the human-readable consequence of simulation history; the system must not generate a story first and retrofit state afterward.
-
-### Exit criterion
-
-Players can return after multiple sessions and encounter explainable ongoing social narratives rooted in recorded world history.
+Multi-session narratives grounded in persistent simulation history. Story is the human-readable consequence of state; the system must not generate a story first and retrofit state afterward.
 
 ---
 
 # 0.9 — Performance, large servers and local models
 
-Scale the living society without making AI a per-NPC-per-tick cost center:
-
-- event-driven scheduling;
-- global/per-NPC model budgets;
-- backpressure/cancellation;
-- cache/retrieval profiling;
-- large-population simulation soak;
-- multi-day stability;
-- optional local models;
-- provider replacement without identity migration.
-
-### Exit criterion
-
-Large populations remain bounded in CPU, memory, provider calls and persistence growth under realistic server workloads.
+Scale the living society without turning AI into a per-NPC-per-tick cost center. Work includes event-driven scheduling, model budgets, backpressure/cancellation, persistence/retrieval profiling, large-population soak and optional local models without identity migration.
 
 ---
 
@@ -727,39 +518,39 @@ NPC Identity
 = VillAIgence
 ```
 
-1.0 means these systems form one coherent persistent simulation, not a collection of unrelated AI features.
+1.0 means the systems above form one coherent persistent simulation rather than a collection of AI features.
 
 ---
 
 # Delivery and TDD governance
 
-A milestone is not complete because code compiles or one CI job is green.
-
 Runtime behavior follows:
 
 ```text
 specification
-→ RED regression/contract test
+→ tests-only RED
 → observe intended RED
-→ minimal GREEN implementation
-→ focused tests
-→ relevant regression suite
-→ Fabric + NeoForge where applicable
-→ production/server acceptance
-→ repository security
-→ constrained soak / release dry-run when selected
+→ minimal GREEN
+→ focused regression
+→ complete common/provider suite
+→ Fabric GameTests + NeoForge compatibility where selected
+→ production startup/restart + persistence recovery
+→ security policy
+→ constrained soak
+→ release dry-run
 → independent base→head review
 → exact candidate / installed acceptance when required
-→ root CHANGELOG update
-→ PROJECT_STATE / ROADMAP reconciliation
+→ root CHANGELOG.md in runtime PR
+→ PROJECT_STATE / ROADMAP reconciliation after merge
 ```
 
 Rules:
 
-1. Do not write production behavior before intended RED has been observed.
+1. Do not write production behavior before the intended RED has been observed.
 2. Do not weaken assertions merely to make CI green.
-3. Exact-release and installed evidence are separate from unit/automation evidence.
-4. Deferred manual evidence remains explicitly deferred.
-5. Significant product/runtime/persistence/config/release/security/permanent-CI changes update root `[Unreleased]` in the same PR.
-6. Release PRs move shipped `[Unreleased]` items into exact version sections rather than duplicating them.
-7. Before starting new work, reconcile these documents against live GitHub state.
+3. Test fixture/policy mistakes are recorded honestly and are not misrepresented as runtime RED evidence.
+4. Exact-release and installed evidence remain separate from unit/automation evidence.
+5. Deferred manual evidence remains explicitly deferred.
+6. Significant product/runtime/persistence/config/release/security/permanent-CI changes update root `[Unreleased]` in the same PR.
+7. Release PRs move shipped `[Unreleased]` items into the exact version section rather than duplicating them.
+8. Before starting new work, reconcile these documents against live GitHub state.
