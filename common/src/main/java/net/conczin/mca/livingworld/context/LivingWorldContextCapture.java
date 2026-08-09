@@ -17,6 +17,7 @@ import net.conczin.mca.livingworld.LivingWorldConfig;
 import net.conczin.mca.livingworld.knowledge.WorldEvent;
 import net.conczin.mca.livingworld.knowledge.WorldEventStore;
 import net.conczin.mca.livingworld.memory2.Memory2ContextProvider;
+import net.conczin.mca.livingworld.memory2.SemanticContradictionContextProvider;
 import net.conczin.mca.livingworld.memory2.SemanticMemoryContextProvider;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipActionPolicy;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipState;
@@ -102,6 +103,12 @@ public final class LivingWorldContextCapture {
                 player.getUUID(),
                 gameTime
         );
+        List<String> contradictionContext = loadContradictionContext(
+                livingWorld,
+                worldRoot,
+                villager.getUUID(),
+                player.getUUID()
+        );
 
         LivingWorldRelationshipState relationshipState = loadRelationshipState(livingWorld, worldFacts, worldRoot, villager, player);
 
@@ -127,6 +134,7 @@ public final class LivingWorldContextCapture {
                 operatorAuthoredContext,
                 memoryContext,
                 semanticMemoryContext,
+                contradictionContext,
                 actions,
                 player.serverLevel().getSeed(),
                 gameTime,
@@ -193,6 +201,21 @@ public final class LivingWorldContextCapture {
             return SemanticMemoryContextProvider.load(worldRoot, villagerId, playerId, gameTime);
         } catch (RuntimeException e) {
             MCA.LOGGER.warn("Unable to load bounded semantic memory context for villager {} and player {}", villagerId, playerId, e);
+            return List.of();
+        }
+    }
+
+    private static List<String> loadContradictionContext(
+            LivingWorldConfig config,
+            Path worldRoot,
+            java.util.UUID villagerId,
+            java.util.UUID playerId
+    ) {
+        if (!config.memory2Enabled) return List.of();
+        try {
+            return SemanticContradictionContextProvider.load(worldRoot, villagerId, playerId);
+        } catch (RuntimeException e) {
+            MCA.LOGGER.warn("Unable to load bounded Semantic contradiction context for villager {} and player {}", villagerId, playerId, e);
             return List.of();
         }
     }
