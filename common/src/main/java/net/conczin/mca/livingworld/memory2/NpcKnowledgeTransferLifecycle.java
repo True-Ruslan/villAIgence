@@ -21,9 +21,11 @@ public final class NpcKnowledgeTransferLifecycle {
         if (worldRoot == null
                 || speakerNpcId == null
                 || listenerNpcId == null
-                || speakerSemanticEntryId == null
-                || speakerNpcId.equals(listenerNpcId)) {
+                || speakerSemanticEntryId == null) {
             return result(NpcKnowledgeTransferResult.Status.REJECTED, null, null);
+        }
+        if (speakerNpcId.equals(listenerNpcId)) {
+            return result(NpcKnowledgeTransferResult.Status.PROVENANCE_CYCLE, null, null);
         }
 
         int safeMemoryCapacity = Math.max(1, memory2CapacityPerNpc);
