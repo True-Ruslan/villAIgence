@@ -50,6 +50,32 @@ class RumorFallibilityResolverTest {
     }
 
     @Test
+    void transformedDirectEvidenceReportsOneTransformationWithoutChangingTruthClass() {
+        Path world = tempDir.resolve("transformed");
+        UUID a = id(5);
+        UUID b = id(6);
+        UUID source = id(105);
+        seedFact(world, a, source,
+                "The east gate is closed. Repairs finish tomorrow.");
+
+        NpcKnowledgeTransferResult transfer = NpcKnowledgeTransferLifecycle.transferOmittingTrailingSentence(
+                world, a, b, source, 100L, 64, 64);
+        assertEquals(NpcKnowledgeTransferResult.Status.ADMITTED, transfer.status());
+        SemanticMemoryEntry rumor = SemanticMemoryStore.forWorld(world)
+                .findById(b, transfer.semanticEntryId()).orElseThrow();
+
+        RumorFallibilityState state = RumorFallibilityResolver.resolve(
+                MemoryEventStore.forWorld(world), rumor).orElseThrow();
+
+        assertEquals(SemanticMemoryEntry.Kind.BELIEF, rumor.kind());
+        assertEquals(MemoryEvent.Provenance.NPC_TOLD, rumor.provenance());
+        assertEquals("The east gate is closed.", rumor.statement());
+        assertEquals(RumorFallibilityState.SourcePath.RESOLVED, state.sourcePath());
+        assertEquals(1, state.sourceDistanceHops());
+        assertEquals(1, state.transformationsUsed());
+    }
+
+    @Test
     void retainedRumorWithForgottenDirectEvidenceIsExplicitlyUnresolved() {
         Path world = tempDir.resolve("forgotten-direct");
         UUID a = id(10);
@@ -68,7 +94,30 @@ class RumorFallibilityResolverTest {
 
         assertEquals(RumorFallibilityState.SourcePath.UNRESOLVED, state.sourcePath());
         assertEquals(0, state.sourceDistanceHops());
-        assertEquals(0, state.transformationsUsed());
+        assertEquals(RumorFallibilityState.UNKNOWN_TRANSFORMATIONS, state.transformationsUsed());
+    }
+
+    @Test
+    void forgottenTransformedDirectEvidenceAlsoReportsUnknownInsteadOfFabricatedZero() {
+        Path world = tempDir.resolve("forgotten-transformed");
+        UUID a = id(12);
+        UUID b = id(13);
+        UUID source = id(112);
+        seedFact(world, a, source,
+                "The north road is blocked. A tree fell overnight.");
+
+        NpcKnowledgeTransferResult transfer = NpcKnowledgeTransferLifecycle.transferOmittingTrailingSentence(
+                world, a, b, source, 100L, 64, 64);
+        SemanticMemoryEntry rumor = SemanticMemoryStore.forWorld(world)
+                .findById(b, transfer.semanticEntryId()).orElseThrow();
+        MemoryEventStore.forWorld(world).append(strongObservedEvent(b, 1_000L), 1);
+        assertTrue(MemoryEventStore.forWorld(world).findById(b, transfer.evidenceEventId()).isEmpty());
+
+        RumorFallibilityState state = RumorFallibilityResolver.resolve(
+                MemoryEventStore.forWorld(world), rumor).orElseThrow();
+
+        assertEquals(RumorFallibilityState.SourcePath.UNRESOLVED, state.sourcePath());
+        assertEquals(RumorFallibilityState.UNKNOWN_TRANSFORMATIONS, state.transformationsUsed());
     }
 
     @Test

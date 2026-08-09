@@ -1,6 +1,7 @@
 package net.conczin.mca.livingworld.memory2;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,6 +18,49 @@ public final class NpcKnowledgeTransferLifecycle {
             long authoritativeGameTime,
             int memory2CapacityPerNpc,
             int semanticCapacityPerNpc
+    ) {
+        return transferInternal(
+                worldRoot,
+                speakerNpcId,
+                listenerNpcId,
+                speakerSemanticEntryId,
+                authoritativeGameTime,
+                memory2CapacityPerNpc,
+                semanticCapacityPerNpc,
+                false
+        );
+    }
+
+    public static NpcKnowledgeTransferResult transferOmittingTrailingSentence(
+            Path worldRoot,
+            UUID speakerNpcId,
+            UUID listenerNpcId,
+            UUID speakerSemanticEntryId,
+            long authoritativeGameTime,
+            int memory2CapacityPerNpc,
+            int semanticCapacityPerNpc
+    ) {
+        return transferInternal(
+                worldRoot,
+                speakerNpcId,
+                listenerNpcId,
+                speakerSemanticEntryId,
+                authoritativeGameTime,
+                memory2CapacityPerNpc,
+                semanticCapacityPerNpc,
+                true
+        );
+    }
+
+    private static NpcKnowledgeTransferResult transferInternal(
+            Path worldRoot,
+            UUID speakerNpcId,
+            UUID listenerNpcId,
+            UUID speakerSemanticEntryId,
+            long authoritativeGameTime,
+            int memory2CapacityPerNpc,
+            int semanticCapacityPerNpc,
+            boolean omitTrailingSentence
     ) {
         if (worldRoot == null
                 || speakerNpcId == null
@@ -68,6 +112,7 @@ public final class NpcKnowledgeTransferLifecycle {
         );
 
         Optional<KnowledgeTransferProvenance> provenance;
+        KnowledgeTransferTransformation inheritedTransformation = null;
         if (source.kind() == SemanticMemoryEntry.Kind.BELIEF
                 && source.provenance() == MemoryEvent.Provenance.NPC_TOLD) {
             Optional<KnowledgeTransferProvenanceResolver.ResolvedSource> resolved =
@@ -76,18 +121,27 @@ public final class NpcKnowledgeTransferLifecycle {
                 return result(NpcKnowledgeTransferResult.Status.PROVENANCE_UNAVAILABLE, null, null);
             }
             KnowledgeTransferProvenance selectedLineage = resolved.get().provenance();
+            inheritedTransformation = resolved.get().transformation();
             if (KnowledgeTransferProvenancePolicy.wouldCycle(selectedLineage, listenerNpcId)) {
                 return result(NpcKnowledgeTransferResult.Status.PROVENANCE_CYCLE, null, null);
             }
             if (KnowledgeTransferProvenancePolicy.atHopLimit(selectedLineage)) {
                 return result(NpcKnowledgeTransferResult.Status.PROVENANCE_LIMIT_REACHED, null, null);
             }
+            if (omitTrailingSentence && inheritedTransformation != null) {
+                return result(
+                        NpcKnowledgeTransferResult.Status.TRANSFORMATION_LIMIT_REACHED,
+                        null,
+                        null
+                );
+            }
             provenance = KnowledgeTransferProvenanceFactory.appendHop(
                     selectedLineage,
                     source,
                     listenerNpcId,
                     evidenceId,
-                    safeGameTime
+                    safeGameTime,
+                    inheritedTransformation
             );
         } else {
             provenance = KnowledgeTransferProvenanceFactory.firstHop(
@@ -101,13 +155,48 @@ public final class NpcKnowledgeTransferLifecycle {
             return result(NpcKnowledgeTransferResult.Status.REJECTED, null, null);
         }
 
+        KnowledgeTransferTransformation effectiveTransformation = inheritedTransformation;
+        String effectiveStatement = normalizedStatement;
+        if (omitTrailingSentence) {
+            Optional<String> transformed = KnowledgeTransferTransformationPolicy.omitTrailingSentence(
+                    normalizedStatement
+            );
+            if (transformed.isEmpty()) {
+                return result(
+                        NpcKnowledgeTransferResult.Status.TRANSFORMATION_NOT_APPLICABLE,
+                        null,
+                        null
+                );
+            }
+            effectiveStatement = transformed.get();
+            effectiveTransformation = new KnowledgeTransferTransformation(List.of(
+                    new KnowledgeTransferTransformation.Step(
+                            KnowledgeTransferTransformation.Kind.OMIT_TRAILING_SENTENCE,
+                            normalizedStatement,
+                            effectiveStatement,
+                            speakerNpcId,
+                            listenerNpcId,
+                            speakerSemanticEntryId,
+                            evidenceId,
+                            safeGameTime
+                    )
+            ));
+            if (!KnowledgeTransferTransformationPolicy.valid(
+                    effectiveTransformation,
+                    provenance.get()
+            )) {
+                return result(NpcKnowledgeTransferResult.Status.REJECTED, null, null);
+            }
+        }
+
         Optional<MemoryEvent> constructedEvidence = NpcToldDialogueAdapter.create(
                 speakerNpcId,
                 listenerNpcId,
                 speakerSemanticEntryId,
                 safeGameTime,
-                normalizedStatement,
-                provenance.get()
+                effectiveStatement,
+                provenance.get(),
+                effectiveTransformation
         );
         if (constructedEvidence.isEmpty()) {
             return result(NpcKnowledgeTransferResult.Status.REJECTED, null, null);
@@ -129,15 +218,16 @@ public final class NpcKnowledgeTransferLifecycle {
                 listenerNpcId,
                 speakerSemanticEntryId,
                 safeGameTime,
-                normalizedStatement,
-                provenance.get()
+                effectiveStatement,
+                provenance.get(),
+                effectiveTransformation
         )) {
             return result(NpcKnowledgeTransferResult.Status.REJECTED, evidence.id(), null);
         }
 
         Optional<SemanticBeliefSource> admitted = SemanticBeliefAdmissionPolicy.admit(
                 persistedEvidence.get(),
-                normalizedStatement,
+                effectiveStatement,
                 source.relatedEntities(),
                 MemoryEvent.Provenance.NPC_TOLD,
                 50,

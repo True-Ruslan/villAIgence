@@ -50,7 +50,8 @@ final class NpcKnowledgeTransferPolicy {
                 sourceEntryId,
                 authoritativeGameTime,
                 normalizedStatement,
-                event == null ? null : event.knowledgeTransferProvenance()
+                event == null ? null : event.knowledgeTransferProvenance(),
+                event == null ? null : event.knowledgeTransferTransformation()
         );
     }
 
@@ -63,6 +64,28 @@ final class NpcKnowledgeTransferPolicy {
             String normalizedStatement,
             KnowledgeTransferProvenance provenance
     ) {
+        return validEvidence(
+                event,
+                speakerNpcId,
+                listenerNpcId,
+                sourceEntryId,
+                authoritativeGameTime,
+                normalizedStatement,
+                provenance,
+                event == null ? null : event.knowledgeTransferTransformation()
+        );
+    }
+
+    static boolean validEvidence(
+            MemoryEvent event,
+            UUID speakerNpcId,
+            UUID listenerNpcId,
+            UUID sourceEntryId,
+            long authoritativeGameTime,
+            String normalizedStatement,
+            KnowledgeTransferProvenance provenance,
+            KnowledgeTransferTransformation transformation
+    ) {
         if (event == null || !KnowledgeTransferProvenancePolicy.valid(provenance)) return false;
         return NpcToldDialogueAdapter.create(
                         speakerNpcId,
@@ -70,7 +93,8 @@ final class NpcKnowledgeTransferPolicy {
                         sourceEntryId,
                         authoritativeGameTime,
                         normalizedStatement,
-                        provenance
+                        provenance,
+                        transformation
                 )
                 .map(event::equals)
                 .orElse(false);

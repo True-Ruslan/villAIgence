@@ -81,9 +81,10 @@ final class KnowledgeTransferProvenancePolicy {
             SemanticMemoryEntry currentSpeakerSource
     ) {
         if (!valid(provenance) || evidence == null || currentSpeakerSource == null) return false;
+        KnowledgeTransferTransformation transformation = evidence.knowledgeTransferTransformation();
         if (currentSpeakerSource.kind() != SemanticMemoryEntry.Kind.BELIEF
                 || currentSpeakerSource.provenance() != MemoryEvent.Provenance.NPC_TOLD
-                || !contentMatchesOrigin(provenance, currentSpeakerSource)) {
+                || !contentMatchesCurrent(provenance, transformation, currentSpeakerSource)) {
             return false;
         }
         KnowledgeTransferProvenance.Hop last = provenance.hops().getLast();
@@ -99,10 +100,22 @@ final class KnowledgeTransferProvenancePolicy {
             KnowledgeTransferProvenance provenance,
             SemanticMemoryEntry source
     ) {
+        return contentMatchesCurrent(provenance, null, source);
+    }
+
+    static boolean contentMatchesCurrent(
+            KnowledgeTransferProvenance provenance,
+            KnowledgeTransferTransformation transformation,
+            SemanticMemoryEntry source
+    ) {
         if (provenance == null || provenance.origin() == null || source == null) return false;
         String normalized = SemanticMemoryIngestionAdapter.normalizeAndLimitStatement(source.statement());
         return !normalized.isBlank()
-                && normalized.equals(provenance.origin().statement())
+                && KnowledgeTransferTransformationPolicy.matchesCurrentStatement(
+                provenance,
+                transformation,
+                normalized
+        )
                 && canonicalIds(source.relatedEntities()).equals(provenance.origin().relatedEntities());
     }
 

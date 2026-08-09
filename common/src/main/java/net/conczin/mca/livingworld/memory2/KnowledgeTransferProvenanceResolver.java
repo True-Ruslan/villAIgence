@@ -43,6 +43,7 @@ final class KnowledgeTransferProvenanceResolver {
             SemanticMemoryEntry speakerSource
     ) {
         KnowledgeTransferProvenance provenance = evidence.knowledgeTransferProvenance();
+        KnowledgeTransferTransformation transformation = evidence.knowledgeTransferTransformation();
         if (!KnowledgeTransferProvenancePolicy.directEvidenceMatches(
                 provenance,
                 evidence,
@@ -52,23 +53,28 @@ final class KnowledgeTransferProvenanceResolver {
         }
 
         KnowledgeTransferProvenance.Hop lastHop = provenance.hops().getLast();
+        String currentStatement = SemanticMemoryIngestionAdapter.normalizeAndLimitStatement(
+                speakerSource.statement()
+        );
         if (!NpcKnowledgeTransferPolicy.validEvidence(
                 evidence,
                 lastHop.speakerNpcId(),
                 lastHop.listenerNpcId(),
                 lastHop.speakerSemanticEntryId(),
                 lastHop.gameTime(),
-                provenance.origin().statement(),
-                provenance
+                currentStatement,
+                provenance,
+                transformation
         )) {
             return Optional.empty();
         }
-        return Optional.of(new ResolvedSource(evidence, provenance));
+        return Optional.of(new ResolvedSource(evidence, provenance, transformation));
     }
 
     record ResolvedSource(
             MemoryEvent evidence,
-            KnowledgeTransferProvenance provenance
+            KnowledgeTransferProvenance provenance,
+            KnowledgeTransferTransformation transformation
     ) {
     }
 }
