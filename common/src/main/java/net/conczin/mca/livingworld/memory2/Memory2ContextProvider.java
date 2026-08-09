@@ -36,7 +36,8 @@ public final class Memory2ContextProvider {
         List<MemoryEvent> eligible = store.getRecentMatching(
                 npcId,
                 Integer.MAX_VALUE,
-                event -> PlayerScopedMemoryEligibility.episodic(event, npcId, playerId)
+                event -> event.type() != MemoryEvent.Type.SEMANTIC_CONTRADICTION
+                        && PlayerScopedMemoryEligibility.episodic(event, npcId, playerId)
         );
         List<MemoryEvent> candidates = LongHorizonCandidateSelector.select(
                 eligible,
