@@ -506,6 +506,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
                 snapshot.worldFacts(),
                 snapshot.operatorAuthoredContext(),
                 snapshot.semanticMemoryContext(),
+                snapshot.contradictionContext(),
                 snapshot.memoryContext()
         ));
 
