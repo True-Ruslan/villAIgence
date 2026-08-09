@@ -19,7 +19,10 @@ final class RumorFallibilityResolver {
         }
 
         return Optional.of(KnowledgeTransferProvenanceResolver.resolve(eventStore, entry)
-                .flatMap(resolved -> RumorFallibilityPolicy.resolve(resolved.provenance()))
+                .flatMap(resolved -> RumorFallibilityPolicy.resolve(
+                        resolved.provenance(),
+                        resolved.transformation()
+                ))
                 .orElseGet(RumorFallibilityState::unresolved));
     }
 }
