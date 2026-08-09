@@ -22,7 +22,7 @@ owner NPC
 + canonical sorted unique semantic subject scope
 ```
 
-`SemanticMemoryConsolidator` must delegate to this helper and preserve its current deterministic output exactly.
+`SemanticMemoryConsolidator` delegates to this helper while preserving the existing `semantic-consolidated-v1` deterministic output exactly. The logical claim ID deliberately ignores source-event IDs so a claim remains identifiable after deterministic source-union consolidation replaces its concrete Semantic entry ID.
 
 ## Contradiction payload
 
@@ -46,15 +46,25 @@ Snapshots are ordered by `logicalClaimId` ascending. Both claims must belong to 
 
 ## Event identity and shape
 
-Deterministic ID:
+The deterministic event UUID commits to the full canonical stored snapshots, not merely their logical claim IDs:
 
 ```text
 semantic-contradiction-v1
 ownerNpcId
-min(logicalClaimIdA, logicalClaimIdB)
-max(logicalClaimIdA, logicalClaimIdB)
+first.logicalClaimId
+first.detectedSemanticEntryId
+first.kind
+first.provenance
+first.relatedEntities...
+second.logicalClaimId
+second.detectedSemanticEntryId
+second.kind
+second.provenance
+second.relatedEntities...
 authoritativeGameTime
 ```
+
+Because `SemanticContradiction` canonicalizes first/second ordering by logical claim UUID, A/B and B/A produce the same event identity for the same authoritative game time. Binding the concrete detected entry ID, kind, provenance, and canonical scope into the UUID makes accidental persisted snapshot mutation fail closed during offline event validation as well as during live resolution.
 
 Canonical event:
 
@@ -76,7 +86,7 @@ other payloads: null
 
 Retention reuses the existing MemoryEvent policy. The new type gets the same type contribution as `OBSERVATION`/`ACTION`, so it remains bounded and evictable.
 
-The generic episodic/social prompt path must explicitly exclude `SEMANTIC_CONTRADICTION`. Otherwise its `SYSTEM_OBSERVED` provenance would be rendered as a generic `VERIFIED` memory line even though dedicated contradiction prompt semantics have not been designed yet. This slice exposes contradiction state only through `SemanticContradictionHistory`; prompt integration remains a later slice.
+The generic episodic/social prompt path explicitly excludes `SEMANTIC_CONTRADICTION`. Otherwise its `SYSTEM_OBSERVED` provenance would be rendered as a generic `VERIFIED` memory line even though dedicated contradiction prompt semantics have not been designed yet. This slice exposes contradiction state only through `SemanticContradictionHistory`; prompt integration remains a later slice.
 
 ## Lifecycle
 
@@ -102,13 +112,13 @@ SAME_CLAIM
 EVENT_NOT_RETAINED
 ```
 
-The caller supplies IDs only. The lifecycle exact-reads both retained Semantic entries, validates owner/scope/content, constructs canonical payload, persists it, rereads exact evidence, and verifies retention. Missing/wrong sources fail closed with zero writes.
+The caller supplies IDs only. The lifecycle exact-reads both retained Semantic entries, rereads the same exact immutable snapshots authoritatively before construction, validates owner/scope/content, constructs canonical payload, persists it, rereads exact evidence, and verifies retention. Missing/wrong sources fail closed with zero writes.
 
-Exact replay at the same tuple/time is idempotent. A later detection at another game time is distinct bounded evidence.
+Exact replay at the same canonical snapshots/time is idempotent. Reversing A/B does not change identity. A later detection at another authoritative game time is distinct bounded evidence.
 
 ## Query
 
-`SemanticContradictionHistory.load(worldRoot, npcId, playerId, maxResults)` returns resolved contradictions newest-first.
+`SemanticContradictionHistory.load(worldRoot, npcId, playerId, maxResults)` returns resolved contradictions newest-first by event `gameTime DESC`, then event UUID ascending.
 
 A relation is returned only when:
 
@@ -116,10 +126,10 @@ A relation is returned only when:
 - both logical claims are still retained by the NPC;
 - each current claim resolves by stable logical claim identity;
 - resolved kind/provenance/scope still match the stored snapshot;
-- the shared semantic scope is eligible for the current player;
+- the shared semantic scope is eligible for the current player under the existing Semantic Memory eligibility contract;
 - filtering/resolution occurs before `maxResults`.
 
-If either claim is forgotten, historical contradiction evidence must not resurrect its statement into live resolved memory.
+The concrete `detectedSemanticEntryId` is audit evidence for the detection turn, not a permanent live pointer: source-union consolidation may replace that concrete entry while retaining the same logical claim. If either logical claim is actually forgotten, historical contradiction evidence must not resurrect its statement into live resolved memory.
 
 This slice does not inject contradiction prose into the LLM prompt. `Memory2ContextProvider` explicitly filters contradiction events from the generic episodic context. Existing `32`, `24+8`, `6` retrieval bounds and current prompt formatting remain unchanged here.
 
@@ -139,17 +149,19 @@ This slice does not inject contradiction prose into the LLM prompt. `Memory2Cont
 ## TDD acceptance
 
 1. Logical identity remains stable across source-union consolidation, Unicode/case/whitespace normalization and scope ordering; kind/provenance remain part of identity.
-2. A/B and B/A build identical canonical contradiction payloads and IDs for the same game time.
-3. Same claim and different semantic scopes fail closed.
-4. Missing/wrong-owner sources create no event.
-5. Exact replay is byte/idempotent; later game time creates distinct evidence.
-6. Pressure may evict contradiction evidence without changing Semantic claims.
-7. Resolved history survives restart and source-union consolidation.
-8. Global/private/shared scope stays exact and foreign-player data consumes zero result slots.
-9. Forgotten live claims are not resurrected by historical contradiction evidence.
-10. No contradiction event is converted to Semantic FACT or generic episodic prompt content.
-11. Existing prompt truth-preservation, long-horizon, privacy and 8-hop rumor regressions remain green.
-12. Final exact-head security, CI, production soak and release dry-run must pass; publication stays skipped.
+2. Existing consolidated Semantic IDs remain byte-compatible after identity extraction.
+3. A/B and B/A build identical canonical contradiction payloads and IDs for the same game time.
+4. The event UUID binds exact detected-entry/kind/provenance/scope snapshots so persisted field mutation fails closed.
+5. Same claim and different semantic scopes fail closed.
+6. Missing/wrong-owner sources create no event.
+7. Exact replay is byte/idempotent; later game time creates distinct evidence.
+8. Pressure may evict contradiction evidence without changing Semantic claims.
+9. Resolved history survives restart and source-union consolidation.
+10. Global/private/shared scope stays exact and foreign-player data consumes zero result slots.
+11. Forgotten live claims are not resurrected by historical contradiction evidence.
+12. No contradiction event is converted to Semantic FACT or generic episodic prompt content.
+13. Existing prompt truth-preservation, long-horizon, privacy and 8-hop rumor regressions remain green.
+14. Final exact-head security, CI, production soak and release dry-run must pass; publication stays skipped.
 
 ## Non-goals
 
