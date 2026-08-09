@@ -19,6 +19,26 @@ final class NpcToldDialogueAdapter {
             String statement,
             KnowledgeTransferProvenance provenance
     ) {
+        return create(
+                speakerNpcId,
+                listenerNpcId,
+                speakerSemanticEntryId,
+                authoritativeGameTime,
+                statement,
+                provenance,
+                null
+        );
+    }
+
+    static Optional<MemoryEvent> create(
+            UUID speakerNpcId,
+            UUID listenerNpcId,
+            UUID speakerSemanticEntryId,
+            long authoritativeGameTime,
+            String statement,
+            KnowledgeTransferProvenance provenance,
+            KnowledgeTransferTransformation transformation
+    ) {
         if (speakerNpcId == null
                 || listenerNpcId == null
                 || speakerSemanticEntryId == null
@@ -29,7 +49,11 @@ final class NpcToldDialogueAdapter {
 
         String normalizedStatement = SemanticMemoryIngestionAdapter.normalizeAndLimitStatement(statement);
         if (normalizedStatement.isBlank()
-                || !normalizedStatement.equals(provenance.origin().statement())) {
+                || !KnowledgeTransferTransformationPolicy.matchesCurrentStatement(
+                provenance,
+                transformation,
+                normalizedStatement
+        )) {
             return Optional.empty();
         }
 
@@ -65,7 +89,9 @@ final class NpcToldDialogueAdapter {
                 null,
                 null,
                 null,
-                provenance
+                provenance,
+                transformation,
+                null
         ));
     }
 
