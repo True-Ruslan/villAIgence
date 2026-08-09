@@ -74,6 +74,13 @@ This is the **canonical changelog** for the project.
   - recording accepts exact server-owned Semantic entry IDs only, rereads both sources authoritatively and exposes explicit `SOURCE_NOT_RETAINED`, `SCOPE_MISMATCH`, `SAME_CLAIM`, `EVENT_NOT_RETAINED` and rejection outcomes;
   - resolved contradiction history returns a relation only while both logical claims remain live, canonically match the stored kind/provenance/scope and are eligible for the current player before limiting, so old process evidence cannot resurrect forgotten claim text;
   - contradiction evidence is excluded from the generic episodic prompt path and cannot be converted into Semantic FACT; FACT/BELIEF/provenance/confidence/ranking of both source claims remain unchanged.
+- Dedicated bounded contradiction-aware snapshot prompt context:
+  - only currently resolvable, current-player-eligible contradiction relations are loaded, with a hard maximum of four relations per prompt;
+  - each relation renders both live Semantic claims with their original FACT/BELIEF kind, provenance and confidence, using the same 240-code-point normalization, reserved-template neutralization and escaping as ordinary Semantic Memory;
+  - disagreement is rendered in a separate server-authored layer after Semantic Memory and before episodic/social history, explicitly as remembered data rather than instructions or a truth verdict;
+  - current server-observed facts remain authoritative on conflict, and confidence, repetition, corroboration count or rumor depth never promotes a BELIEF to FACT;
+  - forgotten, malformed or foreign-player relations disappear before prompt allocation and historical contradiction evidence cannot restore missing claim prose;
+  - the disagreement layer is captured immutably on the server thread before asynchronous AI processing and fails soft to empty when unavailable.
 
 ### Changed
 
@@ -99,13 +106,15 @@ This is the **canonical changelog** for the project.
   - current observed world facts first and authoritative for the turn;
   - Operator Lore next as background context;
   - Semantic Memory next with FACT/BELIEF provenance labels preserved;
+  - dedicated live contradiction/disagreement context next without truth arbitration;
   - episodic and social-history Memory 2.0 last among memory layers;
   - structured-response/tool instructions remain after all context layers;
   - conflicting BELIEFs remain non-authoritative and stale relationship history does not override the current server-observed relationship state.
 - Long-horizon recall changes no persistence format/version, public configuration, provider request/retry behavior, relationship mutation authority or release identity contract; it adds no legacy `memory.json` reader, embeddings/vector database, background summarizer or extra LLM memory-management call.
 - NPC-to-NPC knowledge transfer reuses the existing `memory2.json` / `semantic-memory.json` formats, retention policies, Semantic consolidation, player-visibility eligibility and `32` / `24+8` / `6` long-horizon bounds; it adds no provider call, public config, client authority, autonomous visible NPC conversation, multi-hop rumor propagation or legacy migration.
 - Provenance-aware multi-hop rumors keep `memory2.json` format version 1 and the current Semantic persistence schema, retention coefficients, retrieval/ranking bounds, provider protocol, public configuration, voice/UI/scheduler/gameplay authority and release identity unchanged; there is no migration, backfill, dual reader, new store, second provider call, uncertainty model, distortion model or autonomous rumor-spread scheduler in this slice.
-- Semantic contradiction representation reuses `memory2.json` and `semantic-memory.json` format version 1, existing bounded retention and current player-scope eligibility; it adds no automatic contradiction detector, provider call/schema, public config, new store, migration/backfill, prompt authority rule, uncertainty/distortion/trust weighting, UI, scheduler or autonomous propagation.
+- Semantic contradiction representation reuses `memory2.json` and `semantic-memory.json` format version 1, existing bounded retention and current player-scope eligibility; it adds no automatic contradiction detector, provider call/schema, public config, new store, migration/backfill, uncertainty/distortion/trust weighting, UI, scheduler or autonomous propagation.
+- Contradiction-aware prompt context adds no provider request/schema, public config, new persistence store/version, migration/backfill, automatic detector, winner selection, uncertainty/confidence mutation, distortion, trust weighting, UI, scheduler or autonomous propagation.
 
 ### Validation
 
@@ -119,6 +128,7 @@ This is the **canonical changelog** for the project.
 - PR #133 preservation coverage exercises fail-closed ownership/input boundaries, byte-idempotent replay, corroborating Semantic source union, explicit partial-retention outcomes, fresh-root reload, global/private/shared scope, player Working Memory isolation, independent NPC pairs and deterministic long-horizon multi-NPC pressure without wall-clock-dependent expected behavior.
 - Provenance-aware rumor coverage in PR #135 exercises immutable persisted lineage, deterministic v2 identity, first-hop origin restrictions, exact retained-branch resolution, listener-independent no-fallback behavior, cycle-before-limit precedence, eight-hop bounds, field-by-field provenance mutation rejection, historical-v1/missing-direct-evidence fail-closed behavior, byte-idempotent replay after fresh-root reload, global/private/shared scope preservation, player Working Memory isolation, bounded forgetting/direct-evidence loss and a deterministic 10-NPC pressure/reload simulation.
 - Semantic contradiction representation in PR #137 uses separate observed compile RED gates for stable logical claim identity, structured event model/prompt isolation, canonical adapter/integrity policy, exact-ID lifecycle and live resolved history. Preservation-only coverage then exercises fresh-root restart, source-union consolidation, forgetting without claim resurrection, global/private/shared privacy before limiting, exact replay, bounded event rejection, malformed-evidence filtering, no duplicate claim prose, 240 Semantic + 240 episodic pressure records and forward/reverse deterministic snapshots without requiring a preservation production correction.
+- Contradiction-aware prompt context in PR #139 uses observed RED gates for shared safe claim rendering, bounded live disagreement formatting/provider loading, immutable snapshot capture and five-layer prompt wiring; preservation coverage adds 240 Semantic + 240 episodic pressure records, fresh-root reload, prompt-injection escaping and unchanged current-observed-fact authority without a preservation production correction.
 - Existing current-FACT/current-relationship-state precedence tests remain green with long-horizon retrieval; transferred entries remain explicitly `BELIEF | provenance=NPC_TOLD` and retain the existing current-observed-fact-wins prompt framing.
 - Real two-graphical-client Operator Lore acceptance `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two graphical clients are available.
 
