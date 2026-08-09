@@ -32,8 +32,7 @@ class SemanticContradictionHistoryTest {
                 SemanticContradictionHistory.load(world, npc, player, 8);
         assertEquals(1, before.size());
         assertEquals(recorded.eventId(), before.getFirst().evidence().id());
-        assertEquals(SemanticMemoryIdentity.logicalClaimId(fact),
-                SemanticMemoryIdentity.logicalClaimId(before.getFirst().first()));
+        assertEquals(fact.id(), resolvedClaim(before.getFirst(), fact).id());
 
         SemanticMemoryEntry corroboratingFact = fact(
                 id(103), npc, " gate   OPEN ", List.of(player), 90, 100, id(903));
@@ -48,7 +47,7 @@ class SemanticContradictionHistoryTest {
         List<SemanticContradictionHistory.ResolvedSemanticContradiction> after =
                 SemanticContradictionHistory.load(world, npc, player, 8);
         assertEquals(1, after.size());
-        assertEquals(mergedFact.id(), after.getFirst().first().id());
+        assertEquals(mergedFact.id(), resolvedClaim(after.getFirst(), fact).id());
         assertEquals(recorded.eventId(), after.getFirst().evidence().id());
     }
 
@@ -141,6 +140,16 @@ class SemanticContradictionHistoryTest {
         record(world, npc, first, second, 100L);
         assertEquals(visibleA, !SemanticContradictionHistory.load(world, npc, playerA, 8).isEmpty());
         assertEquals(visibleB, !SemanticContradictionHistory.load(world, npc, playerB, 8).isEmpty());
+    }
+
+    private static SemanticMemoryEntry resolvedClaim(
+            SemanticContradictionHistory.ResolvedSemanticContradiction relation,
+            SemanticMemoryEntry expectedLogicalClaim
+    ) {
+        UUID logicalId = SemanticMemoryIdentity.logicalClaimId(expectedLogicalClaim);
+        if (SemanticMemoryIdentity.logicalClaimId(relation.first()).equals(logicalId)) return relation.first();
+        if (SemanticMemoryIdentity.logicalClaimId(relation.second()).equals(logicalId)) return relation.second();
+        throw new AssertionError("logical claim not resolved: " + logicalId);
     }
 
     private static SemanticContradictionResult record(
