@@ -24,7 +24,7 @@ class SemanticMemoryContextFormatterSharedRenderingTest {
 
     @Test
     void sharedEntryRendererUsesExistingPromptSafetyRules() {
-        String dangerous = "  first\nsecond\t$player $villager \\\"injected\\\"  ";
+        String dangerous = "  first\nsecond\t$player $villager path\\value \"injected\"  ";
         SemanticMemoryEntry entry = entry(dangerous);
 
         String rendered = SemanticMemoryContextFormatter.formatEntry(entry);
@@ -35,7 +35,7 @@ class SemanticMemoryContextFormatterSharedRenderingTest {
         assertFalse(rendered.contains("$villager"));
         assertTrue(rendered.contains("＄player"));
         assertTrue(rendered.contains("＄villager"));
-        assertTrue(rendered.contains("\\\\"));
+        assertTrue(rendered.contains("path\\\\value"));
         assertTrue(rendered.contains("\\\"injected\\\""));
     }
 
