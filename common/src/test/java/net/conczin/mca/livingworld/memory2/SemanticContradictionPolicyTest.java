@@ -12,19 +12,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SemanticContradictionPolicyTest {
     @Test
-    void deterministicIdentityIsOrderIndependentAndNamespaced() {
+    void deterministicIdentityIsOrderIndependentAndBindsCanonicalSnapshots() {
         UUID owner = id(1);
-        UUID first = id(10);
-        UUID second = id(20);
+        SemanticContradiction forward = new SemanticContradiction(
+                snapshot(id(20), id(120), SemanticMemoryEntry.Kind.BELIEF,
+                        MemoryEvent.Provenance.NPC_TOLD, List.of(id(91), id(90))),
+                snapshot(id(10), id(110), SemanticMemoryEntry.Kind.FACT,
+                        MemoryEvent.Provenance.SYSTEM_OBSERVED, List.of(id(90), id(91)))
+        );
+        SemanticContradiction reverse = new SemanticContradiction(forward.second(), forward.first());
         long gameTime = 123L;
         String canonical = "semantic-contradiction-v1\n"
-                + owner + "\n" + first + "\n" + second + "\n" + gameTime;
+                + owner + "\n"
+                + snapshotCanonical(forward.first()) + "\n"
+                + snapshotCanonical(forward.second()) + "\n"
+                + gameTime;
         UUID expected = UUID.nameUUIDFromBytes(canonical.getBytes(StandardCharsets.UTF_8));
 
-        assertEquals(expected,
-                SemanticContradictionPolicy.deterministicEventId(owner, first, second, gameTime));
-        assertEquals(expected,
-                SemanticContradictionPolicy.deterministicEventId(owner, second, first, gameTime));
+        assertEquals(expected, SemanticContradictionPolicy.deterministicEventId(owner, forward, gameTime));
+        assertEquals(expected, SemanticContradictionPolicy.deterministicEventId(owner, reverse, gameTime));
     }
 
     @Test
@@ -83,6 +89,36 @@ class SemanticContradictionPolicyTest {
         assertFalse(SemanticContradictionPolicy.valid(copy(
                 canonical, canonical.ownerNpcId(), canonical.type(), canonical.summary(), canonical.provenance(),
                 canonical.gameTime(), canonical.participants(), changedKind)));
+
+        SemanticContradiction changedDetectedEntry = new SemanticContradiction(
+                new SemanticContradiction.ClaimSnapshot(
+                        firstSnapshot.logicalClaimId(), id(777), firstSnapshot.kind(), firstSnapshot.provenance(),
+                        firstSnapshot.relatedEntities()),
+                payload.second()
+        );
+        assertFalse(SemanticContradictionPolicy.valid(copy(
+                canonical, canonical.ownerNpcId(), canonical.type(), canonical.summary(), canonical.provenance(),
+                canonical.gameTime(), canonical.participants(), changedDetectedEntry)));
+    }
+
+    private static SemanticContradiction.ClaimSnapshot snapshot(
+            UUID logical,
+            UUID detected,
+            SemanticMemoryEntry.Kind kind,
+            MemoryEvent.Provenance provenance,
+            List<UUID> scope
+    ) {
+        return new SemanticContradiction.ClaimSnapshot(logical, detected, kind, provenance, scope);
+    }
+
+    private static String snapshotCanonical(SemanticContradiction.ClaimSnapshot snapshot) {
+        StringBuilder result = new StringBuilder()
+                .append(snapshot.logicalClaimId()).append('\n')
+                .append(snapshot.detectedSemanticEntryId()).append('\n')
+                .append(snapshot.kind()).append('\n')
+                .append(snapshot.provenance());
+        for (UUID related : snapshot.relatedEntities()) result.append('\n').append(related);
+        return result.toString();
     }
 
     private static MemoryEvent copy(
