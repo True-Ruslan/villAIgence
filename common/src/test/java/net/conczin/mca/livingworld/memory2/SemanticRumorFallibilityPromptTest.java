@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SemanticRumorFallibilityPromptTest {
@@ -32,9 +33,11 @@ class SemanticRumorFallibilityPromptTest {
 
         assertEquals(1, context.size());
         assertEquals(
-                "BELIEF | provenance=NPC_TOLD | confidence=100 | fallibility={sourcePath=RESOLVED, sourceDistanceHops=1, transformationsUsed=0} | statement=\"The north bridge is closed\"",
+                "BELIEF | provenance=NPC_TOLD | confidence=50 | fallibility={sourcePath=RESOLVED, sourceDistanceHops=1, transformationsUsed=0} | statement=\"The north bridge is closed\"",
                 context.getFirst()
         );
+        assertTrue(SemanticMemoryContextFormatter.promptSection(context)
+                .contains("Fallibility metadata describes the source path only"));
     }
 
     @Test
@@ -56,13 +59,13 @@ class SemanticRumorFallibilityPromptTest {
 
         assertEquals(1, context.size());
         assertEquals(
-                "BELIEF | provenance=NPC_TOLD | confidence=100 | fallibility={sourcePath=UNRESOLVED, transformationsUsed=0} | statement=\"The orchard gate is broken\"",
+                "BELIEF | provenance=NPC_TOLD | confidence=50 | fallibility={sourcePath=UNRESOLVED, transformationsUsed=0} | statement=\"The orchard gate is broken\"",
                 context.getFirst()
         );
     }
 
     @Test
-    void nonRumorSemanticPromptRenderingRemainsByteCompatible() {
+    void nonRumorSemanticPromptRenderingRemainsByteCompatibleAndAddsNoFallibilityGuidance() {
         Path world = tempDir.resolve("ordinary");
         UUID npc = id(20);
         UUID player = id(92);
@@ -85,6 +88,8 @@ class SemanticRumorFallibilityPromptTest {
         assertEquals(List.of(
                 "BELIEF | provenance=PLAYER_TOLD | confidence=73 | statement=\"Player says the market opens at dawn\""
         ), context);
+        assertFalse(SemanticMemoryContextFormatter.promptSection(context)
+                .contains("Fallibility metadata describes the source path only"));
     }
 
     private static void seedFact(
