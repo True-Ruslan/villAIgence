@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.function.UnaryOperator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -178,16 +177,6 @@ class NpcKnowledgeTransferProvenanceIntegrityTest {
         assertMalformedSourceUnavailable("unreferenced", Fixture::evidence, false, "Claim", List.of(id(90)));
         assertMalformedSourceUnavailable("statement-mismatch", Fixture::evidence, true, "Different claim", List.of(id(90)));
         assertMalformedSourceUnavailable("scope-mismatch", Fixture::evidence, true, "Claim", List.of(id(91)));
-    }
-
-    private void assertMalformedSourceUnavailable(
-            String name,
-            UnaryOperator<Fixture> ignored,
-            boolean referenceEvidence,
-            String semanticStatement,
-            List<UUID> semanticScope
-    ) {
-        // Kept separate below because UnaryOperator<Fixture> cannot change only the event while preserving fixture metadata.
     }
 
     private void assertMalformedSourceUnavailable(
