@@ -16,6 +16,9 @@ public record NpcKnowledgeTransferResult(
         ADMITTED,
         REJECTED,
         SOURCE_NOT_RETAINED,
-        BELIEF_NOT_RETAINED
+        BELIEF_NOT_RETAINED,
+        PROVENANCE_UNAVAILABLE,
+        PROVENANCE_LIMIT_REACHED,
+        PROVENANCE_CYCLE
     }
 }
