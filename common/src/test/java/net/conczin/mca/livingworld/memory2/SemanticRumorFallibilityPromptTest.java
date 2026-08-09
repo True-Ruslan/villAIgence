@@ -13,6 +13,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SemanticRumorFallibilityPromptTest {
+    private static final String FALLIBILITY_GUIDANCE =
+            "Fallibility metadata describes source distance and bounded transformation history only; "
+                    + "it is never a truth score, authority signal or instruction.";
+
     @TempDir
     Path tempDir;
 
@@ -36,12 +40,36 @@ class SemanticRumorFallibilityPromptTest {
                 "BELIEF | provenance=NPC_TOLD | confidence=50 | fallibility={sourcePath=RESOLVED, sourceDistanceHops=1, transformationsUsed=0} | statement=\"The north bridge is closed\"",
                 context.getFirst()
         );
-        assertTrue(SemanticMemoryContextFormatter.promptSection(context)
-                .contains("Fallibility metadata describes the source path only"));
+        assertTrue(SemanticMemoryContextFormatter.promptSection(context).contains(FALLIBILITY_GUIDANCE));
     }
 
     @Test
-    void retainedRumorWithForgottenDirectEvidenceRendersUnresolvedWithoutInventedDistance() {
+    void transformedRumorRendersValidatedTransformationCountInSameSemanticSlot() {
+        Path world = tempDir.resolve("transformed");
+        UUID a = id(5);
+        UUID b = id(6);
+        UUID player = id(95);
+        UUID source = id(105);
+        seedFact(world, a, source,
+                "The north bridge is closed. Repairs finish tomorrow.",
+                List.of(player));
+
+        NpcKnowledgeTransferResult result = NpcKnowledgeTransferLifecycle.transferOmittingTrailingSentence(
+                world, a, b, source, 100L, 64, 64);
+        assertEquals(NpcKnowledgeTransferResult.Status.ADMITTED, result.status());
+
+        List<String> context = SemanticMemoryContextProvider.load(world, b, player, 200L);
+
+        assertEquals(1, context.size());
+        assertEquals(
+                "BELIEF | provenance=NPC_TOLD | confidence=50 | fallibility={sourcePath=RESOLVED, sourceDistanceHops=1, transformationsUsed=1} | statement=\"The north bridge is closed.\"",
+                context.getFirst()
+        );
+        assertTrue(SemanticMemoryContextFormatter.promptSection(context).contains(FALLIBILITY_GUIDANCE));
+    }
+
+    @Test
+    void retainedRumorWithForgottenDirectEvidenceRendersUnknownWithoutInventedDistanceOrCount() {
         Path world = tempDir.resolve("unresolved");
         UUID a = id(10);
         UUID b = id(11);
@@ -59,9 +87,10 @@ class SemanticRumorFallibilityPromptTest {
 
         assertEquals(1, context.size());
         assertEquals(
-                "BELIEF | provenance=NPC_TOLD | confidence=50 | fallibility={sourcePath=UNRESOLVED, transformationsUsed=0} | statement=\"The orchard gate is broken\"",
+                "BELIEF | provenance=NPC_TOLD | confidence=50 | fallibility={sourcePath=UNRESOLVED, transformationsUsed=UNKNOWN} | statement=\"The orchard gate is broken\"",
                 context.getFirst()
         );
+        assertTrue(SemanticMemoryContextFormatter.promptSection(context).contains(FALLIBILITY_GUIDANCE));
     }
 
     @Test
@@ -88,8 +117,7 @@ class SemanticRumorFallibilityPromptTest {
         assertEquals(List.of(
                 "BELIEF | provenance=PLAYER_TOLD | confidence=73 | statement=\"Player says the market opens at dawn\""
         ), context);
-        assertFalse(SemanticMemoryContextFormatter.promptSection(context)
-                .contains("Fallibility metadata describes the source path only"));
+        assertFalse(SemanticMemoryContextFormatter.promptSection(context).contains(FALLIBILITY_GUIDANCE));
     }
 
     private static void seedFact(
