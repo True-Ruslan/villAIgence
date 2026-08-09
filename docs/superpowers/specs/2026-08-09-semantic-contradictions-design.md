@@ -36,10 +36,11 @@ record ClaimSnapshot(
     UUID detectedSemanticEntryId,
     SemanticMemoryEntry.Kind kind,
     MemoryEvent.Provenance provenance,
-    String statement,
     List<UUID> relatedEntities
 ) {}
 ```
+
+The payload deliberately does **not** duplicate claim text. `logicalClaimId` commits to canonical claim content, while live query text always comes from the currently retained Semantic entry. This avoids duplicating potentially sensitive/large remembered text into a second persistence location and prevents historical contradiction evidence from resurrecting forgotten claim prose.
 
 Snapshots are ordered by `logicalClaimId` ascending. Both claims must belong to the same NPC, have identical canonical semantic subject scope, and have different canonical statement content.
 
@@ -75,6 +76,8 @@ other payloads: null
 
 Retention reuses the existing MemoryEvent policy. The new type gets the same type contribution as `OBSERVATION`/`ACTION`, so it remains bounded and evictable.
 
+The generic episodic/social prompt path must explicitly exclude `SEMANTIC_CONTRADICTION`. Otherwise its `SYSTEM_OBSERVED` provenance would be rendered as a generic `VERIFIED` memory line even though dedicated contradiction prompt semantics have not been designed yet. This slice exposes contradiction state only through `SemanticContradictionHistory`; prompt integration remains a later slice.
+
 ## Lifecycle
 
 ```java
@@ -109,23 +112,26 @@ Exact replay at the same tuple/time is idempotent. A later detection at another 
 
 A relation is returned only when:
 
-- contradiction evidence is retained;
+- contradiction evidence is retained and passes canonical integrity validation;
 - both logical claims are still retained by the NPC;
 - each current claim resolves by stable logical claim identity;
+- resolved kind/provenance/scope still match the stored snapshot;
 - the shared semantic scope is eligible for the current player;
 - filtering/resolution occurs before `maxResults`.
 
 If either claim is forgotten, historical contradiction evidence must not resurrect its statement into live resolved memory.
 
-This slice does not inject contradiction prose into the LLM prompt. Prompt integration is the next preservation step, so existing `32`, `24+8`, `6` retrieval bounds and current prompt formatting remain unchanged here.
+This slice does not inject contradiction prose into the LLM prompt. `Memory2ContextProvider` explicitly filters contradiction events from the generic episodic context. Existing `32`, `24+8`, `6` retrieval bounds and current prompt formatting remain unchanged here.
 
 ## Invariants
 
 - Contradiction is metadata, never a third claim and never FACT.
 - Neither side wins.
 - Recording a contradiction changes no Semantic entry field.
+- Claim text is not duplicated into contradiction evidence.
 - Provider/client cannot submit contradiction prose or source UUIDs through any provider/network schema in this slice.
 - FACT stays FACT; BELIEF stays BELIEF; current observed world state remains authoritative.
+- Generic episodic prompt formatting never labels contradiction evidence as a standalone verified claim.
 - Existing rumor lineage stays immutable, acyclic and capped at 8 hops.
 - `memory2.json` and `semantic-memory.json` remain format version 1.
 - No new store, migration/backfill, public config, provider call, scheduler, UI or autonomous propagation.
@@ -141,7 +147,7 @@ This slice does not inject contradiction prose into the LLM prompt. Prompt integ
 7. Resolved history survives restart and source-union consolidation.
 8. Global/private/shared scope stays exact and foreign-player data consumes zero result slots.
 9. Forgotten live claims are not resurrected by historical contradiction evidence.
-10. No contradiction event is converted to Semantic FACT.
+10. No contradiction event is converted to Semantic FACT or generic episodic prompt content.
 11. Existing prompt truth-preservation, long-horizon, privacy and 8-hop rumor regressions remain green.
 12. Final exact-head security, CI, production soak and release dry-run must pass; publication stays skipped.
 
@@ -151,4 +157,4 @@ No automatic contradiction detector, truth arbitration, uncertainty/confidence d
 
 ## Exit criterion
 
-VillAIgence can persist and deterministically query a bounded server-owned contradiction relation between two exact retained Semantic claims, survive replay/restart/consolidation/pressure/privacy boundaries, stop resolving it when either live claim is forgotten, and prove that disagreement never promotes, rewrites, ranks or resolves either claim.
+VillAIgence can persist and deterministically query a bounded server-owned contradiction relation between two exact retained Semantic claims, survive replay/restart/consolidation/pressure/privacy boundaries, stop resolving it when either live claim is forgotten, avoid duplicating forgotten claim text into historical contradiction evidence, and prove that disagreement never promotes, rewrites, ranks or resolves either claim.
