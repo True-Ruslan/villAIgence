@@ -15,13 +15,17 @@ public final class SemanticMemoryContextFormatter {
         List<String> lines = new ArrayList<>(rankedMemories.size());
         for (RankedSemanticMemory ranked : rankedMemories) {
             if (ranked == null || ranked.entry() == null) continue;
-            SemanticMemoryEntry entry = ranked.entry();
-            lines.add(entry.kind()
-                    + " | provenance=" + entry.provenance()
-                    + " | confidence=" + entry.confidence()
-                    + " | statement=\"" + escapeQuotedStatement(entry.statement()) + "\"");
+            lines.add(formatEntry(ranked.entry()));
         }
         return List.copyOf(lines);
+    }
+
+    static String formatEntry(SemanticMemoryEntry entry) {
+        if (entry == null) return "";
+        return entry.kind()
+                + " | provenance=" + entry.provenance()
+                + " | confidence=" + entry.confidence()
+                + " | statement=\"" + escapeQuotedStatement(entry.statement()) + "\"";
     }
 
     public static String promptSection(List<String> semanticContext) {
