@@ -81,6 +81,13 @@ This is the **canonical changelog** for the project.
   - current server-observed facts remain authoritative on conflict, and confidence, repetition, corroboration count or rumor depth never promotes a BELIEF to FACT;
   - forgotten, malformed or foreign-player relations disappear before prompt allocation and historical contradiction evidence cannot restore missing claim prose;
   - the disagreement layer is captured immutably on the server thread before asynchronous AI processing and fails soft to empty when unavailable.
+- Deterministic server-owned rumor fallibility metadata for retained `BELIEF / NPC_TOLD` Semantic memory:
+  - fallibility is derived from retained canonical `npc-knowledge-transfer-v2` provenance after existing player eligibility, bounded candidate selection and rank-to-6 retrieval;
+  - resolvable rumors expose `sourcePath=RESOLVED` plus the exact canonical source distance from one through eight hops and `transformationsUsed=0`;
+  - a retained rumor whose direct provenance evidence is forgotten or no longer valid exposes `sourcePath=UNRESOLVED` without fabricating a hop distance or reconstructing ancestry;
+  - the annotation is rendered inline in the already-selected Semantic slot, so no additional prompt result slot is created and the existing `32 / 24+8 / 6` bounds remain unchanged;
+  - FACT, PLAYER_TOLD and INFERRED lines retain their previous rendering, while fallibility guidance is emitted only when selected rumor fallibility metadata is actually present;
+  - source distance is process metadata only: it does not rank claims, select a contradiction winner, mutate confidence, promote BELIEF to FACT or weaken current server-observed FACT authority.
 
 ### Changed
 
@@ -115,6 +122,7 @@ This is the **canonical changelog** for the project.
 - Provenance-aware multi-hop rumors keep `memory2.json` format version 1 and the current Semantic persistence schema, retention coefficients, retrieval/ranking bounds, provider protocol, public configuration, voice/UI/scheduler/gameplay authority and release identity unchanged; there is no migration, backfill, dual reader, new store, second provider call, uncertainty model, distortion model or autonomous rumor-spread scheduler in this slice.
 - Semantic contradiction representation reuses `memory2.json` and `semantic-memory.json` format version 1, existing bounded retention and current player-scope eligibility; it adds no automatic contradiction detector, provider call/schema, public config, new store, migration/backfill, uncertainty/distortion/trust weighting, UI, scheduler or autonomous propagation.
 - Contradiction-aware prompt context adds no provider request/schema, public config, new persistence store/version, migration/backfill, automatic detector, winner selection, uncertainty/confidence mutation, distortion, trust weighting, UI, scheduler or autonomous propagation.
+- Rumor fallibility is a derived runtime view over retained v2 provenance; it adds no world file, JSON field, config value, migration/backfill, provider request/schema, evidence-ID namespace, confidence decay, trust weighting, automatic detector, transformed wording, UI, scheduler or autonomous rumor propagation.
 
 ### Validation
 
@@ -129,6 +137,7 @@ This is the **canonical changelog** for the project.
 - Provenance-aware rumor coverage in PR #135 exercises immutable persisted lineage, deterministic v2 identity, first-hop origin restrictions, exact retained-branch resolution, listener-independent no-fallback behavior, cycle-before-limit precedence, eight-hop bounds, field-by-field provenance mutation rejection, historical-v1/missing-direct-evidence fail-closed behavior, byte-idempotent replay after fresh-root reload, global/private/shared scope preservation, player Working Memory isolation, bounded forgetting/direct-evidence loss and a deterministic 10-NPC pressure/reload simulation.
 - Semantic contradiction representation in PR #137 uses separate observed compile RED gates for stable logical claim identity, structured event model/prompt isolation, canonical adapter/integrity policy, exact-ID lifecycle and live resolved history. Preservation-only coverage then exercises fresh-root restart, source-union consolidation, forgetting without claim resurrection, global/private/shared privacy before limiting, exact replay, bounded event rejection, malformed-evidence filtering, no duplicate claim prose, 240 Semantic + 240 episodic pressure records and forward/reverse deterministic snapshots without requiring a preservation production correction.
 - Contradiction-aware prompt context in PR #139 uses observed RED gates for shared safe claim rendering, bounded live disagreement formatting/provider loading, immutable snapshot capture and five-layer prompt wiring; preservation coverage adds 240 Semantic + 240 episodic pressure records, fresh-root reload, prompt-injection escaping and unchanged current-observed-fact authority without a preservation production correction.
+- Deterministic rumor fallibility in PR #141 uses observed RED gates for the pure fallibility state, retained-source resolver, inline selected-Semantic annotation and conditional prompt guidance. Preservation coverage exercises an exact eight-hop chain, >200 Semantic and >200 episodic pressure records, high-score foreign-player private noise, fresh-root reload equality, direct-evidence forgetting to explicit `UNRESOLVED`, existing prompt-injection escaping and unchanged current FACT authority without a preservation production correction.
 - Existing current-FACT/current-relationship-state precedence tests remain green with long-horizon retrieval; transferred entries remain explicitly `BELIEF | provenance=NPC_TOLD` and retain the existing current-observed-fact-wins prompt framing.
 - Real two-graphical-client Operator Lore acceptance `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two graphical clients are available.
 
