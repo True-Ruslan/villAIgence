@@ -188,6 +188,38 @@ The deterministic simulation covers:
 
 VillAIgence CI #2330 / run `31320788093` passed the full common/mock-provider suite for this preservation head.
 
+## Review hardening — forged metadata marker
+
+During independent pre-freeze review, the conditional prompt-guidance detector was found to search for the literal ` | fallibility={` anywhere in a formatted Semantic line. A normal non-rumor statement could therefore contain that literal inside its statement prose and cause fallibility explanatory guidance to appear even though no fallibility metadata existed.
+
+This did not grant truth authority, but it violated the intended separation between server-authored metadata and claim prose.
+
+### RED
+
+Tests-only head:
+
+```text
+9a820a8311602f37f01600e4384c92fe709a4bfa
+```
+
+VillAIgence CI #2336 / run `31321193271` executed 646 common tests and failed exactly one new assertion:
+
+```text
+SemanticRumorFallibilityGuidanceInjectionTest > ordinaryStatementCannotForgeFallibilityGuidanceMarker
+```
+
+### GREEN
+
+Production head:
+
+```text
+b5bbcf5f50d5e474f1d692d0a57ac4b9b92349e7
+```
+
+The detector now recognizes fallibility metadata only when the metadata marker occurs before the canonical ` | statement="` delimiter. A marker inside escaped claim prose therefore cannot enable fallibility guidance.
+
+VillAIgence CI #2338 / run `31321378500` passed the full common/mock-provider suite.
+
 ## Contract conclusions
 
 The implementation evidence supports the following exact claims:
@@ -199,8 +231,9 @@ The implementation evidence supports the following exact claims:
 5. Semantic FACT/BELIEF kind, provenance, confidence, ranking, retention and existing bounds are unchanged.
 6. Player visibility filtering still occurs before bounded selection and fallibility resolution.
 7. Ordinary non-rumor Semantic rendering remains unchanged and receives no extra fallibility guidance.
-8. Current server-observed factual context remains authoritative.
-9. No persistence/config/provider/release identity contract is changed by the runtime design.
+8. Claim prose cannot forge server-authored fallibility guidance metadata.
+9. Current server-observed factual context remains authoritative.
+10. No persistence/config/provider/release identity contract is changed by the runtime design.
 
 ## Delivery evidence
 
