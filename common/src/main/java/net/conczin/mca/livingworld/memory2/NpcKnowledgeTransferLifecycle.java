@@ -57,12 +57,35 @@ public final class NpcKnowledgeTransferLifecycle {
                 source.statement()
         );
 
+        if (source.kind() == SemanticMemoryEntry.Kind.BELIEF
+                && source.provenance() == MemoryEvent.Provenance.NPC_TOLD) {
+            return result(NpcKnowledgeTransferResult.Status.PROVENANCE_UNAVAILABLE, null, null);
+        }
+
+        long safeGameTime = Math.max(0L, authoritativeGameTime);
+        UUID evidenceId = KnowledgeTransferProvenancePolicy.deterministicEvidenceId(
+                speakerNpcId,
+                listenerNpcId,
+                speakerSemanticEntryId,
+                safeGameTime
+        );
+        Optional<KnowledgeTransferProvenance> provenance = KnowledgeTransferProvenanceFactory.firstHop(
+                source,
+                listenerNpcId,
+                evidenceId,
+                safeGameTime
+        );
+        if (provenance.isEmpty()) {
+            return result(NpcKnowledgeTransferResult.Status.REJECTED, null, null);
+        }
+
         Optional<MemoryEvent> constructedEvidence = NpcToldDialogueAdapter.create(
                 speakerNpcId,
                 listenerNpcId,
                 speakerSemanticEntryId,
-                authoritativeGameTime,
-                normalizedStatement
+                safeGameTime,
+                normalizedStatement,
+                provenance.get()
         );
         if (constructedEvidence.isEmpty()) {
             return result(NpcKnowledgeTransferResult.Status.REJECTED, null, null);
@@ -84,8 +107,9 @@ public final class NpcKnowledgeTransferLifecycle {
                 speakerNpcId,
                 listenerNpcId,
                 speakerSemanticEntryId,
-                authoritativeGameTime,
-                normalizedStatement
+                safeGameTime,
+                normalizedStatement,
+                provenance.get()
         )) {
             return result(NpcKnowledgeTransferResult.Status.REJECTED, evidence.id(), null);
         }
