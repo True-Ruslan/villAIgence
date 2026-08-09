@@ -1,5 +1,7 @@
 package net.conczin.mca.livingworld.memory2;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -8,6 +10,10 @@ public record KnowledgeTransferProvenance(
         Origin origin,
         List<Hop> hops
 ) {
+    public KnowledgeTransferProvenance {
+        hops = immutableCopyPreservingNulls(hops);
+    }
+
     public record Origin(
             UUID originNpcId,
             UUID originSemanticEntryId,
@@ -16,6 +22,9 @@ public record KnowledgeTransferProvenance(
             String statement,
             List<UUID> relatedEntities
     ) {
+        public Origin {
+            relatedEntities = immutableCopyPreservingNulls(relatedEntities);
+        }
     }
 
     public record Hop(
@@ -25,5 +34,11 @@ public record KnowledgeTransferProvenance(
             UUID evidenceEventId,
             long gameTime
     ) {
+    }
+
+    private static <T> List<T> immutableCopyPreservingNulls(List<T> values) {
+        return values == null
+                ? null
+                : Collections.unmodifiableList(new ArrayList<>(values));
     }
 }
