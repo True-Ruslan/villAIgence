@@ -11,12 +11,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SnapshotLayeredPromptWiringPolicyTest {
     @Test
-    void snapshotSystemUsesDirectFourLayerPolicyBeforeStructuredResponseInstructions() throws IOException {
+    void snapshotSystemUsesDirectLayeredPolicyBeforeStructuredResponseInstructions() throws IOException {
         String source = Files.readString(Path.of(
                 "src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java"));
         String compact = source.replaceAll("\\s+", " ");
 
-        String layeredCall = "SnapshotContextPromptPolicy.compose( snapshot.worldFacts(), snapshot.operatorAuthoredContext(), snapshot.semanticMemoryContext(), snapshot.memoryContext() )";
+        String layeredCall = "SnapshotContextPromptPolicy.compose( snapshot.worldFacts(), snapshot.operatorAuthoredContext(), snapshot.semanticMemoryContext(), snapshot.contradictionContext(), snapshot.memoryContext() )";
         int layered = compact.indexOf(layeredCall);
         int structured = compact.indexOf("SemanticBeliefExtractionPrompt.requiresStructuredResponse", layered >= 0 ? layered : 0);
 
