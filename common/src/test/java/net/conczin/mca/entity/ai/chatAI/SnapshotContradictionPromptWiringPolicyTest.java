@@ -15,10 +15,12 @@ class SnapshotContradictionPromptWiringPolicyTest {
         String source = Files.readString(Path.of("src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java"));
         String compact = source.replaceAll("\\s+", " ");
         String expected = "SnapshotContextPromptPolicy.compose( snapshot.worldFacts(), snapshot.operatorAuthoredContext(), snapshot.semanticMemoryContext(), snapshot.contradictionContext(), snapshot.memoryContext() )";
+        int layered = compact.indexOf(expected);
+        int structured = compact.indexOf("SemanticBeliefExtractionPrompt.requiresStructuredResponse", layered >= 0 ? layered : 0);
 
-        assertTrue(compact.contains(expected));
+        assertTrue(layered >= 0);
         assertEquals(1, occurrences(compact, "snapshot.contradictionContext()"));
-        assertTrue(compact.indexOf(expected) < compact.indexOf("structuredResponseInstructions"));
+        assertTrue(structured > layered);
     }
 
     private static int occurrences(String value, String needle) {
