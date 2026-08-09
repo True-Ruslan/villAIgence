@@ -159,7 +159,7 @@ public final class SemanticContradictionLifecycle {
 }
 ```
 
-- [x] RED: valid pair expected `RECORDED`; missing sources expected `SOURCE_NOT_RETAINED`; wrong owner/null inputs `REJECTED`; same logical claim `SAME_CLAIM`; scope mismatch `SCOPE_MISMATCH`.
+- [x] RED: valid pair expected `RECORDED`; missing sources or a source not owned by the claimed NPC expected `SOURCE_NOT_RETAINED`; malformed/null authority inputs expected `REJECTED`; same logical claim `SAME_CLAIM`; scope mismatch `SCOPE_MISMATCH`.
 - [x] RED: exact replay same tuple/time returns same event ID and byte-identical `memory2.json`.
 - [x] RED: later game time returns distinct event ID.
 - [x] RED: capacity pressure may produce `EVENT_NOT_RETAINED`, with both Semantic entries exactly unchanged.
@@ -228,8 +228,8 @@ public final class SemanticContradictionHistory {
 - Create: `docs/superpowers/evidence/2026-08-09-semantic-contradictions-tdd.md`
 - After product merge only: update exactly `docs/PROJECT_STATE.md`, `docs/ROADMAP.md` in a separate docs PR.
 
-- [ ] Update root `[Unreleased]`: structured contradiction process evidence, exact-ID authority, stable logical identity, no duplicated claim text, no truth promotion, query only while claims remain live, generic prompt isolation, and no provider/config/store/migration change.
-- [ ] Record observed tests-only RED SHA/run/failure and minimal GREEN evidence for every behavior-changing task; do not invent unavailable intermediate evidence.
+- [x] Update root `[Unreleased]`: structured contradiction process evidence, exact-ID authority, stable logical identity, no duplicated claim text, no truth promotion, query only while claims remain live, generic prompt isolation, and no provider/config/store/migration change.
+- [x] Record observed tests-only RED SHA/run/failure and minimal GREEN evidence for every behavior-changing task; do not invent unavailable intermediate evidence.
 - [ ] Independent base→head review checks provider/client authority, no summary parsing, no duplicate claim prose, no claim mutation, no truth winner, no resurrection after forgetting, consolidation compatibility, bounded retention, privacy, persistence versions and existing rumor invariants.
 - [ ] Run fresh exact-head mandatory workflows: Repository security policy, VillAIgence CI, Production Soak, GitHub Release dry-run. Publication job must be `SKIPPED`.
 - [ ] Require P0/P1/P2 = 0/0/0 and zero unresolved review threads before merge.
