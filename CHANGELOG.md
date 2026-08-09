@@ -88,6 +88,13 @@ This is the **canonical changelog** for the project.
   - the annotation is rendered inline in the already-selected Semantic slot, so no additional prompt result slot is created and the existing `32 / 24+8 / 6` bounds remain unchanged;
   - FACT, PLAYER_TOLD and INFERRED lines retain their previous rendering, while fallibility guidance is emitted only when selected rumor fallibility metadata is actually present;
   - source distance is process metadata only: it does not rank claims, select a contradiction winner, mutate confidence, promote BELIEF to FACT or weaken current server-observed FACT authority.
+- Bounded transformed-claim representation for sourced NPC rumors:
+  - the first distortion primitive is server-deterministic `OMIT_TRAILING_SENTENCE`; it may remove one trailing sentence but cannot insert, replace, reorder or invent tokens;
+  - a rumor lineage has a hard maximum of one transformation across the existing eight-hop provenance path, and later ordinary transfers carry the exact same immutable transformation snapshot without resetting the budget;
+  - original `npc-knowledge-transfer-v2` origin statement and hop ancestry remain intact and inspectable while listener knowledge remains `BELIEF / NPC_TOLD` with unchanged transfer confidence;
+  - exact transformed replay is idempotent, a second transformation request returns `TRANSFORMATION_LIMIT_REACHED`, non-applicable single-sentence input returns `TRANSFORMATION_NOT_APPLICABLE`, and conflicting transformed/plain payloads under one existing transfer identity are rejected;
+  - retained direct evidence exposes `transformationsUsed=0|1`; forgotten or invalid direct evidence exposes `transformationsUsed=UNKNOWN` rather than reconstructing history from surviving prose;
+  - transformed fallibility stays in the already-selected Semantic prompt slot, uses the existing safe statement renderer and never becomes a truth score, authority signal or instruction.
 
 ### Changed
 
@@ -123,6 +130,7 @@ This is the **canonical changelog** for the project.
 - Semantic contradiction representation reuses `memory2.json` and `semantic-memory.json` format version 1, existing bounded retention and current player-scope eligibility; it adds no automatic contradiction detector, provider call/schema, public config, new store, migration/backfill, uncertainty/distortion/trust weighting, UI, scheduler or autonomous propagation.
 - Contradiction-aware prompt context adds no provider request/schema, public config, new persistence store/version, migration/backfill, automatic detector, winner selection, uncertainty/confidence mutation, distortion, trust weighting, UI, scheduler or autonomous propagation.
 - Rumor fallibility is a derived runtime view over retained v2 provenance; it adds no world file, JSON field, config value, migration/backfill, provider request/schema, evidence-ID namespace, confidence decay, trust weighting, automatic detector, transformed wording, UI, scheduler or autonomous rumor propagation.
+- Bounded transformed claims keep `memory2.json` at format version 1 and `semantic-memory.json` unchanged; the new transformation field is nullable structured process evidence on transfer events, while provider schema/call count, public config, v2 evidence identity, retrieval bounds, contradiction bounds, FACT admission, release identity, UI and autonomous propagation remain unchanged.
 
 ### Validation
 
@@ -138,89 +146,4 @@ This is the **canonical changelog** for the project.
 - Semantic contradiction representation in PR #137 uses separate observed compile RED gates for stable logical claim identity, structured event model/prompt isolation, canonical adapter/integrity policy, exact-ID lifecycle and live resolved history. Preservation-only coverage then exercises fresh-root restart, source-union consolidation, forgetting without claim resurrection, global/private/shared privacy before limiting, exact replay, bounded event rejection, malformed-evidence filtering, no duplicate claim prose, 240 Semantic + 240 episodic pressure records and forward/reverse deterministic snapshots without requiring a preservation production correction.
 - Contradiction-aware prompt context in PR #139 uses observed RED gates for shared safe claim rendering, bounded live disagreement formatting/provider loading, immutable snapshot capture and five-layer prompt wiring; preservation coverage adds 240 Semantic + 240 episodic pressure records, fresh-root reload, prompt-injection escaping and unchanged current-observed-fact authority without a preservation production correction.
 - Deterministic rumor fallibility in PR #141 uses observed RED gates for the pure fallibility state, retained-source resolver, inline selected-Semantic annotation and conditional prompt guidance. Preservation coverage exercises an exact eight-hop chain, >200 Semantic and >200 episodic pressure records, high-score foreign-player private noise, fresh-root reload equality, direct-evidence forgetting to explicit `UNRESOLVED`, existing prompt-injection escaping and unchanged current FACT authority without a preservation production correction.
-- Existing current-FACT/current-relationship-state precedence tests remain green with long-horizon retrieval; transferred entries remain explicitly `BELIEF | provenance=NPC_TOLD` and retain the existing current-observed-fact-wins prompt framing.
-- Real two-graphical-client Operator Lore acceptance `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two graphical clients are available.
-
----
-
-## [0.2.0+1.21.1] — 2026-08-07
-
-### Added
-
-- Memory 2.0 became the sole persistent dialogue-memory source.
-- Structured `DialogueExchange(playerMessage, npcReply)` payloads are persisted in DIALOGUE events.
-- Exact NPC/player dialogue retrieval filters eligible events before limiting and reconstructs chronological user/assistant history.
-- Current auxiliary corruption/recovery coverage uses five stores:
-  - `memory2.json`;
-  - `semantic-memory.json`;
-  - `relationships.json`;
-  - `voices.json`;
-  - `operator-lore.json`.
-
-### Changed
-
-- The experimental pre-0.2 `memory.json` conversation store was removed from the current runtime and recovery matrix.
-- The pre-1.0 rollout boundary is intentionally clean-state: no importer, dual reader, checkpoint ledger, or legacy conversation migration is provided.
-- Release recovery is version-aware so immutable historical releases keep their own persistence contracts.
-
-### Validation
-
-Exact installed Memory 2.0 acceptance for the byte-identified candidate:
-
-```text
-VAI-M2-INST-001  PASS
-VAI-M2-INST-002  PASS
-VAI-M2-INST-003  PASS
-VAI-M2-INST-004  PASS
-VAI-M2-INST-006  PASS
-VAI-M2-INST-007  PASS
-VAI-M2-INST-008  PASS
-
-Required total: 7 PASS / 0 FAIL
-VAI-M2-INST-005: NOT TESTED / AUTOMATED EVIDENCE ONLY
-VAI-CONCUR-004:  NOT TESTED / DEFERRED
-```
-
-The physical voice seed `silver-fox-482` was accepted by STT as `SilverFox482`; Memory 2.0 persisted and recalled the accepted transcript across restart. This is retained as a non-blocking STT-normalization observation rather than a memory failure.
-
-Candidate/runtime JAR SHA-256 used by the installed evidence:
-
-```text
-56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
-```
-
----
-
-## [0.1.26+1.21.1] — 2026-08-06
-
-### Added
-
-- Completed M11 Phase E automation across production staging, identity lifecycle, persistence recovery, authenticated sessions, voice transport, gameplay/navigation GameTests, fail-closed risk selection, and constrained-heap soak.
-- Added immutable release-recovery automation after a GitHub Actions publication outage.
-
-### Validation
-
-Installed canaries on the exact accepted release bytes:
-
-```text
-VAI-BOOT-002    PASS
-VAI-NAV-001     PASS
-VAI-GAME-001    PASS
-VAI-GAME-003    PASS
-VAI-AI-006      PASS
-VAI-CONCUR-004  NOT TESTED / DEFERRED
-
-Total: 5 PASS / 0 FAIL / 1 NOT TESTED
-```
-
-Release JAR SHA-256:
-
-```text
-5728f0f1a57b4c268df9b73603539f09ca30945a2ba251e72a5169ab45ae0a53
-```
-
----
-
-## Earlier history
-
-Detailed implementation/TDD/security history for the earlier `0.1.x` development line remains preserved in `docs/CHANGELOG.md` and version-specific validation documents under `docs/livingworld/` and `docs/security/`.
+- Bounded transformed-claim work in PR #143 uses separate observed RED gates for deterministic transformation state, additive evidence persistence, canonical provenance propagation, server-owned lifecycle admission, honest fallibility state and prompt rendering. Preservation coverage exercises one interior transformation across an exact eight-hop chain, >200 Semantic and >200 episodic pressure records, foreign-player privacy-before-limit, safe prompt escaping, fresh-root replay/equality, lineage-wide budget persistence, unchanged downstream propagation, direct-evidence forgetting and fail-closed `PROVENANCE_UNAVAILABLE` without a preservation production correction.
