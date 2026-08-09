@@ -125,8 +125,8 @@ Downstream contract discovery:
 - VillAIgence CI #2385 / run `31338912362`
 - job `93309265451`
 - compile succeeded and the new Task 5A state/resolver tests passed;
-- full common then failed exactly two older prompt expectations that still required fabricated `transformationsUsed=0` for `UNRESOLVED`.
-- Those failures were classified as the expected downstream serialization contract that Task 5B needed to update, not as a reason to restore the dishonest zero.
+- full common then failed exactly two older prompt expectations that still required fabricated `transformationsUsed=0` for `UNRESOLVED`;
+- those failures were classified as the expected downstream serialization contract that Task 5B needed to update, not as a reason to restore the dishonest zero.
 
 Verified state contract:
 - resolved ordinary rumor => transformations `0`;
@@ -142,8 +142,8 @@ Tests-only contract commits:
 - transformed eight-hop prompt simulation `f80ef806dff11bb30f82df55991b32a7cbac663e`
 - VillAIgence CI #2391 / run `31339147211`
 - job `93309925454`
-- compilation succeeded; `667` tests executed with exactly 5 expected prompt/serialization failures against the old formatter.
-- The transformed eight-hop simulation reached prompt assertions, demonstrating that lifecycle/provenance/pressure/privacy/reload behavior was already intact before formatter production changed.
+- compilation succeeded; `667` tests executed with exactly 5 expected prompt/serialization failures against the old formatter;
+- the transformed eight-hop simulation reached prompt assertions, demonstrating that lifecycle/provenance/pressure/privacy/reload behavior was already intact before formatter production changed.
 
 Minimal GREEN:
 - `SemanticMemoryContextFormatter` commit `88079035615e87fd0ab6abb84ca2c381248862c9`
@@ -183,11 +183,34 @@ Preservation coverage:
 - downstream transformed knowledge remains BELIEF and never creates FACT;
 - existing contradiction no-winner and current-observed-FACT authority regressions remain covered by the full common suite.
 
-## Delivery boundary
+## Delivery review
 
-Product history update:
-- root `CHANGELOG.md` commit `cad05f87dc4c84ca4e7af49f5c8963f161e9d177`.
+Product history:
+- initial root `CHANGELOG.md` update commit `cad05f87dc4c84ca4e7af49f5c8963f161e9d177`;
+- independent base→head review detected that the full-file replacement had accidentally truncated 86 historical changelog lines;
+- historical `0.2.0`, `0.1.26` and earlier-history sections were restored byte-for-byte in commit `1bc2fcffc8df1761dcf5488396cb86a7734b7d97`;
+- repeat compare against base confirmed the final changelog diff is additions-only: `+9 / -0`.
+
+Independent runtime/delivery review checked:
+- transformation state and exact hop binding;
+- unchanged `npc-knowledge-transfer-v2` deterministic evidence identity;
+- source-compatible MemoryEvent constructor shapes and additive nullable persistence;
+- exact replay and transformed/plain same-ID conflict rejection;
+- FACT/BELIEF/provenance/confidence authority boundaries;
+- retained canonical branch resolution and immutable origin provenance;
+- max-one transformation and max-eight provenance hops;
+- pressure/restart/provenance-loss failure behavior;
+- privacy-before-result allocation and existing Semantic/disagreement bounds;
+- prompt marker forgery/injection safety and current-observed-FACT precedence;
+- no config, provider request/schema/call-count, workflow, tag/version/release or `semantic-memory.json` schema changes.
+
+Review result after the changelog repair:
+- P0: 0
+- P1: 0
+- P2: 0
+- open review threads: 0
+- PR discussion comments: 0
 
 No public config, provider request/schema, provider call count, release/version/tag, workflow, `semantic-memory.json` schema or `npc-knowledge-transfer-v2` identity change is part of this slice.
 
-Final independent review and exact-head Repository security / VillAIgence CI / Production Soak / GitHub Release dry-run evidence are recorded after the delivery head is frozen. Release publication must remain skipped.
+Final exact-head Repository security / VillAIgence CI / Production Soak / GitHub Release dry-run evidence is verified after this ledger commit freezes the delivery head. Release publication must remain skipped.
