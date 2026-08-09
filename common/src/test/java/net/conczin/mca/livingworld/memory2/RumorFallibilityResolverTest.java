@@ -34,7 +34,10 @@ class RumorFallibilityResolverTest {
         assertEquals(NpcKnowledgeTransferResult.Status.ADMITTED, db.status());
 
         SemanticMemoryEntry bRumor = SemanticMemoryStore.forWorld(world)
-                .findById(b, direct.semanticEntryId()).orElseThrow();
+                .findMatching(b, entry -> entry.kind() == SemanticMemoryEntry.Kind.BELIEF
+                        && entry.provenance() == MemoryEvent.Provenance.NPC_TOLD
+                        && "The mill bridge is closed".equals(entry.statement()))
+                .orElseThrow();
         assertTrue(bRumor.sourceEventIds().contains(direct.evidenceEventId()));
         assertTrue(bRumor.sourceEventIds().contains(db.evidenceEventId()));
 
