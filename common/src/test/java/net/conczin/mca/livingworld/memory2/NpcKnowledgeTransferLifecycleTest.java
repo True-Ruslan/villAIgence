@@ -131,6 +131,65 @@ class NpcKnowledgeTransferLifecycleTest {
         assertEquals(MemoryEvent.Provenance.NPC_TOLD, transferred.provenance());
     }
 
+    @Test
+    void inheritsExactLineageAcrossSecondNpcHopAndKeepsOnlyDirectSemanticEvidence() {
+        Path world = tempDir.resolve("multi-hop-transfer");
+        UUID npcA = UUID.fromString("00000000-0000-0000-0000-000000033001");
+        UUID npcB = UUID.fromString("00000000-0000-0000-0000-000000033002");
+        UUID npcC = UUID.fromString("00000000-0000-0000-0000-000000033003");
+        UUID player = UUID.fromString("00000000-0000-0000-0000-000000033004");
+        UUID sourceId = UUID.fromString("00000000-0000-0000-0000-000000033005");
+        SemanticMemoryEntry source = new SemanticMemoryEntry(
+                sourceId, npcA, SemanticMemoryEntry.Kind.FACT,
+                "The bell tower is damaged", List.of(player),
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                100L, 0L, 90, 100,
+                List.of(UUID.fromString("00000000-0000-0000-0000-000000033006")));
+        SemanticMemoryStore.forWorld(world).append(source, 64);
+
+        NpcKnowledgeTransferResult ab = NpcKnowledgeTransferLifecycle.transfer(
+                world, npcA, npcB, sourceId, 200L, 64, 64);
+        assertEquals(NpcKnowledgeTransferResult.Status.ADMITTED, ab.status());
+
+        NpcKnowledgeTransferResult bc = NpcKnowledgeTransferLifecycle.transfer(
+                world, npcB, npcC, ab.semanticEntryId(), 300L, 64, 64);
+
+        assertEquals(NpcKnowledgeTransferResult.Status.ADMITTED, bc.status());
+        MemoryEvent bcEvidence = MemoryEventStore.forWorld(world)
+                .findById(npcC, bc.evidenceEventId()).orElseThrow();
+        KnowledgeTransferProvenance lineage = bcEvidence.knowledgeTransferProvenance();
+        assertNotNull(lineage);
+        assertEquals(npcA, lineage.origin().originNpcId());
+        assertEquals(sourceId, lineage.origin().originSemanticEntryId());
+        assertEquals(SemanticMemoryEntry.Kind.FACT, lineage.origin().originKind());
+        assertEquals(MemoryEvent.Provenance.SYSTEM_OBSERVED, lineage.origin().originProvenance());
+        assertEquals("The bell tower is damaged", lineage.origin().statement());
+        assertEquals(List.of(player), lineage.origin().relatedEntities());
+        assertEquals(2, lineage.hops().size());
+
+        KnowledgeTransferProvenance.Hop first = lineage.hops().get(0);
+        assertEquals(npcA, first.speakerNpcId());
+        assertEquals(npcB, first.listenerNpcId());
+        assertEquals(sourceId, first.speakerSemanticEntryId());
+        assertEquals(ab.evidenceEventId(), first.evidenceEventId());
+        assertEquals(200L, first.gameTime());
+
+        KnowledgeTransferProvenance.Hop second = lineage.hops().get(1);
+        assertEquals(npcB, second.speakerNpcId());
+        assertEquals(npcC, second.listenerNpcId());
+        assertEquals(ab.semanticEntryId(), second.speakerSemanticEntryId());
+        assertEquals(bc.evidenceEventId(), second.evidenceEventId());
+        assertEquals(300L, second.gameTime());
+
+        SemanticMemoryEntry cBelief = SemanticMemoryStore.forWorld(world)
+                .findById(npcC, bc.semanticEntryId()).orElseThrow();
+        assertEquals(SemanticMemoryEntry.Kind.BELIEF, cBelief.kind());
+        assertEquals(MemoryEvent.Provenance.NPC_TOLD, cBelief.provenance());
+        assertEquals(List.of(player), cBelief.relatedEntities());
+        assertEquals(List.of(bc.evidenceEventId()), cBelief.sourceEventIds());
+        assertFalse(cBelief.sourceEventIds().contains(ab.evidenceEventId()));
+    }
+
     private static void assertFirstHopOrigin(
             MemoryEvent evidence,
             SemanticMemoryEntry source,
