@@ -2,7 +2,7 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md`. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-08-09**, after deterministic rumor fallibility merged through PR #141.
+> Last reconciled: **2026-08-10**, after bounded transformed-claim representation merged through PR #143.
 >
 > Always distinguish source/unit evidence, common integration, GameTests, production-candidate evidence, exact-release evidence and installed operator server/client evidence.
 
@@ -17,14 +17,14 @@ Java:                               21
 primary distribution:               Fabric
 NeoForge:                           compile compatibility required
 
-latest product merge:               PR #141
-latest product merge commit:        e0951067227913b8cadb3e73ee34355b0b3302ff
+latest product merge:               PR #143
+latest product merge commit:        4a34585cd8df7cbfac34d17be86c5fa36b41b213
 latest official release:            0.2.0+1.21.1
 latest release commit:              e426f588efefa6aa48a6e536c4a998421bbda241
 installed 0.2.0 candidate JAR SHA:   56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
 
-next product slice:                 bounded transformed-claim representation
-then:                               bounded contradiction producer policy where justified
+next product slice:                 bounded contradiction candidate/producer policy
+then:                               settlement-scale information flow without omniscience
 ```
 
 Current delivery state:
@@ -51,7 +51,8 @@ bounded multi-hop rumor provenance                     COMPLETE / PR #135
 Semantic contradiction representation                  COMPLETE / PR #137
 contradiction-aware prompt context                     COMPLETE / PR #139
 deterministic rumor fallibility                        COMPLETE / PR #141
-bounded transformed-claim representation               NEXT
+bounded transformed-claim representation               COMPLETE / PR #143
+bounded contradiction candidate/producer policy        NEXT
 ```
 
 Installed boundaries remain explicit:
@@ -63,7 +64,7 @@ VAI-CONCUR-004   NOT TESTED / DEFERRED
 
 Neither is represented as PASS.
 
-PRs #127, #129, #131, #133, #135, #137, #139 and #141 are merged automated source capabilities **after** the installed `0.2.0` release. Their CI/candidate evidence is not installed `0.2.0` acceptance.
+PRs #127, #129, #131, #133, #135, #137, #139, #141 and #143 are merged automated source capabilities **after** the installed `0.2.0` release. Their CI/candidate evidence is not installed `0.2.0` acceptance.
 
 ---
 
@@ -95,10 +96,10 @@ NPC Identity
 5. Retry/replay paths must not duplicate dialogue, memory, relationship or gameplay effects.
 6. **FACT requires `SYSTEM_OBSERVED` server-owned evidence.**
 7. **BELIEF remains non-authoritative** and may use only `PLAYER_TOLD`, `NPC_TOLD` or `INFERRED` provenance.
-8. Confidence, repetition, corroboration count, rumor depth and fallibility metadata never upgrade BELIEF into FACT.
+8. Confidence, repetition, corroboration count, rumor depth, fallibility and transformation metadata never upgrade BELIEF into FACT.
 9. Candidate extraction is not admission, and admission is not authority.
 10. Operator Lore is explicit background context, not an observed current-world fact.
-11. Current observed world facts override conflicting lore, beliefs, rumors, disagreement and fallibility context.
+11. Current observed world facts override conflicting lore, beliefs, rumors, disagreement, fallibility and transformed claims.
 12. Clients never own permissions, target/source identity, truth class, revisions or persistent mutations.
 13. Compatibility work requires a supported-data reason; experimental pre-1.0 data is not automatically entitled to migration code.
 14. Exact release identity must match tag, filename, embedded metadata and manifest.
@@ -115,9 +116,10 @@ NPC Identity
 25. Contradiction evidence records disagreement only; it does not select a winner, promote a claim, change confidence or delete either claim.
 26. Historical contradiction evidence cannot resurrect forgotten claim prose; both logical Semantic claims must remain live and player-eligible.
 27. Contradiction prompt context is a dedicated data layer, hard-bounded to four live relations, not generic verified prose.
-28. **Rumor fallibility is process metadata, not truth likelihood.** Source distance describes the retained canonical provenance path only.
-29. Loss of direct rumor provenance degrades to explicit `UNRESOLVED`; ancestry is never reconstructed from stale prose.
-30. Any future wording transformation must preserve original source/provenance, remain hard-bounded and keep the downstream claim `BELIEF`.
+28. **Rumor fallibility is process metadata, not truth likelihood.** Source distance describes the selected retained canonical provenance path only.
+29. Loss of direct rumor provenance degrades to explicit `UNRESOLVED`; ancestry or transformation history is never reconstructed from stale prose.
+30. **Wording transformation is explicit bounded process evidence.** The current primitive may omit one trailing sentence at most once per retained canonical lineage; transformed downstream knowledge remains BELIEF.
+31. A transformed claim never rewrites its original v2 origin snapshot. Original source and current transformed wording remain separately auditable while direct evidence survives.
 
 Canonical AI/state flow:
 
@@ -129,7 +131,7 @@ Minecraft/server state
 → provider/LLM proposal
 → server validation/revalidation
 → server-owned mutation
-→ persistent authoritative evidence
+→ persistent authoritative/process evidence
 ```
 
 Current snapshot prompt order:
@@ -137,14 +139,14 @@ Current snapshot prompt order:
 ```text
 current server-observed facts
 → Operator Lore
-→ Semantic Memory
+→ Semantic Memory (including inline rumor fallibility/transformation metadata)
 → live Semantic disagreement context
 → episodic / social history
 → structured provider/tool instructions
 → provider
 ```
 
-Semantic rumor fallibility is inline metadata on already-selected Semantic lines; it does not add a new authority layer or prompt slot.
+Fallibility/transformation metadata uses the already-selected Semantic slot; it does not add a new authority layer or prompt capacity.
 
 ---
 
@@ -199,7 +201,7 @@ Current Semantic BELIEF extraction config remains:
 
 Extraction remains opt-in. Hard candidate count is `8`; statements are bounded to `240` Unicode code points. Existing config version remains `2` and missing fields receive safe defaults.
 
-PR #141 adds **no** config field, provider schema/call, persistence store, JSON field, persistence-version change, migration/backfill or evidence-ID namespace.
+PR #143 adds no public config, provider schema/call, new world file, migration/backfill, `semantic-memory.json` schema change or transfer evidence-ID namespace change. `memory2.json` remains format version 1; transfer DIALOGUE evidence may now carry an additive nullable `knowledgeTransferTransformation` snapshot, while historical records deserialize with no transformation.
 
 ---
 
@@ -226,13 +228,20 @@ Implemented and retained:
 - deterministic rumor fallibility derived only after existing Semantic eligibility/selection/ranking;
 - `RESOLVED` source distance of exactly 1..8 from retained canonical v2 provenance;
 - explicit `UNRESOLVED` state when a retained `NPC_TOLD` BELIEF loses resolvable direct provenance;
-- `transformationsUsed=0` as a structural no-distortion boundary for PR #141;
-- ordinary FACT/PLAYER_TOLD/INFERRED prompt rendering unchanged by fallibility;
-- forged fallibility markers inside claim prose cannot enable server-authored fallibility guidance;
-- current observed FACT authority preserved under rumors, disagreement and fallibility metadata;
+- one deterministic wording transform primitive: `OMIT_TRAILING_SENTENCE`;
+- hard one-transformation budget per selected retained canonical rumor lineage;
+- immutable transformation snapshot carried forward unchanged by later ordinary transfers;
+- exact v2 origin statement retained separately from transformed current statement;
+- resolved fallibility reports `transformationsUsed=0|1` only from retained validated evidence;
+- unresolved fallibility reports `transformationsUsed=UNKNOWN`, never a fabricated zero;
+- transformed/plain same-ID transfer conflicts reject and exact transformed replay is idempotent;
+- transformed knowledge remains `BELIEF/NPC_TOLD` with unchanged transfer confidence;
+- ordinary FACT/PLAYER_TOLD/INFERRED prompt rendering remains unchanged;
+- forged fallibility markers inside claim prose cannot enable server-authored guidance;
+- current observed FACT authority preserved under rumors, disagreement, fallibility and transformed claims;
 - restart/replay, pressure, privacy and prompt-injection regression coverage.
 
-Truth boundary:
+Truth/process boundary:
 
 ```text
 FACT                    → SYSTEM_OBSERVED only
@@ -242,53 +251,67 @@ rumor retelling         → BELIEF / NPC_TOLD at every downstream hop
 SEMANTIC_CONTRADICTION  → server-observed disagreement linkage only
 prompt disagreement     → live derived context; never a truth verdict
 rumor fallibility       → live derived process metadata; never a truth score
+claim transformation    → server-owned bounded process evidence; never truth promotion
 ```
 
-## PR #141 — deterministic rumor fallibility
+## PR #143 — bounded transformed-claim representation
 
 Merged source capability:
 
 ```text
-selected eligible BELIEF / NPC_TOLD
-+ retained canonical direct transfer evidence
-→ existing KnowledgeTransferProvenanceResolver
-→ valid canonical v2 provenance
-→ RESOLVED sourceDistanceHops=1..8
-→ inline Semantic fallibility metadata
+eligible sourced Semantic claim
++ server-owned transfer request
++ canonical v2 provenance
+→ optional deterministic OMIT_TRAILING_SENTENCE
+→ listener DIALOGUE / NPC_TOLD evidence
+→ listener BELIEF / NPC_TOLD
+→ immutable original origin + transformation snapshot
 ```
 
-If the retained rumor's direct evidence cannot be resolved:
+Current transformation contract:
 
 ```text
-BELIEF / NPC_TOLD remains retained
-→ sourcePath=UNRESOLVED
-→ no fabricated distance
-→ no reconstructed ancestry
+MAX_TRANSFORMATIONS = 1
+max provenance hops = 8
+allowed transform = OMIT_TRAILING_SENTENCE only
+provider-supplied rewrite = none
+second provider call = none
 ```
 
-Final source-head evidence before squash merge:
+A transformed lineage may propagate unchanged. A second transformation request returns `TRANSFORMATION_LIMIT_REACHED`; a single-sentence/non-applicable source returns `TRANSFORMATION_NOT_APPLICABLE`. If direct evidence is lost, transformation history is not reconstructed from prose and downstream transfer remains fail-closed through `PROVENANCE_UNAVAILABLE`.
+
+Current fallibility rendering:
 
 ```text
-verified head:                           a8726d17b1f71ed7594d8728cb920b97fea31493
-merge commit:                            e0951067227913b8cadb3e73ee34355b0b3302ff
-Repository security policy #1975:       SUCCESS / run 31321543868
-VillAIgence CI #2340:                   SUCCESS / run 31321543834
-VillAIgence Production Soak #275:       SUCCESS / run 31321543872
-VillAIgence GitHub Release #609:        SUCCESS / run 31321543807
+resolved ordinary rumor:    sourceDistanceHops=1..8, transformationsUsed=0
+resolved transformed rumor: sourceDistanceHops=1..8, transformationsUsed=1
+unresolved direct evidence:  sourcePath=UNRESOLVED, transformationsUsed=UNKNOWN
+```
+
+Final exact-head evidence before squash merge:
+
+```text
+verified head:                           29771cd6f1fdfb29f266c03b4b99928d3c048cc9
+merge commit:                            4a34585cd8df7cbfac34d17be86c5fa36b41b213
+Repository security policy #2038:       SUCCESS / run 31339892209
+VillAIgence CI #2403:                   SUCCESS / run 31339892218
+VillAIgence Production Soak #303:       SUCCESS / run 31339892208
+VillAIgence GitHub Release #637:        SUCCESS / run 31339892210
 release publication job:                SKIPPED
-independent review P0/P1/P2 after fix:  0 / 0 / 0
+independent review P0/P1/P2:            0 / 0 / 0
 open review threads:                    0
+PR discussion comments:                 0
 ```
 
-Main CI passed common/mock-provider, GameTests/loaders, production acceptance/startup, persistence recovery and package verification. Production Soak passed constrained concurrency, exact staging and five restart cycles. Release dry-run passed exact production acceptance/recovery, GameTests/loaders, package smoke and accepted-JAR/package identity without publication.
+Main CI passed common/mock-provider, GameTests/loaders, production acceptance/startup, persistence recovery and package verification. Production Soak passed constrained authenticated concurrency, exact production staging and five restart cycles. Release dry-run passed complete release acceptance selection, exact identity/security, production acceptance/recovery, GameTests/loaders, package smoke and accepted-JAR/package identity; the publication job remained skipped.
 
 Canonical TDD evidence:
 
 ```text
-docs/superpowers/evidence/2026-08-09-deterministic-rumor-fallibility-tdd.md
+docs/superpowers/evidence/2026-08-09-bounded-transformed-claim-tdd.md
 ```
 
-The review hardening gate found and fixed one pre-freeze metadata/prose separation issue: ordinary statement text containing a fallibility-looking literal could enable explanatory guidance. The final detector accepts the marker as metadata only before the canonical statement field.
+Independent review caught one changelog-only truncation before head freeze and restored the historical release sections. Repeat base→head comparison confirmed the final root changelog diff was additions-only. No runtime defect was hidden or waived.
 
 ---
 
@@ -331,7 +354,7 @@ Root `CHANGELOG.md` remains canonical product/release history. Significant runti
 
 `docs/CHANGELOG.md` remains historical engineering detail. Staged TDD evidence for recent slices is under `docs/superpowers/evidence/`.
 
-PR #141 already updated root `[Unreleased]`; this docs reconciliation must not duplicate or rewrite that product changelog entry.
+PR #143 already updated root `[Unreleased]`; this docs reconciliation must not duplicate or rewrite that product changelog entry.
 
 ---
 
@@ -339,8 +362,8 @@ PR #141 already updated root `[Unreleased]`; this docs reconciliation must not d
 
 1. `VAI-CONCUR-004` real two-graphical-client Operator Lore conflict presentation remains deferred.
 2. `VAI-M2-INST-005` real second-player installed isolation remains untested; automated current-player/NPC-global/shared isolation exists.
-3. Fallibility now exposes exact retained source distance, but **actual bounded wording transformation does not yet exist**; `transformationsUsed` is deliberately fixed to zero.
-4. Contradiction relations are still created only through the explicit server-owned lifecycle; no automatic bounded detector/producer is wired into ordinary claim ingestion.
+3. Contradiction relations are still created only through the explicit server-owned lifecycle; no automatic bounded detector/producer is wired into ordinary claim ingestion.
+4. The current wording transform is intentionally narrow and deterministic. Provider-authored paraphrase/generalization is not supported and should not be added without a separately justified authority-safe design.
 5. Multi-hop knowledge transfer remains explicitly server-invoked. Autonomous initiation, visible NPC↔NPC conversation and voice are future product slices.
 6. Relationship/trust values do not alter belief confidence/fallibility; that requires a separate social-epistemology design so social affinity cannot become truth authority.
 7. `PersistentChatMemory` remains a no-storage compatibility façade pending inherited AI call-surface refactoring.
@@ -351,51 +374,48 @@ PR #141 already updated root `[Unreleased]`; this docs reconciliation must not d
 
 # Next optimal delivery step
 
-The next product slice is **bounded transformed-claim representation**, the second sub-slice of uncertainty / bounded distortion.
+The next product slice is **bounded contradiction candidate/producer policy**.
 
-The system can now say how far a retained rumor is from its canonical source without pretending that distance is a truth probability. The next missing capability is a strictly bounded wording transformation whose process evidence remains auditable.
+Contradiction representation (#137) and safe prompt consumption (#139) already exist, but ordinary Semantic admission does not automatically propose bounded claim pairs for contradiction recording. Now that transformed-claim semantics are stable, the producer can be designed without conflating wording transformation with truth arbitration.
 
 Required boundary:
 
 ```text
-retained BELIEF / NPC_TOLD
-+ canonical v2 provenance
-+ deterministic fallibility state
-→ explicit bounded transformation candidate
-→ server-owned validation/admission
-→ transformed downstream BELIEF
-→ exact original source/history remains inspectable
-→ transformation count remains hard-bounded
-→ current SYSTEM_OBSERVED FACT remains authoritative
+new/updated retained Semantic claim
++ current-player/NPC visibility boundary
+→ bounded deterministic candidate selection
+→ strict small comparison budget
+→ equivalence/self/scope filtering
+→ server-owned contradiction classification/admission
+→ existing SEMANTIC_CONTRADICTION evidence lifecycle
+→ no winner / no FACT promotion / no confidence mutation
 ```
 
-Design questions that must be settled before production code:
+Design requirements before production code:
 
-- where transformed wording and transformation evidence live without corrupting the existing provenance identity contract;
-- whether transformation is purely server-deterministic or provider-suggested through a bounded schema;
-- the exact hard transformation count/budget and whether it is lower than the eight-hop provenance limit;
-- whether one transfer may transform at most once and how replay determines the same outcome;
-- how original and transformed statements remain linked without treating either as FACT;
-- what semantic transformations are allowed versus rejected as meaning-changing fabrication;
-- how transformed-claim identity remains deterministic across restart/replay;
-- how pressure/forgetting behaves when transformation evidence is lost;
-- how contradiction interacts with transformed claims without selecting truth;
-- how privacy eligibility remains enforced before any transformed prompt allocation.
-
-Do **not** combine this slice with automatic contradiction detection, trust-weighted belief or autonomous rumor propagation.
+- candidate selection must happen before pair evaluation; no unbounded all-pairs scan;
+- define a strict maximum comparisons budget per admission/turn;
+- same logical claim and normalized-equivalent claims must be rejected before opposition classification;
+- player eligibility/privacy must apply before candidate allocation;
+- provider/client may not choose relation UUIDs, winner, truth class, source identity or scope;
+- if a model is ever used for opposition classification, its output is only a bounded candidate classification and never truth authority; prefer deterministic/server-owned rules where practical;
+- exact replay/restart must not duplicate contradiction evidence;
+- existing contradiction no-winner semantics and max-four prompt relations remain unchanged;
+- transformed claims remain ordinary BELIEF inputs to this system; transformation metadata must not bias truth/winner selection;
+- persistent graph growth must remain bounded and non-quadratic;
+- no trust weighting, autonomous rumor propagation or settlement-wide omniscience is added in this slice.
 
 Recommended TDD order:
 
 ```text
-transformation semantics + evidence design
-→ pure bounded transformation-state RED
-→ deterministic identity/replay RED
-→ exact original-source preservation RED
-→ bounded candidate/admission RED
-→ no FACT/confidence promotion RED
-→ pressure/forgetting/restart RED
-→ contradiction/privacy interaction RED
-→ prompt rendering/injection safety RED
+producer/candidate specification + authority gate
+→ RED: bounded candidate selector
+→ RED: privacy/scope/equivalence filtering
+→ RED: strict comparison budget
+→ RED: deterministic relation identity/replay
+→ RED: no winner / no FACT-confidence mutation
+→ RED: transformed-claim interaction
+→ RED: pressure/forgetting/restart behavior
 → deterministic multi-NPC simulation
 → exact-head CI / soak / release dry-run / independent review
 ```
