@@ -45,7 +45,7 @@ public final class SemanticMemoryContextProvider {
                 SemanticMemoryEntry::id
         );
         List<RankedSemanticMemory> ranked = SemanticMemoryRetriever.rankCandidates(candidates, query);
-        return SemanticMemoryContextFormatter.format(ranked);
+        return SemanticMemoryContextFormatter.format(ranked, MemoryEventStore.forWorld(worldRoot));
     }
 
     private static Comparator<SemanticMemoryEntry> durableFirst(long gameTime) {
