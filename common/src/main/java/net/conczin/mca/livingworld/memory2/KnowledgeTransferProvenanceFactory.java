@@ -65,6 +65,24 @@ final class KnowledgeTransferProvenanceFactory {
             UUID evidenceEventId,
             long authoritativeGameTime
     ) {
+        return appendHop(
+                current,
+                speakerSource,
+                listenerNpcId,
+                evidenceEventId,
+                authoritativeGameTime,
+                null
+        );
+    }
+
+    static Optional<KnowledgeTransferProvenance> appendHop(
+            KnowledgeTransferProvenance current,
+            SemanticMemoryEntry speakerSource,
+            UUID listenerNpcId,
+            UUID evidenceEventId,
+            long authoritativeGameTime,
+            KnowledgeTransferTransformation transformation
+    ) {
         if (!KnowledgeTransferProvenancePolicy.valid(current)
                 || speakerSource == null
                 || speakerSource.kind() != SemanticMemoryEntry.Kind.BELIEF
@@ -72,7 +90,11 @@ final class KnowledgeTransferProvenanceFactory {
                 || listenerNpcId == null
                 || evidenceEventId == null
                 || speakerSource.ownerNpcId().equals(listenerNpcId)
-                || !KnowledgeTransferProvenancePolicy.contentMatchesOrigin(current, speakerSource)
+                || !KnowledgeTransferProvenancePolicy.contentMatchesCurrent(
+                current,
+                transformation,
+                speakerSource
+        )
                 || !current.hops().getLast().listenerNpcId().equals(speakerSource.ownerNpcId())
                 || KnowledgeTransferProvenancePolicy.wouldCycle(current, listenerNpcId)
                 || KnowledgeTransferProvenancePolicy.atHopLimit(current)) {
@@ -97,6 +119,8 @@ final class KnowledgeTransferProvenanceFactory {
                 List.copyOf(hops)
         );
         return KnowledgeTransferProvenancePolicy.valid(result)
+                && (transformation == null
+                || KnowledgeTransferTransformationPolicy.valid(transformation, result))
                 ? Optional.of(result)
                 : Optional.empty();
     }
