@@ -26,7 +26,13 @@ class NpcKnowledgeTransferRejectionTest {
         assertRejectedWithoutListenerState(world, null, listener, sourceId);
         assertRejectedWithoutListenerState(world, speaker, null, sourceId);
         assertRejectedWithoutListenerState(world, speaker, listener, null);
-        assertRejectedWithoutListenerState(world, speaker, speaker, sourceId);
+        assertStatusWithoutListenerState(
+                world,
+                speaker,
+                speaker,
+                sourceId,
+                NpcKnowledgeTransferResult.Status.PROVENANCE_CYCLE
+        );
         assertRejectedWithoutListenerState(world, speaker, listener, UUID.randomUUID());
     }
 
@@ -69,10 +75,26 @@ class NpcKnowledgeTransferRejectionTest {
             UUID listener,
             UUID sourceId
     ) {
+        assertStatusWithoutListenerState(
+                world,
+                speaker,
+                listener,
+                sourceId,
+                NpcKnowledgeTransferResult.Status.REJECTED
+        );
+    }
+
+    private static void assertStatusWithoutListenerState(
+            Path world,
+            UUID speaker,
+            UUID listener,
+            UUID sourceId,
+            NpcKnowledgeTransferResult.Status expectedStatus
+    ) {
         NpcKnowledgeTransferResult result = NpcKnowledgeTransferLifecycle.transfer(
                 world, speaker, listener, sourceId, 10L, 16, 16
         );
-        assertEquals(NpcKnowledgeTransferResult.Status.REJECTED, result.status());
+        assertEquals(expectedStatus, result.status());
         if (listener != null) {
             assertEquals(List.of(), MemoryEventStore.forWorld(world).getRecent(listener, 16));
             assertEquals(List.of(), SemanticMemoryStore.forWorld(world).getRecent(listener, 16));
