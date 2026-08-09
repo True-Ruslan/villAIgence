@@ -18,9 +18,9 @@ docs/superpowers/specs/2026-08-09-semantic-contradictions-design.md
 docs/superpowers/plans/2026-08-09-semantic-contradictions.md
 ```
 
-The final synchronized design commit is `fa15664894eb096544bab6ad179897fbcddffd0d`; the final synchronized execution-plan commit is `30c4d9fa649722fa9f57bb54d733a1957f4d0349`.
+The final synchronized design commit is `fa15664894eb096544bab6ad179897fbcddffd0d`; the final synchronized execution-plan commit is `3dc1b0eb71be860bc72ba54c614221236f0ef061`.
 
-This ledger distinguishes observed tests-only RED evidence, minimal GREEN implementation evidence, preservation-only GREEN stages, and the later exact-head delivery gate. It does not promote source/candidate automation into installed-release acceptance. The current installed release boundary remains `0.2.0+1.21.1`.
+This ledger distinguishes observed tests-only RED evidence, minimal GREEN implementation evidence, preservation-only GREEN stages, review hardening, and the later exact-head delivery gate. It does not promote source/candidate automation into installed-release acceptance. The current installed release boundary remains `0.2.0+1.21.1`.
 
 ---
 
@@ -331,6 +331,33 @@ Coverage includes:
 - contradiction evidence excluded from generic episodic context;
 - existing prompt guarantees `Current observed factual context wins on conflict.` and `Confidence never converts a BELIEF into a FACT.` remaining intact;
 - the complete common suite retaining the existing provenance-aware rumor regressions, including the eight-hop boundary.
+
+---
+
+## Independent-review corruption hardening
+
+During base→head review, a potential malformed-persistence NPE was investigated before merge.
+
+The first attempted test commit was:
+
+```text
+50680f7766bc4a3455b2252129e180edbdd38a8e
+VillAIgence CI #2252
+run 31310808409
+job 93238244020
+```
+
+It failed at `:common:compileTestJava` with 13 errors because the test directly imported `com.google.gson`, which is not exported on the common test compile classpath. This was a **test-infrastructure mistake**, not a behavioral RED and not evidence of a production defect. It is explicitly not counted as TDD RED evidence.
+
+The test was then rewritten to use the real production persistence path without adding dependencies:
+
+```text
+fdb70186da88ada9c34c69d11a11a785821a86f4
+VillAIgence CI #2254
+run 31310943373
+```
+
+The corrected test writes a deliberately malformed `memory2.json` with an incomplete contradiction snapshot, then loads it through the production `MemoryEventStore` / `SemanticContradictionHistory` path. The common/mock-provider step passed, proving the malformed relation is ignored fail-closed without throwing and disproving the suspected production NPE. No production correction was made.
 
 ---
 
