@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,18 +16,21 @@ class NpcToldDialogueAdapterTest {
     private static final UUID SPEAKER = UUID.fromString("00000000-0000-0000-0000-000000020001");
     private static final UUID LISTENER = UUID.fromString("00000000-0000-0000-0000-000000020002");
     private static final UUID SOURCE = UUID.fromString("00000000-0000-0000-0000-000000020003");
+    private static final UUID SOURCE_EVENT = UUID.fromString("00000000-0000-0000-0000-000000020010");
 
     @Test
     void createsExactCanonicalListenerOwnedNpcToldEvidence() {
+        KnowledgeTransferProvenance provenance = firstHop("Bridge destroyed", 12_345L);
         MemoryEvent event = NpcToldDialogueAdapter.create(
                 SPEAKER,
                 LISTENER,
                 SOURCE,
                 12_345L,
-                "  Bridge\n  destroyed  "
+                "  Bridge\n  destroyed  ",
+                provenance
         ).orElseThrow();
 
-        String canonical = "npc-knowledge-transfer-v1\n"
+        String canonical = "npc-knowledge-transfer-v2\n"
                 + LISTENER + "\n"
                 + SPEAKER + "\n"
                 + SOURCE + "\n"
@@ -47,13 +51,18 @@ class NpcToldDialogueAdapterTest {
         assertNull(event.dialogue());
         assertNull(event.relationshipTransition());
         assertNull(event.relationshipCause());
+        assertNotNull(event.knowledgeTransferProvenance());
+        assertEquals(provenance, event.knowledgeTransferProvenance());
         assertEquals("NPC told: Bridge destroyed", event.summary());
     }
 
     @Test
     void replayIdentityIsStableAndEveryAuthorityDimensionAffectsEvidenceId() {
-        MemoryEvent first = NpcToldDialogueAdapter.create(SPEAKER, LISTENER, SOURCE, 77L, "Claim").orElseThrow();
-        MemoryEvent replay = NpcToldDialogueAdapter.create(SPEAKER, LISTENER, SOURCE, 77L, "Claim").orElseThrow();
+        KnowledgeTransferProvenance provenance = firstHop("Claim", 77L);
+        MemoryEvent first = NpcToldDialogueAdapter.create(
+                SPEAKER, LISTENER, SOURCE, 77L, "Claim", provenance).orElseThrow();
+        MemoryEvent replay = NpcToldDialogueAdapter.create(
+                SPEAKER, LISTENER, SOURCE, 77L, "Claim", provenance).orElseThrow();
 
         assertEquals(first, replay);
         assertEquals(first.id(), NpcToldDialogueAdapter.deterministicEvidenceId(SPEAKER, LISTENER, SOURCE, 77L));
@@ -67,23 +76,49 @@ class NpcToldDialogueAdapterTest {
     }
 
     @Test
-    void rejectsInvalidIdentityAndBlankStatementAndBoundsSummaryWithoutWallClock() {
-        assertTrue(NpcToldDialogueAdapter.create(null, LISTENER, SOURCE, 1L, "Claim").isEmpty());
-        assertTrue(NpcToldDialogueAdapter.create(SPEAKER, null, SOURCE, 1L, "Claim").isEmpty());
-        assertTrue(NpcToldDialogueAdapter.create(SPEAKER, LISTENER, null, 1L, "Claim").isEmpty());
-        assertTrue(NpcToldDialogueAdapter.create(SPEAKER, SPEAKER, SOURCE, 1L, "Claim").isEmpty());
-        assertTrue(NpcToldDialogueAdapter.create(SPEAKER, LISTENER, SOURCE, 1L, " \n\t ").isEmpty());
+    void rejectsInvalidIdentityBlankStatementOrMismatchedProvenanceAndBoundsSummaryWithoutWallClock() {
+        KnowledgeTransferProvenance valid = firstHop("Claim", 1L);
+        assertTrue(NpcToldDialogueAdapter.create(null, LISTENER, SOURCE, 1L, "Claim", valid).isEmpty());
+        assertTrue(NpcToldDialogueAdapter.create(SPEAKER, null, SOURCE, 1L, "Claim", valid).isEmpty());
+        assertTrue(NpcToldDialogueAdapter.create(SPEAKER, LISTENER, null, 1L, "Claim", valid).isEmpty());
+        assertTrue(NpcToldDialogueAdapter.create(SPEAKER, SPEAKER, SOURCE, 1L, "Claim", valid).isEmpty());
+        assertTrue(NpcToldDialogueAdapter.create(SPEAKER, LISTENER, SOURCE, 1L, " \n\t ", valid).isEmpty());
+        assertTrue(NpcToldDialogueAdapter.create(SPEAKER, LISTENER, SOURCE, 1L, "Other", valid).isEmpty());
+        assertTrue(NpcToldDialogueAdapter.create(SPEAKER, LISTENER, SOURCE, 1L, "Claim", null).isEmpty());
 
+        KnowledgeTransferProvenance boundedProvenance = firstHop("x".repeat(300), 0L);
         MemoryEvent bounded = NpcToldDialogueAdapter.create(
                 SPEAKER,
                 LISTENER,
                 SOURCE,
                 -10L,
-                "x".repeat(300)
+                "x".repeat(300),
+                boundedProvenance
         ).orElseThrow();
 
         assertEquals(0L, bounded.gameTime());
         assertEquals(0L, bounded.createdAtEpochMillis());
         assertEquals(250, bounded.summary().codePointCount(0, bounded.summary().length()));
+    }
+
+    private static KnowledgeTransferProvenance firstHop(String statement, long gameTime) {
+        SemanticMemoryEntry source = new SemanticMemoryEntry(
+                SOURCE,
+                SPEAKER,
+                SemanticMemoryEntry.Kind.FACT,
+                statement,
+                List.of(),
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                1L,
+                0L,
+                100,
+                100,
+                List.of(SOURCE_EVENT)
+        );
+        long safeTime = Math.max(0L, gameTime);
+        UUID evidenceId = KnowledgeTransferProvenancePolicy.deterministicEvidenceId(
+                SPEAKER, LISTENER, SOURCE, safeTime);
+        return KnowledgeTransferProvenanceFactory.firstHop(
+                source, LISTENER, evidenceId, safeTime).orElseThrow();
     }
 }

@@ -1,13 +1,11 @@
 package net.conczin.mca.livingworld.memory2;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 /** Pure deterministic construction of listener-owned NPC_TOLD transfer evidence. */
 final class NpcToldDialogueAdapter {
-    private static final String ID_NAMESPACE = "npc-knowledge-transfer-v1";
     private static final String SUMMARY_PREFIX = "NPC told: ";
 
     private NpcToldDialogueAdapter() {
@@ -18,21 +16,41 @@ final class NpcToldDialogueAdapter {
             UUID listenerNpcId,
             UUID speakerSemanticEntryId,
             long authoritativeGameTime,
-            String statement
+            String statement,
+            KnowledgeTransferProvenance provenance
     ) {
         if (speakerNpcId == null
                 || listenerNpcId == null
                 || speakerSemanticEntryId == null
-                || speakerNpcId.equals(listenerNpcId)) {
+                || speakerNpcId.equals(listenerNpcId)
+                || !KnowledgeTransferProvenancePolicy.valid(provenance)) {
             return Optional.empty();
         }
 
         String normalizedStatement = SemanticMemoryIngestionAdapter.normalizeAndLimitStatement(statement);
-        if (normalizedStatement.isBlank()) return Optional.empty();
+        if (normalizedStatement.isBlank()
+                || !normalizedStatement.equals(provenance.origin().statement())) {
+            return Optional.empty();
+        }
 
         long safeGameTime = Math.max(0L, authoritativeGameTime);
+        UUID evidenceId = deterministicEvidenceId(
+                speakerNpcId,
+                listenerNpcId,
+                speakerSemanticEntryId,
+                safeGameTime
+        );
+        KnowledgeTransferProvenance.Hop lastHop = provenance.hops().getLast();
+        if (!speakerNpcId.equals(lastHop.speakerNpcId())
+                || !listenerNpcId.equals(lastHop.listenerNpcId())
+                || !speakerSemanticEntryId.equals(lastHop.speakerSemanticEntryId())
+                || !evidenceId.equals(lastHop.evidenceEventId())
+                || safeGameTime != lastHop.gameTime()) {
+            return Optional.empty();
+        }
+
         return Optional.of(new MemoryEvent(
-                deterministicEvidenceId(speakerNpcId, listenerNpcId, speakerSemanticEntryId, safeGameTime),
+                evidenceId,
                 listenerNpcId,
                 MemoryEvent.Type.DIALOGUE,
                 SUMMARY_PREFIX + normalizedStatement,
@@ -46,7 +64,8 @@ final class NpcToldDialogueAdapter {
                 List.of(),
                 null,
                 null,
-                null
+                null,
+                provenance
         ));
     }
 
@@ -56,11 +75,11 @@ final class NpcToldDialogueAdapter {
             UUID speakerSemanticEntryId,
             long authoritativeGameTime
     ) {
-        String canonical = ID_NAMESPACE
-                + '\n' + listenerNpcId
-                + '\n' + speakerNpcId
-                + '\n' + speakerSemanticEntryId
-                + '\n' + Math.max(0L, authoritativeGameTime);
-        return UUID.nameUUIDFromBytes(canonical.getBytes(StandardCharsets.UTF_8));
+        return KnowledgeTransferProvenancePolicy.deterministicEvidenceId(
+                speakerNpcId,
+                listenerNpcId,
+                speakerSemanticEntryId,
+                authoritativeGameTime
+        );
     }
 }
