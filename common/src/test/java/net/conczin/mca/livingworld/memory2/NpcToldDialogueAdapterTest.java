@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,7 +27,7 @@ class NpcToldDialogueAdapterTest {
                 "  Bridge\n  destroyed  "
         ).orElseThrow();
 
-        String canonical = "npc-knowledge-transfer-v1\n"
+        String canonical = "npc-knowledge-transfer-v2\n"
                 + LISTENER + "\n"
                 + SPEAKER + "\n"
                 + SOURCE + "\n"
@@ -47,6 +48,7 @@ class NpcToldDialogueAdapterTest {
         assertNull(event.dialogue());
         assertNull(event.relationshipTransition());
         assertNull(event.relationshipCause());
+        assertNotNull(event.knowledgeTransferProvenance());
         assertEquals("NPC told: Bridge destroyed", event.summary());
     }
 
