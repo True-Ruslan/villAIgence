@@ -1,13 +1,11 @@
 package net.conczin.mca.livingworld.memory2;
 
 import java.nio.charset.StandardCharsets;
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -27,7 +25,7 @@ public final class SemanticMemoryConsolidator {
     ) {
         if (!compatible(first, second)) return Optional.empty();
 
-        ConsolidationKey key = key(first);
+        SemanticMemoryIdentity.LogicalClaimKey key = SemanticMemoryIdentity.key(first);
         List<UUID> sources = sortedUnion(first.sourceEventIds(), second.sourceEventIds());
         List<UUID> relatedEntities = sortedUnion(first.relatedEntities(), second.relatedEntities());
         String statement = deterministicStatement(first.statement(), second.statement());
@@ -51,7 +49,7 @@ public final class SemanticMemoryConsolidator {
         if (entries == null || entries.isEmpty()) return List.of();
 
         Set<UUID> seenEntryIds = new LinkedHashSet<>();
-        Map<ConsolidationKey, SemanticMemoryEntry> sourced = new LinkedHashMap<>();
+        Map<SemanticMemoryIdentity.LogicalClaimKey, SemanticMemoryEntry> sourced = new LinkedHashMap<>();
         List<SemanticMemoryEntry> unsourced = new ArrayList<>();
 
         for (SemanticMemoryEntry entry : entries) {
@@ -61,7 +59,7 @@ public final class SemanticMemoryConsolidator {
                 continue;
             }
 
-            ConsolidationKey key = key(entry);
+            SemanticMemoryIdentity.LogicalClaimKey key = SemanticMemoryIdentity.key(entry);
             SemanticMemoryEntry existing = sourced.get(key);
             if (existing == null) {
                 sourced.put(key, entry);
@@ -81,20 +79,10 @@ public final class SemanticMemoryConsolidator {
                 && second != null
                 && !first.sourceEventIds().isEmpty()
                 && !second.sourceEventIds().isEmpty()
-                && key(first).equals(key(second));
+                && SemanticMemoryIdentity.key(first).equals(SemanticMemoryIdentity.key(second));
     }
 
-    private static ConsolidationKey key(SemanticMemoryEntry entry) {
-        return new ConsolidationKey(
-                entry.ownerNpcId(),
-                entry.kind(),
-                entry.provenance(),
-                canonicalStatement(entry.statement()),
-                sortedIds(entry.relatedEntities())
-        );
-    }
-
-    private static UUID deterministicId(ConsolidationKey key) {
+    private static UUID deterministicId(SemanticMemoryIdentity.LogicalClaimKey key) {
         StringBuilder canonical = new StringBuilder(CONSOLIDATED_ID_NAMESPACE)
                 .append('\n').append(key.ownerNpcId())
                 .append('\n').append(key.kind())
@@ -107,32 +95,9 @@ public final class SemanticMemoryConsolidator {
     }
 
     private static String deterministicStatement(String first, String second) {
-        String firstDisplay = normalizeDisplay(first);
-        String secondDisplay = normalizeDisplay(second);
+        String firstDisplay = SemanticMemoryIdentity.normalizeDisplay(first);
+        String secondDisplay = SemanticMemoryIdentity.normalizeDisplay(second);
         return firstDisplay.compareTo(secondDisplay) <= 0 ? firstDisplay : secondDisplay;
-    }
-
-    private static String canonicalStatement(String value) {
-        return normalizeDisplay(value).toLowerCase(Locale.ROOT);
-    }
-
-    private static String normalizeDisplay(String value) {
-        String normalized = Normalizer.normalize(value == null ? "" : value, Normalizer.Form.NFKC);
-        StringBuilder output = new StringBuilder(normalized.length());
-        boolean previousWhitespace = false;
-        for (int offset = 0; offset < normalized.length();) {
-            int codePoint = normalized.codePointAt(offset);
-            offset += Character.charCount(codePoint);
-            boolean whitespace = Character.isWhitespace(codePoint) || Character.isISOControl(codePoint);
-            if (whitespace) {
-                if (!previousWhitespace && output.length() > 0) output.append(' ');
-                previousWhitespace = true;
-            } else {
-                output.appendCodePoint(codePoint);
-                previousWhitespace = false;
-            }
-        }
-        return output.toString().strip();
     }
 
     private static List<UUID> sortedUnion(List<UUID> first, List<UUID> second) {
@@ -143,25 +108,5 @@ public final class SemanticMemoryConsolidator {
         List<UUID> sorted = new ArrayList<>(values);
         sorted.sort(UUID_ORDER);
         return List.copyOf(sorted);
-    }
-
-    private static List<UUID> sortedIds(List<UUID> values) {
-        if (values == null || values.isEmpty()) return List.of();
-        Set<UUID> unique = new LinkedHashSet<>();
-        for (UUID value : values) {
-            if (value != null) unique.add(value);
-        }
-        List<UUID> sorted = new ArrayList<>(unique);
-        sorted.sort(UUID_ORDER);
-        return List.copyOf(sorted);
-    }
-
-    private record ConsolidationKey(
-            UUID ownerNpcId,
-            SemanticMemoryEntry.Kind kind,
-            MemoryEvent.Provenance provenance,
-            String statement,
-            List<UUID> relatedEntities
-    ) {
     }
 }
