@@ -233,7 +233,7 @@ The lifecycle must derive all provenance from exact persisted server-owned state
 
 A new provenance lineage begins only when the speaker Semantic entry is not itself an `NPC_TOLD` BELIEF.
 
-Allowed first-hop sources:
+Allowed first-hop sources are exactly:
 
 ```text
 FACT / SYSTEM_OBSERVED
@@ -305,7 +305,9 @@ event.gameTime DESC
 
 Insertion order must not affect selection.
 
-If the newest referenced source was evicted or is invalid but another retained valid source exists, the next valid source may be selected.
+If the newest referenced source was evicted or structurally invalid but another retained valid source exists, the next valid source may be selected.
+
+Branch selection is completed before evaluating the proposed listener. Once the highest-priority valid direct branch is selected, cycle or hop-limit rejection does **not** fall through to a lower-priority branch merely because that alternative would allow the requested listener. This prevents listener identity from steering ancestry selection.
 
 ## 12. New deterministic evidence identity — v2 clean cutover
 
@@ -472,7 +474,7 @@ X → C → D
 
 D may consolidate those as multiple direct source events, while each direct evidence event carries its own acyclic lineage.
 
-When a valid lineage simultaneously cannot append because of both cycle and hop count, cycle detection is evaluated first and returns `PROVENANCE_CYCLE`; otherwise the hop-limit check follows.
+When a selected valid lineage simultaneously cannot append because of both cycle and hop count, cycle detection is evaluated first and returns `PROVENANCE_CYCLE`; otherwise the hop-limit check follows. The lifecycle does not retry branch selection with a lower-priority lineage after either rejection.
 
 ## 19. Full pure lineage integrity validation
 
@@ -486,8 +488,9 @@ The origin must satisfy:
 - kind/provenance are non-null;
 - statement is non-blank and exactly canonical under the current Semantic normalization/bound;
 - related-entity scope is canonical sorted unique UUIDs;
-- `FACT` requires `SYSTEM_OBSERVED`;
-- `BELIEF` must not use `SYSTEM_OBSERVED`.
+- `FACT` requires exactly `SYSTEM_OBSERVED`;
+- `BELIEF` origin requires exactly `PLAYER_TOLD` or `INFERRED`;
+- `BELIEF / NPC_TOLD` is invalid as a new origin because an NPC_TOLD source must inherit a prior structured lineage rather than reset ancestry.
 
 ### 19.2 Hop validation
 
@@ -609,18 +612,21 @@ The authoritative write order remains evidence-before-derived-knowledge:
 1. exact speaker Semantic lookup
 2. authoritative exact source reread/snapshot validation
 3. derive new origin OR select/inherit one valid retained lineage
-4. validate statement/scope/path/cycle/hop limit
-5. compute deterministic v2 evidence UUID
-6. append canonical new hop into provenance payload
-7. construct canonical listener-owned NPC_TOLD evidence
-8. append MemoryEventStore
-9. exact evidence reread by listener owner + UUID
-10. validate full canonical evidence and provenance payload
-11. run generic SemanticBeliefAdmissionPolicy
-12. append listener BELIEF through ControlledSemanticMemoryIngestor
-13. exact compatible retained listener BELIEF reread containing new evidence UUID
-14. return explicit result
+4. validate statement/scope/path
+5. for inherited lineage: evaluate proposed-listener cycle, then hop limit
+6. compute deterministic v2 evidence UUID
+7. append canonical new hop into provenance payload
+8. construct canonical listener-owned NPC_TOLD evidence
+9. append MemoryEventStore
+10. exact evidence reread by listener owner + UUID
+11. validate full canonical evidence and provenance payload
+12. run generic SemanticBeliefAdmissionPolicy
+13. append listener BELIEF through ControlledSemanticMemoryIngestor
+14. exact compatible retained listener BELIEF reread containing new evidence UUID
+15. return explicit result
 ```
+
+For a first hop, the existing request-level `speaker != listener` validation is the cycle boundary; the inherited-lineage cycle check applies once a prior path exists.
 
 No distributed transaction is introduced between `memory2.json` and `semantic-memory.json`.
 
@@ -648,7 +654,7 @@ PROVENANCE_CYCLE
 Semantics:
 
 - `PROVENANCE_UNAVAILABLE`: the speaker source is `BELIEF / NPC_TOLD`, but no retained direct evidence referenced by that Semantic entry provides a valid compatible lineage;
-- `PROVENANCE_LIMIT_REACHED`: a valid lineage exists but the new hop would exceed 8;
+- `PROVENANCE_LIMIT_REACHED`: a selected valid lineage exists but the new hop would exceed 8;
 - `PROVENANCE_CYCLE`: the proposed listener already appears in the selected valid path;
 - `REJECTED`: generic request/authority/current-write mismatch, including invalid source ownership or newly persisted canonical-evidence mismatch;
 - `SOURCE_NOT_RETAINED`: newly appended evidence did not survive current bounded event pressure;
@@ -746,7 +752,8 @@ Prove:
 - newest `gameTime`, then UUID ascending, selects the branch;
 - insertion-order permutations choose the same branch;
 - restart chooses the same branch;
-- eviction of the highest-priority branch falls through deterministically to the next valid retained branch.
+- eviction of the highest-priority branch falls through deterministically to the next valid retained branch;
+- after a branch is selected, listener-specific cycle/hop-limit rejection does not cause fallback to a lower-priority branch.
 
 ### 28.5 Provenance-unavailable matrix
 
@@ -755,6 +762,7 @@ Cover:
 - NPC_TOLD BELIEF with no retained source evidence;
 - historical v1 evidence without structured provenance;
 - malformed provenance payload;
+- origin `BELIEF / NPC_TOLD` reset attempt;
 - wrong event owner;
 - direct evidence not referenced by current Semantic source;
 - last hop not ending at current speaker;
