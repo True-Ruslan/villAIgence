@@ -23,7 +23,8 @@ public record MemoryEvent(
         DialogueExchange dialogue,
         RelationshipTransition relationshipTransition,
         RelationshipCause relationshipCause,
-        KnowledgeTransferProvenance knowledgeTransferProvenance
+        KnowledgeTransferProvenance knowledgeTransferProvenance,
+        SemanticContradiction semanticContradiction
 ) {
     public MemoryEvent {
         if (id == null) throw new IllegalArgumentException("id is required");
@@ -42,9 +43,49 @@ public record MemoryEvent(
         relationshipReasons = normalizeReasons(relationshipReasons);
     }
 
+    /** Source-compatible constructor for callers that already provide knowledge-transfer provenance. */
+    public MemoryEvent(
+            UUID id,
+            UUID ownerNpcId,
+            Type type,
+            String summary,
+            List<UUID> participants,
+            Provenance provenance,
+            long gameTime,
+            long createdAtEpochMillis,
+            int importance,
+            int emotionalWeight,
+            int confidence,
+            List<String> relationshipReasons,
+            DialogueExchange dialogue,
+            RelationshipTransition relationshipTransition,
+            RelationshipCause relationshipCause,
+            KnowledgeTransferProvenance knowledgeTransferProvenance
+    ) {
+        this(
+                id,
+                ownerNpcId,
+                type,
+                summary,
+                participants,
+                provenance,
+                gameTime,
+                createdAtEpochMillis,
+                importance,
+                emotionalWeight,
+                confidence,
+                relationshipReasons,
+                dialogue,
+                relationshipTransition,
+                relationshipCause,
+                knowledgeTransferProvenance,
+                null
+        );
+    }
+
     /**
      * Source-compatible constructor for callers that already provide structured causal data.
-     * Knowledge-transfer provenance is absent unless explicitly supplied.
+     * Knowledge-transfer provenance and contradiction evidence are absent unless explicitly supplied.
      */
     public MemoryEvent(
             UUID id,
@@ -79,13 +120,14 @@ public record MemoryEvent(
                 dialogue,
                 relationshipTransition,
                 relationshipCause,
+                null,
                 null
         );
     }
 
     /**
      * Source-compatible constructor for callers that already provide structured relationship transition data.
-     * Structured causal data is absent unless explicitly supplied.
+     * Structured causal, transfer-provenance and contradiction data are absent unless explicitly supplied.
      */
     public MemoryEvent(
             UUID id,
@@ -119,13 +161,14 @@ public record MemoryEvent(
                 dialogue,
                 relationshipTransition,
                 null,
+                null,
                 null
         );
     }
 
     /**
      * Source-compatible constructor for callers that already provide structured dialogue.
-     * Structured relationship transition and causal data are absent unless explicitly supplied.
+     * Structured relationship transition, causal, transfer-provenance and contradiction data are absent.
      */
     public MemoryEvent(
             UUID id,
@@ -158,13 +201,14 @@ public record MemoryEvent(
                 dialogue,
                 null,
                 null,
+                null,
                 null
         );
     }
 
     /**
      * Source-compatible constructor for non-dialogue producers and historical tests.
-     * Structured dialogue, relationship transition, causal and transfer-provenance data are opt-in.
+     * Structured dialogue, relationship transition, causal, transfer-provenance and contradiction data are opt-in.
      */
     public MemoryEvent(
             UUID id,
@@ -193,6 +237,7 @@ public record MemoryEvent(
                 emotionalWeight,
                 confidence,
                 relationshipReasons,
+                null,
                 null,
                 null,
                 null,
@@ -285,7 +330,8 @@ public record MemoryEvent(
         OBSERVATION,
         ACTION,
         RELATIONSHIP_CHANGE,
-        RELATIONSHIP_CAUSE
+        RELATIONSHIP_CAUSE,
+        SEMANTIC_CONTRADICTION
     }
 
     public enum Provenance {

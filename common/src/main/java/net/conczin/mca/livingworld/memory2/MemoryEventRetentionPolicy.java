@@ -65,7 +65,7 @@ public final class MemoryEventRetentionPolicy {
         return switch (type) {
             case RELATIONSHIP_CAUSE -> 300;
             case RELATIONSHIP_CHANGE -> 225;
-            case OBSERVATION, ACTION -> 125;
+            case OBSERVATION, ACTION, SEMANTIC_CONTRADICTION -> 125;
             case DIALOGUE -> 0;
         };
     }
