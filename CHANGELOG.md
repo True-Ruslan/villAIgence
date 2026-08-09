@@ -59,6 +59,13 @@ This is the **canonical changelog** for the project.
   - semantic subject scope is preserved without automatically adding the speaker to `relatedEntities`;
   - exact retry is idempotent, while a later transfer at another authoritative `gameTime` creates distinct evidence that may consolidate into the same logical BELIEF with deterministic source union;
   - bounded pressure reports explicit `SOURCE_NOT_RETAINED` and `BELIEF_NOT_RETAINED` outcomes without fabricating evidence or rolling back a legitimate persisted transfer event.
+- Provenance-aware bounded multi-hop rumors for NPC-to-NPC knowledge transfer:
+  - each new v2 transfer evidence event stores one immutable origin snapshot plus an ordered ancestry path under the deterministic `npc-knowledge-transfer-v2` identity namespace;
+  - first-hop origins are limited to `FACT/SYSTEM_OBSERVED`, `BELIEF/PLAYER_TOLD`, or `BELIEF/INFERRED`; downstream `BELIEF/NPC_TOLD` must inherit retained structured lineage and cannot reset its origin;
+  - lineage is acyclic and capped at eight hops, with explicit `PROVENANCE_CYCLE`, `PROVENANCE_LIMIT_REACHED`, and `PROVENANCE_UNAVAILABLE` outcomes;
+  - consolidated Semantic BELIEFs retain only direct transfer evidence IDs, while each direct evidence event carries its own bounded ancestry snapshot;
+  - canonical direct ancestry is selected by `gameTime DESC` then evidence UUID ascending before listener-specific cycle/limit checks, preventing listener-dependent fallback;
+  - exact statement and semantic subject scope are preserved across hops, provider/client input cannot inject provenance authority, and downstream knowledge always remains `BELIEF / NPC_TOLD`.
 
 ### Changed
 
@@ -89,6 +96,7 @@ This is the **canonical changelog** for the project.
   - conflicting BELIEFs remain non-authoritative and stale relationship history does not override the current server-observed relationship state.
 - Long-horizon recall changes no persistence format/version, public configuration, provider request/retry behavior, relationship mutation authority or release identity contract; it adds no legacy `memory.json` reader, embeddings/vector database, background summarizer or extra LLM memory-management call.
 - NPC-to-NPC knowledge transfer reuses the existing `memory2.json` / `semantic-memory.json` formats, retention policies, Semantic consolidation, player-visibility eligibility and `32` / `24+8` / `6` long-horizon bounds; it adds no provider call, public config, client authority, autonomous visible NPC conversation, multi-hop rumor propagation or legacy migration.
+- Provenance-aware multi-hop rumors keep `memory2.json` format version 1 and the current Semantic persistence schema, retention coefficients, retrieval/ranking bounds, provider protocol, public configuration, voice/UI/scheduler/gameplay authority and release identity unchanged; there is no migration, backfill, dual reader, new store, second provider call, uncertainty model, distortion model or autonomous rumor-spread scheduler in this slice.
 
 ### Validation
 
@@ -100,6 +108,7 @@ This is the **canonical changelog** for the project.
 - Long-horizon preservation evidence additionally exercises multi-day Minecraft game time, repeated persistence reloads, exact survivor/context equality, mixed two-NPC/two-player/shared-scope pressure and deterministic hundreds-of-record simulations without sleeps or wall-clock-dependent assertions.
 - NPC-to-NPC knowledge transfer in PR #133 uses observed compile RED gates for exact store authority lookup, canonical evidence/policy APIs and lifecycle API; an additional behavioral RED compiled successfully and failed exactly the two source-backed transfer assertions before the lifecycle implementation was added.
 - PR #133 preservation coverage exercises fail-closed ownership/input boundaries, byte-idempotent replay, corroborating Semantic source union, explicit partial-retention outcomes, fresh-root reload, global/private/shared scope, player Working Memory isolation, independent NPC pairs and deterministic long-horizon multi-NPC pressure without wall-clock-dependent expected behavior.
+- Provenance-aware rumor coverage in PR #135 exercises immutable persisted lineage, deterministic v2 identity, first-hop origin restrictions, exact retained-branch resolution, listener-independent no-fallback behavior, cycle-before-limit precedence, eight-hop bounds, field-by-field provenance mutation rejection, historical-v1/missing-direct-evidence fail-closed behavior, byte-idempotent replay after fresh-root reload, global/private/shared scope preservation, player Working Memory isolation, bounded forgetting/direct-evidence loss and a deterministic 10-NPC pressure/reload simulation.
 - Existing current-FACT/current-relationship-state precedence tests remain green with long-horizon retrieval; transferred entries remain explicitly `BELIEF | provenance=NPC_TOLD` and retain the existing current-observed-fact-wins prompt framing.
 - Real two-graphical-client Operator Lore acceptance `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two graphical clients are available.
 
