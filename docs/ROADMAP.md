@@ -106,7 +106,7 @@ relationship/trust effects on BELIEF confidence/fallibility and/or routing
 ```text
 tag:                     0.2.0+1.21.1
 release commit:          e426f588efefa6aa48a6e536c4a998421bbda241
-installed candidate SHA: 56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333a3aee
+installed candidate SHA: 56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
 ```
 
 Installed clean-state result:
