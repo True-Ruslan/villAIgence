@@ -103,6 +103,15 @@ This is the **canonical changelog** for the project.
   - the initial classifier is deliberately conservative and deterministic: it recognizes only one standalone English `not` or Russian `не` polarity insertion/removal, while antonyms, numeric conflicts, free-form paraphrase and trailing-sentence omission remain unclassified;
   - opposing pairs delegate to the existing exact-ID `SemanticContradictionLifecycle`; no provider request, client authority, truth winner, FACT promotion, confidence/importance/provenance mutation or claim deletion is introduced;
   - no provider schema/call, public config, world file, persistence version/field, migration/backfill or release identity changes are required.
+- Bounded settlement-scale information flow without omniscience:
+  - MCA home-village membership is the only settlement boundary in this slice; no shared village knowledge store or cross-village broadcast is introduced;
+  - dissemination runs from the existing staggered loaded-village update path through a minimal `MixinVillage`, rather than a per-NPC tick or new scheduler;
+  - one cycle materializes at most 16 residents, considers at most 4 speakers, reads at most 2 retained Semantic source candidates per speaker and attempts at most 4 transfer opportunities;
+  - a retained source must predate the current 1200-tick cycle start, preventing newly received claims from cascading through multiple NPCs inside the same cycle;
+  - normalized statement plus exact canonical Semantic scope is the per-cycle knowledge key, so equivalent knowledge carried by multiple NPCs has a hard fan-out of one opportunity per cycle;
+  - each selected source/cycle maps to one deterministic listener with no fallback retargeting when that target already knows the scoped claim or transfer validation fails;
+  - every mutation delegates to the existing exact `NpcKnowledgeTransferLifecycle`; listener knowledge remains local `BELIEF/NPC_TOLD`, source scope is unchanged, v2 ancestry/transformation state is preserved and existing automatic contradiction production runs after listener admission;
+  - no provider request/schema/call, public config, world file, persistence version/field, migration/backfill, trust weighting, FACT promotion, confidence/provenance mutation or release identity change is introduced.
 
 ### Changed
 
@@ -130,7 +139,7 @@ This is the **canonical changelog** for the project.
   - Semantic Memory next with FACT/BELIEF provenance labels preserved;
   - dedicated live contradiction/disagreement context next without truth arbitration;
   - episodic and social-history Memory 2.0 last among memory layers;
-  - structured-response/tool instructions remain after all context layers;
+  - structured provider/tool instructions remain after all context layers;
   - conflicting BELIEFs remain non-authoritative and stale relationship history does not override the current server-observed relationship state.
 - Long-horizon recall changes no persistence format/version, public configuration, provider request/retry behavior, relationship mutation authority or release identity contract; it adds no legacy `memory.json` reader, embeddings/vector database, background summarizer or extra LLM memory-management call.
 - NPC-to-NPC knowledge transfer reuses the existing `memory2.json` / `semantic-memory.json` formats, retention policies, Semantic consolidation, player-visibility eligibility and `32` / `24+8` / `6` long-horizon bounds; it adds no provider call, public config, client authority, autonomous visible NPC conversation, multi-hop rumor propagation or legacy migration.
@@ -139,6 +148,7 @@ This is the **canonical changelog** for the project.
 - Contradiction-aware prompt context adds no provider request/schema, public config, new persistence store/version, migration/backfill, automatic detector, winner selection, uncertainty/confidence mutation, distortion, trust weighting, UI, scheduler or autonomous propagation.
 - Rumor fallibility is a derived runtime view over retained v2 provenance; it adds no world file, JSON field, config value, migration/backfill, provider request/schema, evidence-ID namespace, confidence decay, trust weighting, automatic detector, transformed wording, UI, scheduler or autonomous rumor propagation.
 - Bounded transformed claims keep `memory2.json` at format version 1 and `semantic-memory.json` unchanged; the new transformation field is nullable structured process evidence on transfer events, while provider schema/call count, public config, v2 evidence identity, retrieval bounds, contradiction bounds, FACT admission, release identity, UI and autonomous propagation remain unchanged.
+- Settlement information flow reuses current `memory2.json` / `semantic-memory.json`, existing Memory 2.0 capacity, home-village membership and the existing village update cadence; it adds no durable scheduler ledger, settlement-global memory, new client authority or relationship/trust-based epistemic weighting.
 
 ### Validation
 
@@ -156,6 +166,7 @@ This is the **canonical changelog** for the project.
 - Deterministic rumor fallibility in PR #141 uses observed RED gates for the pure fallibility state, retained-source resolver, inline selected-Semantic annotation and conditional prompt guidance. Preservation coverage exercises an exact eight-hop chain, >200 Semantic and >200 episodic pressure records, high-score foreign-player private noise, fresh-root reload equality, direct-evidence forgetting to explicit `UNRESOLVED`, existing prompt-injection escaping and unchanged current FACT authority without a preservation production correction.
 - Bounded transformed-claim work in PR #143 uses separate observed RED gates for deterministic transformation state, additive evidence persistence, canonical provenance propagation, server-owned lifecycle admission, honest fallibility state and prompt rendering. Preservation coverage exercises one interior transformation across an exact eight-hop chain, >200 Semantic and >200 episodic pressure records, foreign-player privacy-before-limit, safe prompt escaping, fresh-root replay/equality, lineage-wide budget persistence, unchanged downstream propagation, direct-evidence forgetting and fail-closed `PROVENANCE_UNAVAILABLE` without a preservation production correction.
 - Bounded contradiction candidate/producer work in PR #145 uses separate observed RED gates for bounded candidate selection, conservative opposition classification, producer/replay semantics and automatic controlled-admission integration. Preservation coverage exercises foreign-scope filtering before allocation, 16-candidate/8-comparison hard bounds, 10-NPC/>240-record pressure, forgetting without contradiction-prose resurrection, exact fresh-root reload and transformed trailing-sentence non-opposition; fixture-only ordering/API mistakes were corrected without production changes.
+- Settlement-scale information flow in PR #147 uses observed compile RED gates for bounded opportunity selection, exact transfer lifecycle orchestration and the runtime adapter. A strengthened behavioral RED then proved that equivalent scoped knowledge carried by multiple NPCs could over-fan-out in one cycle and drove canonical statement+scope knowledge-key suppression. Preservation coverage exercises same-cycle anti-cascade, no-fallback replay, exact private scope, v2 ancestry, transformation carry-forward, contradiction production, fresh-root replay, later-cycle gradual spread, 12 settlements × 24 residents under hundreds of retained claims and supported-loader production startup; invalid PLAYER_TOLD/scope fixtures were corrected without weakening production authority policies.
 - Existing current-FACT/current-relationship-state precedence tests remain green with long-horizon retrieval; transferred entries remain explicitly `BELIEF | provenance=NPC_TOLD` and retain the existing current-observed-fact-wins prompt framing.
 - Real two-graphical-client Operator Lore acceptance `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two graphical clients are available.
 
