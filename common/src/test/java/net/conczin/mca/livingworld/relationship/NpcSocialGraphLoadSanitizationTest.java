@@ -102,6 +102,41 @@ class NpcSocialGraphLoadSanitizationTest {
         );
     }
 
+    @Test
+    void overCapacityPersistedSourceFailsClosedWithoutChoosingEvictionVictims() throws Exception {
+        UUID overloadedSource = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd");
+        UUID independentSource = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
+        UUID independentTarget = UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff");
+        Path file = tempDir.resolve("npc-social-graph.json");
+        StringBuilder edges = new StringBuilder();
+        UUID firstTarget = null;
+        UUID lastTarget = null;
+        for (int index = 0; index < 65; index++) {
+            UUID target = new UUID(500L + index, 5000L + index);
+            if (index == 0) firstTarget = target;
+            if (index == 64) lastTarget = target;
+            appendEdge(edges, overloadedSource + "/" + target, 1);
+        }
+        appendEdge(edges, independentSource + "/" + independentTarget, 7);
+
+        Files.writeString(file, "{\n  \"version\": 1,\n  \"edges\": {\n" + edges + "\n  }\n}\n");
+
+        NpcSocialGraphStore store = new NpcSocialGraphStore(file);
+
+        assertEquals(NpcSocialState.NEUTRAL, store.get(overloadedSource, firstTarget));
+        assertEquals(NpcSocialState.NEUTRAL, store.get(overloadedSource, lastTarget));
+        assertEquals(new NpcSocialState(7, 0, 0, 0), store.get(independentSource, independentTarget));
+        assertEquals(
+                NpcSocialGraphMutation.Status.APPLIED,
+                store.applyDelta(
+                        overloadedSource,
+                        new UUID(999L, 9999L),
+                        new NpcSocialDelta(1, 0, 0, 0),
+                        10
+                ).status()
+        );
+    }
+
     private static void appendEdge(StringBuilder edges, String key, int trust) {
         if (!edges.isEmpty()) edges.append(",\n");
         edges.append("    ")
