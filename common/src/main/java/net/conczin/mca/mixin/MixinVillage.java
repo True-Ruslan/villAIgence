@@ -22,7 +22,7 @@ public abstract class MixinVillage {
     )
     private void vai$runSettlementKnowledgeFlow(
             ServerLevel world,
-            long authoritativeGameTime,
+            long scheduledTime,
             CallbackInfo callbackInfo
     ) {
         Village village = (Village) (Object) this;
@@ -31,7 +31,7 @@ public abstract class MixinVillage {
                 config.enabled && config.memory2Enabled,
                 world.getServer().getWorldPath(LevelResource.ROOT),
                 village.getId(),
-                authoritativeGameTime,
+                world.getGameTime(),
                 village.getResidentsUUIDs().toList(),
                 config.memory2MaxEventsPerNpc
         );
