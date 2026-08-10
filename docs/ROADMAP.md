@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation/validation state. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-08-10**, after PR #149 merged relationship/trust social epistemology.
+> Last reconciled: **2026-08-11**, after PR #151 merged the NPC↔NPC social-graph persistence foundation.
 
 ## Product vision
 
@@ -59,7 +59,9 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 30. **Automatic contradiction production is bounded before classification.** Candidate eligibility and duplicate suppression precede a hard comparison budget; classification is truth-neutral and cannot choose a winner.
 31. **Settlement information flow is transfer, not shared omniscience.** Home-village dissemination uses bounded local opportunities and exact source-backed transfer; equivalent scoped knowledge has per-cycle fan-out one and newly received claims cannot cascade inside the same cycle.
 32. **Social trust is a personal derived BELIEF view, not truth authority.** Exact retained player-origin evidence plus current listener-NPC × source-player trust may add a bounded post-ranking prompt annotation, but persisted confidence, ranking, contradiction state and FACT authority remain unchanged.
-33. **NPC×player relationships are not the NPC↔NPC social graph.** 0.3 must introduce explicit server-owned NPC-pair state and may not reuse player relationship values as a shortcut for NPC social topology.
+33. **NPC×player and NPC↔NPC relationships are separate social authority domains.** `relationships.json` remains NPC×player; the dedicated `npc-social-graph.json` stores directed NPC×NPC state and neither is a shortcut for the other.
+34. **MCA Personality is already persistent server-owned personality state.** 0.3 should derive bounded dialogue/behavior snapshots from it rather than create a competing generated personality store.
+35. **NPC social changes require causal server evidence.** The low-level graph store is persistence only; event-driven runtime mutation must validate exact NPC identities, exact source evidence and replay identity before changing a pair.
 
 ---
 
@@ -89,14 +91,16 @@ bounded contradiction candidate/producer policy        COMPLETE / PR #145
 settlement-scale information flow without omniscience  COMPLETE / PR #147
 relationship/trust social epistemology                 COMPLETE / PR #149
 0.2 Memory 2.0 source capability track                 COMPLETE AT CURRENT PLANNED BOUNDARY / UNRELEASED
-Personality + NPC↔NPC Social Graph / 0.3 convergence   NEXT
+NPC↔NPC social-graph persistence foundation            COMPLETE / PR #151
+server-owned causal NPC↔NPC social mutation lifecycle NEXT
 ```
 
 Immediate sequence:
 
 ```text
-persistent bounded personality + explicit NPC↔NPC pairwise social graph
-→ causal dialogue/behavior integration + 0.3 convergence
+server-owned causal NPC↔NPC social mutation lifecycle
+→ bounded read-only MCA Personality + relevant pair snapshot
+→ dialogue/behavior integration + 0.3 convergence
 → richer knowledge ecosystem / 0.4
 ```
 
@@ -122,7 +126,7 @@ VAI-CONCUR-004:    NOT TESTED / DEFERRED
 
 The release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is clean-state; no legacy conversation importer or dual reader is planned.
 
-PRs #127, #129, #131, #133, #135, #137, #139, #141, #143, #145, #147 and #149 are merged after this release and remain `[Unreleased]` source capabilities. Their automated evidence must not be represented as installed `0.2.0` acceptance.
+PRs #127, #129, #131, #133, #135, #137, #139, #141, #143, #145, #147, #149 and #151 are merged after this release and remain `[Unreleased]` source capabilities. Their automated evidence must not be represented as installed `0.2.0` acceptance.
 
 ---
 
@@ -493,88 +497,140 @@ docs/superpowers/evidence/2026-08-10-relationship-trust-social-epistemology-tdd.
 
 Player-origin BELIEF may now carry a small deterministic current-trust interpretation without rewriting evidence, changing ranking or weakening FACT authority. Source identity remains exact/provenance-backed and bounded, privacy/contradictions/restart remain safe, and no NPC↔NPC graph is fabricated from player relationships.
 
+## Completed — NPC↔NPC social-graph persistence foundation
+
+Merged through PR #151 / `093be3892a35ad07e074503be58e320356b080e2`.
+
+```text
+existing MCA Personality tracked state
++ exact directed source NPC UUID → target NPC UUID pair
+→ bounded NpcSocialState(trust,respect,fear,affinity)
+→ dedicated npc-social-graph.json format v1
+→ six-store production/recovery automation
+```
+
+Properties:
+
+- MCA Personality remains the canonical persistent personality source; no second personality JSON/profile store exists;
+- A→B and B→A are independent directed edges;
+- social state dimensions clamp to `[-100,+100]`;
+- null/self pairs fail closed at the low-level persistence API;
+- neutral states are not persisted;
+- each source retains at most 64 non-neutral outgoing edges;
+- overflow is reject-new/no-eviction and existing edges remain mutable at capacity;
+- load sanitation drops malformed/self/null/neutral entries, fails closed on duplicate canonical pairs and drops an over-capacity source as one corrupted set rather than choosing survivor order;
+- `npc-social-graph.json` is the sixth current canonical auxiliary recovery store;
+- production acceptance proves exact first-start creation and restart value retention;
+- destructive recovery proves independent graph corruption recovery without sibling-store mutation;
+- graph writes remain byte-independent from NPC×player `relationships.json`;
+- no provider schema/call, public config, Semantic authority change, runtime social mutation, dialogue/behavior integration or release publication was added.
+
+Frozen source head and delivery evidence:
+
+```text
+head:                                      1b5e462624ee5a53b1dbfb8c7660388e8054e818
+merge:                                     093be3892a35ad07e074503be58e320356b080e2
+Repository security policy #2238:         SUCCESS / 31414225227
+VillAIgence CI #2603:                     SUCCESS / 31414225218
+VillAIgence Production Soak #390:         SUCCESS / 31414225257
+VillAIgence GitHub Release #723:          SUCCESS / 31414226542
+github-release publication:               SKIPPED
+review P0/P1/P2:                          0 / 0 / 0
+unresolved review threads:                0
+PR discussion comments:                   0
+```
+
+Staged RED/GREEN, six-store recovery and preservation evidence are recorded in:
+
+```text
+docs/superpowers/evidence/2026-08-10-npc-social-graph-foundation-tdd.md
+```
+
+### Foundation exit criterion — met
+
+VillAIgence now has a persistent bounded directed NPC social graph isolated from NPC×player state and a canonical existing MCA personality source. The graph is not yet allowed to mutate from ordinary runtime events and is not yet exposed to dialogue/behavior; those are separate authority-sensitive 0.3 slices.
+
 ---
 
-# NEXT — Personality + NPC↔NPC Social Graph / 0.3 convergence
+# NEXT — server-owned causal NPC↔NPC social mutation lifecycle / 0.3
 
-Memory 2.0 now supplies the evidence and knowledge substrate needed for durable social agents. The next step is not another confidence rule; it is explicit persistent NPC character/social state that survives providers and restarts.
+The next step is to make pairwise social changes causally auditable before they can influence dialogue or autonomous behavior.
 
 ## Goal
 
-Introduce bounded server-owned personality state and a genuine NPC↔NPC pairwise social graph, then expose that state to dialogue/behavior snapshots without making personality or relationships truth authority.
+Tie each runtime NPC→NPC social mutation to exact retained server-owned evidence, validate both NPC identities at the runtime boundary, make exact replay idempotent, and persist an audit snapshot without turning social state into world truth.
 
 Target boundary:
 
 ```text
-stable NPC identity
-+ persistent bounded personality
-+ exact directed NPC A → NPC B social state
-+ server-owned causal mutation evidence
-→ bounded current social/personality snapshot
-→ dialogue / behavior / later routing context
-→ server validation of mutations
-→ deterministic persistence / restart
+exact source NPC
++ exact target NPC
++ exact retained source event
++ bounded social delta
++ authoritative gameTime
+→ runtime identity + evidence validation
+→ deterministic mutation identity
+→ apply exact directed graph delta once
+→ persist exact before/after process evidence
+→ replay returns existing outcome without a second effect
 ```
 
 ## Required design decisions
 
-1. **Persistent personality dimensions**
-   - select a small bounded set of durable dimensions that have observable dialogue/behavior meaning;
-   - personality is server-owned persistent state, not a fresh LLM-generated biography/profile every turn;
-   - define neutral defaults, clamps and mutation limits before provider integration.
+1. **Cause evidence**
+   - mutation must reference an exact retained server-owned event already in Memory 2.0;
+   - free-form model explanation is never accepted as authoritative cause;
+   - source evidence may disappear later under retention without rolling back an already-applied graph state.
 
-2. **Explicit NPC↔NPC graph identity**
-   - model actual NPC UUID → NPC UUID pair state independently from current NPC×player state;
-   - decide directed versus symmetric dimensions explicitly;
-   - self-edges and malformed/missing NPC identities fail closed.
+2. **Mutation identity and replay**
+   - exact logical retry must map to one deterministic identity;
+   - same identity with conflicting source/target/delta payload must fail closed;
+   - restart must preserve enough process evidence to prevent double application.
 
-3. **Persistence boundary**
-   - choose a dedicated graph/personality store or a deliberately versioned unified social schema;
-   - do not silently reinterpret current `relationships.json` keys or break installed/post-release evidence;
-   - any schema change requires corruption/recovery and exact migration/clean-state reasoning before code.
+3. **NPC identity validation**
+   - the low-level UUID graph store cannot infer entity type;
+   - runtime lifecycle validates actual server-owned NPC identities before calling the store;
+   - self pair remains rejected.
 
-4. **Server-owned causes and replay**
-   - relationship/personality changes require concrete server-owned source events or bounded validated proposals;
-   - exact retry/replay must not duplicate pairwise effects;
-   - generated psychological prose is never authoritative cause evidence.
+4. **Bounded delta authority**
+   - caller/provider cannot bypass hard per-mutation delta clamp;
+   - resulting graph state stays inside `[-100,+100]`;
+   - capacity rejection is surfaced explicitly and never converted into silent eviction.
 
-5. **Bounded retrieval / graph pressure**
-   - current dialogue should read only a bounded set of relevant pair/personality state;
-   - no O(N²) all-pairs prompt materialization for a settlement;
-   - unrelated NPC graph edges consume zero prompt/behavior slots.
+5. **Process evidence**
+   - record exact source/target NPC IDs, exact source event UUID, exact before/after state, applied bounded delta, authoritative game time and deterministic mutation ID;
+   - process evidence is not Semantic FACT and does not duplicate psychological prose.
 
-6. **Authority separation**
-   - personality/social state may influence tone, preferences, willingness and bounded behavior;
-   - it does not create FACT, rewrite Semantic provenance or bypass privacy/scope rules;
-   - player social epistemology from PR #149 remains a separate source-credibility view.
+6. **Compatibility / truth separation**
+   - existing NPC×player `relationships.json` and social epistemology remain unchanged;
+   - no FACT/BELIEF confidence/provenance/ranking mutation;
+   - MCA Personality remains read-only canonical personality state in this slice.
 
-7. **Provider independence**
-   - provider/model changes do not regenerate identity/personality/social history;
-   - model output may propose bounded dialogue/intent/deltas only through explicit server validation.
-
-8. **Performance / scheduling**
-   - social evolution remains event-driven or coarsely scheduled;
-   - no per-NPC-per-tick LLM/social-graph work;
-   - pressure tests include many NPCs and multiple settlements before integration is considered complete.
+7. **Performance**
+   - lifecycle is event-driven;
+   - no all-pairs lookup and no provider call for mutation routing;
+   - graph flat-map new-edge scan remains a documented P3 until high-frequency social evolution requires indexing.
 
 ## Required TDD progression
 
 ```text
-0.3 personality/social-graph specification + persistence authority gate
-→ RED: stable bounded personality state/defaults
-→ RED: directed NPC↔NPC pair identity/store isolation
-→ RED: exact server-owned causal mutation evidence
-→ RED: replay/restart determinism and corruption recovery
-→ RED: bounded pairwise retrieval / no O(N²) allocation
-→ RED: dialogue snapshot integration without FACT/provenance changes
-→ RED: current NPC×player relationship compatibility
-→ multi-NPC / multi-settlement graph pressure
-→ exact-head CI / soak / release dry-run / independent review
+causal social mutation specification + process payload
+→ RED: exact retained source-event validation
+→ RED: directed before/after result + hard delta bound
+→ RED: deterministic mutation identity / exact replay idempotency
+→ RED: conflicting same-ID payload rejection
+→ RED: process evidence restart reload
+→ RED: invalid/self/non-NPC/foreign-owner rejection at runtime authority boundary
+→ RED: source-evidence forgetting does not duplicate or roll back graph state
+→ RED: NPC×player relationship + Semantic truth compatibility
+→ multi-NPC pressure / exact-head CI / soak / release dry-run / review
 ```
 
-### First slice exit criterion
+### Slice exit criterion
 
-Two NPCs can retain bounded persistent pairwise social state plus stable personality state across restart, exact unrelated NPC/player pairs remain isolated, state can be read through bounded current snapshots, and no provider call or social value can manufacture world truth.
+An authoritative server event can cause exactly one bounded directed NPC social mutation; exact retry/restart cannot duplicate the effect, cause/process evidence remains auditable while retained, loss of source evidence is handled honestly, and no social value becomes FACT/Semantic authority.
+
+After this slice, build a **bounded read-only dialogue/behavior snapshot** from existing MCA Personality plus only the directly relevant NPC pair edge.
 
 ---
 
@@ -606,7 +662,18 @@ These source-capability criteria are met through PRs #123–#149, with the final
 
 # 0.3 — Personality and NPC↔NPC social graph
 
-Persistent bounded personality plus pairwise NPC social state that affects dialogue and behavior. Personality is persistent game state, not a fresh LLM-generated profile on every conversation. The NPC↔NPC graph is an explicit server-owned domain separate from the existing NPC×player relationship store.
+Persistent MCA-owned personality plus pairwise NPC social state that affects dialogue and behavior. Personality is persistent game state, not a fresh LLM-generated profile on every conversation. The NPC↔NPC graph is an explicit server-owned domain separate from the existing NPC×player relationship store.
+
+Current 0.3 state:
+
+```text
+MCA Personality persistence authority            AVAILABLE / EXISTING MCA STATE
+NPC↔NPC directed graph persistence               COMPLETE / PR #151
+six-store corruption/recovery                    COMPLETE / PR #151
+causal NPC↔NPC mutation lifecycle                NEXT
+bounded personality/social dialogue snapshot    PLANNED AFTER CAUSAL LIFECYCLE
+dialogue/behavior effect                         NOT YET IMPLEMENTED
+```
 
 ### Exit criterion
 
