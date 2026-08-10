@@ -1,5 +1,7 @@
 package net.conczin.mca.livingworld.memory2;
 
+import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipStore;
+
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
@@ -45,7 +47,13 @@ public final class SemanticMemoryContextProvider {
                 SemanticMemoryEntry::id
         );
         List<RankedSemanticMemory> ranked = SemanticMemoryRetriever.rankCandidates(candidates, query);
-        return SemanticMemoryContextFormatter.format(ranked, MemoryEventStore.forWorld(worldRoot));
+        MemoryEventStore eventStore = MemoryEventStore.forWorld(worldRoot);
+        return SemanticMemoryContextFormatter.format(
+                ranked,
+                eventStore,
+                store,
+                LivingWorldRelationshipStore.forWorld(worldRoot)
+        );
     }
 
     private static Comparator<SemanticMemoryEntry> durableFirst(long gameTime) {
