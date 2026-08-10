@@ -6,8 +6,11 @@ import net.conczin.mca.livingworld.persistence.GsonJsonStoreCodec;
 import net.conczin.mca.livingworld.persistence.JsonStoreRecovery;
 
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -116,7 +119,66 @@ public final class NpcSocialGraphStore {
                         && value.edges != null,
                 GraphFile::new
         );
-        if (loaded.edges == null) loaded.edges = new HashMap<>();
+        if (loaded.edges == null || loaded.edges.isEmpty()) {
+            loaded.edges = new HashMap<>();
+            return loaded;
+        }
+
+        Map<String, NpcSocialState> sanitized = new HashMap<>();
+        Set<String> seenCanonicalKeys = new HashSet<>();
+        Set<String> conflictedCanonicalKeys = new HashSet<>();
+
+        loaded.edges.entrySet().stream()
+                .sorted(Comparator.comparing(entry -> entry.getKey() == null ? "" : entry.getKey()))
+                .forEach(entry -> {
+                    EdgePair pair = parseKey(entry.getKey());
+                    if (pair == null) return;
+
+                    String canonicalKey = key(pair.sourceNpcId(), pair.targetNpcId());
+                    if (!seenCanonicalKeys.add(canonicalKey)) {
+                        conflictedCanonicalKeys.add(canonicalKey);
+                        sanitized.remove(canonicalKey);
+                        return;
+                    }
+                    if (conflictedCanonicalKeys.contains(canonicalKey)) return;
+
+                    NpcSocialState raw = entry.getValue();
+                    if (raw == null) return;
+                    NpcSocialState bounded = new NpcSocialState(
+                            raw.trust(),
+                            raw.respect(),
+                            raw.fear(),
+                            raw.affinity()
+                    );
+                    if (bounded.isNeutral()) return;
+                    sanitized.put(canonicalKey, bounded);
+                });
+
+        for (String conflict : conflictedCanonicalKeys) {
+            sanitized.remove(conflict);
+        }
+
+        Map<UUID, Integer> outgoingCounts = new HashMap<>();
+        for (String canonicalKey : sanitized.keySet()) {
+            EdgePair pair = parseKey(canonicalKey);
+            if (pair != null) {
+                outgoingCounts.merge(pair.sourceNpcId(), 1, Integer::sum);
+            }
+        }
+        Set<UUID> overCapacitySources = new HashSet<>();
+        for (Map.Entry<UUID, Integer> count : outgoingCounts.entrySet()) {
+            if (count.getValue() > MAX_OUTGOING_EDGES_PER_NPC) {
+                overCapacitySources.add(count.getKey());
+            }
+        }
+        if (!overCapacitySources.isEmpty()) {
+            sanitized.entrySet().removeIf(entry -> {
+                EdgePair pair = parseKey(entry.getKey());
+                return pair != null && overCapacitySources.contains(pair.sourceNpcId());
+            });
+        }
+
+        loaded.edges = sanitized;
         return loaded;
     }
 
@@ -130,8 +192,27 @@ public final class NpcSocialGraphStore {
                 && !sourceNpcId.equals(targetNpcId);
     }
 
+    private static EdgePair parseKey(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        int separator = raw.indexOf('/');
+        if (separator <= 0 || separator != raw.lastIndexOf('/') || separator == raw.length() - 1) {
+            return null;
+        }
+        try {
+            UUID sourceNpcId = UUID.fromString(raw.substring(0, separator));
+            UUID targetNpcId = UUID.fromString(raw.substring(separator + 1));
+            if (!validPair(sourceNpcId, targetNpcId)) return null;
+            return new EdgePair(sourceNpcId, targetNpcId);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
     private static String key(UUID sourceNpcId, UUID targetNpcId) {
         return sourceNpcId + "/" + targetNpcId;
+    }
+
+    private record EdgePair(UUID sourceNpcId, UUID targetNpcId) {
     }
 
     private static final class GraphFile {
