@@ -1,140 +1,101 @@
 # Settlement-Scale Information Flow Without Omniscience Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> Executed inline in PR #147 using staged TDD. This plan records the implemented sequence and review/delivery gates.
 
 **Goal:** Add bounded deterministic settlement-scale NPC knowledge propagation that reuses exact source-backed transfer and never creates shared omniscient settlement memory.
 
-**Architecture:** Reuse MCA `Village` home-village membership and existing staggered village update cadence. A pure/testable `SettlementKnowledgeFlowSelector` produces at most four deterministic no-fallback opportunities from a bounded resident/speaker/source window; `SettlementKnowledgeFlowLifecycle` delegates each opportunity only to `NpcKnowledgeTransferLifecycle.transfer(...)`; `Village.tick(...)` provides the server-owned membership/runtime hook.
+**Final architecture:** MCA home-village membership + existing loaded/staggered `Village.tick` cadence → bounded `SettlementKnowledgeFlowSelector` → `SettlementKnowledgeFlowLifecycle` → exact `NpcKnowledgeTransferLifecycle.transfer(...)`. Runtime wiring is a minimal `MixinVillage` injection at the already gated village update branch.
 
-**Tech Stack:** Java 21, JUnit 5, existing Memory 2.0 JSON stores, MCA `Village`/`Residency`, GitHub Actions exact-head CI/soak/release-dry workflows.
+## Final hard constraints
 
-## Global Constraints
+```text
+CYCLE_TICKS = 1200
+MAX_RESIDENTS_PER_CYCLE = 16
+MAX_SPEAKERS_PER_CYCLE = 4
+MAX_SOURCE_CANDIDATES_PER_SPEAKER = 2
+MAX_OPPORTUNITIES_PER_CYCLE = 4
+MAX_FANOUT_PER_SOURCE_PER_CYCLE = 1
+```
 
-- `CYCLE_TICKS = 1200`.
-- `MAX_RESIDENTS_PER_CYCLE = 16`.
-- `MAX_SPEAKERS_PER_CYCLE = 4`.
-- `MAX_SOURCE_CANDIDATES_PER_SPEAKER = 2`.
-- `MAX_OPPORTUNITIES_PER_CYCLE = 4`.
-- `MAX_FANOUT_PER_SOURCE_PER_CYCLE = 1`.
-- Home-village membership is the only settlement boundary in this slice.
-- Same source/cycle maps to one deterministic listener and never falls back to another target.
-- Listener-equivalent suppression uses exact canonical Semantic scope + normalized statement before opportunity allocation.
-- Every successful mutation delegates to existing `NpcKnowledgeTransferLifecycle.transfer(...)`.
-- No provider call/schema, public config, new world file/store/schema/version, migration/backfill, trust weighting, cross-village propagation or release identity change.
-- Listener knowledge remains local `BELIEF/NPC_TOLD`; FACT authority/confidence/provenance rules remain unchanged.
-- Root `CHANGELOG.md` must be updated in the product PR.
-
----
-
-### Task 1: Bounded deterministic settlement opportunity selector
-
-**Files:**
-- Create: `common/src/main/java/net/conczin/mca/livingworld/memory2/SettlementKnowledgeFlowSelector.java`
-- Test: `common/src/test/java/net/conczin/mca/livingworld/memory2/SettlementKnowledgeFlowSelectorTest.java`
-
-**Interfaces:**
-- `SettlementKnowledgeFlowSelector.select(SemanticMemoryStore store, int villageId, long gameTime, Collection<UUID> residentIds)` → `SelectionResult`.
-- `SelectionResult(List<UUID> residentWindow, int speakersConsidered, List<Opportunity> opportunities)` is immutable.
-- `Opportunity(UUID speakerNpcId, UUID listenerNpcId, UUID sourceSemanticEntryId)` uses exact persisted IDs only.
-- Package-private constants expose the six hard policy bounds for tests.
-
-- [ ] **Step 1: Write selector RED tests** proving non-null/distinct UUID normalization, stable UUID ordering, deterministic cycle rotation, at most 16 materialized residents and at most 4 speakers.
-- [ ] **Step 2: Add RED source/target tests** with persisted speaker Semantic entries proving at most two source candidates are considered, exactly one source is deterministically selected per speaker, one source/cycle maps to one listener and total opportunities are at most four.
-- [ ] **Step 3: Add RED no-broadcast/equivalence tests** proving a chosen listener that already knows exact normalized statement + canonical scope yields no opportunity and does not fall back to another listener in the same cycle.
-- [ ] **Step 4: Run PR CI** and verify compile RED only because selector API is absent.
-- [ ] **Step 5: Implement minimal selector** using bounded `SemanticMemoryStore.getRecentMatching(...)`, canonical Semantic identity helpers and deterministic UUID/cycle arithmetic without randomness or provider calls.
-- [ ] **Step 6: Run common regression** and verify selector GREEN.
+Additional invariants discovered/confirmed during TDD:
+- eligible source `gameTime` must be before the current cycle start, preventing same-cycle cascades;
+- equivalent scoped knowledge across carriers uses one normalized-statement + exact-scope cycle key;
+- one source/cycle has one deterministic listener and no fallback;
+- listener-equivalent suppression is exact normalized statement + exact canonical scope;
+- every mutation delegates to existing `NpcKnowledgeTransferLifecycle`;
+- no provider/config/persistence/release identity expansion.
 
 ---
 
-### Task 2: Settlement flow lifecycle and exact transfer delegation
+## Task 1 — bounded deterministic selector — COMPLETE
 
-**Files:**
-- Create: `common/src/main/java/net/conczin/mca/livingworld/memory2/SettlementKnowledgeFlowLifecycle.java`
-- Test: `common/src/test/java/net/conczin/mca/livingworld/memory2/SettlementKnowledgeFlowLifecycleTest.java`
+**Production:** `SettlementKnowledgeFlowSelector.java`
+**Tests:** `SettlementKnowledgeFlowSelectorTest.java`
 
-**Interfaces:**
-- `SettlementKnowledgeFlowLifecycle.runCycle(Path worldRoot, int villageId, long gameTime, Collection<UUID> residentIds, int maxEventsPerNpc, int maxSemanticEntriesPerNpc)` → `CycleResult`.
-- `CycleResult(int residentWindowSize, int speakersConsidered, int opportunities, int attemptedTransfers, int successfulTransfers, List<NpcKnowledgeTransferResult.Status> statuses)` is immutable diagnostics only.
+- [x] Tests-only RED for absent selector API — commit `e2e0f79`, CI #2449 / run `31379579060`, 18 expected missing-symbol errors.
+- [x] Minimal deterministic resident window, speaker/source bounds, target selection and membership isolation — commit `82cf518`.
+- [x] GREEN — CI #2451 / run `31379822397` common/mock-provider SUCCESS.
+- [x] Same-cycle no-fallback target behavior covered.
+- [x] Source-age anti-cascade boundary added after replay semantics exposed the need — commit `0d7ab01`.
 
-- [ ] **Step 1: Write lifecycle RED** proving selected opportunity delegates through the real `NpcKnowledgeTransferLifecycle`, persists listener DIALOGUE/NPC_TOLD evidence and listener Semantic result is `BELIEF/NPC_TOLD`.
-- [ ] **Step 2: Add RED truth/scope preservation assertions** proving source FACT remains FACT, listener confidence/provenance are those of existing transfer policy, and exact `relatedEntities` scope is unchanged.
-- [ ] **Step 3: Add RED same-cycle replay test**: run identical village/cycle twice; second run may attempt the deterministic same opportunity or suppress it, but must create no second transfer evidence and must not target another listener.
-- [ ] **Step 4: Run PR CI** and observe behavioral/compile RED with lifecycle absent.
-- [ ] **Step 5: Implement minimal cycle runner**: call selector, iterate at most four opportunities, invoke only `NpcKnowledgeTransferLifecycle.transfer(...)`, collect statuses, count `TRANSFERRED` only.
-- [ ] **Step 6: Re-run common regression** and verify lifecycle GREEN.
+## Task 2 — exact transfer lifecycle orchestration — COMPLETE
 
----
+**Production:** `SettlementKnowledgeFlowLifecycle.java`
+**Tests:** `SettlementKnowledgeFlowLifecycleTest.java`
 
-### Task 3: Privacy, provenance, transformation and contradiction preservation
+- [x] Tests-only RED for absent lifecycle API — commit `49b648f`, CI #2453 / run `31380048563`, 6 expected missing-symbol errors.
+- [x] Minimal lifecycle delegates only to `NpcKnowledgeTransferLifecycle.transfer(...)` — commit `5774458`.
+- [x] GREEN — CI #2457 / run `31380538643` common/mock-provider SUCCESS.
+- [x] Source FACT stays FACT; listener becomes `BELIEF/NPC_TOLD`; exact evidence path asserted.
+- [x] Same-cycle replay cannot create another target/evidence.
 
-**Files:**
-- Test: `common/src/test/java/net/conczin/mca/livingworld/memory2/SettlementKnowledgeFlowPreservationTest.java`
+## Task 3 — preservation — COMPLETE
 
-**Interfaces:** No new production API unless a failing preservation test demonstrates a feature defect.
+**Tests:** `SettlementKnowledgeFlowPreservationTest.java`
 
-- [ ] **Step 1: Add private-scope preservation test** with two player identities proving transferred scope is byte/logically unchanged and foreign-player Working Memory retrieval still excludes the claim before allocation.
-- [ ] **Step 2: Add provenance propagation test** starting from a valid v2 `BELIEF/NPC_TOLD` source and proving the settlement transfer appends the next bounded ancestry hop rather than resetting origin.
-- [ ] **Step 3: Add transformed-source test** proving an existing `OMIT_TRAILING_SENTENCE` snapshot propagates unchanged and does not reset the one-transformation budget.
-- [ ] **Step 4: Add contradiction interaction test** where a settlement-delivered explicit-negation BELIEF reaches a listener that retains the opposite claim; verify existing automatic contradiction producer records one truth-neutral live relation with no FACT/confidence mutation.
-- [ ] **Step 5: Run common regression**; production changes are permitted only for feature-caused failures and require a focused RED/GREEN correction.
+- [x] Player-private scope preserved; foreign-player retrieval remains closed.
+- [x] v2 NPC_TOLD lineage extends rather than resetting origin.
+- [x] Existing `OMIT_TRAILING_SENTENCE` transformation snapshot propagates unchanged; one-transform budget does not reset.
+- [x] Settlement-delivered explicit opposition triggers existing truth-neutral contradiction producer with exact matching scope.
+- [x] Initial direct `PLAYER_TOLD` fixture without persisted source DIALOGUE recorded as invalid fixture, not product RED.
+- [x] Initial contradiction scope mismatch recorded as fixture error and corrected without weakening exact-scope policy.
 
----
+## Task 4 — replay / pressure / carrier fan-out — COMPLETE
 
-### Task 4: Fresh-root replay and multi-settlement pressure
+**Tests:** `SettlementKnowledgeFlowPersistenceTest.java`, strengthened `SettlementKnowledgeFlowSelectorTest.java`
 
-**Files:**
-- Test: `common/src/test/java/net/conczin/mca/livingworld/memory2/SettlementKnowledgeFlowPersistenceTest.java`
+- [x] Fresh-root copy of `memory2.json` + `semantic-memory.json` cannot expand same-cycle fan-out.
+- [x] A later authoritative cycle may progress the knowledge to another target.
+- [x] 12 settlements × 24 residents and hundreds of retained Semantic claims retain the constant 16-resident / 4-speaker / ≤4-opportunity bounds with membership isolation.
+- [x] Strengthened test proved a real defect: equivalent scoped knowledge held by multiple carriers could allocate >1 opportunity in a cycle — CI #2477 / run `31382255372`.
+- [x] Production fix: canonical statement + exact canonical scope `KnowledgeKey`, consumed before target/fallback evaluation — commit `36ee459`.
+- [x] Fan-out regression and later-cycle progression turned GREEN in CI #2479 / run `31382550847`.
+- [x] Final full domain/preservation GREEN — commit `b662f65`, CI #2481 / run `31382862171`.
 
-**Interfaces:** Existing `memory2.json` / `semantic-memory.json` formats remain unchanged.
+## Task 5 — runtime adapter and MCA village wiring — COMPLETE
 
-- [ ] **Step 1: Add fresh-root test** copying `livingworld/memory2.json` and `livingworld/semantic-memory.json` to a second root after one cycle, rerunning the same village/cycle and proving no additional target/fan-out is created.
-- [ ] **Step 2: Add later-cycle progression test** proving a new authoritative cycle may choose a different target while same-cycle replay cannot.
-- [ ] **Step 3: Add multi-settlement pressure simulation** with at least 12 villages, at least 24 residents each and hundreds of Semantic entries; prove every cycle remains at 16 residents / 4 speakers / 4 opportunities and no village receives another village's resident IDs.
-- [ ] **Step 4: Add high-noise equivalence/privacy pressure** proving equivalent known claims and unrelated village records consume zero transfer opportunities for the tested village.
-- [ ] **Step 5: Run common regression** and preserve deterministic no-wall-clock assertions.
+**Production:** `SettlementKnowledgeFlowRuntime.java`, `MixinVillage.java`, `mca.mixins.json`
+**Tests:** `SettlementKnowledgeFlowRuntimeTest.java`
 
----
+- [x] Tests-only RED for absent runtime adapter API — commit `4336d93`, CI #2463 / run `31380844904`, 2 expected missing-symbol errors.
+- [x] Runtime adapter is strict no-op when disabled, uses existing Memory 2.0 capacity and fails soft — commit `b4ac1b1`.
+- [x] `MixinVillage` injects at the existing `VillageGuardsManager.spawnGuards(ServerLevel)` invocation, inheriting MCA's staggered 1200-tick / move-in / loaded-chunk branch — commits `35b76f8`, `00eb3a2`.
+- [x] Original authoritative `gameTime` is passed rather than the local village-ID scheduling offset.
+- [x] Fabric/NeoForge loaders, GameTests and production startup verified in CI #2485 / run `31383129185`.
 
-### Task 5: MCA Village runtime integration
+## Task 6 — documentation / evidence — COMPLETE
 
-**Files:**
-- Modify: `common/src/main/java/net/conczin/mca/server/world/data/Village.java`
-- Test: use existing common/loader compile plus a focused policy/integration test if Minecraft runtime glue can be exercised without brittle mocks.
+- [x] Root `[Unreleased]` changelog records home-village boundary, 16/4/2/4/1 bounds, anti-cascade, carrier-level fan-out, no-fallback, exact lifecycle reuse and unchanged provider/persistence/truth contracts.
+- [x] Staged TDD evidence: `docs/superpowers/evidence/2026-08-10-settlement-knowledge-flow-tdd.md`.
+- [x] Invalid fixtures are distinguished from genuine product RED.
+- [x] Installed `0.2.0+1.21.1` acceptance remains immutable and separate.
 
-**Interfaces:**
-- Existing `Village.tick(ServerLevel world, long time)` signature remains unchanged.
-- Integration executes only inside existing `isVillageUpdateTime(time)` branch.
-- Gate with existing `LivingWorldConfig.memory2Enabled`.
-- Use `Village.getId()`, `Village.getResidents()`, authoritative `time`, server world root and existing `memory2MaxEventsPerNpc`.
+## Task 7 — exact-head review / delivery — PENDING FINAL HEAD FREEZE
 
-- [ ] **Step 1: Add source-level/compile RED where practical** proving `Village` has no settlement flow invocation before modification; do not introduce a brittle Minecraft mock solely to manufacture RED.
-- [ ] **Step 2: Implement minimal runtime hook** in the existing staggered village update branch; no new scheduler, thread, provider call or persistence state.
-- [ ] **Step 3: Run common + supported loader compile/GameTests** and verify Minecraft API/world-root integration.
-- [ ] **Step 4: Verify existing village tax/building/report behavior remains unchanged outside the additive bounded call.
-
----
-
-### Task 6: Product documentation and TDD evidence
-
-**Files:**
-- Modify: `CHANGELOG.md`
-- Create: `docs/superpowers/evidence/2026-08-10-settlement-knowledge-flow-tdd.md`
-
-- [ ] **Step 1: Update root `[Unreleased]`** with home-village settlement boundary, hard 16/4/2/4/1 bounds, no-fallback same-cycle semantics, exact lifecycle reuse, no omniscient store and unchanged provider/persistence/truth contracts.
-- [ ] **Step 2: Record every test-only RED SHA/run and corresponding GREEN SHA/run**; classify fixture/policy mistakes honestly rather than counting them as product RED.
-- [ ] **Step 3: Record preservation/multi-settlement evidence and any production correction it drove.
-- [ ] **Step 4: Self-review plan/spec/changelog consistency and ensure installed `0.2.0+1.21.1` boundary is not expanded.
-
----
-
-### Task 7: Exact-head review and delivery
-
-**Files:** no runtime changes unless review finds a validated defect.
-
-- [ ] **Step 1: Compare base `455d2ea36a393b2521346107fa6351f0a89ee0cd` to feature head** and inspect every changed runtime/test/doc file for P0/P1/P2 issues, unbounded scans, scope leakage, duplicate fan-out, direct Semantic writes, provider/config/persistence drift and changelog truncation.
-- [ ] **Step 2: Resolve validated findings tests-first** before freezing the head.
-- [ ] **Step 3: Verify PR threads/comments are clear** and freeze the exact feature SHA.
-- [ ] **Step 4: Run exact-head mandatory workflows:** Repository security policy, VillAIgence CI, VillAIgence Production Soak, VillAIgence GitHub Release dry-run; release publication must remain skipped.
-- [ ] **Step 5: Squash merge only if exact-head gates are green and review has no unresolved P0/P1/P2 blocker.
-- [ ] **Step 6: Reconcile `docs/PROJECT_STATE.md` and `docs/ROADMAP.md` in a docs-only follow-up PR, preserving installed `0.2.0+1.21.1` as immutable evidence and advancing NEXT to relationship/trust social epistemology.
+- [ ] Compare base `455d2ea36a393b2521346107fa6351f0a89ee0cd` to final feature head and inspect every changed file for P0/P1/P2 issues, unbounded pair scans, scope leakage, duplicate fan-out, direct listener Semantic writes, Mixin injection risk, provider/config/persistence drift and changelog truncation.
+- [ ] Verify PR discussion/review threads are clear.
+- [ ] Freeze exact feature SHA.
+- [ ] Require fresh exact-head SUCCESS on Repository security policy, VillAIgence CI, VillAIgence Production Soak and VillAIgence GitHub Release dry-run.
+- [ ] Require `github-release` publication job SKIPPED.
+- [ ] Update PR #147 body with exact evidence and merge only after all mandatory gates are green.
+- [ ] Follow with docs-only `PROJECT_STATE.md` / `ROADMAP.md` reconciliation, preserving official installed `0.2.0+1.21.1` and advancing NEXT to relationship/trust social epistemology.
