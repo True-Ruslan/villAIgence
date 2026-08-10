@@ -41,6 +41,7 @@ final class SettlementKnowledgeFlowSelector {
         long cycleStart = cycleIndex * CYCLE_TICKS;
         int speakersConsidered = Math.min(MAX_SPEAKERS_PER_CYCLE, residentWindow.size());
         List<Opportunity> opportunities = new ArrayList<>(MAX_OPPORTUNITIES_PER_CYCLE);
+        Set<KnowledgeKey> allocatedKnowledge = new LinkedHashSet<>();
 
         for (int speakerIndex = 0;
              speakerIndex < speakersConsidered && opportunities.size() < MAX_OPPORTUNITIES_PER_CYCLE;
@@ -59,6 +60,9 @@ final class SettlementKnowledgeFlowSelector {
                     cycleIndex,
                     speakerNpcId
             ));
+            KnowledgeKey knowledgeKey = KnowledgeKey.of(source);
+            if (!allocatedKnowledge.add(knowledgeKey)) continue;
+
             UUID listenerNpcId = deterministicListener(
                     residentWindow,
                     speakerNpcId,
@@ -124,12 +128,10 @@ final class SettlementKnowledgeFlowSelector {
             UUID listenerNpcId,
             SemanticMemoryEntry source
     ) {
-        String statement = SemanticMemoryIdentity.canonicalStatement(source.statement());
-        List<UUID> scope = SemanticMemoryIdentity.canonicalIds(source.relatedEntities());
+        KnowledgeKey sourceKey = KnowledgeKey.of(source);
         return store.findMatching(
                 listenerNpcId,
-                entry -> statement.equals(SemanticMemoryIdentity.canonicalStatement(entry.statement()))
-                        && scope.equals(SemanticMemoryIdentity.canonicalIds(entry.relatedEntities()))
+                entry -> sourceKey.equals(KnowledgeKey.of(entry))
         ).isPresent();
     }
 
@@ -151,6 +153,16 @@ final class SettlementKnowledgeFlowSelector {
             if (speakerNpcId.equals(listenerNpcId)) {
                 throw new IllegalArgumentException("speaker and listener must differ");
             }
+        }
+    }
+
+    private record KnowledgeKey(String statement, List<UUID> scope) {
+        private static KnowledgeKey of(SemanticMemoryEntry entry) {
+            if (entry == null) throw new IllegalArgumentException("entry is required");
+            return new KnowledgeKey(
+                    SemanticMemoryIdentity.canonicalStatement(entry.statement()),
+                    SemanticMemoryIdentity.canonicalIds(entry.relatedEntities())
+            );
         }
     }
 
