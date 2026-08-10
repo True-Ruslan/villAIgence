@@ -24,6 +24,7 @@
     "MixinServerGamePacketListenerImpl",
     "MixinServerWorld",
     "MixinTranslatableContents",
+    "MixinVillage",
     "MixinVillager",
     "MixinVillagerEntityMCA",
     "MixinVillagerTasksMCA",
