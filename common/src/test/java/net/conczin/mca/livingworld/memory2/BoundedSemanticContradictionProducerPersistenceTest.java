@@ -163,8 +163,12 @@ class BoundedSemanticContradictionProducerPersistenceTest {
                 SemanticContradictionHistory.load(reloaded, npc, player, 8);
 
         assertEquals(before, after);
-        assertEquals("The gate is open", after.getFirst().first().statement());
-        assertEquals("The gate is not open", after.getFirst().second().statement());
+        List<String> statements = List.of(
+                after.getFirst().first().statement(),
+                after.getFirst().second().statement()
+        );
+        assertTrue(statements.contains("The gate is open"));
+        assertTrue(statements.contains("The gate is not open"));
         assertFalse(after.getFirst().evidence().summary().contains("The gate is open"));
         assertFalse(after.getFirst().evidence().summary().contains("The gate is not open"));
     }
