@@ -80,8 +80,9 @@ Additional invariants discovered/confirmed during TDD:
 - [x] Tests-only RED for absent runtime adapter API — commit `4336d93`, CI #2463 / run `31380844904`, 2 expected missing-symbol errors.
 - [x] Runtime adapter is strict no-op when disabled, uses existing Memory 2.0 capacity and fails soft — commit `b4ac1b1`.
 - [x] `MixinVillage` injects at the existing `VillageGuardsManager.spawnGuards(ServerLevel)` invocation, inheriting MCA's staggered 1200-tick / move-in / loaded-chunk branch — commits `35b76f8`, `00eb3a2`.
-- [x] Original authoritative `gameTime` is passed rather than the local village-ID scheduling offset.
-- [x] Fabric/NeoForge loaders, GameTests and production startup verified in CI #2485 / run `31383129185`.
+- [x] Fabric/NeoForge loaders, GameTests and production startup verified for the initial mixin integration in CI #2485 / run `31383129185`.
+- [x] Base→head review found that `Village.tick` mutates its local `time` with `time += villageId`; a late Mixin handler must not treat that method argument as the authoritative evidence clock.
+- [x] Review hardening commit `090f5f9cafdbd66c4984036b53139cee6b4f7233` now uses `world.getGameTime()` explicitly as the unshifted server-authoritative transfer/cycle clock; final exact-head loaders/startup must verify this corrected head.
 
 ## Task 6 — documentation / evidence — COMPLETE
 
@@ -92,7 +93,8 @@ Additional invariants discovered/confirmed during TDD:
 
 ## Task 7 — exact-head review / delivery — PENDING FINAL HEAD FREEZE
 
-- [ ] Compare base `455d2ea36a393b2521346107fa6351f0a89ee0cd` to final feature head and inspect every changed file for P0/P1/P2 issues, unbounded pair scans, scope leakage, duplicate fan-out, direct listener Semantic writes, Mixin injection risk, provider/config/persistence drift and changelog truncation.
+- [x] Compare base `455d2ea36a393b2521346107fa6351f0a89ee0cd` to feature head and inspect runtime boundaries; the authoritative-clock issue above was the only validated P1 found so far and was corrected before head freeze.
+- [ ] Re-run the complete base→head review after final documentation/changelog corrections and verify P0/P1/P2 = 0.
 - [ ] Verify PR discussion/review threads are clear.
 - [ ] Freeze exact feature SHA.
 - [ ] Require fresh exact-head SUCCESS on Repository security policy, VillAIgence CI, VillAIgence Production Soak and VillAIgence GitHub Release dry-run.
