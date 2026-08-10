@@ -7,6 +7,8 @@ import java.util.UUID;
 
 /** Resolves the exact player whose trust may affect a retained player-origin BELIEF. */
 final class SocialEpistemicSourceResolver {
+    static final int MAX_SOURCE_EVIDENCE_IDS = 32;
+
     private SocialEpistemicSourceResolver() {
     }
 
@@ -34,7 +36,9 @@ final class SocialEpistemicSourceResolver {
             MemoryEventStore eventStore,
             SemanticMemoryEntry entry
     ) {
-        if (entry.sourceEventIds() == null || entry.sourceEventIds().isEmpty()) {
+        if (entry.sourceEventIds() == null
+                || entry.sourceEventIds().isEmpty()
+                || entry.sourceEventIds().size() > MAX_SOURCE_EVIDENCE_IDS) {
             return Optional.empty();
         }
 
