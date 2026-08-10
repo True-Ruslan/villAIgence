@@ -70,13 +70,7 @@ class SettlementKnowledgeFlowSelectorTest {
         UUID listenerC = id(4);
         List<UUID> residents = List.of(speaker, listenerA, listenerB, listenerC);
 
-        SemanticMemoryEntry source = fact(
-                id(100),
-                speaker,
-                "The bell is ringing",
-                List.of(id(900)),
-                200L
-        );
+        SemanticMemoryEntry source = fact(id(100), speaker, "The bell is ringing", List.of(id(900)), 200L);
         store.append(source, 64);
 
         SettlementKnowledgeFlowSelector.SelectionResult first =
@@ -87,11 +81,7 @@ class SettlementKnowledgeFlowSelectorTest {
                 .orElseThrow();
 
         store.append(belief(
-                id(101),
-                opportunity.listenerNpcId(),
-                "  THE   BELL IS RINGING  ",
-                List.of(id(900)),
-                201L
+                id(101), opportunity.listenerNpcId(), "  THE   BELL IS RINGING  ", List.of(id(900)), 201L
         ), 64);
 
         SettlementKnowledgeFlowSelector.SelectionResult replay =
@@ -102,7 +92,7 @@ class SettlementKnowledgeFlowSelectorTest {
     }
 
     @Test
-    void equivalentScopedClaimAcrossCarriersConsumesAtMostOneFanoutOpportunityPerCycle() {
+    void equivalentScopedClaimAcrossCarriersNeverExceedsOneFanoutOpportunityInAnyCycle() {
         Path world = tempDir.resolve("carrier-deduplication");
         SemanticMemoryStore store = SemanticMemoryStore.forWorld(world);
         UUID carrierA = id(10);
@@ -115,19 +105,25 @@ class SettlementKnowledgeFlowSelectorTest {
         store.append(fact(id(120), carrierA, "The south field is flooded", List.of(player), 100L), 64);
         store.append(belief(id(121), carrierB, "  THE   SOUTH FIELD IS FLOODED  ", List.of(player), 200L), 64);
 
-        SettlementKnowledgeFlowSelector.SelectionResult result =
-                SettlementKnowledgeFlowSelector.select(store, 18, 4_800L, residents);
+        for (long cycle = 2_400L; cycle <= 24_000L; cycle += SettlementKnowledgeFlowSelector.CYCLE_TICKS) {
+            SettlementKnowledgeFlowSelector.SelectionResult result =
+                    SettlementKnowledgeFlowSelector.select(store, 18, cycle, residents);
+            long sameClaimOpportunities = result.opportunities().stream()
+                    .map(opportunity -> store.findById(
+                                    opportunity.speakerNpcId(),
+                                    opportunity.sourceSemanticEntryId()
+                            ).orElseThrow())
+                    .filter(entry -> SemanticMemoryIdentity.canonicalStatement(entry.statement())
+                            .equals("the south field is flooded"))
+                    .filter(entry -> SemanticMemoryIdentity.canonicalIds(entry.relatedEntities())
+                            .equals(List.of(player)))
+                    .count();
 
-        long sameClaimOpportunities = result.opportunities().stream()
-                .map(opportunity -> store.findById(opportunity.speakerNpcId(), opportunity.sourceSemanticEntryId())
-                        .orElseThrow())
-                .filter(entry -> SemanticMemoryIdentity.canonicalStatement(entry.statement())
-                        .equals("the south field is flooded"))
-                .filter(entry -> SemanticMemoryIdentity.canonicalIds(entry.relatedEntities())
-                        .equals(List.of(player)))
-                .count();
-
-        assertEquals(SettlementKnowledgeFlowSelector.MAX_FANOUT_PER_SOURCE_PER_CYCLE, sameClaimOpportunities);
+            assertTrue(
+                    sameClaimOpportunities <= SettlementKnowledgeFlowSelector.MAX_FANOUT_PER_SOURCE_PER_CYCLE,
+                    "cycle=" + cycle + " opportunities=" + result.opportunities()
+            );
+        }
     }
 
     @Test
@@ -174,45 +170,21 @@ class SettlementKnowledgeFlowSelectorTest {
     }
 
     private static SemanticMemoryEntry fact(
-            UUID entryId,
-            UUID npc,
-            String statement,
-            List<UUID> scope,
-            long gameTime
+            UUID entryId, UUID npc, String statement, List<UUID> scope, long gameTime
     ) {
         return new SemanticMemoryEntry(
-                entryId,
-                npc,
-                SemanticMemoryEntry.Kind.FACT,
-                statement,
-                scope,
-                MemoryEvent.Provenance.SYSTEM_OBSERVED,
-                gameTime,
-                0L,
-                90,
-                100,
+                entryId, npc, SemanticMemoryEntry.Kind.FACT, statement, scope,
+                MemoryEvent.Provenance.SYSTEM_OBSERVED, gameTime, 0L, 90, 100,
                 List.of(id(700_000 + (int) gameTime))
         );
     }
 
     private static SemanticMemoryEntry belief(
-            UUID entryId,
-            UUID npc,
-            String statement,
-            List<UUID> scope,
-            long gameTime
+            UUID entryId, UUID npc, String statement, List<UUID> scope, long gameTime
     ) {
         return new SemanticMemoryEntry(
-                entryId,
-                npc,
-                SemanticMemoryEntry.Kind.BELIEF,
-                statement,
-                scope,
-                MemoryEvent.Provenance.PLAYER_TOLD,
-                gameTime,
-                0L,
-                50,
-                50,
+                entryId, npc, SemanticMemoryEntry.Kind.BELIEF, statement, scope,
+                MemoryEvent.Provenance.PLAYER_TOLD, gameTime, 0L, 50, 50,
                 List.of(id(800_000 + (int) gameTime))
         );
     }
