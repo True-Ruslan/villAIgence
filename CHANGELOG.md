@@ -139,7 +139,7 @@ This is the **canonical changelog** for the project.
   - Semantic Memory next with FACT/BELIEF provenance labels preserved;
   - dedicated live contradiction/disagreement context next without truth arbitration;
   - episodic and social-history Memory 2.0 last among memory layers;
-  - structured provider/tool instructions remain after all context layers;
+  - structured-response/tool instructions remain after all context layers;
   - conflicting BELIEFs remain non-authoritative and stale relationship history does not override the current server-observed relationship state.
 - Long-horizon recall changes no persistence format/version, public configuration, provider request/retry behavior, relationship mutation authority or release identity contract; it adds no legacy `memory.json` reader, embeddings/vector database, background summarizer or extra LLM memory-management call.
 - NPC-to-NPC knowledge transfer reuses the existing `memory2.json` / `semantic-memory.json` formats, retention policies, Semantic consolidation, player-visibility eligibility and `32` / `24+8` / `6` long-horizon bounds; it adds no provider call, public config, client authority, autonomous visible NPC conversation, multi-hop rumor propagation or legacy migration.
