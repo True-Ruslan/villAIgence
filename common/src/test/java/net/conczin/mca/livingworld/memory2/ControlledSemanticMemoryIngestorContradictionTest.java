@@ -43,7 +43,7 @@ class ControlledSemanticMemoryIngestorContradictionTest {
                 64
         );
 
-        List<SemanticContradictionHistory.ResolvedContradiction> history =
+        List<SemanticContradictionHistory.ResolvedSemanticContradiction> history =
                 SemanticContradictionHistory.load(world, npc, player, 8);
         assertEquals(1, history.size());
 
