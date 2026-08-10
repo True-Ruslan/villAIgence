@@ -29,7 +29,7 @@ class SettlementKnowledgeFlowPreservationTest {
         SettlementKnowledgeFlowLifecycle.CycleResult result = SettlementKnowledgeFlowLifecycle.runCycle(
                 world, 3, 2_400L, List.of(speaker, listener), 64, 64);
 
-        assertEquals(1, result.successfulTransfers());
+        assertEquals(1, result.successfulTransfers(), result.toString());
         SemanticMemoryEntry transferred = SemanticMemoryStore.forWorld(world).getRecent(listener, 64).getFirst();
         assertEquals(List.of(ownerPlayer), transferred.relatedEntities());
         assertTrue(PlayerScopedMemoryEligibility.semantic(transferred, listener, ownerPlayer));
@@ -62,7 +62,7 @@ class SettlementKnowledgeFlowPreservationTest {
 
         SettlementKnowledgeFlowLifecycle.CycleResult bc = SettlementKnowledgeFlowLifecycle.runCycle(
                 world, 4, 3_600L, List.of(npcB, npcC), 64, 64);
-        assertEquals(1, bc.successfulTransfers());
+        assertEquals(1, bc.successfulTransfers(), bc.toString());
 
         MemoryEvent bcEvidence = MemoryEventStore.forWorld(world).getRecent(npcC, 64).stream()
                 .filter(event -> event.type() == MemoryEvent.Type.DIALOGUE
@@ -92,18 +92,12 @@ class SettlementKnowledgeFlowPreservationTest {
         UUID listener = id(21);
         UUID player = id(93);
 
-        SemanticMemoryStore.forWorld(world).append(new SemanticMemoryEntry(
+        SemanticMemoryStore.forWorld(world).append(fact(
                 id(200),
                 speaker,
-                SemanticMemoryEntry.Kind.BELIEF,
                 "The gate is not open",
                 List.of(player),
-                MemoryEvent.Provenance.PLAYER_TOLD,
-                100L,
-                0L,
-                55,
-                60,
-                List.of(id(201))
+                100L
         ), 64);
         ControlledSemanticMemoryIngestor.recordFact(
                 world,
@@ -114,7 +108,7 @@ class SettlementKnowledgeFlowPreservationTest {
         SettlementKnowledgeFlowLifecycle.CycleResult result = SettlementKnowledgeFlowLifecycle.runCycle(
                 world, 5, 2_400L, List.of(speaker, listener), 64, 64);
 
-        assertEquals(1, result.successfulTransfers());
+        assertEquals(1, result.successfulTransfers(), result.toString());
         List<SemanticContradictionHistory.ResolvedSemanticContradiction> history =
                 SemanticContradictionHistory.load(world, listener, player, 8);
         assertEquals(1, history.size());
