@@ -117,11 +117,7 @@ run: 31381087820
 699 tests / 2 behavioral failures
 ```
 
-The preservation suite already compiled. It found:
-- one later-cycle fan-out discrepancy;
-- one contradiction fixture that initially used a direct `PLAYER_TOLD` BELIEF without the required persisted source DIALOGUE.
-
-The latter was an invalid fixture assumption, not a product failure. It was corrected to a valid server-observed FACT source.
+The preservation suite already compiled. It found one later-cycle fan-out discrepancy and one contradiction fixture that initially used a direct `PLAYER_TOLD` BELIEF without the required persisted source DIALOGUE. The latter was an invalid fixture assumption, not a product failure, and was corrected to a valid server-observed FACT source.
 
 After that fixture correction/diagnostic pass:
 
@@ -154,14 +150,7 @@ Production correction:
 commit: 36ee459e3efbf1eab79a84fd89d2f73f722909ff
 ```
 
-The selector now allocates a per-cycle knowledge key defined as:
-
-```text
-canonical normalized statement
-+ exact canonical relatedEntities scope
-```
-
-The first deterministic carrier consumes that key before target-equivalence evaluation. A second carrier cannot become a fallback and cannot consume a second fan-out opportunity for the same scoped knowledge.
+The selector now allocates a per-cycle knowledge key defined as canonical normalized statement + exact canonical `relatedEntities` scope. The first deterministic carrier consumes that key before target-equivalence evaluation. A second carrier cannot become a fallback and cannot consume a second fan-out opportunity for the same scoped knowledge.
 
 Verification on that production correction:
 
@@ -186,39 +175,20 @@ run: 31382862171
 common + deterministic mock-provider tests: SUCCESS
 ```
 
-The suite covers:
-- deterministic 16/4/2/4 bounds;
-- one fan-out per normalized claim+scope per cycle across multiple carriers;
-- no fallback retargeting;
-- no same-cycle cascade;
-- supplied home-village membership isolation;
-- player-private scope preservation and foreign-player retrieval exclusion;
-- exact v2 provenance extension;
-- existing `OMIT_TRAILING_SENTENCE` snapshot propagation without transformation-budget reset;
-- automatic truth-neutral contradiction production after settlement delivery;
-- fresh-root same-cycle replay without fan-out expansion;
-- later-cycle gradual progression to another target;
-- 12 settlements × 24 residents with hundreds of retained Semantic claims while each settlement remains at constant 16/4/4 allocation bounds.
+The suite covers deterministic 16/4/2/4 bounds, knowledge-level fan-out one across carriers, no fallback, no same-cycle cascade, home-village membership isolation, player-private scope, v2 provenance extension, transformation carry-forward, truth-neutral contradiction production, fresh-root replay, later-cycle gradual progression, and 12 settlements × 24 residents with hundreds of retained claims while each settlement remains at constant 16/4/4 allocation bounds.
 
 ### 8. Minecraft runtime integration
 
 Runtime wiring uses a minimal `MixinVillage` rather than rewriting the large upstream `Village.java`. The mixin injects at the existing `VillageGuardsManager.spawnGuards(ServerLevel)` call inside `Village.tick`. That invocation is already behind MCA's staggered 1200-tick village update, move-in cooldown and loaded-chunk checks.
 
-The mixin passes:
-- existing server-owned `Village.getId()`;
-- `Village.getResidentsUUIDs()` snapshot;
-- the original authoritative `gameTime` argument (not the local `time + villageId` scheduling offset);
-- the canonical server world root;
-- existing `memory2MaxEventsPerNpc` capacity.
-
-Mixin commits:
+Initial mixin commits:
 
 ```text
 35b76f83c9d97ae28e0d2908c9f12815a6bd0ba4  add MixinVillage
 00eb3a277ad4d113c0a577c5885516d7706197d9  register MixinVillage
 ```
 
-Verification:
+Initial integration verification:
 
 ```text
 VillAIgence CI #2485
@@ -230,22 +200,25 @@ production server acceptance/startup: SUCCESS
 package verification: SUCCESS
 ```
 
-The new injection therefore resolves on supported loaders and boots in the production acceptance runtime.
+This proved the injection target resolves on supported loaders and production startup.
+
+### 9. Base→head review hardening — authoritative clock
+
+Review of the upstream `Village.tick` body found an important clock boundary: the method mutates its local parameter via `time += getId()` before reaching the injection point. A late Mixin handler therefore must not treat its received `long` method argument as the authoritative unshifted Minecraft clock for transfer identity, provenance or cycle timing.
+
+Production review fix:
+
+```text
+commit: 090f5f9cafdbd66c4984036b53139cee6b4f7233
+```
+
+`MixinVillage` now explicitly passes `world.getGameTime()` into `SettlementKnowledgeFlowRuntime`. The village-ID-shifted local time remains only MCA scheduler state and cannot enter persisted transfer evidence/cycle semantics.
+
+The final exact-head delivery matrix must re-run supported loader builds and production startup on this corrected clock implementation before merge.
 
 ## Preservation / authority result
 
-No new:
-
-- provider request, response field or call;
-- public configuration field/version;
-- world file or persistence schema/version;
-- migration/backfill;
-- settlement-global/shared knowledge store;
-- relationship/trust weighting;
-- cross-village dissemination;
-- direct listener Semantic write path;
-- FACT promotion or confidence/provenance mutation;
-- release identity.
+No new provider request/schema/call, public config, world file or persistence version, migration/backfill, durable scheduler ledger, settlement-global/shared knowledge store, relationship/trust weighting, cross-village dissemination, direct listener Semantic write path, FACT promotion, confidence/provenance mutation or release identity was introduced.
 
 The existing source-backed transfer lifecycle, v2 provenance, transformation budget, player eligibility and bounded contradiction producer remain the only mutation/authority paths.
 
