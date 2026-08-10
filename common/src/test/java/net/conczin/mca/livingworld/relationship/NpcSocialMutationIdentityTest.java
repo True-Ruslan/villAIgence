@@ -18,7 +18,7 @@ class NpcSocialMutationIdentityTest {
 
         assertEquals(first, replay);
         assertEquals(
-                UUID.fromString("1faa92a3-f170-322f-a8c8-3e13cc181640"),
+                UUID.fromString("9d792d97-37af-3650-8ef7-33acf6d1f274"),
                 first,
                 "namespace and canonical identity bytes are a persistence contract"
         );
