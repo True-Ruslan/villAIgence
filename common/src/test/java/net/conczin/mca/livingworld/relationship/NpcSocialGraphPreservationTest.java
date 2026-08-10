@@ -50,7 +50,7 @@ class NpcSocialGraphPreservationTest {
                 );
                 NpcSocialState state = new NpcSocialState(
                         sourceIndex - targetIndex,
-                        targetIndex,
+                        targetIndex + 1,
                         sourceIndex % 4,
                         targetIndex - sourceIndex
                 );
