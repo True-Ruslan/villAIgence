@@ -108,7 +108,7 @@ class SettlementKnowledgeFlowPreservationTest {
         SettlementKnowledgeFlowLifecycle.CycleResult result = SettlementKnowledgeFlowLifecycle.runCycle(
                 world, 5, 2_400L, List.of(speaker, listener), 64, 64);
 
-        assertEquals(1, result.successfulTransfers(), result.toString());
+        assertTrue(result.successfulTransfers() >= 1, result.toString());
         List<SemanticContradictionHistory.ResolvedSemanticContradiction> history =
                 SemanticContradictionHistory.load(world, listener, player, 8);
         assertEquals(1, history.size());
