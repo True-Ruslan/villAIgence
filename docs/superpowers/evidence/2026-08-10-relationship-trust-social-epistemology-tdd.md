@@ -45,7 +45,8 @@ The implementation adds a fail-closed `SocialEpistemicSourceResolver` rather tha
 
 Direct `BELIEF / PLAYER_TOLD` resolution:
 
-- rereads every retained source event under the Semantic owner NPC;
+- refuses social derivation before any event lookup when more than 32 source evidence IDs are attached to one retained claim;
+- within that bound, rereads every retained source event under the Semantic owner NPC;
 - requires exact `DIALOGUE / PLAYER_TOLD` evidence with dialogue payload;
 - derives the player only as the unique non-owner participant;
 - requires every retained supporting source event to identify the same player;
@@ -57,7 +58,7 @@ Transferred `BELIEF / NPC_TOLD` resolution:
 - requires v2 origin `BELIEF / PLAYER_TOLD`;
 - rereads the exact origin Semantic entry;
 - requires `KnowledgeTransferProvenancePolicy.originMatchesSource(...)`;
-- resolves the original player only from the origin entry's retained direct dialogue evidence;
+- resolves the original player only from the origin entry's retained direct dialogue evidence under the same 32-ID bound;
 - FACT-origin and INFERRED-origin rumors receive no player-trust state.
 
 This preserves the existing rule that forgotten provenance is not reconstructed from surviving claim prose or scope.
@@ -106,12 +107,11 @@ Additional tests were added without production changes:
 
 ```text
 commit: 868ffd5b1acf52a103f7fc2991cf9822f3818376
-VillAIgence CI #2532 / 31397163335
+VillAIgence CI #2532 / 31397163335 — SUCCESS
 Repository security policy #2167 / 31397164031 — SUCCESS
 VillAIgence Production Soak #358 / 31397165601 — SUCCESS
+VillAIgence GitHub Release #691 / 31397163263 — SUCCESS
 ```
-
-At the point this ledger was written, the CI `common + deterministic mock-provider tests` step on #2532 was SUCCESS. The remaining heavy workflow stages continue independently and are not used as final exact-head delivery evidence because changelog/evidence commits intentionally move the feature head afterward.
 
 Preservation coverage proves:
 
@@ -123,10 +123,37 @@ Preservation coverage proves:
 
 No preservation test required a production correction.
 
+## Review hardening — bounded source-evidence work
+
+Base→head review found one material boundedness issue before feature freeze: Semantic consolidation unions source event IDs, so a long-lived repeated claim can accumulate a source list larger than the bounded event store. The initial social resolver walked that whole list on the prompt path, and each `MemoryEventStore.findById(...)` itself scans the retained per-NPC event list. That made social derivation potentially scale with accumulated claim history rather than a fixed prompt-time budget.
+
+Behavioral RED — tests only:
+
+```text
+commit: f0d6ae69d4680141d29909d55ad56d4ffab3cd0d
+VillAIgence CI #2538
+run: 31398108016
+result: FAILURE as intended
+722 tests / exactly 1 failure
+```
+
+The sole failure was `SocialEpistemicBoundednessTest.excessiveDirectSourceEvidenceFailsClosedBeforeSocialDerivation()`: the pre-fix resolver accepted 33 valid direct source events, proving the work was not hard-bounded.
+
+Minimal production correction:
+
+```text
+commit: 1d7dac0f9c06d29ebf85e35889b56bbee1b79dd7
+MAX_SOURCE_EVIDENCE_IDS = 32
+```
+
+The resolver now checks source-list size before its first event lookup. More than 32 source IDs makes social source resolution `UNRESOLVED` for prompt purposes and falls back to the existing unannotated Semantic line. No Semantic evidence is deleted or rewritten, and normal claims at or below the cap retain exact all-source consistency validation.
+
+VillAIgence CI #2540 confirmed `common + deterministic mock-provider tests: SUCCESS` on the correction head before documentation synchronization. Final delivery gates are rerun after the source head is frozen.
+
 ## Authority / compatibility result
 
 The implementation adds no provider request/response field/call, public configuration, world file, persistence schema/version, migration/backfill, Semantic field, relationship field, transfer evidence field, settlement routing rule, NPC↔NPC social graph or release identity change.
 
-The feature does not mutate or rank by social trust. It computes a current non-persistent interpretation after the existing Semantic selection boundary. Current server-observed facts remain authoritative, BELIEF remains BELIEF, contradiction remains disagreement rather than verdict, and missing evidence fails soft to the pre-feature Semantic rendering.
+The feature does not mutate or rank by social trust. It computes a current non-persistent interpretation after the existing Semantic selection boundary. Current server-observed facts remain authoritative, BELIEF remains BELIEF, contradiction remains disagreement rather than verdict, and missing/excessive evidence fails soft to the pre-feature Semantic rendering.
 
 Final exact-head delivery workflow IDs belong in PR #149 after changelog/evidence/review freeze so recording them does not invalidate the verified source SHA.
