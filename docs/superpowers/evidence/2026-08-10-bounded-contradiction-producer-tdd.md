@@ -190,9 +190,11 @@ No new:
 
 The existing `semantic-contradiction-v1` lifecycle remains the sole persisted contradiction representation.
 
-## Final exact-head gates
+## Exact-head delivery evidence location
 
-To be filled after review/changelog freeze. The final product head must have fresh SUCCESS on:
+The staged RED/GREEN evidence above is immutable repository content. The final exact-head workflow run IDs, frozen feature SHA, review verdict and squash-merge SHA are recorded in PR #145 and then reconciled into `docs/PROJECT_STATE.md` / `docs/ROADMAP.md` after merge. This avoids changing the feature SHA merely to write the run IDs that verify that same SHA.
+
+The mandatory frozen-head gates are:
 
 ```text
 Repository security policy
@@ -201,4 +203,4 @@ VillAIgence Production Soak
 VillAIgence GitHub Release dry-run
 ```
 
-The release publication job must remain SKIPPED.
+Release publication remains outside this feature PR and must stay skipped.
