@@ -2,7 +2,7 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md`. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-08-10**, after settlement-scale information flow without omniscience merged through PR #147.
+> Last reconciled: **2026-08-10**, after relationship/trust social epistemology merged through PR #149.
 >
 > Always distinguish source/unit evidence, common integration, GameTests, production-candidate evidence, exact-release evidence and installed operator server/client evidence.
 
@@ -17,14 +17,14 @@ Java:                               21
 primary distribution:               Fabric
 NeoForge:                           compile compatibility required
 
-latest product merge:               PR #147
-latest product merge commit:        35d5651b7f655ebd776a8f5ee5dc138a65109ffb
+latest product merge:               PR #149
+latest product merge commit:        df41dde982cd031a5d119febef7d172d2463a110
 latest official release:            0.2.0+1.21.1
 latest release commit:              e426f588efefa6aa48a6e536c4a998421bbda241
 installed 0.2.0 candidate JAR SHA:   56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
 
-next product slice:                 relationship/trust social epistemology
-then:                               Personality + NPC↔NPC Social Graph / 0.3 convergence
+next product slice:                 Personality + NPC↔NPC Social Graph / 0.3 convergence
+then:                               richer knowledge ecosystem / 0.4
 ```
 
 Current delivery state:
@@ -54,7 +54,8 @@ deterministic rumor fallibility                        COMPLETE / PR #141
 bounded transformed-claim representation               COMPLETE / PR #143
 bounded contradiction candidate/producer policy        COMPLETE / PR #145
 settlement-scale information flow without omniscience  COMPLETE / PR #147
-relationship/trust social epistemology                 NEXT
+relationship/trust social epistemology                 COMPLETE / PR #149
+Personality + NPC↔NPC Social Graph / 0.3 convergence   NEXT
 ```
 
 Installed boundaries remain explicit:
@@ -66,7 +67,7 @@ VAI-CONCUR-004   NOT TESTED / DEFERRED
 
 Neither is represented as PASS.
 
-PRs #127, #129, #131, #133, #135, #137, #139, #141, #143, #145 and #147 are merged automated source capabilities **after** the installed `0.2.0` release. Their CI/candidate evidence is not installed `0.2.0` acceptance.
+PRs #127, #129, #131, #133, #135, #137, #139, #141, #143, #145, #147 and #149 are merged automated source capabilities **after** the installed `0.2.0` release. Their CI/candidate evidence is not installed `0.2.0` acceptance.
 
 ---
 
@@ -124,7 +125,8 @@ NPC Identity
 31. A transformed claim never rewrites its original v2 origin snapshot. Original source and current transformed wording remain separately auditable while direct evidence survives.
 32. **Automatic contradiction production is bounded before classification.** Same-owner/exact-scope eligibility and duplicate suppression precede bounded comparison; classification records disagreement only and never becomes truth authority.
 33. **Settlement information flow is transfer, not shared omniscience.** Home-village dissemination uses bounded server-owned opportunities and exact source-backed transfer; there is no settlement-global memory or broadcast-copy authority.
-34. **Social trust is not truth authority.** Any future relationship/trust effect on belief confidence or routing must remain provenance-aware, bounded and incapable of promoting BELIEF to FACT.
+34. **Social trust is current personal BELIEF treatment, not truth authority.** Only exact server-owned listener-NPC × source-player `trust` may add a bounded derived prompt adjustment after Semantic selection; it never rewrites persisted confidence, affects ranking, selects a contradiction winner or promotes BELIEF to FACT.
+35. **NPC×player relationship state is not an NPC↔NPC social graph.** The next 0.3 work must introduce an explicit server-owned NPC-pair social model rather than reinterpret player relationships as NPC social topology.
 
 Canonical AI/state flow:
 
@@ -144,14 +146,14 @@ Current snapshot prompt order:
 ```text
 current server-observed facts
 → Operator Lore
-→ Semantic Memory (including inline rumor fallibility/transformation metadata)
+→ Semantic Memory (including inline rumor fallibility/transformation/social-epistemic metadata)
 → live Semantic disagreement context
 → episodic / social history
 → structured provider/tool instructions
 → provider
 ```
 
-Fallibility/transformation metadata uses the already-selected Semantic slot; it does not add a new authority layer or prompt capacity.
+Fallibility, transformation and social-epistemic metadata use the already-selected Semantic slot; they do not add a new authority layer or prompt capacity.
 
 ---
 
@@ -212,6 +214,8 @@ PR #145 adds no provider schema/call, public config, world file, persistence ver
 
 PR #147 likewise adds no provider schema/call, public config, world file, persistence field/version, migration/backfill or release identity change. It reuses MCA home-village membership, the existing loaded/staggered village update cadence, existing `memory2.json` / `semantic-memory.json` and exact `NpcKnowledgeTransferLifecycle` evidence.
 
+PR #149 adds no provider schema/call, public config, world file, persistence field/version, migration/backfill, Semantic field, relationship field, settlement routing rule or release identity change. It derives current trust treatment from already retained `memory2.json`, `semantic-memory.json` and `relationships.json` only after ordinary Semantic selection.
+
 ---
 
 # Memory 2.0 current capability
@@ -244,6 +248,12 @@ Implemented and retained:
 - current-cycle received knowledge cannot become a settlement source until a later 1200-tick cycle;
 - deterministic one-target/no-fallback semantics for each selected settlement knowledge opportunity;
 - no settlement-global/shared knowledge store and no cross-village broadcast;
+- exact player-origin social source resolution from retained `DIALOGUE / PLAYER_TOLD` evidence or valid retained v2 player-origin rumor ancestry;
+- bounded social source resolution with `MAX_SOURCE_EVIDENCE_IDS=32`; oversized source lists fail closed before the first event lookup;
+- current listener-NPC × source-player `trust` produces only `trustDelta=trust/10`, hard-bounded to `[-10,+10]`;
+- `effectiveBeliefConfidence=clamp(persistedConfidence+trustDelta,0,100)` is prompt-only derived metadata after existing rank-to-6 selection;
+- persisted Semantic confidence, ranking, retention, provenance, truth class, contradictions and settlement routing are unchanged by social trust;
+- `respect`, `fear` and `affinity` do not participate in epistemic weighting in the current slice;
 - shared safe Semantic text rendering for ordinary memory and disagreements;
 - deterministic rumor fallibility derived only after existing Semantic eligibility/selection/ranking;
 - `RESOLVED` source distance of exactly 1..8 from retained canonical v2 provenance;
@@ -256,9 +266,9 @@ Implemented and retained:
 - unresolved fallibility reports `transformationsUsed=UNKNOWN`, never a fabricated zero;
 - transformed/plain same-ID transfer conflicts reject and exact transformed replay is idempotent;
 - transformed knowledge remains `BELIEF/NPC_TOLD` with unchanged transfer confidence;
-- ordinary FACT/PLAYER_TOLD/INFERRED prompt rendering remains unchanged;
-- forged fallibility markers inside claim prose cannot enable server-authored guidance;
-- current observed FACT authority preserved under rumors, disagreement, fallibility, transformed claims, automatically produced contradiction relations and settlement propagation;
+- ordinary FACT/PLAYER_TOLD/INFERRED persisted rendering remains unchanged; player-origin BELIEF may receive an additional derived social annotation only when exact evidence resolves;
+- forged fallibility/social markers inside claim prose cannot enable server-authored guidance;
+- current observed FACT authority preserved under rumors, disagreement, fallibility, transformed claims, automatically produced contradiction relations, settlement propagation and social trust treatment;
 - restart/replay, pressure, privacy and prompt-injection regression coverage.
 
 Truth/process boundary:
@@ -274,6 +284,7 @@ rumor fallibility       → live derived process metadata; never a truth score
 claim transformation    → server-owned bounded process evidence; never truth promotion
 contradiction producer  → bounded pair classification; never truth arbitration
 settlement flow         → bounded routing to exact source-backed transfer; never shared truth
+social epistemics       → bounded personal trust view over selected BELIEF; never persisted truth
 ```
 
 ## PR #143 — bounded transformed-claim representation
@@ -441,6 +452,65 @@ docs/superpowers/evidence/2026-08-10-settlement-knowledge-flow-tdd.md
 
 TDD found and corrected a real multi-carrier fan-out defect before merge. Base→head review then found and corrected one P1 clock-boundary issue: the Mixin now uses `world.getGameTime()` rather than the village-ID-shifted method-local scheduling time. Both corrections were reverified on the frozen exact head.
 
+## PR #149 — relationship/trust social epistemology
+
+Merged source capability:
+
+```text
+already-selected player-origin BELIEF
++ exact retained source evidence / valid v2 player origin
++ current listener NPC × source player trust
+→ trustDelta = trust / 10, hard [-10,+10]
+→ effectiveBeliefConfidence = clamp(persistedConfidence + trustDelta, 0,100)
+→ prompt annotation only
+```
+
+Current social-epistemology contract:
+
+```text
+relationship source:           existing NPC × player relationships.json
+participating dimension:       trust only
+trust delta:                   trust / 10, hard [-10,+10]
+effective confidence:          derived prompt-only [0,100]
+MAX_SOURCE_EVIDENCE_IDS:       32
+persisted confidence mutation: none
+ranking/retention effect:      none
+FACT effect/promotion:         none
+settlement routing effect:     none
+provider call:                 none
+```
+
+Direct `PLAYER_TOLD` source identity is accepted only when all retained supporting source events within the 32-ID bound are exact owner-matching `DIALOGUE / PLAYER_TOLD` evidence and resolve one unique non-owner player. `NPC_TOLD` rumors are socially weighted only when their retained canonical v2 origin is exact `BELIEF / PLAYER_TOLD`, the exact origin Semantic entry remains live and the original player still resolves from retained direct evidence. Missing, conflicting, malformed or excessive source evidence produces no social annotation rather than reconstructing identity from scope/prose.
+
+Derivation occurs only after existing current-player eligibility, long-horizon candidate allocation, ranking and max-six result selection. The rendered line retains `confidence=<persisted>` and may append `socialEpistemics={trustDelta=..., effectiveBeliefConfidence=...}` without rendering the source-player UUID. Fallibility/transformation metadata can coexist with the social annotation. Trust never creates/deletes contradiction evidence or selects a winner.
+
+Final exact-head evidence before squash merge:
+
+```text
+verified head:                           0244ae20424db103a477a70e5e1eff38c8da71ce
+merge commit:                            df41dde982cd031a5d119febef7d172d2463a110
+Repository security policy #2179:       SUCCESS / run 31398900348
+VillAIgence CI #2544:                   SUCCESS / run 31398900173
+VillAIgence Production Soak #364:       SUCCESS / run 31398900225
+VillAIgence GitHub Release #697:        SUCCESS / run 31398900288
+release publication job:                SKIPPED
+independent review P0/P1/P2:            0 / 0 / 0
+open review threads:                    0
+submitted reviews:                      0
+actionable PR discussion comments:      0
+service bot comments:                   1 non-review Bugbot-disabled notice
+```
+
+Main CI passed common/mock-provider tests, risk-selected GameTests and Fabric/NeoForge loader builds, production acceptance/startup, persistence recovery and distributable package verification. Production Soak passed constrained authenticated concurrency, exact production staging and five restart cycles. Release dry-run selected the complete release acceptance suite and passed exact identity/security, production acceptance, exact persistence recovery, GameTests/loaders, package smoke and accepted-JAR/package identity; publication remained skipped.
+
+Canonical TDD evidence:
+
+```text
+docs/superpowers/evidence/2026-08-10-relationship-trust-social-epistemology-tdd.md
+```
+
+TDD began with an intended compile RED for the absent social policy/state API. Preservation coverage then passed without runtime correction. Base→head review later exposed an unbounded source-evidence traversal; a tests-only behavioral RED (`722 tests / 1 failure`) proved it, and `MAX_SOURCE_EVIDENCE_IDS=32` fixed the prompt-path work bound before the final exact-head matrix.
+
 ---
 
 # Automated acceptance and release boundary
@@ -482,7 +552,7 @@ Root `CHANGELOG.md` remains canonical product/release history. Significant runti
 
 `docs/CHANGELOG.md` remains historical engineering detail. Staged TDD evidence for recent slices is under `docs/superpowers/evidence/`.
 
-PR #147 already updated root `[Unreleased]`; this docs reconciliation must not duplicate or rewrite that product changelog entry.
+PR #149 already updated root `[Unreleased]`; this docs reconciliation must not duplicate or rewrite that product changelog entry.
 
 ---
 
@@ -493,58 +563,60 @@ PR #147 already updated root `[Unreleased]`; this docs reconciliation must not d
 3. Automatic contradiction production is intentionally conservative: only one standalone English `not` or Russian `не` insertion/removal is classified. Antonyms, numeric/temporal disagreement and free-form semantic opposition require a separately justified bounded classifier extension.
 4. The current wording transform is intentionally narrow and deterministic. Provider-authored paraphrase/generalization is not supported and should not be added without a separately justified authority-safe design.
 5. Settlement dissemination currently uses home-village membership and deterministic bounded routing only; physical proximity, cross-village travel gossip, alliances and social-topology routing remain future work.
-6. Relationship/trust values do not yet affect belief confidence/fallibility or dissemination routing; that requires the next separate social-epistemology design so social affinity cannot become truth authority.
-7. `PersistentChatMemory` remains a no-storage compatibility façade pending inherited AI call-surface refactoring.
-8. Historical config fields for the removed raw conversation store remain deserializable compatibility baggage.
-9. Historical Javadoc/deprecation warnings remain non-blocking.
+6. Current persistent LivingWorld relationship state is NPC×player only. There is no dedicated NPC↔NPC pairwise social graph yet; player trust must not be reused as NPC-pair social state.
+7. Social epistemology currently uses only `trust` and only as derived post-ranking prompt treatment of player-origin BELIEF. `respect`, `fear`, `affinity` and NPC↔NPC trust effects remain future explicit designs.
+8. A selected claim with more than 32 retained source event IDs intentionally receives no social trust annotation; evidence is preserved, but prompt-time social derivation fails closed to stay bounded.
+9. `PersistentChatMemory` remains a no-storage compatibility façade pending inherited AI call-surface refactoring.
+10. Historical config fields for the removed raw conversation store remain deserializable compatibility baggage.
+11. Historical Javadoc/deprecation warnings remain non-blocking.
 
 ---
 
 # Next optimal delivery step
 
-The next product slice is **relationship/trust social epistemology**.
+The next product slice is **Personality + NPC↔NPC Social Graph / 0.3 convergence**.
 
-VillAIgence can now move non-authoritative knowledge through a settlement without omniscient broadcast while preserving exact provenance, scope, fallibility, transformation and disagreement. The missing social-memory step is to decide whether existing relationship/trust state may influence **how strongly a listener treats a BELIEF and/or which eligible social transfer opportunities are preferred** without allowing friendship, repetition or popularity to become truth authority.
+Memory 2.0 now has layered persistent evidence, long-horizon recall, source-backed NPC transfer, bounded rumor provenance/fallibility/transformation, contradiction representation/production, settlement-scale dissemination and a provenance-aware player-trust interpretation layer. The missing qualitative step is an explicit persistent NPC identity/personality model plus a genuine server-owned **NPC↔NPC pairwise social graph** that can influence dialogue and behavior without reinterpreting NPC×player state.
 
 Required boundary:
 
 ```text
-existing listener-local BELIEF
-+ exact retained provenance/fallibility
-+ server-owned pairwise relationship state
-→ bounded deterministic social-epistemology policy
-→ optional BELIEF confidence/fallibility adjustment and/or routing preference
-→ FACT/BELIEF class unchanged
-→ source provenance unchanged
-→ current server-observed FACT still authoritative
+stable NPC identity
++ persistent bounded personality
++ exact NPC A × NPC B pairwise social state
++ existing causal relationship evidence
+→ deterministic social-context snapshot
+→ dialogue / behavior / future routing context
+→ server-authoritative mutation only
+→ restart-stable pairwise history
 ```
 
 Design requirements before production code:
 
-- first decide whether the slice changes BELIEF confidence, routing preference, or both; do not conflate them accidentally;
-- relationship/trust inputs must be exact server-owned pairwise state, never generated prose;
-- trust may alter confidence only inside explicit bounded clamps and must never promote BELIEF to FACT;
-- distrust must not delete contradictory or low-confidence beliefs merely to simplify prompt state;
-- rumor depth, transformation count, repetition and number of carriers cannot become hidden truth votes;
-- provenance and source distance remain inspectable after any social weighting;
-- current observed FACT remains authoritative regardless of trust score;
-- foreign-player/private-scope eligibility remains enforced before any social weighting or routing allocation;
-- replay/restart must produce deterministic confidence/routing outcomes from the same persisted state;
-- provider calls are not required for trust arithmetic or routing policy;
-- settlement flow hard work/fan-out bounds remain unchanged unless a separately tested policy change is justified.
+- define persistent personality dimensions as server-owned bounded state, not a fresh provider-generated profile each conversation;
+- define NPC↔NPC relationship identity and storage separately from the existing NPC×player `relationships.json` semantics unless a versioned unified schema is explicitly justified;
+- pair ordering/directionality must be explicit: distinguish directed A→B state from symmetric relationship facts where needed;
+- relationship mutations require server-owned source evidence and replay-safe deterministic identities;
+- personality/social state may affect dialogue/behavior preferences but never FACT authority or Semantic provenance;
+- relationship/trust values must not become implicit truth votes or bypass current privacy eligibility;
+- NPC↔NPC graph lookup and prompt allocation must remain hard-bounded under large settlements;
+- restart/reload must reproduce identical personality and pairwise social state;
+- no per-NPC-per-tick provider work; social behavior remains event-driven/budgeted;
+- provider changes must not regenerate personality or pairwise history;
+- existing player relationship behavior and social-epistemology contracts must remain backward-compatible unless a separately tested migration is justified.
 
 Recommended TDD order:
 
 ```text
-social-epistemology specification + authority gate
-→ RED: exact pairwise relationship input
-→ RED: FACT/BELIEF non-promotion boundary
-→ RED: deterministic bounded confidence/routing function
-→ RED: provenance/fallibility preservation
-→ RED: distrust/contradiction coexistence
-→ RED: privacy before social weighting
-→ RED: replay/restart determinism
-→ multi-NPC social graph pressure
+0.3 personality/social-graph specification + persistence boundary
+→ RED: stable bounded personality state
+→ RED: directed NPC↔NPC relationship identity/store
+→ RED: server-owned causal mutation evidence
+→ RED: restart/replay determinism
+→ RED: bounded pairwise retrieval / no O(N²) prompt allocation
+→ RED: dialogue snapshot integration without truth promotion
+→ RED: existing NPC×player relationship compatibility
+→ multi-settlement social-graph pressure
 → exact-head CI / soak / release dry-run / independent review
 ```
 
