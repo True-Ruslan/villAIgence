@@ -106,7 +106,7 @@ class SettlementKnowledgeFlowPreservationTest {
                 negativeSourceId,
                 speaker,
                 "The gate is not open",
-                List.of(player),
+                List.of(listener, player),
                 100L
         ), 64);
         ControlledSemanticMemoryIngestor.recordFact(
