@@ -85,6 +85,14 @@ RECOVERY_CASES: tuple[RecoveryCase, ...] = (
         "orphan-temporary",
         ".tmp.corrupt",
     ),
+    RecoveryCase(
+        "npc-social-graph-incompatible-schema",
+        "npc-social-graph.json",
+        "INCOMPATIBLE_SCHEMA_CANONICAL",
+        b'{"version":999,"edges":{}}',
+        "canonical",
+        ".corrupt",
+    ),
 )
 
 
