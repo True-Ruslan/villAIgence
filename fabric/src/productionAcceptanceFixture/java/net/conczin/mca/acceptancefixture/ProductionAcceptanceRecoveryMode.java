@@ -11,6 +11,10 @@ import net.conczin.mca.livingworld.memory2.SemanticMemoryStore;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipDelta;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipState;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipStore;
+import net.conczin.mca.livingworld.relationship.NpcSocialDelta;
+import net.conczin.mca.livingworld.relationship.NpcSocialGraphMutation;
+import net.conczin.mca.livingworld.relationship.NpcSocialGraphStore;
+import net.conczin.mca.livingworld.relationship.NpcSocialState;
 import net.conczin.mca.livingworld.voice.NpcVoiceAgeGroup;
 import net.conczin.mca.livingworld.voice.NpcVoiceCatalog;
 import net.conczin.mca.livingworld.voice.NpcVoiceGender;
@@ -42,6 +46,9 @@ public final class ProductionAcceptanceRecoveryMode implements ModInitializer {
     private static final UUID PLAYER_ID = UUID.fromString(
             "d2932adb-aa33-4c7f-8170-b98f38323311"
     );
+    private static final UUID SOCIAL_TARGET_NPC_ID = UUID.fromString(
+            "4a24bbaa-8fd5-4b72-8095-2911280c23d1"
+    );
     private static final UUID EVENT_ID = UUID.fromString(
             "e2f62ce5-b66f-4f63-8a70-25393bf95fc8"
     );
@@ -55,7 +62,8 @@ public final class ProductionAcceptanceRecoveryMode implements ModInitializer {
             "semantic-memory.json",
             "relationships.json",
             "voices.json",
-            "operator-lore.json"
+            "operator-lore.json",
+            "npc-social-graph.json"
     );
 
     @Override
@@ -71,6 +79,7 @@ public final class ProductionAcceptanceRecoveryMode implements ModInitializer {
             initializeRelationship(worldRoot);
             initializeVoice(worldRoot);
             initializeOperatorLore(worldRoot);
+            initializeNpcSocialGraph(worldRoot);
             verifyStores(server);
             LOGGER.info("{}", RECOVERY_READY_MARKER);
             LOGGER.info("{}", ProductionAcceptanceFixture.READY_MARKER);
@@ -189,6 +198,26 @@ public final class ProductionAcceptanceRecoveryMode implements ModInitializer {
         }
         if (!FIXTURE_TEXT.equals(store.get(key))) {
             throw new IllegalStateException("operator lore recovery fixture is not stable");
+        }
+    }
+
+    private static void initializeNpcSocialGraph(Path worldRoot) {
+        NpcSocialGraphStore store = NpcSocialGraphStore.forWorld(worldRoot);
+        if (store.get(NPC_ID, SOCIAL_TARGET_NPC_ID).equals(NpcSocialState.NEUTRAL)) {
+            NpcSocialGraphMutation mutation = store.applyDelta(
+                    NPC_ID,
+                    SOCIAL_TARGET_NPC_ID,
+                    new NpcSocialDelta(1, 1, 0, 1),
+                    4
+            );
+            if (mutation.status() != NpcSocialGraphMutation.Status.APPLIED) {
+                throw new IllegalStateException(
+                        "NPC social graph recovery fixture was not admitted: " + mutation.status()
+                );
+            }
+        }
+        if (store.get(NPC_ID, SOCIAL_TARGET_NPC_ID).equals(NpcSocialState.NEUTRAL)) {
+            throw new IllegalStateException("NPC social graph recovery fixture is not stable");
         }
     }
 

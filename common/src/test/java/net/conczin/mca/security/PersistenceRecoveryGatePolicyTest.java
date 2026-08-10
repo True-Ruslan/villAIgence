@@ -17,7 +17,7 @@ class PersistenceRecoveryGatePolicyTest {
     private static final String REPORT = "persistence-recovery-report.json";
 
     @Test
-    void nightlyAndReleaseGatesExecuteTheSameCurrentFiveStoreRecoveryMatrix() throws IOException {
+    void nightlyAndReleaseGatesExecuteTheSameCurrentSixStoreRecoveryMatrix() throws IOException {
         String nightly = workflow("livingworld-nightly.yml");
         String release = workflow("livingworld-release.yml");
 
@@ -26,7 +26,7 @@ class PersistenceRecoveryGatePolicyTest {
                 CONTRACT,
                 REPORT,
                 "report.get('status') != 'PASS'",
-                "len(cases) != 5"
+                "len(cases) != 6"
         }) {
             assertTrue(
                     nightly.contains(required),
@@ -51,11 +51,11 @@ class PersistenceRecoveryGatePolicyTest {
         assertTrue(recovery.contains("any(case.get('status') != 'PASS' for case in cases)"));
         assertFalse(
                 recovery.contains("len(cases) != 5"),
-                "Immutable recovery must not impose the current five-store matrix on historical tags"
+                "Immutable recovery must not impose the historical five-store matrix on other tags"
         );
         assertFalse(
                 recovery.contains("len(cases) != 6"),
-                "Immutable recovery must not hardcode the historical six-store matrix either"
+                "Immutable recovery must not impose the current six-store matrix on historical tags"
         );
     }
 

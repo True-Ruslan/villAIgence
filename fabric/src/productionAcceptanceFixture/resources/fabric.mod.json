@@ -8,6 +8,7 @@
   "entrypoints": {
     "main": [
       "net.conczin.mca.acceptancefixture.ProductionAcceptanceChunkForcing",
+      "net.conczin.mca.acceptancefixture.ProductionAcceptanceNpcSocialGraph",
       "net.conczin.mca.acceptancefixture.ProductionAcceptanceFixture",
       "net.conczin.mca.acceptancefixture.ProductionAcceptanceRecoveryMode",
       "net.conczin.mca.acceptancefixture.ProductionAcceptanceVoiceEvidenceWriter"

@@ -31,6 +31,16 @@ class RecoveryMatrixContractTest(unittest.TestCase):
         self.assertEqual(len(stores), len(set(stores)))
         self.assertTrue(all(case.payload is not None for case in RECOVERY_CASES))
 
+    def test_matrix_includes_npc_social_graph_as_sixth_canonical_store(self) -> None:
+        self.assertEqual(6, len(base.CANONICAL_PERSISTENT_STORES))
+        self.assertEqual("npc-social-graph.json", base.CANONICAL_PERSISTENT_STORES[-1])
+        self.assertEqual(6, len(RECOVERY_CASES))
+        graph_case = RECOVERY_CASES[-1]
+        self.assertEqual("npc-social-graph.json", graph_case.store)
+        self.assertEqual("INCOMPATIBLE_SCHEMA_CANONICAL", graph_case.variant)
+        self.assertEqual("canonical", graph_case.mutation_target)
+        self.assertEqual(".corrupt", graph_case.expected_backup)
+
     def test_recovery_mode_property_is_inserted_before_jar(self) -> None:
         command = ["java", "-Xmx768M", "-jar", "/server/launcher.jar", "nogui"]
 

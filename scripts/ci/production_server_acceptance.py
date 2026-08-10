@@ -26,6 +26,7 @@ CANONICAL_PERSISTENT_STORES: tuple[str, ...] = (
     "relationships.json",
     "voices.json",
     "operator-lore.json",
+    "npc-social-graph.json",
 )
 
 FORBIDDEN_LOG_SIGNATURES: tuple[str, ...] = (

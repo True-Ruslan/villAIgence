@@ -23,6 +23,13 @@ This is the **canonical changelog** for the project.
 
 ### Added
 
+- Persistent bounded directed NPC↔NPC social-graph foundation for the 0.3 track:
+  - existing MCA `Personality` tracked entity/NBT state remains the canonical persistent personality source; no duplicate generated personality store is introduced;
+  - new world-local `npc-social-graph.json` format v1 stores non-neutral directed NPC→NPC `trust`, `respect`, `fear` and `affinity` independently from NPC×player `relationships.json`;
+  - social dimensions clamp to `[-100,+100]`, self/null pairs fail closed, neutral edges compact away, and each source NPC retains at most 64 non-neutral outgoing edges with reject-new/no-eviction capacity semantics;
+  - hostile/corrupt load sanitation drops malformed/self/null/neutral records, fails closed on duplicate canonical pairs and over-capacity sources, and does not fabricate an order-dependent survivor set;
+  - current production/recovery automation expands from five to six canonical auxiliary stores and exercises real startup/restart plus independent corruption recovery of `npc-social-graph.json`, while immutable historical release recovery remains version-aware;
+  - this foundation adds no prompt/dialogue/behavior integration, provider social scoring, public config, Semantic authority change, `relationships.json` reinterpretation or release publication.
 - Controlled Semantic Memory BELIEF admission contract:
   - `PLAYER_TOLD` requires matching `PLAYER_TOLD` DIALOGUE evidence;
   - `NPC_TOLD` requires matching `NPC_TOLD` DIALOGUE evidence;
