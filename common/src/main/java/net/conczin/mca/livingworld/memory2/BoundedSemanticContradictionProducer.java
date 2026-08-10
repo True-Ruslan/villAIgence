@@ -33,7 +33,11 @@ final class BoundedSemanticContradictionProducer {
             return new ProductionResult(0, 0, 0, List.of());
         }
 
-        Set<RelationKey> retainedRelations = retainedRelationKeys(worldRoot, retainedClaim.ownerNpcId());
+        Set<RelationKey> retainedRelations = retainedRelationKeys(
+                worldRoot,
+                retainedClaim.ownerNpcId(),
+                maxEventsPerNpc
+        );
         UUID subjectLogicalId = SemanticMemoryIdentity.logicalClaimId(retainedClaim);
         int comparisons = 0;
         int oppositions = 0;
@@ -73,11 +77,15 @@ final class BoundedSemanticContradictionProducer {
         );
     }
 
-    private static Set<RelationKey> retainedRelationKeys(Path worldRoot, UUID npcId) {
+    private static Set<RelationKey> retainedRelationKeys(
+            Path worldRoot,
+            UUID npcId,
+            int maxEventsPerNpc
+    ) {
         Set<RelationKey> keys = new HashSet<>();
         List<MemoryEvent> events = MemoryEventStore.forWorld(worldRoot).getRecentMatching(
                 npcId,
-                Integer.MAX_VALUE,
+                Math.max(1, maxEventsPerNpc),
                 event -> event.type() == MemoryEvent.Type.SEMANTIC_CONTRADICTION
                         && SemanticContradictionPolicy.valid(event)
         );
