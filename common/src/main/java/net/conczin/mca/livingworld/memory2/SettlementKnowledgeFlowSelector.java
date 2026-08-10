@@ -38,6 +38,7 @@ final class SettlementKnowledgeFlowSelector {
         }
 
         long cycleIndex = Math.floorDiv(gameTime, CYCLE_TICKS);
+        long cycleStart = cycleIndex * CYCLE_TICKS;
         int speakersConsidered = Math.min(MAX_SPEAKERS_PER_CYCLE, residentWindow.size());
         List<Opportunity> opportunities = new ArrayList<>(MAX_OPPORTUNITIES_PER_CYCLE);
 
@@ -48,7 +49,7 @@ final class SettlementKnowledgeFlowSelector {
             List<SemanticMemoryEntry> sourceCandidates = store.getRecentMatching(
                     speakerNpcId,
                     MAX_SOURCE_CANDIDATES_PER_SPEAKER,
-                    SettlementKnowledgeFlowSelector::transferableCandidate
+                    entry -> transferableCandidate(entry, cycleStart)
             );
             if (sourceCandidates.isEmpty()) continue;
 
@@ -96,10 +97,11 @@ final class SettlementKnowledgeFlowSelector {
         return List.copyOf(window);
     }
 
-    private static boolean transferableCandidate(SemanticMemoryEntry entry) {
+    private static boolean transferableCandidate(SemanticMemoryEntry entry, long cycleStart) {
         return entry != null
                 && entry.kind() != null
                 && entry.provenance() != null
+                && entry.gameTime() < cycleStart
                 && !SemanticMemoryIdentity.canonicalStatement(entry.statement()).isBlank();
     }
 
