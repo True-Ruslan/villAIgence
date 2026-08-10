@@ -37,7 +37,7 @@ class SettlementKnowledgeFlowPersistenceTest {
                 fact(sourceId, speaker, "The granary roof is damaged", List.of(), 100L), 64);
         SettlementKnowledgeFlowLifecycle.CycleResult first = SettlementKnowledgeFlowLifecycle.runCycle(
                 sourceWorld, 17, cycleTime, residents, 64, 64);
-        assertEquals(1, first.successfulTransfers());
+        assertEquals(1, first.successfulTransfers(), first.toString());
 
         copyLivingworld(sourceWorld, reloadedWorld);
         long beforeEvidence = transferEvidenceCount(reloadedWorld, residents);
@@ -46,7 +46,7 @@ class SettlementKnowledgeFlowPersistenceTest {
         SettlementKnowledgeFlowLifecycle.CycleResult replay = SettlementKnowledgeFlowLifecycle.runCycle(
                 reloadedWorld, 17, cycleTime, residents, 64, 64);
 
-        assertEquals(0, replay.successfulTransfers());
+        assertEquals(0, replay.successfulTransfers(), replay.toString());
         assertEquals(beforeEvidence, transferEvidenceCount(reloadedWorld, residents));
         assertEquals(beforeListeners,
                 listenerClaimCount(reloadedWorld, residents, speaker, "the granary roof is damaged"));
@@ -71,8 +71,9 @@ class SettlementKnowledgeFlowPersistenceTest {
                 .opportunities().stream()
                 .filter(value -> value.sourceSemanticEntryId().equals(sourceId))
                 .findFirst().orElseThrow();
-        assertEquals(1, SettlementKnowledgeFlowLifecycle.runCycle(
-                world, 18, firstCycle, residents, 64, 64).successfulTransfers());
+        SettlementKnowledgeFlowLifecycle.CycleResult first = SettlementKnowledgeFlowLifecycle.runCycle(
+                world, 18, firstCycle, residents, 64, 64);
+        assertEquals(1, first.successfulTransfers(), first.toString());
 
         Long laterCycle = null;
         UUID laterTarget = null;
@@ -95,7 +96,7 @@ class SettlementKnowledgeFlowPersistenceTest {
 
         SettlementKnowledgeFlowLifecycle.CycleResult later = SettlementKnowledgeFlowLifecycle.runCycle(
                 world, 18, laterCycle, residents, 64, 64);
-        assertEquals(1, later.successfulTransfers());
+        assertEquals(1, later.successfulTransfers(), later.toString());
         assertEquals(2, listenerClaimCount(world, residents, speaker, "the south field is flooded"));
         assertTrue(SemanticMemoryStore.forWorld(world).getRecent(laterTarget, 64).stream()
                 .anyMatch(entry -> SemanticMemoryIdentity.canonicalStatement(entry.statement())
