@@ -71,6 +71,7 @@ No annotation is emitted for:
 - NPC_TOLD rumor whose origin is not PLAYER_TOLD;
 - missing/forgotten/invalid source evidence;
 - conflicting source-player evidence;
+- source evidence lists larger than the hard prompt-time resolution cap;
 - malformed provenance;
 - foreign-player memory already excluded by current eligibility.
 
@@ -78,9 +79,17 @@ Failure to resolve social source is fail-soft: the existing Semantic line remain
 
 ## Exact source-player resolution
 
+Social source resolution has a hard internal work cap:
+
+```text
+MAX_SOURCE_EVIDENCE_IDS = 32
+```
+
+If a direct PLAYER_TOLD claim, or the retained origin of a player-origin NPC_TOLD rumor, carries more than 32 source event IDs, resolution becomes `UNRESOLVED` **before the first event lookup**. This bounds prompt-time evidence work without deleting, truncating or rewriting Semantic evidence.
+
 ### Direct `BELIEF / PLAYER_TOLD`
 
-For every retained `sourceEventId` used by the consolidated Semantic entry:
+For every retained `sourceEventId` used by the consolidated Semantic entry, provided the list is within the 32-ID cap:
 
 1. reread the event from `MemoryEventStore` using the Semantic owner NPC;
 2. require `DIALOGUE / PLAYER_TOLD`;
@@ -88,7 +97,7 @@ For every retained `sourceEventId` used by the consolidated Semantic entry:
 4. derive the player as the unique non-owner event participant;
 5. require all retained supporting source events to resolve to the same player.
 
-If any retained source event is missing, malformed or identifies a different player, social source resolution is `UNRESOLVED` and no trust effect is emitted.
+If the source list exceeds 32, or any retained source event is missing, malformed or identifies a different player, social source resolution is `UNRESOLVED` and no trust effect is emitted.
 
 ### `BELIEF / NPC_TOLD` with player origin
 
@@ -96,9 +105,9 @@ If any retained source event is missing, malformed or identifies a different pla
 2. require canonical v2 origin `BELIEF / PLAYER_TOLD`;
 3. reread the exact origin Semantic entry by `originNpcId + originSemanticEntryId`;
 4. require `KnowledgeTransferProvenancePolicy.originMatchesSource(...)`;
-5. resolve the original player from that origin entry's retained direct `PLAYER_TOLD` source events using the same direct resolver above.
+5. resolve the original player from that origin entry's retained direct `PLAYER_TOLD` source events using the same direct resolver and 32-ID cap above.
 
-If the origin Semantic entry or its source events have been forgotten, do not reconstruct the player from claim prose or `relatedEntities`; emit no social trust metadata.
+If the origin Semantic entry or its source events have been forgotten, invalidated or exceed the bounded source-resolution budget, do not reconstruct the player from claim prose or `relatedEntities`; emit no social trust metadata.
 
 This preserves the existing rule that missing provenance is explicit and history is never fabricated from surviving prose.
 
@@ -150,17 +159,18 @@ player/NPC eligibility
 → long-horizon 32 candidate allocation
 → existing ranking
 → max 6 results
-→ derived fallibility/social metadata
+→ bounded derived fallibility/social metadata
 → formatting
 ```
 
-Relationship state is read **only after** Semantic selection/ranking. Therefore:
+Relationship state and social-source evidence are read **only after** Semantic selection/ranking. Therefore:
 
 - high trust cannot make an otherwise unselected belief consume a slot;
 - low trust cannot remove a selected belief;
 - foreign-player claims consume zero slots before social weighting;
 - trust does not alter retention/durability;
-- trust does not select contradiction winners.
+- trust does not select contradiction winners;
+- source-resolution work for each selected player-origin BELIEF is bounded to at most 32 source IDs.
 
 ## Relationship source of truth
 
@@ -234,8 +244,9 @@ Required staged evidence:
 8. Preservation: current FACT authority, contradiction coexistence, rumor fallibility/transformation rendering, prompt escaping and privacy-before-allocation remain unchanged.
 9. Restart: copied `memory2.json`, `semantic-memory.json`, `relationships.json` produces identical social metadata.
 10. Pressure: many foreign/private claims and many relationship records cannot expand the existing 32/6 Semantic bounds.
-11. Exact-head security, CI, soak and release dry-run; publication skipped.
+11. RED/GREEN review hardening: >32 source evidence IDs fail closed before event lookup while ≤32 retains exact all-source consistency validation.
+12. Exact-head security, CI, soak and release dry-run; publication skipped.
 
 ## Exit criterion
 
-A selected player-origin BELIEF may carry a small deterministic current-trust adjustment in prompt context while its persisted confidence/provenance/truth class remain unchanged; source player must be recoverable from exact retained evidence; missing evidence fails closed; trust cannot affect FACT, ranking, contradiction existence or settlement routing; results are deterministic across restart and require no provider/persistence/release expansion.
+A selected player-origin BELIEF may carry a small deterministic current-trust adjustment in prompt context while its persisted confidence/provenance/truth class remain unchanged; source player must be recoverable from exact retained evidence within a hard 32-source prompt-time budget; missing, conflicting or excessive evidence fails closed; trust cannot affect FACT, ranking, contradiction existence or settlement routing; results are deterministic across restart and require no provider/persistence/release expansion.
