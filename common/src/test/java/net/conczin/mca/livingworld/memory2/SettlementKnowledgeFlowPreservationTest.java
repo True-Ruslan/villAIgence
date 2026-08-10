@@ -91,9 +91,19 @@ class SettlementKnowledgeFlowPreservationTest {
         UUID speaker = id(20);
         UUID listener = id(21);
         UUID player = id(93);
+        UUID negativeSourceId = id(200);
+        List<UUID> residents = List.of(
+                speaker,
+                listener,
+                id(22),
+                id(23),
+                id(24),
+                id(25),
+                id(26)
+        );
 
         SemanticMemoryStore.forWorld(world).append(fact(
-                id(200),
+                negativeSourceId,
                 speaker,
                 "The gate is not open",
                 List.of(player),
@@ -105,10 +115,32 @@ class SettlementKnowledgeFlowPreservationTest {
                 64
         );
 
-        SettlementKnowledgeFlowLifecycle.CycleResult result = SettlementKnowledgeFlowLifecycle.runCycle(
-                world, 5, 2_400L, List.of(speaker, listener), 64, 64);
+        Long selectedCycle = null;
+        for (long cycle = 2_400L; cycle <= 60_000L; cycle += SettlementKnowledgeFlowSelector.CYCLE_TICKS) {
+            SettlementKnowledgeFlowSelector.SelectionResult selection =
+                    SettlementKnowledgeFlowSelector.select(
+                            SemanticMemoryStore.forWorld(world),
+                            5,
+                            cycle,
+                            residents
+                    );
+            boolean negativeTargetsListener = selection.opportunities().stream()
+                    .anyMatch(opportunity -> opportunity.sourceSemanticEntryId().equals(negativeSourceId)
+                            && opportunity.listenerNpcId().equals(listener));
+            boolean listenerIsSpeaker = selection.residentWindow().stream()
+                    .limit(SettlementKnowledgeFlowSelector.MAX_SPEAKERS_PER_CYCLE)
+                    .anyMatch(listener::equals);
+            if (negativeTargetsListener && !listenerIsSpeaker) {
+                selectedCycle = cycle;
+                break;
+            }
+        }
+        assertNotNull(selectedCycle);
 
-        assertTrue(result.successfulTransfers() >= 1, result.toString());
+        SettlementKnowledgeFlowLifecycle.CycleResult result = SettlementKnowledgeFlowLifecycle.runCycle(
+                world, 5, selectedCycle, residents, 64, 64);
+
+        assertEquals(1, result.successfulTransfers(), result.toString());
         List<SemanticContradictionHistory.ResolvedSemanticContradiction> history =
                 SemanticContradictionHistory.load(world, listener, player, 8);
         assertEquals(1, history.size());
