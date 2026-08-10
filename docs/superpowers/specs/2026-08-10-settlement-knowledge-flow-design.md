@@ -34,11 +34,12 @@ That call is already behind MCA's:
 - move-in cooldown gate;
 - loaded-village-chunk gate.
 
-The mixin therefore does not duplicate or replace MCA scheduling. It passes the original authoritative `gameTime` argument, not the method's locally offset `time + villageId` scheduling value.
+The mixin therefore does not duplicate or replace MCA scheduling. Because `Village.tick(...)` mutates its local `time` parameter with `time += villageId` for staggered scheduling, transfer evidence deliberately uses `world.getGameTime()` as the authoritative unshifted server clock rather than trusting the late-injection method argument.
 
 Server-owned runtime inputs:
 - `Village.getId()`;
 - `Village.getResidentsUUIDs()` snapshot;
+- `world.getGameTime()` authoritative game clock;
 - `world.getServer().getWorldPath(LevelResource.ROOT)`;
 - `LivingWorldConfig.memory2MaxEventsPerNpc`;
 - existing `enabled && memory2Enabled` gate.
