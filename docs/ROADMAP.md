@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation/validation state. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-08-10**, after PR #143 merged bounded transformed-claim representation.
+> Last reconciled: **2026-08-10**, after PR #145 merged bounded contradiction candidate/producer policy.
 
 ## Product vision
 
@@ -56,7 +56,8 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 27. **Fallibility models process history, not truth likelihood.** Source distance and transformation count are derived process metadata and cannot rank or promote a claim.
 28. **Missing provenance is explicit.** A retained rumor whose direct provenance is gone becomes `UNRESOLVED`; ancestry/transformation history is not reconstructed from prose.
 29. **Transformation is a separate authority boundary.** Current wording distortion is server-deterministic, hard-bounded and preserves exact source provenance; every transformed downstream claim remains BELIEF.
-30. **Automatic contradiction production must be bounded before classification.** Candidate eligibility and comparison budgets must prevent all-pairs growth and any classifier must remain truth-neutral.
+30. **Automatic contradiction production is bounded before classification.** Candidate eligibility and duplicate suppression precede a hard comparison budget; classification is truth-neutral and cannot choose a winner.
+31. **Settlement information flow is transfer, not shared omniscience.** Autonomous dissemination must select bounded eligible speaker/listener opportunities and reuse exact source-backed transfer; no settlement-global memory may silently make every NPC know a claim.
 
 ---
 
@@ -82,14 +83,14 @@ Semantic contradiction representation                  COMPLETE / PR #137
 contradiction-aware prompt context                     COMPLETE / PR #139
 deterministic rumor fallibility                        COMPLETE / PR #141
 bounded transformed-claim representation               COMPLETE / PR #143
-bounded contradiction candidate/producer policy        NEXT
+bounded contradiction candidate/producer policy        COMPLETE / PR #145
+settlement-scale information flow without omniscience  NEXT
 ```
 
 Immediate sequence:
 
 ```text
-bounded contradiction candidate/producer policy
-→ settlement-scale information flow without omniscience
+settlement-scale information flow without omniscience
 → relationship/trust effects on belief confidence/fallibility as separate social epistemology
 → Personality + NPC↔NPC Social Graph / 0.3 convergence
 ```
@@ -116,7 +117,7 @@ VAI-CONCUR-004:    NOT TESTED / DEFERRED
 
 The release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is clean-state; no legacy conversation importer or dual reader is planned.
 
-PRs #127, #129, #131, #133, #135, #137, #139, #141 and #143 are merged after this release and remain `[Unreleased]` source capabilities. Their automated evidence must not be represented as installed `0.2.0` acceptance.
+PRs #127, #129, #131, #133, #135, #137, #139, #141, #143 and #145 are merged after this release and remain `[Unreleased]` source capabilities. Their automated evidence must not be represented as installed `0.2.0` acceptance.
 
 ---
 
@@ -135,7 +136,8 @@ Rumor Provenance        bounded server-backed ancestry
 Disagreement Context    live contradiction relation without verdict
 Rumor Fallibility       exact source distance / transform count / unresolved state
 Bounded Distortion      one inspectable deterministic omission primitive
-Contradiction Producer  NEXT: bounded candidate production without truth arbitration
+Contradiction Producer  bounded automatic candidate production without truth arbitration
+Settlement Flow         NEXT: bounded social propagation without shared omniscience
 ```
 
 ## Implemented foundation
@@ -168,6 +170,11 @@ Contradiction Producer  NEXT: bounded candidate production without truth arbitra
 - immutable exact source origin plus transformed current statement;
 - resolved `transformationsUsed=0|1`, unresolved `transformationsUsed=UNKNOWN`;
 - exact replay/same-ID conflict safety and restart-persistent transformation budget;
+- automatic bounded contradiction candidate production after controlled Semantic admission;
+- candidate cap 16 and comparison cap 8 per admission;
+- same-owner/exact-scope/equivalence filtering before bounded allocation;
+- existing-relation suppression before classifier budget;
+- deterministic standalone `not` / `не` opposition primitive;
 - fresh-root/replay/restart/pressure/privacy/prompt-injection regressions.
 
 ## Completed — persistent-dialogue clean cutover
@@ -305,93 +312,150 @@ docs/superpowers/evidence/2026-08-09-bounded-transformed-claim-tdd.md
 
 A retained sourced rumor can undergo one explicitly bounded, deterministic and auditable wording transformation while exact original source ancestry remains inspectable, replay/restart is deterministic, privacy/pressure are safe and the transformed result remains non-authoritative BELIEF.
 
+## Completed — bounded contradiction candidate/producer policy
+
+Merged through PR #145 / `ebda7ecd2290ce8eab0955c2be0d8ebed3065e1c`.
+
+```text
+controlled retained Semantic FACT/BELIEF
+→ same-owner + exact-scope eligibility
+→ max 16 candidates
+→ retained relation suppression
+→ max 8 comparisons
+→ deterministic standalone not/не opposition classification
+→ existing SemanticContradictionLifecycle
+→ truth-neutral disagreement evidence
+```
+
+Properties:
+
+- eligibility, scope, logical-identity and normalized-equivalence filtering happen before bounded allocation;
+- at most 16 candidate claims are materialized per admission;
+- retained identical contradiction relations are removed before the max-eight classifier budget;
+- exact replay does not create another live relation;
+- the initial classifier recognizes exactly one standalone English `not` or Russian `не` insertion/removal;
+- antonyms, numbers, arbitrary paraphrase, reordering, double negation and trailing-sentence omission are deliberately not inferred as contradictions in this slice;
+- controlled Semantic admission persists/consolidates and rereads the retained logical claim before producer invocation;
+- direct low-level Semantic store append remains storage-only;
+- the existing exact-ID contradiction lifecycle remains the only persistence authority;
+- current observed FACT authority, FACT/BELIEF kind, confidence, importance, provenance and source IDs remain unchanged;
+- no provider call/schema, public config, new world file, persistence version/field, migration, backfill or release publication was added.
+
+Frozen source head and delivery evidence:
+
+```text
+head:                                      b43ccaa0d0e6fdcf480ac16dc3f80e74d1182584
+Repository security policy #2075:         SUCCESS / 31375662931
+VillAIgence CI #2440:                     SUCCESS / 31375662912
+VillAIgence Production Soak #319:         SUCCESS / 31375662909
+VillAIgence GitHub Release #652:          SUCCESS / 31375662908
+github-release publication:               SKIPPED
+review P0/P1/P2:                          0 / 0 / 0
+unresolved review threads:                0
+PR discussion comments:                   0
+```
+
+Staged RED/GREEN and preservation evidence:
+
+```text
+docs/superpowers/evidence/2026-08-10-bounded-contradiction-producer-tdd.md
+```
+
+### Exit criterion — met
+
+Ordinary controlled Semantic admission now feeds a strictly bounded automatic contradiction producer with privacy/scope-before-allocation, deterministic duplicate-safe replay and no truth arbitration.
+
 ---
 
-# NEXT — bounded contradiction candidate/producer policy
+# NEXT — settlement-scale information flow without omniscience
 
-Contradiction representation (#137) and prompt consumption (#139) are complete, but ordinary Semantic admission does not automatically produce bounded contradiction candidates.
+The project now has safe individual transfer and the knowledge-quality machinery needed after a claim arrives. The next step is to let information move through groups of NPCs without introducing a settlement-global shared brain.
 
 ## Goal
 
-Create a server-owned bounded producer that can discover **candidate disagreement pairs** without becoming a truth arbiter and without introducing all-pairs growth.
+Create a server-owned bounded dissemination policy that selects eligible **speaker/listener transfer opportunities** and delegates every actual knowledge mutation to the existing source-backed NPC-to-NPC transfer lifecycle.
 
 Target flow:
 
 ```text
-new/updated retained Semantic claim
-+ current-player/NPC eligibility
-→ deterministic bounded candidate selection
-→ strict comparison budget
-→ self/equivalence/scope filtering
-→ bounded opposition classification
-→ existing SemanticContradiction lifecycle
-→ no winner / no FACT promotion / no confidence mutation
+retained source-backed knowledge
++ server-owned settlement/locality context
++ eligible speaker/listener population
+→ deterministic bounded opportunity selection
+→ strict work/fan-out budget
+→ existing NpcKnowledgeTransferLifecycle
+→ existing v2 provenance / transformation state
+→ listener BELIEF/NPC_TOLD
+→ existing bounded contradiction producer after admission
+→ no global broadcast / no omniscient settlement memory
 ```
 
 ## Required design decisions
 
-1. **Candidate scope before classification**
-   - candidate eligibility must precede comparison allocation;
-   - foreign-player claims consume zero candidate/comparison slots;
-   - only same-owner and compatible semantic scope should be considered unless an explicit cross-owner model is designed later.
+1. **Settlement/locality scope before allocation**
+   - define the server-owned notion used to establish that two NPCs may exchange information;
+   - speaker/listener eligibility must be resolved before any bounded opportunity slot is consumed;
+   - unrelated settlements or out-of-scope players consume zero work slots.
 
-2. **Hard comparison budget**
-   - define a small deterministic maximum comparisons per admission/turn;
-   - no unbounded scan over all retained claims;
-   - persistent relation growth must remain bounded and non-quadratic.
+2. **No broadcast knowledge**
+   - one dissemination opportunity produces one explicit source-backed transfer;
+   - there is no operation that copies a claim into all village members at once;
+   - NPC knowledge remains locally persisted and inspectable.
 
-3. **Equivalence before opposition**
-   - same logical claim, normalized-equivalent text and already-recorded identical relation must be filtered before opposition classification;
-   - transformations do not automatically imply contradiction with their own source.
+3. **Hard work/fan-out budgets**
+   - define deterministic small caps for opportunities processed in one event/cycle;
+   - prevent O(N²) speaker/listener scans and cascade explosions;
+   - propagation scheduling must be event-driven or coarse-grained rather than per-NPC-per-tick.
 
-4. **Classifier authority**
-   - prefer deterministic/server-owned opposition rules where practical;
-   - if provider classification is ever used, it may only classify an already-bounded pair and may not choose IDs, truth class, source scope or winner;
-   - no second provider call unless separately measured and justified.
+4. **Reuse existing authority path**
+   - selected transfer must call `NpcKnowledgeTransferLifecycle` rather than directly append listener Semantic state;
+   - existing exact source reread, v2 ancestry, eight-hop limit, transformation budget and BELIEF-only result remain authoritative.
 
-5. **Identity/replay/restart**
-   - reuse the existing deterministic contradiction evidence lifecycle;
-   - exact replay must remain idempotent;
-   - forgetting either live claim must preserve existing no-resurrection behavior.
+5. **Replay/restart safety**
+   - repeated evaluation of the same dissemination opportunity must not silently duplicate transfer effects;
+   - restart must not reset fan-out state in a way that floods the settlement;
+   - any durable scheduling identity/state must be explicitly justified before adding persistence.
 
-6. **Truth boundary**
-   - producer output records disagreement only;
-   - no automatic claim deletion, confidence mutation or FACT promotion;
-   - current observed FACT remains authoritative regardless of disagreement count.
+6. **Privacy / subject scope**
+   - player-private knowledge cannot become public merely because NPCs share a settlement;
+   - existing Semantic subject scope must remain intact through propagation;
+   - settlement membership itself is not permission to bypass player-scoped eligibility.
 
-7. **Transformation interaction**
-   - transformed BELIEF is an ordinary live claim for eligibility;
-   - transformation count/source distance cannot bias winner or truth likelihood;
-   - the producer must not treat source-vs-derived wording difference alone as contradiction.
+7. **No social epistemology yet**
+   - relationship/trust must not change claim truth or confidence in this slice;
+   - recipient selection may eventually use social topology, but trust-weighted belief confidence is the following independent design.
+
+8. **No provider dependency for routing**
+   - recipient/opportunity selection should be deterministic and server-owned;
+   - do not add an LLM request merely to decide whether one eligible NPC may tell another a retained claim.
 
 ## Required TDD progression
 
 ```text
-specification / authority gate
-→ RED: bounded candidate selector
-→ RED: privacy/scope/equivalence filtering
-→ RED: hard comparison budget
-→ RED: deterministic replay / duplicate suppression
-→ RED: no winner / no FACT-confidence mutation
-→ RED: transformed-claim interaction
-→ RED: pressure/forgetting/restart behavior
-→ deterministic multi-NPC pressure simulation
+settlement/locality authority specification
+→ RED: speaker/listener eligibility before allocation
+→ RED: bounded deterministic opportunity selector
+→ RED: hard work/fan-out budget
+→ RED: cross-settlement / private-scope exclusion
+→ RED: exact existing transfer lifecycle delegation
+→ RED: replay/restart duplicate safety
+→ RED: provenance/transform/contradiction preservation
+→ deterministic multi-settlement pressure simulation
 → full exact-head delivery gates
 ```
 
 ### Exit criterion
 
-Ordinary Semantic admission can feed a strictly bounded contradiction-candidate producer that records only validated disagreement through the existing truth-neutral lifecycle, with deterministic replay, privacy-before-allocation, bounded state growth and no truth arbitration.
+Information can propagate across an eligible settlement population through explicit bounded source-backed transfers while every NPC retains local non-authoritative knowledge, existing provenance remains inspectable, privacy remains intact, work is non-quadratic and no shared omniscient settlement state exists.
 
 ---
 
 # Later 0.2 / transition to 0.3
 
-After the contradiction producer is stable:
+After settlement-scale information flow is stable:
 
 ```text
-settlement-scale information flow without omniscience
-→ relationship/trust effects on belief confidence/fallibility as separate social epistemology
+relationship/trust effects on belief confidence/fallibility as separate social epistemology
 → Personality + NPC↔NPC Social Graph
 ```
 
@@ -416,9 +480,11 @@ Memory 2.0 is complete when persistent NPC memory is:
 - able to represent and safely prompt live contradictions without truth arbitration;
 - able to represent process fallibility without turning it into FACT;
 - able to perform bounded inspectable social-information transformation;
+- able to automatically discover a bounded conservative subset of contradictory claim pairs without truth arbitration;
+- able to move information through an eligible settlement population without global omniscient distribution;
 - independent of the removed raw conversation store.
 
-The bounded transformed-claim criterion is now met through PR #143. The contradiction producer is the current quality/completeness step before scaling the information-flow model further.
+The bounded transformed-claim criterion is met through PR #143 and the automatic bounded contradiction-producer criterion is met through PR #145. Settlement-scale bounded information flow is the current quality/completeness step before social epistemology and 0.3 convergence.
 
 ---
 
@@ -434,7 +500,7 @@ Two NPCs retain durable relationship/personality history that affects dialogue, 
 
 # 0.4 — Knowledge ecosystem and rumors
 
-Expand 0.2 transfer/provenance/contradiction/fallibility/transformation primitives into settlement-scale information flow without omniscient distribution.
+Expand 0.2 transfer/provenance/contradiction/fallibility/transformation and settlement-flow primitives into a richer knowledge ecosystem without omniscient distribution.
 
 ### Exit criterion
 
