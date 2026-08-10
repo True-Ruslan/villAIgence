@@ -14,6 +14,8 @@ import java.util.concurrent.ConcurrentMap;
 
 /** World-local persistent directed NPC-to-NPC social graph. */
 public final class NpcSocialGraphStore {
+    static final int MAX_OUTGOING_EDGES_PER_NPC = 64;
+
     private static final int FORMAT_VERSION = 1;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final JsonStoreRecovery.Codec<GraphFile> CODEC =
@@ -70,6 +72,18 @@ public final class NpcSocialGraphStore {
             );
         }
 
+        if (before.isNeutral()
+                && !after.isNeutral()
+                && outgoingEdgeCount(sourceNpcId) >= MAX_OUTGOING_EDGES_PER_NPC) {
+            return new NpcSocialGraphMutation(
+                    NpcSocialGraphMutation.Status.CAPACITY_REACHED,
+                    sourceNpcId,
+                    targetNpcId,
+                    before,
+                    before
+            );
+        }
+
         if (after.isNeutral()) {
             data.edges.remove(key);
         } else {
@@ -83,6 +97,14 @@ public final class NpcSocialGraphStore {
                 before,
                 after
         );
+    }
+
+    private long outgoingEdgeCount(UUID sourceNpcId) {
+        String prefix = sourceNpcId + "/";
+        return data.edges.entrySet().stream()
+                .filter(entry -> entry.getKey().startsWith(prefix))
+                .filter(entry -> entry.getValue() != null && !entry.getValue().isNeutral())
+                .count();
     }
 
     private GraphFile load() {
