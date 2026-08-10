@@ -6,9 +6,11 @@ import net.conczin.mca.livingworld.persistence.GsonJsonStoreCodec;
 import net.conczin.mca.livingworld.persistence.JsonStoreRecovery;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -311,10 +313,105 @@ public final class NpcSocialGraphStore {
                 GraphFile::new
         );
         loaded.edges = sanitizeEdges(loaded.edges);
-        if (loaded.causalFrontiers == null) {
-            loaded.causalFrontiers = new HashMap<>();
-        }
+        loaded.causalFrontiers = sanitizeCausalFrontiers(loaded.causalFrontiers);
         return loaded;
+    }
+
+    private Map<String, NpcSocialMutationCursor> sanitizeCausalFrontiers(
+            Map<String, NpcSocialMutationCursor> rawFrontiers
+    ) {
+        blockedCausalSources.clear();
+        if (rawFrontiers == null || rawFrontiers.isEmpty()) return new HashMap<>();
+
+        Map<String, NpcSocialMutationCursor> sanitized = new HashMap<>();
+        Map<UUID, List<Map.Entry<String, NpcSocialMutationCursor>>> groups = new HashMap<>();
+
+        rawFrontiers.entrySet().stream()
+                .sorted(Comparator.comparing(entry -> entry.getKey() == null ? "" : entry.getKey()))
+                .forEach(entry -> {
+                    UUID source = parseUuid(entry.getKey());
+                    if (source == null) {
+                        preserveRawFrontier(sanitized, entry);
+                        return;
+                    }
+                    groups.computeIfAbsent(source, ignored -> new ArrayList<>()).add(entry);
+                });
+
+        groups.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey(Comparator.comparing(UUID::toString)))
+                .forEach(group -> {
+                    UUID source = group.getKey();
+                    List<Map.Entry<String, NpcSocialMutationCursor>> entries = group.getValue();
+                    if (entries.size() != 1) {
+                        blockedCausalSources.add(source);
+                        entries.forEach(entry -> preserveRawFrontier(sanitized, entry));
+                        return;
+                    }
+
+                    Map.Entry<String, NpcSocialMutationCursor> entry = entries.getFirst();
+                    NpcSocialMutationCursor cursor = entry.getValue();
+                    if (!validCursor(source, cursor)) {
+                        blockedCausalSources.add(source);
+                        if (cursor != null && cursor.sourceNpcId() != null) {
+                            blockedCausalSources.add(cursor.sourceNpcId());
+                        }
+                        preserveRawFrontier(sanitized, entry);
+                        return;
+                    }
+                    sanitized.put(source.toString(), cursor);
+                });
+
+        return sanitized;
+    }
+
+    private static void preserveRawFrontier(
+            Map<String, NpcSocialMutationCursor> target,
+            Map.Entry<String, NpcSocialMutationCursor> entry
+    ) {
+        if (entry.getKey() != null) {
+            target.put(entry.getKey(), entry.getValue());
+        }
+    }
+
+    private static boolean validCursor(UUID source, NpcSocialMutationCursor cursor) {
+        if (cursor == null
+                || cursor.mutationId() == null
+                || cursor.sourceNpcId() == null
+                || cursor.targetNpcId() == null
+                || cursor.causeEventId() == null
+                || cursor.boundedRequestedDelta() == null
+                || cursor.appliedDelta() == null
+                || cursor.before() == null
+                || cursor.after() == null
+                || cursor.outcome() == null
+                || !source.equals(cursor.sourceNpcId())
+                || !validPair(cursor.sourceNpcId(), cursor.targetNpcId())) {
+            return false;
+        }
+        if (!NpcSocialMutationIdentity.forCause(source, cursor.causeEventId()).equals(cursor.mutationId())) {
+            return false;
+        }
+
+        NpcSocialDelta actual = deltaBetween(cursor.before(), cursor.after());
+        if (!actual.equals(cursor.appliedDelta())) return false;
+
+        return switch (cursor.outcome()) {
+            case APPLIED -> !cursor.before().equals(cursor.after()) && !cursor.appliedDelta().isZero();
+            case NO_CHANGE -> cursor.before().equals(cursor.after()) && cursor.appliedDelta().isZero();
+            case CAPACITY_REACHED -> cursor.before().equals(cursor.after())
+                    && cursor.appliedDelta().isZero()
+                    && cursor.before().isNeutral()
+                    && !cursor.boundedRequestedDelta().isZero();
+        };
+    }
+
+    private static UUID parseUuid(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return UUID.fromString(raw);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     private static Map<String, NpcSocialState> sanitizeEdges(Map<String, NpcSocialState> rawEdges) {
