@@ -102,6 +102,35 @@ class SettlementKnowledgeFlowSelectorTest {
     }
 
     @Test
+    void equivalentScopedClaimAcrossCarriersConsumesAtMostOneFanoutOpportunityPerCycle() {
+        Path world = tempDir.resolve("carrier-deduplication");
+        SemanticMemoryStore store = SemanticMemoryStore.forWorld(world);
+        UUID carrierA = id(10);
+        UUID carrierB = id(11);
+        UUID listenerA = id(12);
+        UUID listenerB = id(13);
+        UUID player = id(910);
+        List<UUID> residents = List.of(carrierA, carrierB, listenerA, listenerB);
+
+        store.append(fact(id(120), carrierA, "The south field is flooded", List.of(player), 100L), 64);
+        store.append(belief(id(121), carrierB, "  THE   SOUTH FIELD IS FLOODED  ", List.of(player), 200L), 64);
+
+        SettlementKnowledgeFlowSelector.SelectionResult result =
+                SettlementKnowledgeFlowSelector.select(store, 18, 4_800L, residents);
+
+        long sameClaimOpportunities = result.opportunities().stream()
+                .map(opportunity -> store.findById(opportunity.speakerNpcId(), opportunity.sourceSemanticEntryId())
+                        .orElseThrow())
+                .filter(entry -> SemanticMemoryIdentity.canonicalStatement(entry.statement())
+                        .equals("the south field is flooded"))
+                .filter(entry -> SemanticMemoryIdentity.canonicalIds(entry.relatedEntities())
+                        .equals(List.of(player)))
+                .count();
+
+        assertEquals(SettlementKnowledgeFlowSelector.MAX_FANOUT_PER_SOURCE_PER_CYCLE, sameClaimOpportunities);
+    }
+
+    @Test
     void exactScopeMismatchDoesNotSuppressTheChosenTransfer() {
         Path world = tempDir.resolve("scope");
         SemanticMemoryStore store = SemanticMemoryStore.forWorld(world);
