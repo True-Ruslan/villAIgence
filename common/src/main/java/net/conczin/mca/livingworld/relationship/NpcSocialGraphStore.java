@@ -10,6 +10,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,6 +27,7 @@ public final class NpcSocialGraphStore {
     private static final ConcurrentMap<Path, NpcSocialGraphStore> STORES = new ConcurrentHashMap<>();
 
     private final Path file;
+    private final Set<UUID> blockedCausalSources = new HashSet<>();
     private GraphFile data;
 
     public static NpcSocialGraphStore forWorld(Path worldRoot) {
@@ -44,6 +46,11 @@ public final class NpcSocialGraphStore {
         if (!validPair(sourceNpcId, targetNpcId)) return NpcSocialState.NEUTRAL;
         NpcSocialState state = data.edges.get(key(sourceNpcId, targetNpcId));
         return state == null ? NpcSocialState.NEUTRAL : state;
+    }
+
+    public synchronized Optional<NpcSocialMutationCursor> latestCausalMutation(UUID sourceNpcId) {
+        if (sourceNpcId == null || blockedCausalSources.contains(sourceNpcId)) return Optional.empty();
+        return Optional.ofNullable(data.causalFrontiers.get(sourceNpcId.toString()));
     }
 
     public synchronized NpcSocialGraphMutation applyDelta(
@@ -102,6 +109,190 @@ public final class NpcSocialGraphStore {
         );
     }
 
+    public synchronized NpcSocialCausalMutation applyCausalDelta(
+            UUID sourceNpcId,
+            UUID targetNpcId,
+            UUID causeEventId,
+            long causeGameTime,
+            NpcSocialDelta proposed,
+            int maxDeltaPerMutation
+    ) {
+        long safeGameTime = Math.max(0L, causeGameTime);
+        if (!validPair(sourceNpcId, targetNpcId) || causeEventId == null) {
+            return causalResult(
+                    NpcSocialCausalMutation.Status.INVALID_PAIR,
+                    null,
+                    sourceNpcId,
+                    targetNpcId,
+                    causeEventId,
+                    safeGameTime,
+                    NpcSocialDelta.NONE,
+                    NpcSocialDelta.NONE,
+                    NpcSocialState.NEUTRAL,
+                    NpcSocialState.NEUTRAL
+            );
+        }
+        if (blockedCausalSources.contains(sourceNpcId)) {
+            return causalResult(
+                    NpcSocialCausalMutation.Status.FRONTIER_CORRUPT,
+                    NpcSocialMutationIdentity.forCause(sourceNpcId, causeEventId),
+                    sourceNpcId,
+                    targetNpcId,
+                    causeEventId,
+                    safeGameTime,
+                    canonicalRequest(proposed, maxDeltaPerMutation),
+                    NpcSocialDelta.NONE,
+                    get(sourceNpcId, targetNpcId),
+                    get(sourceNpcId, targetNpcId)
+            );
+        }
+
+        UUID mutationId = NpcSocialMutationIdentity.forCause(sourceNpcId, causeEventId);
+        NpcSocialDelta boundedRequest = canonicalRequest(proposed, maxDeltaPerMutation);
+        NpcSocialMutationCursor current = data.causalFrontiers.get(sourceNpcId.toString());
+        if (current != null) {
+            if (causeEventId.equals(current.causeEventId())) {
+                if (sameReplayPayload(current, mutationId, targetNpcId, safeGameTime, boundedRequest)) {
+                    return NpcSocialCausalMutation.fromCursor(
+                            NpcSocialCausalMutation.Status.REPLAYED,
+                            current
+                    );
+                }
+                return causalResult(
+                        NpcSocialCausalMutation.Status.CONFLICTING_CAUSE,
+                        mutationId,
+                        sourceNpcId,
+                        targetNpcId,
+                        causeEventId,
+                        safeGameTime,
+                        boundedRequest,
+                        NpcSocialDelta.NONE,
+                        get(sourceNpcId, targetNpcId),
+                        get(sourceNpcId, targetNpcId)
+                );
+            }
+            if (compareCause(safeGameTime, causeEventId, current) <= 0) {
+                return causalResult(
+                        NpcSocialCausalMutation.Status.STALE_CAUSE,
+                        mutationId,
+                        sourceNpcId,
+                        targetNpcId,
+                        causeEventId,
+                        safeGameTime,
+                        boundedRequest,
+                        NpcSocialDelta.NONE,
+                        get(sourceNpcId, targetNpcId),
+                        get(sourceNpcId, targetNpcId)
+                );
+            }
+        }
+
+        String edgeKey = key(sourceNpcId, targetNpcId);
+        NpcSocialState before = data.edges.getOrDefault(edgeKey, NpcSocialState.NEUTRAL);
+        NpcSocialState after = before.apply(boundedRequest, NpcSocialState.MAX_VALUE);
+
+        NpcSocialMutationCursor.Outcome outcome;
+        NpcSocialCausalMutation.Status status;
+        if (before.equals(after)) {
+            outcome = NpcSocialMutationCursor.Outcome.NO_CHANGE;
+            status = NpcSocialCausalMutation.Status.NO_CHANGE;
+        } else if (before.isNeutral()
+                && !after.isNeutral()
+                && outgoingEdgeCount(sourceNpcId) >= MAX_OUTGOING_EDGES_PER_NPC) {
+            after = before;
+            outcome = NpcSocialMutationCursor.Outcome.CAPACITY_REACHED;
+            status = NpcSocialCausalMutation.Status.CAPACITY_REACHED;
+        } else {
+            if (after.isNeutral()) {
+                data.edges.remove(edgeKey);
+            } else {
+                data.edges.put(edgeKey, after);
+            }
+            outcome = NpcSocialMutationCursor.Outcome.APPLIED;
+            status = NpcSocialCausalMutation.Status.APPLIED;
+        }
+
+        NpcSocialDelta appliedDelta = deltaBetween(before, after);
+        NpcSocialMutationCursor cursor = new NpcSocialMutationCursor(
+                mutationId,
+                sourceNpcId,
+                targetNpcId,
+                causeEventId,
+                safeGameTime,
+                boundedRequest,
+                appliedDelta,
+                before,
+                after,
+                outcome
+        );
+        data.causalFrontiers.put(sourceNpcId.toString(), cursor);
+        save();
+        return NpcSocialCausalMutation.fromCursor(status, cursor);
+    }
+
+    private static boolean sameReplayPayload(
+            NpcSocialMutationCursor current,
+            UUID mutationId,
+            UUID targetNpcId,
+            long causeGameTime,
+            NpcSocialDelta boundedRequest
+    ) {
+        return mutationId.equals(current.mutationId())
+                && targetNpcId.equals(current.targetNpcId())
+                && causeGameTime == current.causeGameTime()
+                && boundedRequest.equals(current.boundedRequestedDelta());
+    }
+
+    private static int compareCause(
+            long causeGameTime,
+            UUID causeEventId,
+            NpcSocialMutationCursor current
+    ) {
+        int time = Long.compare(causeGameTime, current.causeGameTime());
+        if (time != 0) return time;
+        return causeEventId.toString().compareTo(current.causeEventId().toString());
+    }
+
+    private static NpcSocialDelta canonicalRequest(NpcSocialDelta proposed, int maxDeltaPerMutation) {
+        if (proposed == null) return NpcSocialDelta.NONE;
+        return proposed.sanitized(maxDeltaPerMutation).sanitized(NpcSocialState.MAX_VALUE);
+    }
+
+    private static NpcSocialDelta deltaBetween(NpcSocialState before, NpcSocialState after) {
+        return new NpcSocialDelta(
+                after.trust() - before.trust(),
+                after.respect() - before.respect(),
+                after.fear() - before.fear(),
+                after.affinity() - before.affinity()
+        );
+    }
+
+    private static NpcSocialCausalMutation causalResult(
+            NpcSocialCausalMutation.Status status,
+            UUID mutationId,
+            UUID sourceNpcId,
+            UUID targetNpcId,
+            UUID causeEventId,
+            long causeGameTime,
+            NpcSocialDelta boundedRequestedDelta,
+            NpcSocialDelta appliedDelta,
+            NpcSocialState before,
+            NpcSocialState after
+    ) {
+        return new NpcSocialCausalMutation(
+                status,
+                mutationId,
+                sourceNpcId,
+                targetNpcId,
+                causeEventId,
+                causeGameTime,
+                boundedRequestedDelta,
+                appliedDelta,
+                before,
+                after
+        );
+    }
+
     private long outgoingEdgeCount(UUID sourceNpcId) {
         String prefix = sourceNpcId + "/";
         return data.edges.entrySet().stream()
@@ -119,16 +310,21 @@ public final class NpcSocialGraphStore {
                         && value.edges != null,
                 GraphFile::new
         );
-        if (loaded.edges == null || loaded.edges.isEmpty()) {
-            loaded.edges = new HashMap<>();
-            return loaded;
+        loaded.edges = sanitizeEdges(loaded.edges);
+        if (loaded.causalFrontiers == null) {
+            loaded.causalFrontiers = new HashMap<>();
         }
+        return loaded;
+    }
+
+    private static Map<String, NpcSocialState> sanitizeEdges(Map<String, NpcSocialState> rawEdges) {
+        if (rawEdges == null || rawEdges.isEmpty()) return new HashMap<>();
 
         Map<String, NpcSocialState> sanitized = new HashMap<>();
         Set<String> seenCanonicalKeys = new HashSet<>();
         Set<String> conflictedCanonicalKeys = new HashSet<>();
 
-        loaded.edges.entrySet().stream()
+        rawEdges.entrySet().stream()
                 .sorted(Comparator.comparing(entry -> entry.getKey() == null ? "" : entry.getKey()))
                 .forEach(entry -> {
                     EdgePair pair = parseKey(entry.getKey());
@@ -178,8 +374,7 @@ public final class NpcSocialGraphStore {
             });
         }
 
-        loaded.edges = sanitized;
-        return loaded;
+        return sanitized;
     }
 
     private void save() {
@@ -218,5 +413,6 @@ public final class NpcSocialGraphStore {
     private static final class GraphFile {
         int version = FORMAT_VERSION;
         Map<String, NpcSocialState> edges = new HashMap<>();
+        Map<String, NpcSocialMutationCursor> causalFrontiers = new HashMap<>();
     }
 }
