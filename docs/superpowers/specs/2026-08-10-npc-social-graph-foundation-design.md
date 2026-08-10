@@ -25,7 +25,7 @@ source NPC UUID
 → NpcSocialState(trust,respect,fear,affinity)
 ```
 
-A→B and B→A are independent. Player UUIDs are not accepted by API semantics. Self-edges fail closed.
+A→B and B→A are independent. Callers must supply NPC identities; the low-level UUID store rejects null/self pairs but cannot infer entity type from a UUID alone. NPC×player state remains in `relationships.json`, and this slice adds no runtime path that forwards player identities into the NPC social graph.
 
 ### State bounds
 
@@ -79,7 +79,7 @@ Rules:
 5. invalid/self pairs return `INVALID_PAIR` and do not write;
 6. exact no-op deltas return `NO_CHANGE` and do not write.
 
-This yields O(N × 64) persisted graph growth rather than an unconstrained all-pairs graph.
+This yields O(N × 64) persisted graph growth rather than an unconstrained all-pairs graph. The current flat-map foundation performs a global edge scan when admitting a brand-new edge; this is acceptable before autonomous/runtime mutation exists, but must be replaced or indexed before high-frequency social evolution is introduced.
 
 ## Mutation result
 
