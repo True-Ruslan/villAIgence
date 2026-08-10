@@ -249,8 +249,8 @@ jobs:
           cases = report.get('cases')
           if report.get('status') != 'PASS':
               raise SystemExit('persistence recovery report is not PASS')
-          if not isinstance(cases, list) or len(cases) != 5:
-              raise SystemExit('persistence recovery report must contain five cases')
+          if not isinstance(cases, list) or len(cases) != 6:
+              raise SystemExit('persistence recovery report must contain six cases')
           if any(case.get('status') != 'PASS' for case in cases):
               raise SystemExit('at least one persistence recovery case is not PASS')
           PY
