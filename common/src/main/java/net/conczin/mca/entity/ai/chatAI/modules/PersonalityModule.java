@@ -11,9 +11,27 @@ import static net.conczin.mca.entity.ai.chatAI.OpenAIChatAI.translate;
 
 public class PersonalityModule {
     public static void apply(List<String> input, VillagerEntityMCA villager, ServerPlayer player) {
+        applyBase(input, villager, player, true);
+    }
+
+    /** Snapshot path keeps identity/mood/age/profession but gets personality from the typed server snapshot. */
+    public static void applySnapshotBase(List<String> input, VillagerEntityMCA villager, ServerPlayer player) {
+        applyBase(input, villager, player, false);
+    }
+
+    private static void applyBase(
+            List<String> input,
+            VillagerEntityMCA villager,
+            ServerPlayer player,
+            boolean includePersonality
+    ) {
         input.add("This is a conversation with a " + translate(villager.getGenetics().getGender().name()) + " Minecraft villager named $villager and the Player named $player." + " ");
 
-        input.add("$villager is " + translate(villager.getVillagerBrain().getPersonality().name()) + " and " + translate(villager.getVillagerBrain().getMood().getName()) + ". ");
+        if (includePersonality) {
+            input.add("$villager is " + translate(villager.getVillagerBrain().getPersonality().name()) + " and " + translate(villager.getVillagerBrain().getMood().getName()) + ". ");
+        } else {
+            input.add("$villager is " + translate(villager.getVillagerBrain().getMood().getName()) + ". ");
+        }
         if (villager.getAgeState() == AgeState.BABY) {
             input.add("$villager is a baby. ");
         }
