@@ -142,6 +142,51 @@ class NpcSocialCausalFrontierSanitizationTest {
         assertEquals(NpcSocialState.NEUTRAL, store.get(source, target));
     }
 
+    @Test
+    void missingRequiredCursorFieldFailsClosedWithoutDiscardingValidGraphState() throws Exception {
+        UUID source = UUID.fromString("30000000-0000-0000-0000-000000000001");
+        UUID target = UUID.fromString("30000000-0000-0000-0000-000000000002");
+        UUID cause = UUID.fromString("30000000-0000-0000-0000-000000000003");
+        Path file = tempDir.resolve("missing-required-frontier-field.json");
+
+        Files.writeString(file, """
+                {
+                  "version": 1,
+                  "edges": {
+                    "%s/%s": {"trust": 5, "respect": 0, "fear": 0, "affinity": 0}
+                  },
+                  "causalFrontiers": {
+                    "%s": {
+                      "sourceNpcId": "%s",
+                      "targetNpcId": "%s",
+                      "causeEventId": "%s",
+                      "causeGameTime": 500,
+                      "boundedRequestedDelta": {"trust": 1, "respect": 0, "fear": 0, "affinity": 0},
+                      "appliedDelta": {"trust": 1, "respect": 0, "fear": 0, "affinity": 0},
+                      "before": {"trust": 4, "respect": 0, "fear": 0, "affinity": 0},
+                      "after": {"trust": 5, "respect": 0, "fear": 0, "affinity": 0},
+                      "outcome": "APPLIED"
+                    }
+                  }
+                }
+                """.formatted(source, target, source, source, target, cause));
+
+        NpcSocialGraphStore store = new NpcSocialGraphStore(file);
+
+        assertEquals(
+                new NpcSocialState(5, 0, 0, 0),
+                store.get(source, target),
+                "one malformed causal cursor must not cause valid directed graph state to be discarded"
+        );
+        assertEquals(
+                NpcSocialCausalMutation.Status.FRONTIER_CORRUPT,
+                store.applyCausalDelta(
+                        source, target, cause, 500L, new NpcSocialDelta(1, 0, 0, 0), 4
+                ).status(),
+                "missing replay identity must fail closed for the attributable source"
+        );
+    }
+
     private static String graphWithFrontier(String sourceKey, String cursor) {
         return "{\n"
                 + "  \"version\": 1,\n"
