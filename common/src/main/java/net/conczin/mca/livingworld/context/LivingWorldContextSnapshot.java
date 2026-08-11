@@ -28,6 +28,11 @@ public record LivingWorldContextSnapshot(
     public LivingWorldContextSnapshot {
         contextLines = contextLines == null ? List.of() : List.copyOf(contextLines);
         worldFacts = worldFacts == null ? List.of() : List.copyOf(worldFacts);
+        if (personalitySocialSnapshot != null
+                && villagerId != null
+                && !villagerId.equals(personalitySocialSnapshot.sourceNpcId())) {
+            throw new IllegalArgumentException("personality/social snapshot source must match villagerId");
+        }
         if (personalitySocialSnapshot == null && villagerId != null) {
             personalitySocialSnapshot = new PersonalitySocialSnapshot(
                     villagerId,
