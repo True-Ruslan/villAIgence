@@ -1,5 +1,7 @@
 package net.conczin.mca.livingworld.memory2;
 
+import net.conczin.mca.livingworld.relationship.NpcSocialDelta;
+import net.conczin.mca.livingworld.relationship.NpcSocialGraphStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -50,6 +52,7 @@ class SettlementKnowledgeFlowLifecycleTest {
         );
 
         assertEquals(1, result.opportunities());
+        assertEquals(0, result.sociallySuppressedTransfers());
         assertEquals(1, result.attemptedTransfers());
         assertEquals(1, result.successfulTransfers());
         assertEquals(List.of(NpcKnowledgeTransferResult.Status.ADMITTED), result.statuses());
@@ -79,6 +82,83 @@ class SettlementKnowledgeFlowLifecycleTest {
         assertEquals(MemoryEvent.Provenance.NPC_TOLD, evidence.provenance());
         assertEquals(List.of(listener, speaker), evidence.participants());
         assertEquals(List.of(player), transferred.relatedEntities());
+    }
+
+    @Test
+    void adverseSpeakerToListenerSocialStateSuppressesExactTransferWithoutFallback() {
+        List<NpcSocialDelta> adverseStates = List.of(
+                new NpcSocialDelta(0, 0, 75, 0),
+                new NpcSocialDelta(-75, 0, 0, 0),
+                new NpcSocialDelta(0, 0, 0, -75)
+        );
+
+        for (int index = 0; index < adverseStates.size(); index++) {
+            Path world = tempDir.resolve("social-suppression-" + index);
+            UUID speaker = id(200 + index * 10);
+            UUID listener = id(201 + index * 10);
+            UUID sourceId = id(202 + index * 10);
+            long cycleTime = 4_800L + index;
+
+            appendSourceFact(world, speaker, sourceId, "The east road is blocked " + index);
+            NpcSocialGraphStore.forWorld(world).applyDelta(
+                    speaker,
+                    listener,
+                    adverseStates.get(index),
+                    100
+            );
+
+            SettlementKnowledgeFlowLifecycle.CycleResult result = SettlementKnowledgeFlowLifecycle.runCycle(
+                    world,
+                    9,
+                    cycleTime,
+                    List.of(speaker, listener),
+                    64,
+                    64
+            );
+
+            assertEquals(1, result.opportunities());
+            assertEquals(1, result.sociallySuppressedTransfers());
+            assertEquals(0, result.attemptedTransfers());
+            assertEquals(0, result.successfulTransfers());
+            assertEquals(List.of(), result.statuses());
+            assertTrue(SemanticMemoryStore.forWorld(world).getRecent(listener, 64).isEmpty());
+            assertTrue(MemoryEventStore.forWorld(world).getRecent(listener, 64).stream()
+                    .noneMatch(event -> event.type() == MemoryEvent.Type.DIALOGUE
+                            && event.provenance() == MemoryEvent.Provenance.NPC_TOLD));
+        }
+    }
+
+    @Test
+    void reverseOnlyHostilityDoesNotBlockSpeakerToListenerTransfer() {
+        Path world = tempDir.resolve("reverse-only-hostility");
+        UUID speaker = id(300);
+        UUID listener = id(301);
+        UUID sourceId = id(302);
+        long cycleTime = 6_000L;
+
+        appendSourceFact(world, speaker, sourceId, "The quarry reopened");
+        NpcSocialGraphStore.forWorld(world).applyDelta(
+                listener,
+                speaker,
+                new NpcSocialDelta(-75, 0, 0, 0),
+                100
+        );
+
+        SettlementKnowledgeFlowLifecycle.CycleResult result = SettlementKnowledgeFlowLifecycle.runCycle(
+                world,
+                10,
+                cycleTime,
+                List.of(speaker, listener),
+                64,
+                64
+        );
+
+        assertEquals(1, result.opportunities());
+        assertEquals(0, result.sociallySuppressedTransfers());
+        assertEquals(1, result.attemptedTransfers());
+        assertEquals(1, result.successfulTransfers());
+        assertEquals(List.of(NpcKnowledgeTransferResult.Status.ADMITTED), result.statuses());
+        assertEquals(1, SemanticMemoryStore.forWorld(world).getRecent(listener, 64).size());
     }
 
     @Test
@@ -142,6 +222,22 @@ class SettlementKnowledgeFlowLifecycleTest {
         assertEquals(1, listenerClaimsAfter);
         assertEquals(0, replay.successfulTransfers());
         assertTrue(replay.opportunities() <= 1);
+    }
+
+    private static void appendSourceFact(Path world, UUID speaker, UUID sourceId, String statement) {
+        SemanticMemoryStore.forWorld(world).append(new SemanticMemoryEntry(
+                sourceId,
+                speaker,
+                SemanticMemoryEntry.Kind.FACT,
+                statement,
+                List.of(),
+                MemoryEvent.Provenance.SYSTEM_OBSERVED,
+                300L,
+                0L,
+                90,
+                100,
+                List.of(id(999))
+        ), 64);
     }
 
     private static UUID id(int value) {
