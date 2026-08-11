@@ -37,6 +37,7 @@ public final class Memory2ContextProvider {
                 npcId,
                 Integer.MAX_VALUE,
                 event -> event.type() != MemoryEvent.Type.SEMANTIC_CONTRADICTION
+                        && event.type() != MemoryEvent.Type.NPC_SOCIAL_CHANGE
                         && PlayerScopedMemoryEligibility.episodic(event, npcId, playerId)
         );
         List<MemoryEvent> candidates = LongHorizonCandidateSelector.select(

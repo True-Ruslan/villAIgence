@@ -25,7 +25,8 @@ public record MemoryEvent(
         RelationshipCause relationshipCause,
         KnowledgeTransferProvenance knowledgeTransferProvenance,
         KnowledgeTransferTransformation knowledgeTransferTransformation,
-        SemanticContradiction semanticContradiction
+        SemanticContradiction semanticContradiction,
+        NpcSocialMutationEvidence npcSocialMutation
 ) {
     public MemoryEvent {
         if (id == null) throw new IllegalArgumentException("id is required");
@@ -42,6 +43,50 @@ public record MemoryEvent(
         emotionalWeight = clamp(emotionalWeight, -100, 100);
         confidence = clamp(confidence, 0, 100);
         relationshipReasons = normalizeReasons(relationshipReasons);
+    }
+
+    /** Source-compatible constructor matching the pre-NPC-social canonical record shape. */
+    public MemoryEvent(
+            UUID id,
+            UUID ownerNpcId,
+            Type type,
+            String summary,
+            List<UUID> participants,
+            Provenance provenance,
+            long gameTime,
+            long createdAtEpochMillis,
+            int importance,
+            int emotionalWeight,
+            int confidence,
+            List<String> relationshipReasons,
+            DialogueExchange dialogue,
+            RelationshipTransition relationshipTransition,
+            RelationshipCause relationshipCause,
+            KnowledgeTransferProvenance knowledgeTransferProvenance,
+            KnowledgeTransferTransformation knowledgeTransferTransformation,
+            SemanticContradiction semanticContradiction
+    ) {
+        this(
+                id,
+                ownerNpcId,
+                type,
+                summary,
+                participants,
+                provenance,
+                gameTime,
+                createdAtEpochMillis,
+                importance,
+                emotionalWeight,
+                confidence,
+                relationshipReasons,
+                dialogue,
+                relationshipTransition,
+                relationshipCause,
+                knowledgeTransferProvenance,
+                knowledgeTransferTransformation,
+                semanticContradiction,
+                null
+        );
     }
 
     /** Source-compatible constructor matching the pre-transformation canonical record shape. */
@@ -82,7 +127,8 @@ public record MemoryEvent(
                 relationshipCause,
                 knowledgeTransferProvenance,
                 null,
-                semanticContradiction
+                semanticContradiction,
+                null
         );
     }
 
@@ -123,13 +169,14 @@ public record MemoryEvent(
                 relationshipCause,
                 knowledgeTransferProvenance,
                 null,
+                null,
                 null
         );
     }
 
     /**
      * Source-compatible constructor for callers that already provide structured causal data.
-     * Knowledge-transfer provenance, transformation and contradiction evidence are absent unless explicitly supplied.
+     * Knowledge-transfer provenance, transformation, contradiction and NPC-social evidence are absent unless explicitly supplied.
      */
     public MemoryEvent(
             UUID id,
@@ -166,13 +213,14 @@ public record MemoryEvent(
                 relationshipCause,
                 null,
                 null,
+                null,
                 null
         );
     }
 
     /**
      * Source-compatible constructor for callers that already provide structured relationship transition data.
-     * Structured causal, transfer-provenance, transformation and contradiction data are absent unless explicitly supplied.
+     * Structured causal, transfer-provenance, transformation, contradiction and NPC-social data are absent unless explicitly supplied.
      */
     public MemoryEvent(
             UUID id,
@@ -208,13 +256,14 @@ public record MemoryEvent(
                 null,
                 null,
                 null,
+                null,
                 null
         );
     }
 
     /**
      * Source-compatible constructor for callers that already provide structured dialogue.
-     * Structured relationship transition, causal, transfer-provenance, transformation and contradiction data are absent.
+     * Structured relationship transition, causal, transfer-provenance, transformation, contradiction and NPC-social data are absent.
      */
     public MemoryEvent(
             UUID id,
@@ -249,13 +298,14 @@ public record MemoryEvent(
                 null,
                 null,
                 null,
+                null,
                 null
         );
     }
 
     /**
      * Source-compatible constructor for non-dialogue producers and historical tests.
-     * Structured dialogue, relationship transition, causal, transfer-provenance, transformation and contradiction data are opt-in.
+     * Structured dialogue, relationship transition, causal, transfer-provenance, transformation, contradiction and NPC-social data are opt-in.
      */
     public MemoryEvent(
             UUID id,
@@ -284,6 +334,7 @@ public record MemoryEvent(
                 emotionalWeight,
                 confidence,
                 relationshipReasons,
+                null,
                 null,
                 null,
                 null,
@@ -379,7 +430,8 @@ public record MemoryEvent(
         ACTION,
         RELATIONSHIP_CHANGE,
         RELATIONSHIP_CAUSE,
-        SEMANTIC_CONTRADICTION
+        SEMANTIC_CONTRADICTION,
+        NPC_SOCIAL_CHANGE
     }
 
     public enum Provenance {
