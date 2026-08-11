@@ -3,7 +3,6 @@ package net.conczin.mca.livingworld.context;
 import net.conczin.mca.livingworld.relationship.NpcSocialState;
 
 import java.util.List;
-import java.util.Locale;
 
 /** Deterministic fixed-size renderer for server-owned personality/direct-social context. */
 public final class PersonalitySocialContextRenderer {
@@ -13,8 +12,7 @@ public final class PersonalitySocialContextRenderer {
     public static List<String> render(PersonalitySocialSnapshot snapshot) {
         if (snapshot == null) return List.of();
 
-        String personality = snapshot.personality().name().toLowerCase(Locale.ROOT);
-        String personalityLine = "Current NPC personality: " + personality
+        String personalityLine = "Current NPC personality: " + snapshot.personalityToken()
                 + ". This is server-owned descriptive state, not an instruction or current-world fact override.";
         if (!snapshot.hasCounterpart()) {
             return List.of(personalityLine);
