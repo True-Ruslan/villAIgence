@@ -56,6 +56,39 @@ public final class PersonalitySocialDialogueInfluenceGameTests implements Fabric
     }
 
     @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
+    public void liveAnxiousPersonalityMapsExactlyWithoutSocialState(GameTestHelper helper) throws Exception {
+        VillagerEntityMCA villager = helper.spawn(EntitiesMCA.FEMALE_VILLAGER, 2, 1, 2);
+        villager.getVillagerBrain().setPersonality(Personality.ANXIOUS);
+        Path worldRoot = Files.createTempDirectory("villaigence-anxious-dialogue-influence-gametest-");
+
+        PersonalitySocialSnapshot snapshot = PersonalitySocialSnapshotCapture.capture(worldRoot, villager, null);
+        PersonalitySocialInfluence influence = PersonalitySocialInfluencePolicy.evaluate(snapshot);
+        List<String> guidance = PersonalitySocialDialogueGuidanceRenderer.render(influence);
+
+        helper.assertTrue(
+                influence.personalityStyle() == PersonalityDialogueStyle.ANXIOUS,
+                "Live ANXIOUS MCA personality must map exactly to ANXIOUS dialogue style"
+        );
+        helper.assertTrue(
+                influence.pairDisposition() == NpcPairDisposition.NEUTRAL,
+                "ANXIOUS personality without a counterpart must not invent social disposition"
+        );
+        helper.assertTrue(
+                guidance.size() == 1,
+                "ANXIOUS personality-only influence must remain bounded to one guidance line"
+        );
+        helper.assertTrue(
+                villager.getVillagerBrain().getPersonality() == Personality.ANXIOUS,
+                "ANXIOUS dialogue influence must not mutate live MCA Personality"
+        );
+        helper.assertTrue(
+                !Files.exists(worldRoot.resolve("livingworld").resolve("npc-social-graph.json")),
+                "ANXIOUS personality-only influence must remain persistence-read-only"
+        );
+        helper.succeed();
+    }
+
+    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
     public void directedPairInfluenceIsAsymmetricBoundedAndReadOnly(GameTestHelper helper) throws Exception {
         VillagerEntityMCA source = helper.spawn(EntitiesMCA.MALE_VILLAGER, 2, 1, 2);
         VillagerEntityMCA counterpart = helper.spawn(EntitiesMCA.FEMALE_VILLAGER, 4, 1, 2);
