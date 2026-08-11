@@ -27,6 +27,9 @@ import net.conczin.mca.livingworld.ai.SemanticBeliefExtractionPrompt;
 import net.conczin.mca.livingworld.ai.StructuredAiResponseParser;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
 import net.conczin.mca.livingworld.context.PersonalitySocialContextRenderer;
+import net.conczin.mca.livingworld.context.PersonalitySocialDialogueGuidanceRenderer;
+import net.conczin.mca.livingworld.context.PersonalitySocialInfluence;
+import net.conczin.mca.livingworld.context.PersonalitySocialInfluencePolicy;
 import net.conczin.mca.livingworld.context.SnapshotContextPromptPolicy;
 import net.conczin.mca.livingworld.memory.PersistentChatMemory;
 import net.conczin.mca.livingworld.memory2.Memory2RelationshipChangeIngestor;
@@ -503,9 +506,14 @@ public class OpenAIChatAI implements ChatAIStrategy {
         } else {
             systemBuilder.append('\n');
         }
+        PersonalitySocialInfluence personalitySocialInfluence =
+                PersonalitySocialInfluencePolicy.evaluate(snapshot.personalitySocialSnapshot());
+        List<String> personalitySocialGuidance =
+                PersonalitySocialDialogueGuidanceRenderer.render(personalitySocialInfluence);
         systemBuilder.append(SnapshotContextPromptPolicy.compose(
                 snapshot.worldFacts(),
                 PersonalitySocialContextRenderer.render(snapshot.personalitySocialSnapshot()),
+                personalitySocialGuidance,
                 snapshot.operatorAuthoredContext(),
                 snapshot.semanticMemoryContext(),
                 snapshot.contradictionContext(),
