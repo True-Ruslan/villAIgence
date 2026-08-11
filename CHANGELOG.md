@@ -23,6 +23,15 @@ This is the **canonical changelog** for the project.
 
 ### Added
 
+- Server-owned causal NPC↔NPC social mutation lifecycle for the 0.3 track:
+  - an additive latest-cause frontier per source NPC is persisted atomically with directed graph state inside existing `npc-social-graph.json` format v1, so graph replay protection does not depend on bounded `memory2.json` audit retention;
+  - deterministic mutation identity binds the source NPC and exact retained cause event, while reusing the same cause with another target or bounded delta fails closed instead of becoming a second mutation;
+  - authoritative causes are ordered by Minecraft `gameTime` then event UUID, and valid `APPLIED`, `NO_CHANGE` and `CAPACITY_REACHED` outcomes all consume the source frontier so an old event cannot become effective later;
+  - lifecycle admission requires an exact retained source-owned `SYSTEM_OBSERVED` `OBSERVATION|ACTION` event containing the target plus server-owned validation that both UUIDs are live MCA NPC identities;
+  - a primary applied mutation may append one structured bounded `NPC_SOCIAL_CHANGE / SYSTEM_OBSERVED` Memory 2.0 audit event with exact before/after state and cause ID, but audit loss never rolls back graph state and replay never backfills or duplicates audit history;
+  - `NPC_SOCIAL_CHANGE` is excluded from generic episodic prompt context and is never automatically promoted to Semantic FACT/BELIEF authority;
+  - malformed/duplicate/inconsistent causal frontier state fails closed per attributable source, including malformed map keys and cursor payloads with missing required fields, without allowing one bad cursor to discard otherwise-valid graph edges through whole-file recovery;
+  - real Fabric GameTest validates MCA-villager identity authority, and production startup/restart acceptance exercises the causal graph/audit replay boundary without changing provider schema/calls, public config, MCA Personality authority, NPC×player `relationships.json`, Semantic truth semantics, or official release identity.
 - Persistent bounded directed NPC↔NPC social-graph foundation for the 0.3 track:
   - existing MCA `Personality` tracked entity/NBT state remains the canonical persistent personality source; no duplicate generated personality store is introduced;
   - new world-local `npc-social-graph.json` format v1 stores non-neutral directed NPC→NPC `trust`, `respect`, `fear` and `affinity` independently from NPC×player `relationships.json`;
@@ -169,6 +178,7 @@ This is the **canonical changelog** for the project.
 
 ### Validation
 
+- Causal NPC↔NPC social mutation work in PR #153 uses staged compile/behavioral RED→GREEN gates for atomic source-frontier persistence, corruption sanitation, structured Memory 2.0 audit evidence, lifecycle authority, real MCA NPC identity validation and production restart replay. Review-hardening added two separate one-failure REDs: malformed-key attribution (774 tests / 1 failure) and malformed required cursor payload isolation (775 tests / 1 failure), both fixed without weakening runtime cursor invariants; exact TDD evidence is recorded in `docs/superpowers/evidence/2026-08-11-causal-npc-social-mutation-tdd.md`.
 - Controlled BELIEF admission was developed with a tests-first RED/GREEN boundary in PR #123.
 - Bounded player-told BELIEF extraction was developed through explicit RED/GREEN contract tests in PR #125; exact-head CI/release evidence is recorded in that PR.
 - Causal relationship memory in PR #127 was developed through staged RED/GREEN contracts for structured transition state, persisted-source cause admission, result-bearing ChatAI orchestration and restart/eviction-safe query behavior; a full-history test exposed and drove a deterministic retention-ordering fix before final verification.
