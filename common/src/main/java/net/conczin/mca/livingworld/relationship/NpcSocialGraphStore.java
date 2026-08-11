@@ -23,7 +23,10 @@ public final class NpcSocialGraphStore {
     static final int MAX_OUTGOING_EDGES_PER_NPC = 64;
 
     private static final int FORMAT_VERSION = 1;
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Gson GSON = new GsonBuilder()
+            .registerTypeAdapter(NpcSocialMutationCursor.class, new NpcSocialMutationCursorJsonDeserializer())
+            .setPrettyPrinting()
+            .create();
     private static final JsonStoreRecovery.Codec<GraphFile> CODEC =
             new GsonJsonStoreCodec<>(GSON, GraphFile.class);
     private static final ConcurrentMap<Path, NpcSocialGraphStore> STORES = new ConcurrentHashMap<>();
