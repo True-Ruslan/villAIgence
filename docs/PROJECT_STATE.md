@@ -2,7 +2,7 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md`. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-08-11**, after PR #153 merged the server-owned causal NPC↔NPC social mutation lifecycle.
+> Last reconciled: **2026-08-11**, after PR #155 merged the bounded read-only MCA Personality + direct NPC-pair social snapshot.
 >
 > Always distinguish source/unit evidence, common integration, GameTests, production-candidate evidence, exact-release evidence and installed operator server/client evidence.
 
@@ -17,14 +17,14 @@ Java:                               21
 primary distribution:               Fabric
 NeoForge:                           compile compatibility required
 
-latest product merge:               PR #153
-latest product merge commit:        2a75e950e4e7f43f1321fc572c260b00f6d2bdf4
+latest product merge:               PR #155
+latest product merge commit:        a04e76dcf3ca6a07126e4e4b46f4d417a857a10f
 latest official release:            0.2.0+1.21.1
 latest release commit:              e426f588efefa6aa48a6e536c4a998421bbda241
 installed 0.2.0 candidate JAR SHA:   56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
 
-next product slice:                 bounded read-only MCA Personality + direct NPC-pair social snapshot / 0.3
-then:                               dialogue/behavior integration + 0.3 convergence
+next product slice:                 deliberate dialogue/behavior integration / 0.3
+then:                               0.3 convergence / release-candidate planning
 ```
 
 Current delivery state:
@@ -59,7 +59,8 @@ relationship/trust social epistemology                 COMPLETE / PR #149
 0.3 Personality + NPC↔NPC Social Graph                 IN PROGRESS
 NPC↔NPC social-graph persistence foundation            COMPLETE / PR #151
 server-owned causal NPC↔NPC social mutation lifecycle COMPLETE / PR #153
-bounded Personality + direct-pair social snapshot      NEXT
+bounded Personality + direct-pair social snapshot      COMPLETE / PR #155
+deliberate dialogue/behavior integration               NEXT
 ```
 
 Installed boundaries remain explicit:
@@ -71,7 +72,7 @@ VAI-CONCUR-004   NOT TESTED / DEFERRED
 
 Neither is represented as PASS.
 
-PRs #127, #129, #131, #133, #135, #137, #139, #141, #143, #145, #147, #149, #151 and #153 are merged automated source capabilities **after** the installed `0.2.0` release. Their CI/candidate evidence is not installed `0.2.0` acceptance.
+PRs #127, #129, #131, #133, #135, #137, #139, #141, #143, #145, #147, #149, #151, #153 and #155 are merged automated source capabilities **after** the installed `0.2.0` release. Their CI/candidate evidence is not installed `0.2.0` acceptance.
 
 ---
 
@@ -136,13 +137,14 @@ NPC Identity
 38. **Exactly-once NPC social mutation authority lives in the graph frontier.** Bounded Memory 2.0 audit is process evidence and may be forgotten without reopening a historical mutation.
 39. **Terminal causal outcomes consume cause order.** `APPLIED`, `NO_CHANGE` and `CAPACITY_REACHED` all advance the source frontier; old causes cannot become effective later.
 40. **Malformed attributable causal frontier state fails closed per source.** One bad cursor must not erase otherwise-valid graph state or silently regain mutation authority after unrelated writes/restart.
+41. **Personality/social snapshot construction is read-only derived context.** It may expose only canonical MCA Personality plus one exact directed NPC pair, cannot enumerate the graph, and cannot mutate persistence or truth authority.
 
 Canonical AI/state flow:
 
 ```text
 Minecraft/server state
 → immutable bounded snapshot
-→ current observations + lore + layered memory/disagreement/social context
+→ current observations + personality/direct-social context + lore + layered memory/disagreement context
 → deterministic authority-layer composition
 → provider/LLM proposal
 → server validation/revalidation
@@ -150,10 +152,11 @@ Minecraft/server state
 → persistent authoritative/process evidence
 ```
 
-Current prompt order remains:
+Current prompt order is now:
 
 ```text
 current server-observed facts
+→ bounded MCA Personality / direct NPC-pair social context
 → Operator Lore
 → Semantic Memory (including bounded fallibility/transformation/social-epistemic metadata)
 → live Semantic disagreement context
@@ -162,7 +165,7 @@ current server-observed facts
 → provider
 ```
 
-The upcoming 0.3 pair snapshot must be inserted deliberately and bounded; it must not expose the whole NPC social graph or create a new truth layer.
+PR #155 established this fixed-size read-only layer. Normal player↔NPC dialogue carries personality-only context and does not open the NPC social graph merely to build a prompt.
 
 ---
 
@@ -217,7 +220,7 @@ Current Semantic BELIEF extraction config remains:
 }
 ```
 
-Config version remains `2`. No 0.3 social-graph public configuration was added by PRs #151 or #153.
+Config version remains `2`. No 0.3 social-graph/personality-snapshot public configuration was added by PRs #151, #153 or #155.
 
 ## NPC social graph persistence and causal frontier
 
@@ -293,6 +296,7 @@ claim transformation    → server-owned bounded process evidence; never truth p
 settlement flow         → bounded transfer routing; never shared truth
 social epistemics       → bounded personal player-trust view; never persisted truth
 NPC social graph        → persistent directed social state; never FACT/Semantic authority
+personality/social view → immutable bounded derived context; never mutation authority
 ```
 
 ---
@@ -358,6 +362,59 @@ docs/superpowers/evidence/2026-08-11-causal-npc-social-mutation-tdd.md
 
 ---
 
+# PR #155 — bounded read-only MCA Personality + direct NPC-pair social snapshot
+
+Merged source capability:
+
+```text
+live MCA VillagerBrain Personality
++ optional exact counterpart NPC
++ exact direct source→target NpcSocialState
+→ immutable bounded PersonalitySocialSnapshot
+→ deterministic fixed-size rendering
+→ centralized prompt authority placement
+→ zero snapshot-construction persistence mutation
+```
+
+Key guarantees:
+
+- MCA `VillagerBrain.getPersonality()` remains the sole persistent personality authority;
+- common transport carries a closed canonical lowercase token rather than a second personality model;
+- with a counterpart, exactly one directed graph pair is read; A→B and B→A remain independent;
+- without a counterpart, capture is personality-only and does not open/create the NPC social graph;
+- snapshot owner must match `LivingWorldContextSnapshot.villagerId`;
+- legacy `PersonalityModule.apply(...)` remains source-compatible while snapshot capture de-duplicates personality text;
+- prompt order is current world facts → personality/social → Operator Lore → Semantic → disagreement → episodic/social history;
+- rendering is fixed-size and does not expose UUID/name/free-form graph content;
+- repeated capture/render preserves existing `npc-social-graph.json`, `relationships.json`, `memory2.json` and `semantic-memory.json` bytes;
+- tracked MCA Personality is unchanged by capture;
+- Fabric GameTests cover live FRIENDLY/CRABBY extraction, asymmetric A→B/B→A state, personality-only capture and every current `Personality.values()` transport token;
+- no provider call/schema, public config, persistence file/version, migration, autonomous social delta or release identity was added.
+
+Final exact-head evidence before squash merge:
+
+```text
+verified head:                           7ed568bbb608c03f96f3d23113881b6cf99ca912
+merge commit:                            a04e76dcf3ca6a07126e4e4b46f4d417a857a10f
+Repository security policy #2388:       SUCCESS
+VillAIgence CI #2753:                   SUCCESS
+VillAIgence Production Soak #459:       SUCCESS
+VillAIgence GitHub Release #792:        SUCCESS
+release publication job:                SKIPPED
+review P0/P1/P2/P3:                     0 / 0 / 0 / 0
+unresolved review threads:              0
+```
+
+CI passed common/deterministic provider tests, Fabric GameTests, Fabric/NeoForge builds, production acceptance, persistence recovery and distributable package verification. The release dry-run repeated exact production acceptance, exact recovery, GameTests/builds and accepted-JAR/package identity while publication remained skipped.
+
+Full staged evidence:
+
+```text
+docs/superpowers/evidence/2026-08-11-personality-social-snapshot-tdd.md
+```
+
+---
+
 # Automated acceptance and release boundary
 
 Canonical acceptance catalog remains:
@@ -397,7 +454,7 @@ Root `CHANGELOG.md` remains canonical product/release history. Significant runti
 
 `docs/CHANGELOG.md` remains historical engineering detail. Staged TDD evidence for recent slices is under `docs/superpowers/evidence/`.
 
-PR #153 already updated root `[Unreleased]`; this docs reconciliation does not duplicate or rewrite that product history.
+PR #155 already updated root `[Unreleased]`; this docs reconciliation does not duplicate or rewrite that product history.
 
 ---
 
@@ -408,9 +465,9 @@ PR #153 already updated root `[Unreleased]`; this docs reconciliation does not d
 3. Automatic contradiction production intentionally recognizes only a narrow standalone English `not` / Russian `не` polarity pattern; antonym/numeric/temporal/free-form opposition needs a separately justified bounded extension.
 4. The current wording transform is intentionally narrow and deterministic; provider-authored open-ended paraphrase/generalization is not supported.
 5. Settlement dissemination uses home-village membership and bounded deterministic routing only; physical proximity, travel gossip, alliances and social-topology routing remain future work.
-6. The NPC↔NPC graph now has persistent causal mutation authority, but it is not yet exposed through a bounded dialogue/behavior snapshot and does not autonomously evolve.
+6. The NPC↔NPC graph now has a bounded read-only personality/direct-pair snapshot and prompt layer, but that state does not yet deliberately influence dialogue style or selected server-owned behavior policy and does not autonomously evolve.
 7. New-edge capacity admission still scans the flat graph map; acceptable at current event-driven frequency, but index before high-frequency autonomous mutation.
-8. NPC×player social epistemology currently uses trust only and only as a derived post-ranking annotation for player-origin BELIEF; NPC↔NPC state does not yet modify truth, ranking or source credibility.
+8. NPC×player social epistemology currently uses trust only and only as a derived post-ranking annotation for player-origin BELIEF; NPC↔NPC state does not modify truth, ranking or source credibility.
 9. Causal social frontier stores only the latest ordered cause per source NPC by design; retained Memory 2.0 audit is bounded process history, not an unbounded mutation ledger.
 10. `PersistentChatMemory` remains a no-storage compatibility façade pending inherited AI call-surface refactoring.
 11. Historical config fields for the removed raw conversation store remain deserializable compatibility baggage.
@@ -420,54 +477,54 @@ PR #153 already updated root `[Unreleased]`; this docs reconciliation does not d
 
 # Next optimal delivery step
 
-The next product slice is **bounded read-only MCA Personality + direct NPC-pair social snapshot / 0.3**.
+The next product slice is **deliberate dialogue/behavior integration / 0.3**.
 
-The persistence and causal mutation boundaries are now proven. The next safe step is to make the current server-owned social/personality state observable to dialogue/behavior **without** giving the provider the whole graph and without creating another personality authority.
+The read-only personality/social boundary is now proven. The next safe step is to let this server-owned context affect dialogue tone and a narrowly selected set of behavior decisions **without** allowing the provider to directly mutate social state or bypass existing gameplay validation.
 
 Target boundary:
 
 ```text
-current MCA NPC entity
-+ canonical MCA Personality tracked state
-+ optional exact interaction counterpart NPC
-+ direct source→target NpcSocialState only
-→ server-owned immutable bounded snapshot
-→ deterministic safe renderer / structured context
-→ dialogue/behavior consumers read the snapshot
-→ no persistence mutation from snapshot construction
+immutable PersonalitySocialSnapshot
++ current authoritative world/context snapshot
+→ deterministic bounded social/personality interpretation
+→ dialogue-style guidance and selected behavior-policy inputs
+→ provider may propose text/intent only inside existing structured contracts
+→ server revalidates any gameplay/social mutation
+→ existing causal mutation lifecycle remains the only NPC↔NPC graph write authority
 ```
 
 Design requirements before production code:
 
-- use existing MCA `Personality` as the only persistent personality authority;
-- direct-pair lookup only; never enumerate/render the whole social graph;
-- snapshot must be immutable, bounded, server-owned and captured before asynchronous provider work;
-- absence of a pair edge renders neutral/empty state without creating a stored edge;
-- A→B and B→A remain distinct;
-- no provider-authored personality rewrite or social-score mutation;
-- no FACT/BELIEF confidence/provenance/ranking mutation;
-- no NPC×player `relationships.json` reinterpretation;
-- no new persistence file/version/config unless a concrete need is proven;
-- sanitize/render all text labels through existing prompt safety conventions;
-- define the exact prompt/behavior placement explicitly so social/personality context cannot override current observed world facts;
-- preserve all existing prompt result budgets; the snapshot should be a fixed-size server context layer, not an unbounded memory allocation path.
+- keep `PersonalitySocialSnapshot` read-only and immutable; no write methods are added to prompt/context code;
+- derive only bounded server-authored influence categories/weights from canonical personality + direct social state;
+- dialogue influence may affect tone/stance, not FACT/BELIEF authority, memory ranking, provenance or confidence;
+- behavior influence must be limited to explicit existing server-owned policies/actions with target/permission/state revalidation;
+- provider output cannot choose arbitrary trust/respect/fear/affinity deltas;
+- any NPC↔NPC graph mutation must still have exact server-owned cause evidence and pass `NpcSocialMutationLifecycle`;
+- current observed world facts and hard gameplay safety constraints outrank social/personality preference;
+- A→B and B→A remain asymmetric; no graph enumeration or neighborhood inference;
+- no hidden autonomous per-tick social loop in this slice;
+- preserve existing provider request count/schema unless a concrete need is proven;
+- keep prompt additions fixed-size and deterministic;
+- add no persistence/config/version change unless required by a proven contract.
 
 Recommended TDD order:
 
 ```text
-snapshot design + exact data contract
-→ RED: MCA Personality extraction from live server NPC
-→ RED: direct pair lookup only / A→B != B→A
-→ RED: neutral/missing pair creates no persistence write
-→ RED: immutable bounded snapshot captured before async work
-→ RED: safe deterministic rendering / no reserved-template injection
-→ RED: prompt authority order and current FACT precedence
-→ RED: no Semantic / relationships.json / graph mutation during snapshot construction
-→ GameTest with two MCA NPCs + production startup/restart compatibility
+behavior/dialogue integration design + explicit non-authority laws
+→ RED: deterministic personality/social interpretation from representative snapshot states
+→ RED: dialogue-style guidance changes with personality/direct social state but remains fixed-size
+→ RED: current observed facts and safety policy outrank social preference
+→ RED: neutral/no-counterpart snapshot preserves current behavior
+→ RED: provider cannot author raw social deltas or bypass server action validation
+→ RED: any social mutation still requires exact causal lifecycle admission
+→ RED: no Semantic / Memory / relationships.json / graph write during prompt/style evaluation
+→ GameTests for at least friendly/hostile asymmetric NPC-pair cases and neutral compatibility
+→ production startup/restart + provider contract compatibility
 → exact-head CI / soak / release dry-run / review
 ```
 
-After this read-only boundary is proven, the following slice can deliberately connect personality/social context to dialogue tone and selected behavior policies, then converge the 0.3 track.
+After this integration boundary is proven, converge the 0.3 track: review remaining gaps, define a release-candidate scope, and decide which automated/manual evidence is required before a new exact release.
 
 ---
 
