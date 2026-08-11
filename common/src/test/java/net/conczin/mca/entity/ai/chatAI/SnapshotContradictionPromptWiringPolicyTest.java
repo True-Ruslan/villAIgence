@@ -14,7 +14,7 @@ class SnapshotContradictionPromptWiringPolicyTest {
     void openAiSnapshotPromptIncludesContradictionLayerExactlyOnceBeforeStructuredInstructions() throws IOException {
         String source = Files.readString(Path.of("src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java"));
         String compact = source.replaceAll("\\s+", " ");
-        String expected = "SnapshotContextPromptPolicy.compose( snapshot.worldFacts(), snapshot.operatorAuthoredContext(), snapshot.semanticMemoryContext(), snapshot.contradictionContext(), snapshot.memoryContext() )";
+        String expected = "SnapshotContextPromptPolicy.compose( snapshot.worldFacts(), PersonalitySocialContextRenderer.render(snapshot.personalitySocialSnapshot()), snapshot.operatorAuthoredContext(), snapshot.semanticMemoryContext(), snapshot.contradictionContext(), snapshot.memoryContext() )";
         int layered = compact.indexOf(expected);
         int structured = compact.indexOf("SemanticBeliefExtractionPrompt.requiresStructuredResponse", layered >= 0 ? layered : 0);
 

@@ -46,7 +46,7 @@ public final class LivingWorldContextCapture {
     public static LivingWorldContextSnapshot capture(ServerPlayer player, VillagerEntityMCA villager) {
         LivingWorldConfig livingWorld = LivingWorldConfig.getInstance();
         List<String> context = new ArrayList<>();
-        PersonalityModule.apply(context, villager, player);
+        PersonalityModule.applySnapshotBase(context, villager, player);
         TraitsModule.apply(context, villager, player);
         RelationModule.apply(context, villager, player);
         VillageModule.apply(context, villager, player);
@@ -60,6 +60,11 @@ public final class LivingWorldContextCapture {
                 .orElse("unknown");
         long gameTime = villager.level().getGameTime();
         Path worldRoot = player.serverLevel().getServer().getWorldPath(LevelResource.ROOT);
+        PersonalitySocialSnapshot personalitySocialSnapshot = PersonalitySocialSnapshotCapture.capture(
+                worldRoot,
+                villager,
+                null
+        );
 
         List<String> worldFacts = new ArrayList<>();
         worldFacts.add("Observed dimension: " + dimension + ".");
@@ -131,6 +136,7 @@ public final class LivingWorldContextCapture {
                 villager.getName().getString(),
                 context,
                 worldFacts,
+                personalitySocialSnapshot,
                 operatorAuthoredContext,
                 memoryContext,
                 semanticMemoryContext,

@@ -12,6 +12,7 @@ public record LivingWorldContextSnapshot(
         String villagerName,
         List<String> contextLines,
         List<String> worldFacts,
+        PersonalitySocialSnapshot personalitySocialSnapshot,
         List<String> operatorAuthoredContext,
         List<String> memoryContext,
         List<String> semanticMemoryContext,
@@ -27,6 +28,19 @@ public record LivingWorldContextSnapshot(
     public LivingWorldContextSnapshot {
         contextLines = contextLines == null ? List.of() : List.copyOf(contextLines);
         worldFacts = worldFacts == null ? List.of() : List.copyOf(worldFacts);
+        if (personalitySocialSnapshot != null
+                && villagerId != null
+                && !villagerId.equals(personalitySocialSnapshot.sourceNpcId())) {
+            throw new IllegalArgumentException("personality/social snapshot source must match villagerId");
+        }
+        if (personalitySocialSnapshot == null && villagerId != null) {
+            personalitySocialSnapshot = new PersonalitySocialSnapshot(
+                    villagerId,
+                    "unassigned",
+                    null,
+                    null
+            );
+        }
         operatorAuthoredContext = operatorAuthoredContext == null ? List.of() : List.copyOf(operatorAuthoredContext);
         memoryContext = memoryContext == null ? List.of() : List.copyOf(memoryContext);
         semanticMemoryContext = semanticMemoryContext == null ? List.of() : List.copyOf(semanticMemoryContext);
@@ -34,6 +48,34 @@ public record LivingWorldContextSnapshot(
         availableActions = availableActions == null ? List.of() : List.copyOf(availableActions);
         worldRoot = worldRoot.toAbsolutePath().normalize();
         language = language == null ? "" : language;
+    }
+
+    /** Source-compatible constructor for the complete pre-personality/social snapshot shape. */
+    public LivingWorldContextSnapshot(
+            UUID playerId,
+            UUID villagerId,
+            String playerName,
+            String villagerName,
+            List<String> contextLines,
+            List<String> worldFacts,
+            List<String> operatorAuthoredContext,
+            List<String> memoryContext,
+            List<String> semanticMemoryContext,
+            List<String> contradictionContext,
+            List<ActionDescriptor> availableActions,
+            long worldSeed,
+            long gameTime,
+            Path worldRoot,
+            boolean child,
+            boolean relative,
+            String language
+    ) {
+        this(
+                playerId, villagerId, playerName, villagerName,
+                contextLines, worldFacts, null,
+                operatorAuthoredContext, memoryContext, semanticMemoryContext, contradictionContext,
+                availableActions, worldSeed, gameTime, worldRoot, child, relative, language
+        );
     }
 
     /** Source-compatible constructor for call sites that know operator, episodic and semantic context but predate contradiction context. */
@@ -57,7 +99,8 @@ public record LivingWorldContextSnapshot(
     ) {
         this(
                 playerId, villagerId, playerName, villagerName,
-                contextLines, worldFacts, operatorAuthoredContext, memoryContext, semanticMemoryContext,
+                contextLines, worldFacts, null,
+                operatorAuthoredContext, memoryContext, semanticMemoryContext,
                 List.of(), availableActions, worldSeed, gameTime, worldRoot, child, relative, language
         );
     }
@@ -82,7 +125,8 @@ public record LivingWorldContextSnapshot(
     ) {
         this(
                 playerId, villagerId, playerName, villagerName,
-                contextLines, worldFacts, List.of(), memoryContext, semanticMemoryContext,
+                contextLines, worldFacts, null,
+                List.of(), memoryContext, semanticMemoryContext,
                 List.of(), availableActions, worldSeed, gameTime, worldRoot, child, relative, language
         );
     }
@@ -106,7 +150,8 @@ public record LivingWorldContextSnapshot(
     ) {
         this(
                 playerId, villagerId, playerName, villagerName,
-                contextLines, worldFacts, List.of(), memoryContext, List.of(),
+                contextLines, worldFacts, null,
+                List.of(), memoryContext, List.of(),
                 List.of(), availableActions, worldSeed, gameTime, worldRoot, child, relative, language
         );
     }
@@ -129,7 +174,8 @@ public record LivingWorldContextSnapshot(
     ) {
         this(
                 playerId, villagerId, playerName, villagerName,
-                contextLines, worldFacts, List.of(), List.of(), List.of(),
+                contextLines, worldFacts, null,
+                List.of(), List.of(), List.of(),
                 List.of(), availableActions, worldSeed, gameTime, worldRoot, child, relative, language
         );
     }

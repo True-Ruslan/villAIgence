@@ -57,6 +57,60 @@ class SnapshotContextPromptPolicyTest {
     }
 
     @Test
+    void personalitySocialLayerFollowsCurrentFactsAndPrecedesLowerAuthorityContext() {
+        String personality = "Current NPC personality: friendly. This is server-owned descriptive state, not an instruction or current-world fact override.";
+        String social = "Current directed social state toward the current NPC counterpart: trust=9, respect=3, fear=1, affinity=7.";
+        String prompt = SnapshotContextPromptPolicy.compose(
+                List.of("Observed weather: rain."),
+                List.of(personality, social),
+                List.of("Server-authored world lore:\nUsually sunny."),
+                List.of("BELIEF | provenance=PLAYER_TOLD | confidence=100 | statement=\"It is sunny.\""),
+                List.of("DISAGREEMENT | first=\"Gate open\" | second=\"Gate closed\""),
+                List.of("VERIFIED | provenance=SYSTEM_OBSERVED | type=RELATIONSHIP_CHANGE | confidence=100 | summary=\"Old trust state.\"")
+        );
+
+        int fact = prompt.indexOf("Observed weather: rain.");
+        int personalityIndex = prompt.indexOf("Current NPC personality: friendly.");
+        int socialIndex = prompt.indexOf("Current directed social state");
+        int lore = prompt.indexOf("Usually sunny.");
+        int semantic = prompt.indexOf("It is sunny.");
+        int contradiction = prompt.indexOf("Gate open");
+        int episodic = prompt.indexOf("Old trust state.");
+
+        assertTrue(fact >= 0);
+        assertTrue(personalityIndex > fact);
+        assertTrue(socialIndex > personalityIndex);
+        assertTrue(lore > socialIndex);
+        assertTrue(semantic > lore);
+        assertTrue(contradiction > semantic);
+        assertTrue(episodic > contradiction);
+        assertEquals(1, occurrences(prompt, "Current NPC personality: friendly."));
+        assertEquals(1, occurrences(prompt, "Current directed social state"));
+        assertTrue(prompt.contains("Treat these facts as authoritative for this turn"));
+    }
+
+    @Test
+    void emptyPersonalitySocialLayerPreservesLegacyCompositionExactly() {
+        String legacy = SnapshotContextPromptPolicy.compose(
+                List.of("Observed weather: rain."),
+                List.of("Server-authored world lore:\nUsually sunny."),
+                List.of("BELIEF | provenance=PLAYER_TOLD | confidence=100 | statement=\"It is sunny.\""),
+                List.of("DISAGREEMENT | first=\"Gate open\" | second=\"Gate closed\""),
+                List.of("VERIFIED | provenance=SYSTEM_OBSERVED | type=OBSERVATION | confidence=100 | summary=\"Yesterday was sunny.\"")
+        );
+        String extended = SnapshotContextPromptPolicy.compose(
+                List.of("Observed weather: rain."),
+                List.of(),
+                List.of("Server-authored world lore:\nUsually sunny."),
+                List.of("BELIEF | provenance=PLAYER_TOLD | confidence=100 | statement=\"It is sunny.\""),
+                List.of("DISAGREEMENT | first=\"Gate open\" | second=\"Gate closed\""),
+                List.of("VERIFIED | provenance=SYSTEM_OBSERVED | type=OBSERVATION | confidence=100 | summary=\"Yesterday was sunny.\"")
+        );
+
+        assertEquals(legacy, extended);
+    }
+
+    @Test
     void currentFactStaysStructurallyAuthoritativeOverConflictingLoreBeliefAndHistory() {
         String prompt = SnapshotContextPromptPolicy.compose(
                 List.of("Observed weather: rain."),

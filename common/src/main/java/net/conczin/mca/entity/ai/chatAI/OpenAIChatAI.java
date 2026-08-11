@@ -26,6 +26,7 @@ import net.conczin.mca.livingworld.ai.SemanticBeliefCandidateParser;
 import net.conczin.mca.livingworld.ai.SemanticBeliefExtractionPrompt;
 import net.conczin.mca.livingworld.ai.StructuredAiResponseParser;
 import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
+import net.conczin.mca.livingworld.context.PersonalitySocialContextRenderer;
 import net.conczin.mca.livingworld.context.SnapshotContextPromptPolicy;
 import net.conczin.mca.livingworld.memory.PersistentChatMemory;
 import net.conczin.mca.livingworld.memory2.Memory2RelationshipChangeIngestor;
@@ -504,6 +505,7 @@ public class OpenAIChatAI implements ChatAIStrategy {
         }
         systemBuilder.append(SnapshotContextPromptPolicy.compose(
                 snapshot.worldFacts(),
+                PersonalitySocialContextRenderer.render(snapshot.personalitySocialSnapshot()),
                 snapshot.operatorAuthoredContext(),
                 snapshot.semanticMemoryContext(),
                 snapshot.contradictionContext(),
