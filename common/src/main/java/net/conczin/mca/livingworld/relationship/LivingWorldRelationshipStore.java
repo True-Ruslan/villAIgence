@@ -5,6 +5,10 @@ import com.google.gson.GsonBuilder;
 import net.conczin.mca.livingworld.persistence.GsonJsonStoreCodec;
 import net.conczin.mca.livingworld.persistence.JsonStoreRecovery;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,6 +30,40 @@ public final class LivingWorldRelationshipStore {
     public static LivingWorldRelationshipStore forWorld(Path worldRoot) {
         Path file = worldRoot.toAbsolutePath().normalize().resolve("livingworld").resolve("relationships.json");
         return STORES.computeIfAbsent(file, LivingWorldRelationshipStore::new);
+    }
+
+    /**
+     * Read-only authorization view of the canonical relationship file.
+     * Missing persistence is neutral; malformed, symlinked, or non-regular persistence fails closed by exception.
+     * This path intentionally bypasses JsonStoreRecovery so an authorization check can never mutate or repair state.
+     */
+    public static LivingWorldRelationshipState readStrict(
+            Path worldRoot,
+            UUID villagerId,
+            UUID playerId
+    ) {
+        if (worldRoot == null || villagerId == null || playerId == null) {
+            throw new IllegalArgumentException("worldRoot, villagerId and playerId are required");
+        }
+
+        Path file = worldRoot.toAbsolutePath().normalize().resolve("livingworld").resolve("relationships.json");
+        if (!Files.exists(file, LinkOption.NOFOLLOW_LINKS)) {
+            return LivingWorldRelationshipState.NEUTRAL;
+        }
+        if (Files.isSymbolicLink(file) || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IllegalStateException("Relationship store is not a regular file: " + file);
+        }
+
+        try {
+            RelationshipFile loaded = CODEC.decode(Files.readString(file, StandardCharsets.UTF_8));
+            if (loaded == null || loaded.version != FORMAT_VERSION || loaded.relationships == null) {
+                throw new IllegalStateException("Relationship store schema is invalid: " + file);
+            }
+            LivingWorldRelationshipState state = loaded.relationships.get(key(villagerId, playerId));
+            return state == null ? LivingWorldRelationshipState.NEUTRAL : state;
+        } catch (IOException | RuntimeException e) {
+            throw new IllegalStateException("Unable to read relationship store strictly: " + file, e);
+        }
     }
 
     LivingWorldRelationshipStore(Path file) {

@@ -37,6 +37,7 @@ import net.conczin.mca.livingworld.memory2.MemoryEvent;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipChange;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipDelta;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipStore;
+import net.conczin.mca.livingworld.relationship.SnapshotCommandRelationshipPolicy;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -456,7 +457,14 @@ public class OpenAIChatAI implements ChatAIStrategy {
                 if (response.answer != null) {
                     String assistantMessage = response.answer.message != null ? response.answer.message : "...";
                     rememberDialogue(snapshot, msg, assistantMessage, pastDialogue, persistent, livingWorld);
-                    applySnapshotCommand(server, player, villager, snapshot, response.answer.optionalCommand());
+                    applySnapshotCommand(
+                            server,
+                            player,
+                            villager,
+                            snapshot,
+                            response.answer.optionalCommand(),
+                            livingWorld.relationshipStateEnabled
+                    );
                     relationshipChangeEvent = applySnapshotRelationshipDelta(snapshot, response.answer.relationshipDelta(), livingWorld);
                 }
                 Optional<String> message = Optional.ofNullable(response.answer != null ? response.answer.message : null);
@@ -571,13 +579,21 @@ public class OpenAIChatAI implements ChatAIStrategy {
             ServerPlayer player,
             VillagerEntityMCA villager,
             LivingWorldContextSnapshot snapshot,
-            @Nullable String commandName
+            @Nullable String commandName,
+            boolean relationshipStateEnabled
     ) {
         if (commandName == null || commandName.isBlank()) return;
         boolean wasAllowed = snapshot.availableActions().stream().anyMatch(action -> action.command().equals(commandName));
         if (!wasAllowed) return;
         server.execute(() -> {
             if (!player.isAlive() || villager.isRemoved() || player.level() != villager.level()) return;
+            if (!SnapshotCommandRelationshipPolicy.isAllowed(
+                    relationshipStateEnabled,
+                    snapshot.worldRoot(),
+                    snapshot.villagerId(),
+                    snapshot.playerId(),
+                    commandName
+            )) return;
             TriggerCommandInfos.findCommand(commandName, player, villager)
                     .ifPresent(command -> command.call.accept(player, villager));
         });
