@@ -16,7 +16,7 @@ class SnapshotLayeredPromptWiringPolicyTest {
                 "src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java"));
         String compact = source.replaceAll("\\s+", " ");
 
-        String layeredCall = "SnapshotContextPromptPolicy.compose( snapshot.worldFacts(), snapshot.operatorAuthoredContext(), snapshot.semanticMemoryContext(), snapshot.contradictionContext(), snapshot.memoryContext() )";
+        String layeredCall = "SnapshotContextPromptPolicy.compose( snapshot.worldFacts(), PersonalitySocialContextRenderer.render(snapshot.personalitySocialSnapshot()), snapshot.operatorAuthoredContext(), snapshot.semanticMemoryContext(), snapshot.contradictionContext(), snapshot.memoryContext() )";
         int layered = compact.indexOf(layeredCall);
         int structured = compact.indexOf("SemanticBeliefExtractionPrompt.requiresStructuredResponse", layered >= 0 ? layered : 0);
 
@@ -24,6 +24,8 @@ class SnapshotLayeredPromptWiringPolicyTest {
         assertTrue(structured > layered);
         assertFalse(source.contains("if (!snapshot.worldFacts().isEmpty())"));
         assertFalse(source.contains("Observed factual context from the current Minecraft world. Treat these facts as authoritative for this turn"));
+        assertFalse(source.contains("Current NPC personality: \" +"));
+        assertFalse(source.contains("Current directed social state toward the current NPC counterpart: \" +"));
     }
 
     @Test
