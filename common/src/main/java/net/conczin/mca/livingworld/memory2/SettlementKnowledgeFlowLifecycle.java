@@ -2,7 +2,7 @@ package net.conczin.mca.livingworld.memory2;
 
 import net.conczin.mca.livingworld.context.NpcPairDisposition;
 import net.conczin.mca.livingworld.context.PersonalitySocialInfluencePolicy;
-import net.conczin.mca.livingworld.relationship.NpcSocialGraphStore;
+import net.conczin.mca.livingworld.relationship.NpcSocialGraphStrictPairReader;
 import net.conczin.mca.livingworld.relationship.NpcSocialState;
 
 import java.nio.file.Path;
@@ -58,7 +58,8 @@ final class SettlementKnowledgeFlowLifecycle {
         for (SettlementKnowledgeFlowSelector.Opportunity opportunity : selection.opportunities()) {
             NpcSocialState social;
             try {
-                social = NpcSocialGraphStore.forWorld(worldRoot).get(
+                social = NpcSocialGraphStrictPairReader.read(
+                        worldRoot,
                         opportunity.speakerNpcId(),
                         opportunity.listenerNpcId()
                 );
