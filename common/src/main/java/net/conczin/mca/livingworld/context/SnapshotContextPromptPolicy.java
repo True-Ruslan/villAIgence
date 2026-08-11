@@ -57,9 +57,30 @@ public final class SnapshotContextPromptPolicy {
             List<String> contradictionContext,
             List<String> episodicMemoryContext
     ) {
+        return compose(
+                worldFacts,
+                personalitySocialContext,
+                List.of(),
+                operatorAuthoredContext,
+                semanticMemoryContext,
+                contradictionContext,
+                episodicMemoryContext
+        );
+    }
+
+    public static String compose(
+            List<String> worldFacts,
+            List<String> personalitySocialContext,
+            List<String> dialogueGuidance,
+            List<String> operatorAuthoredContext,
+            List<String> semanticMemoryContext,
+            List<String> contradictionContext,
+            List<String> episodicMemoryContext
+    ) {
         StringBuilder builder = new StringBuilder();
         appendObservedFacts(builder, worldFacts);
         appendPersonalitySocialContext(builder, personalitySocialContext);
+        appendDialogueGuidance(builder, dialogueGuidance);
         appendOperatorLore(builder, operatorAuthoredContext);
         builder.append(SemanticMemoryContextFormatter.promptSection(semanticMemoryContext));
         builder.append(SemanticContradictionContextFormatter.promptSection(contradictionContext));
@@ -96,6 +117,12 @@ public final class SnapshotContextPromptPolicy {
 
     private static void appendPersonalitySocialContext(StringBuilder builder, List<String> personalitySocialContext) {
         for (String line : nonBlank(personalitySocialContext)) {
+            builder.append(line).append('\n');
+        }
+    }
+
+    private static void appendDialogueGuidance(StringBuilder builder, List<String> dialogueGuidance) {
+        for (String line : nonBlank(dialogueGuidance)) {
             builder.append(line).append('\n');
         }
     }
