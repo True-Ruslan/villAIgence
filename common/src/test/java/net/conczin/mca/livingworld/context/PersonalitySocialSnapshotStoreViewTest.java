@@ -6,6 +6,7 @@ import net.conczin.mca.livingworld.relationship.NpcSocialState;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -95,6 +96,38 @@ class PersonalitySocialSnapshotStoreViewTest {
         assertEquals(new NpcSocialState(15, -2, 6, 19), reloaded.directedSocialState());
         assertArrayEquals(freshBefore, Files.readAllBytes(freshGraph));
         assertNoUnrelatedStateFiles(freshRoot);
+    }
+
+    @Test
+    void existingUnrelatedStateFilesRemainByteIdenticalAfterCaptureAndRender() throws Exception {
+        Path livingWorld = tempDir.resolve("livingworld");
+        Files.createDirectories(livingWorld);
+        Path relationships = livingWorld.resolve("relationships.json");
+        Path memory2 = livingWorld.resolve("memory2.json");
+        Path semanticMemory = livingWorld.resolve("semantic-memory.json");
+        byte[] relationshipBytes = "{\"sentinel\":\"relationships\"}\n".getBytes(StandardCharsets.UTF_8);
+        byte[] memory2Bytes = "{\"sentinel\":\"memory2\"}\n".getBytes(StandardCharsets.UTF_8);
+        byte[] semanticBytes = "{\"sentinel\":\"semantic-memory\"}\n".getBytes(StandardCharsets.UTF_8);
+        Files.write(relationships, relationshipBytes);
+        Files.write(memory2, memory2Bytes);
+        Files.write(semanticMemory, semanticBytes);
+
+        NpcSocialGraphStore store = NpcSocialGraphStore.forWorld(tempDir);
+        store.applyDelta(A, B, new NpcSocialDelta(4, 3, 2, 1), 20);
+
+        for (int i = 0; i < 4; i++) {
+            PersonalitySocialSnapshot snapshot = PersonalitySocialSnapshotStoreView.capture(
+                    tempDir,
+                    A,
+                    "peaceful",
+                    B
+            );
+            PersonalitySocialContextRenderer.render(snapshot);
+        }
+
+        assertArrayEquals(relationshipBytes, Files.readAllBytes(relationships));
+        assertArrayEquals(memory2Bytes, Files.readAllBytes(memory2));
+        assertArrayEquals(semanticBytes, Files.readAllBytes(semanticMemory));
     }
 
     @Test
