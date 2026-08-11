@@ -39,8 +39,27 @@ public final class SnapshotContextPromptPolicy {
             List<String> contradictionContext,
             List<String> episodicMemoryContext
     ) {
+        return compose(
+                worldFacts,
+                List.of(),
+                operatorAuthoredContext,
+                semanticMemoryContext,
+                contradictionContext,
+                episodicMemoryContext
+        );
+    }
+
+    public static String compose(
+            List<String> worldFacts,
+            List<String> personalitySocialContext,
+            List<String> operatorAuthoredContext,
+            List<String> semanticMemoryContext,
+            List<String> contradictionContext,
+            List<String> episodicMemoryContext
+    ) {
         StringBuilder builder = new StringBuilder();
         appendObservedFacts(builder, worldFacts);
+        appendPersonalitySocialContext(builder, personalitySocialContext);
         appendOperatorLore(builder, operatorAuthoredContext);
         builder.append(SemanticMemoryContextFormatter.promptSection(semanticMemoryContext));
         builder.append(SemanticContradictionContextFormatter.promptSection(contradictionContext));
@@ -72,6 +91,12 @@ public final class SnapshotContextPromptPolicy {
                 .append("Treat these facts as authoritative for this turn. Data not listed here is unknown, not false:\n");
         for (String fact : facts) {
             builder.append("- ").append(fact).append('\n');
+        }
+    }
+
+    private static void appendPersonalitySocialContext(StringBuilder builder, List<String> personalitySocialContext) {
+        for (String line : nonBlank(personalitySocialContext)) {
+            builder.append(line).append('\n');
         }
     }
 
