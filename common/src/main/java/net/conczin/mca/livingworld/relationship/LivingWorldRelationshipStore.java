@@ -204,8 +204,14 @@ public final class LivingWorldRelationshipStore {
         try {
             UUID villager = UUID.fromString(raw.substring(0, separator));
             UUID player = UUID.fromString(raw.substring(separator + 1));
+            if (!raw.equals(key(villager, player))) {
+                throw new IllegalStateException("Relationship key is not canonical: " + raw);
+            }
             return new RelationshipPair(villager, player);
         } catch (IllegalArgumentException e) {
+            if (e instanceof IllegalStateException illegalState) {
+                throw illegalState;
+            }
             throw new IllegalStateException("Relationship key contains an invalid UUID: " + raw, e);
         }
     }
