@@ -1,6 +1,5 @@
 package net.conczin.mca.livingworld.context;
 
-import net.conczin.mca.entity.ai.relationship.Personality;
 import net.conczin.mca.livingworld.relationship.NpcSocialState;
 import org.junit.jupiter.api.Test;
 
@@ -19,7 +18,7 @@ class PersonalitySocialContextRendererTest {
     void personalityOnlyRenderingIsFixedSizeAndServerAuthored() {
         PersonalitySocialSnapshot snapshot = new PersonalitySocialSnapshot(
                 SOURCE,
-                Personality.EXTROVERTED,
+                "extroverted",
                 null,
                 NpcSocialState.NEUTRAL
         );
@@ -36,7 +35,7 @@ class PersonalitySocialContextRendererTest {
     void directedRenderingContainsOnlyOneExactPairAndBoundedNumbers() {
         PersonalitySocialSnapshot snapshot = new PersonalitySocialSnapshot(
                 SOURCE,
-                Personality.CRABBY,
+                "crabby",
                 TARGET,
                 new NpcSocialState(17, -8, 4, -23)
         );
