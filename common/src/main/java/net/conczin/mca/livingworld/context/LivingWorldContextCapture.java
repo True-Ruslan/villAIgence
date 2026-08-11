@@ -19,9 +19,9 @@ import net.conczin.mca.livingworld.knowledge.WorldEventStore;
 import net.conczin.mca.livingworld.memory2.Memory2ContextProvider;
 import net.conczin.mca.livingworld.memory2.SemanticContradictionContextProvider;
 import net.conczin.mca.livingworld.memory2.SemanticMemoryContextProvider;
-import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipActionPolicy;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipState;
 import net.conczin.mca.livingworld.relationship.LivingWorldRelationshipStore;
+import net.conczin.mca.livingworld.relationship.SnapshotCommandRelationshipPolicy;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
@@ -120,8 +120,13 @@ public final class LivingWorldContextCapture {
         List<LivingWorldContextSnapshot.ActionDescriptor> actions = Config.getInstance().villagerChatAIUseTools
                 ? TriggerCommandInfos.triggerCommands.stream()
                 .filter(command -> command.isActive == null || command.isActive.test(player, villager))
-                .filter(command -> !livingWorld.relationshipStateEnabled
-                        || LivingWorldRelationshipActionPolicy.isAllowed(command.command, relationshipState))
+                .filter(command -> SnapshotCommandRelationshipPolicy.isAllowed(
+                        livingWorld.relationshipStateEnabled,
+                        worldRoot,
+                        villager.getUUID(),
+                        player.getUUID(),
+                        command.command
+                ))
                 .map(command -> new LivingWorldContextSnapshot.ActionDescriptor(command.command, command.description))
                 .toList()
                 : List.of();
@@ -235,8 +240,11 @@ public final class LivingWorldContextCapture {
     ) {
         if (!config.relationshipStateEnabled) return LivingWorldRelationshipState.NEUTRAL;
         try {
-            LivingWorldRelationshipState state = LivingWorldRelationshipStore.forWorld(worldRoot)
-                    .get(villager.getUUID(), player.getUUID());
+            LivingWorldRelationshipState state = LivingWorldRelationshipStore.readStrict(
+                    worldRoot,
+                    villager.getUUID(),
+                    player.getUUID()
+            );
             worldFacts.add(state.factualSummary());
             return state;
         } catch (RuntimeException e) {
