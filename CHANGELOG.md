@@ -23,6 +23,13 @@ This is the **canonical changelog** for the project.
 
 ### Added
 
+- Bounded read-only MCA Personality + direct NPC-pair social snapshot for the 0.3 track:
+  - canonical personality authority remains the existing MCA `VillagerBrain.getPersonality()` tracked/NBT enum state; the immutable snapshot carries only a closed canonical lowercase token derived synchronously on the server thread, so no second persisted/generated personality model is introduced;
+  - an optional counterpart exposes exactly one directed `NpcSocialGraphStore.get(source,target)` state with no reverse inference, neighbor enumeration or graph-wide disclosure; the normal player↔NPC snapshot has no NPC counterpart and therefore does not open the social graph merely to answer a player;
+  - snapshot/rendering is fixed-size and read-only: repeated capture plus fresh-root reload preserves exact graph bytes/state and creates no `relationships.json`, `memory2.json` or `semantic-memory.json` side effects;
+  - the snapshot-aware prompt path preserves legacy identity/mood/age/profession context while de-duplicating personality, then composes current world facts → server-owned personality/direct-social descriptive state → Operator Lore → Semantic Memory → live disagreement context → episodic/social history;
+  - current observed facts remain authoritative, the social/personality layer cannot promote BELIEF to FACT or mutate confidence/provenance/ranking, and no provider call/schema, public config, world file/version, migration/backfill, autonomous social delta or release identity change is introduced;
+  - real Fabric GameTests validate live MCA `FRIENDLY`/`CRABBY` personality extraction, independent A→B/B→A direct social state, unchanged tracked Personality and byte-identical graph persistence.
 - Server-owned causal NPC↔NPC social mutation lifecycle for the 0.3 track:
   - an additive latest-cause frontier per source NPC is persisted atomically with directed graph state inside existing `npc-social-graph.json` format v1, so graph replay protection does not depend on bounded `memory2.json` audit retention;
   - deterministic mutation identity binds the source NPC and exact retained cause event, while reusing the same cause with another target or bounded delta fails closed instead of becoming a second mutation;
@@ -160,12 +167,13 @@ This is the **canonical changelog** for the project.
   - candidate/result limits remain `32` / `6`, and existing Semantic/episodic ranker weights are unchanged.
 - Snapshot prompt context is composed exactly once in deterministic authority order:
   - current observed world facts first and authoritative for the turn;
+  - current server-owned personality/direct-NPC-social state next as bounded descriptive context, explicitly not a current-world fact override;
   - Operator Lore next as background context;
   - Semantic Memory next with FACT/BELIEF provenance labels preserved;
   - dedicated live contradiction/disagreement context next without truth arbitration;
   - episodic and social-history Memory 2.0 last among memory layers;
   - structured-response/tool instructions remain after all context layers;
-  - conflicting BELIEFs remain non-authoritative and stale relationship history does not override the current server-observed relationship state.
+  - conflicting BELIEFs remain non-authoritative and stale relationship/social history does not override current server-observed facts or the captured current descriptive state.
 - Long-horizon recall changes no persistence format/version, public configuration, provider request/retry behavior, relationship mutation authority or release identity contract; it adds no legacy `memory.json` reader, embeddings/vector database, background summarizer or extra LLM memory-management call.
 - NPC-to-NPC knowledge transfer reuses the existing `memory2.json` / `semantic-memory.json` formats, retention policies, Semantic consolidation, player-visibility eligibility and `32` / `24+8` / `6` long-horizon bounds; it adds no provider call, public config, client authority, autonomous visible NPC conversation, multi-hop rumor propagation or legacy migration.
 - Provenance-aware multi-hop rumors keep `memory2.json` format version 1 and the current Semantic persistence schema, retention coefficients, retrieval/ranking bounds, provider protocol, public configuration, voice/UI/scheduler/gameplay authority and release identity unchanged; there is no migration, backfill, dual reader, new store, second provider call, uncertainty model, distortion model or autonomous rumor-spread scheduler in this slice.
@@ -178,6 +186,7 @@ This is the **canonical changelog** for the project.
 
 ### Validation
 
+- Bounded personality/direct-social snapshot work in PR #155 uses staged compile/behavioral RED→GREEN gates for fixed-size loader-independent transport, exact read-only pair lookup, source-compatible immutable snapshot integration, personality de-duplication, prompt authority placement, live MCA Personality extraction and real server-thread capture. A direct MCA-enum common DTO experiment was rejected after it compiled but caused six runtime class-loading failures; typed enum authority is instead proven at the Fabric GameTest boundary. Preservation coverage exercises repeated capture/render, independent A→B/B→A state, byte-identical graph reads, fresh-root reload and no unrelated persistence writes. Exact evidence is recorded in `docs/superpowers/evidence/2026-08-11-personality-social-snapshot-tdd.md`.
 - Causal NPC↔NPC social mutation work in PR #153 uses staged compile/behavioral RED→GREEN gates for atomic source-frontier persistence, corruption sanitation, structured Memory 2.0 audit evidence, lifecycle authority, real MCA NPC identity validation and production restart replay. Review-hardening added two separate one-failure REDs: malformed-key attribution (774 tests / 1 failure) and malformed required cursor payload isolation (775 tests / 1 failure), both fixed without weakening runtime cursor invariants; exact TDD evidence is recorded in `docs/superpowers/evidence/2026-08-11-causal-npc-social-mutation-tdd.md`.
 - Controlled BELIEF admission was developed with a tests-first RED/GREEN boundary in PR #123.
 - Bounded player-told BELIEF extraction was developed through explicit RED/GREEN contract tests in PR #125; exact-head CI/release evidence is recorded in that PR.
