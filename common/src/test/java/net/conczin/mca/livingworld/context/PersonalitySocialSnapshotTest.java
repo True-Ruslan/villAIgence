@@ -1,6 +1,5 @@
 package net.conczin.mca.livingworld.context;
 
-import net.conczin.mca.entity.ai.relationship.Personality;
 import net.conczin.mca.livingworld.relationship.NpcSocialState;
 import org.junit.jupiter.api.Test;
 
@@ -19,13 +18,12 @@ class PersonalitySocialSnapshotTest {
     void personalityOnlySnapshotForcesNeutralSocialState() {
         PersonalitySocialSnapshot snapshot = new PersonalitySocialSnapshot(
                 SOURCE,
-                Personality.FRIENDLY,
+                "friendly",
                 null,
                 new NpcSocialState(90, 80, 70, 60)
         );
 
         assertEquals(SOURCE, snapshot.sourceNpcId());
-        assertEquals(Personality.FRIENDLY, snapshot.personality());
         assertEquals("friendly", snapshot.personalityToken());
         assertFalse(snapshot.hasCounterpart());
         assertEquals(NpcSocialState.NEUTRAL, snapshot.directedSocialState());
@@ -37,13 +35,12 @@ class PersonalitySocialSnapshotTest {
 
         PersonalitySocialSnapshot snapshot = new PersonalitySocialSnapshot(
                 SOURCE,
-                Personality.INTROVERTED,
+                "INTROVERTED",
                 TARGET,
                 social
         );
 
         assertTrue(snapshot.hasCounterpart());
-        assertEquals(Personality.INTROVERTED, snapshot.personality());
         assertEquals("introverted", snapshot.personalityToken());
         assertEquals(TARGET, snapshot.counterpartNpcId());
         assertEquals(social, snapshot.directedSocialState());
@@ -53,7 +50,7 @@ class PersonalitySocialSnapshotTest {
     void missingOrNonCanonicalPersonalityFailsSoftToUnassigned() {
         assertEquals("unassigned", new PersonalitySocialSnapshot(
                 SOURCE,
-                (String) null,
+                null,
                 null,
                 null
         ).personalityToken());
@@ -69,13 +66,13 @@ class PersonalitySocialSnapshotTest {
     void missingSourceAndSelfCounterpartFailClosed() {
         assertThrows(IllegalArgumentException.class, () -> new PersonalitySocialSnapshot(
                 null,
-                Personality.FRIENDLY,
+                "friendly",
                 null,
                 NpcSocialState.NEUTRAL
         ));
         assertThrows(IllegalArgumentException.class, () -> new PersonalitySocialSnapshot(
                 SOURCE,
-                Personality.FRIENDLY,
+                "friendly",
                 SOURCE,
                 NpcSocialState.NEUTRAL
         ));
