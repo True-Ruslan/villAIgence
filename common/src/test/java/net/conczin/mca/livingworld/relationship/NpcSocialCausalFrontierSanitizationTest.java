@@ -147,6 +147,9 @@ class NpcSocialCausalFrontierSanitizationTest {
         UUID source = UUID.fromString("30000000-0000-0000-0000-000000000001");
         UUID target = UUID.fromString("30000000-0000-0000-0000-000000000002");
         UUID cause = UUID.fromString("30000000-0000-0000-0000-000000000003");
+        UUID unrelatedSource = UUID.fromString("30000000-0000-0000-0000-000000000004");
+        UUID unrelatedTarget = UUID.fromString("30000000-0000-0000-0000-000000000005");
+        UUID unrelatedCause = UUID.fromString("30000000-0000-0000-0000-000000000006");
         Path file = tempDir.resolve("missing-required-frontier-field.json");
 
         Files.writeString(file, """
@@ -184,6 +187,37 @@ class NpcSocialCausalFrontierSanitizationTest {
                         source, target, cause, 500L, new NpcSocialDelta(1, 0, 0, 0), 4
                 ).status(),
                 "missing replay identity must fail closed for the attributable source"
+        );
+        assertEquals(
+                NpcSocialCausalMutation.Status.APPLIED,
+                store.applyCausalDelta(
+                        unrelatedSource,
+                        unrelatedTarget,
+                        unrelatedCause,
+                        501L,
+                        new NpcSocialDelta(2, 0, 0, 0),
+                        4
+                ).status(),
+                "an unrelated healthy source must remain writable"
+        );
+
+        NpcSocialGraphStore reloaded = new NpcSocialGraphStore(file);
+        assertEquals(
+                new NpcSocialState(5, 0, 0, 0),
+                reloaded.get(source, target),
+                "an unrelated save must preserve pre-existing valid graph state"
+        );
+        assertEquals(
+                NpcSocialCausalMutation.Status.FRONTIER_CORRUPT,
+                reloaded.applyCausalDelta(
+                        source, target, cause, 500L, new NpcSocialDelta(1, 0, 0, 0), 4
+                ).status(),
+                "an unrelated save/reload must not erase malformed-cursor replay ambiguity"
+        );
+        assertEquals(
+                new NpcSocialState(2, 0, 0, 0),
+                reloaded.get(unrelatedSource, unrelatedTarget),
+                "the unrelated healthy mutation must survive the same reload"
         );
     }
 
