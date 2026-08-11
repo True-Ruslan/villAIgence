@@ -331,6 +331,10 @@ public final class NpcSocialGraphStore {
                 .forEach(entry -> {
                     UUID source = parseUuid(entry.getKey());
                     if (source == null) {
+                        NpcSocialMutationCursor cursor = entry.getValue();
+                        if (cursor != null && cursor.sourceNpcId() != null) {
+                            blockedCausalSources.add(cursor.sourceNpcId());
+                        }
                         preserveRawFrontier(sanitized, entry);
                         return;
                     }
