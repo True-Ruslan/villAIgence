@@ -168,6 +168,29 @@ Conclusion: the server authority remains the exact MCA enum; the immutable trans
 
 Because the player↔NPC path supplies no NPC counterpart, it performs no social-graph lookup merely to answer a player. Future exact NPC↔NPC callers may supply one explicit counterpart through the same bounded capture adapter.
 
+## Review hardening — snapshot owner binding
+
+Manual base→head readiness review found one P2 integrity gap before merge: the primary `LivingWorldContextSnapshot` constructor could be called with `villagerId=A` while carrying a `PersonalitySocialSnapshot` owned by `sourceNpcId=B`. The normal server capture path already supplied matching IDs, but the immutable boundary itself did not enforce that invariant.
+
+### RED
+
+- Tests-only head: `194f1994c3c1271fc7b1313f8653e8e84dd56c43`
+- CI: #2745 / run `31526373610`
+- Result: 793 tests / exactly 1 failure, `canonicalConstructorRejectsPersonalitySocialSnapshotOwnedByAnotherNpc`.
+- Security/release-identity preflight remained green; later CI stages were skipped because the intended common regression failed first.
+
+### GREEN
+
+- Head: `cb489c37a3aa0662b9dc953ce1caa367de66df0c`
+- CI: #2747 / run `31526699758`
+- Result at evidence update time:
+  - common + deterministic mock-provider tests: SUCCESS (793 tests);
+  - risk-selected Fabric GameTests + Fabric/NeoForge loader builds: SUCCESS;
+  - production acceptance contract: SUCCESS.
+- Fix: the canonical immutable snapshot constructor now fails closed when a non-null `personalitySocialSnapshot.sourceNpcId()` differs from the non-null `villagerId`; compatibility/default construction is unchanged.
+
+This closes cross-NPC descriptive/social snapshot attachment at the immutable boundary without changing runtime capture behavior, prompt semantics, persistence, provider APIs, or feature scope.
+
 ## Preserved invariants
 
 The completed slice does not:
@@ -182,4 +205,4 @@ The completed slice does not:
 - promote BELIEF to FACT or change contradiction truth semantics;
 - add autonomous social deltas or trust weighting.
 
-Final delivery evidence belongs to the exact PR head after CHANGELOG/spec/evidence reconciliation; release publication must remain skipped in release-dry execution.
+Final delivery evidence belongs to the exact PR head after CHANGELOG/spec/evidence reconciliation and review hardening; release publication must remain skipped in release-dry execution.
