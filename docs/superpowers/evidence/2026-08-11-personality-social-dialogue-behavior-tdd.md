@@ -117,25 +117,60 @@ The slice deliberately adds no provider request/schema, public config, persisten
 
 ## Task 7 — live MCA acceptance
 
-- Acceptance-only head: `230295d515f64e5a6d009a9565cf17646d7c37e8`.
+- Initial acceptance head: `230295d515f64e5a6d009a9565cf17646d7c37e8`.
 - VillAIgence CI #2793 / run `31545335450`:
   - common + deterministic mock-provider stage: SUCCESS;
   - risk catalog + server GameTests + supported loader builds: SUCCESS.
+- Follow-up acceptance-only head: `66d7d9dfa15309fc96a9f28276787ccd42ab5c18`.
+- VillAIgence CI #2809 / run `31547672314`: common, server GameTests + supported loaders, and production acceptance contract stages SUCCESS.
 - Live Fabric GameTests use real MCA villagers and prove:
   - `Personality.FRIENDLY` becomes `WARM` bounded dialogue influence with no NPC counterpart/social edge;
+  - `Personality.CRABBY` becomes `GRUFF` in the asymmetric direct-pair scenario;
+  - `Personality.ANXIOUS` maps exactly to `ANXIOUS` with no invented social disposition;
   - directed A→B fear produces `FEARFUL` while independent B→A trust+affinity produces `AFFILIATIVE`;
-  - source `FRIENDLY` and counterpart `CRABBY` remain unchanged;
+  - live tracked personalities remain unchanged;
   - personality-only influence creates no social graph;
   - directed influence leaves existing `npc-social-graph.json` byte-identical;
   - combined personality + non-neutral pair influence remains capped at two guidance lines;
   - the test path calls no provider API.
+
+## Independent review hardening
+
+The first frozen delivery candidate was deliberately rejected after a base→head runtime review found real fail-open authority defects. Delivery remained blocked until each defect had its own observed RED and GREEN.
+
+### Social graph corruption must not become neutral/allowed
+
+- Review finding: settlement gating originally called recoverable `NpcSocialGraphStore.forWorld(...).get(...)`. A fully corrupt `npc-social-graph.json` could therefore be recovered to an empty graph and interpreted as `NEUTRAL → ALLOW`.
+- RED head: `dae38e0a4b31c906416a45005d177caa1a68ed20`.
+- VillAIgence CI #2797 / run `31546107807`: **827 tests / 1 failure**, exactly `SettlementSocialKnowledgeSharingCorruptionTest`.
+- GREEN head: `f900d560042517a2196da434ecc39c99079e591c`.
+- VillAIgence CI #2799 / run `31546426875`: common + deterministic provider stage SUCCESS.
+- Fix: `NpcSocialGraphStrictPairReader` performs read-only canonical format/key/state validation without invoking normal recovery; malformed/non-regular/symlinked authority suppresses the exact selected transfer, missing persistence remains neutral, and no `.corrupt` move/write occurs.
+
+### Capture-time relationship recovery must not erase a later deny
+
+- Review finding: even with strict execution-time authorization, `LivingWorldContextCapture` still loaded relationship state through normal recoverable storage. A corrupt `relationships.json` could be repaired to neutral during snapshot capture before the later strict check.
+- RED head: `0aa9c92d8b2c12a454df560f73be13d39d0e6a49`.
+- VillAIgence CI #2801 / run `31546696159`: **828 tests / 1 failure**, exactly `LivingWorldContextCaptureRelationshipAuthorizationWiringPolicyTest`.
+- GREEN head: `78ba3ea33180a6e9e97c707aece5ffcd0b39d582`.
+- VillAIgence CI #2803 / run `31546979506`: common + deterministic provider stage SUCCESS.
+- Fix: snapshot relationship facts now use `LivingWorldRelationshipStore.readStrict(...)`; snapshot action filtering uses `SnapshotCommandRelationshipPolicy`; the recoverable store is no longer touched by the capture authorization path.
+
+### Strict relationship payloads must be canonical, not silently defaulted/clamped
+
+- Review finding: Gson record decoding could accept an exact relationship object with a missing dimension as `0`, and out-of-range values could be clamped by the record constructor. Either case could turn corrupt authorization data into an allowed state.
+- RED head: `be94716a04d652d886712b10e88377879c3d7cb4`.
+- VillAIgence CI #2805 / run `31547229250`: **831 tests / 2 failures**, exactly the missing-required-field and out-of-range hostile-payload cases; the fractional-number case was already fail-closed.
+- GREEN head: `20f95462941ed6c10a70cdbd7c865356b3c0045e`.
+- VillAIgence CI #2807 / run `31547468952`: common + deterministic provider stage SUCCESS.
+- Fix: strict relationship authorization now parses raw JSON itself, validates format v1, canonical UUID pair keys, and all four required integer dimensions within `[-100,+100]`; any malformed authority fails closed without recovery or mutation.
 
 ## Preserved invariants
 
 The completed behavior slice does not:
 
 - change MCA Personality authority or persistence;
-- enumerate or rank the NPC social graph;
+- enumerate or rank the NPC social graph for counterpart selection;
 - use NPC×player `relationships.json` as NPC↔NPC social state;
 - allow social state to select a settlement pair or fallback listener;
 - allow the LLM/provider to author NPC social deltas or relationship authorization;
@@ -143,6 +178,8 @@ The completed behavior slice does not:
 - add a provider request, provider response field, public config or persistence schema/version;
 - add autonomous per-tick agents or visible NPC↔NPC LLM conversations;
 - publish a release.
+
+The exact-pair strict social reader parses canonical graph persistence only at the existing staggered village-update boundary (1200 ticks) and the settlement selector remains bounded to at most four opportunities per cycle; no per-NPC tick path was added.
 
 ## Final delivery gate
 
@@ -152,6 +189,6 @@ After this evidence/CHANGELOG reconciliation, delivery is accepted only on one f
 - VillAIgence CI SUCCESS, including common tests, Fabric GameTests, supported loaders, production acceptance and package verification;
 - Production Soak SUCCESS;
 - GitHub Release dry-run SUCCESS with publication skipped;
-- base→head readiness review with no unresolved P0/P1/P2/P3 findings.
+- base→head readiness review with no unresolved P0/P1/P2 findings.
 
 Exact frozen-head workflow IDs belong to the final PR checks/body so this ledger does not require a post-verification code/doc commit that would invalidate its own evidence.
