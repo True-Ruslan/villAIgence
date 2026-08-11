@@ -8,6 +8,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -58,6 +59,45 @@ class PersonalitySocialSnapshotStoreViewTest {
     }
 
     @Test
+    void repeatedCaptureAndFreshRootReloadStayReadOnlyAndExact() throws Exception {
+        NpcSocialGraphStore store = NpcSocialGraphStore.forWorld(tempDir);
+        store.applyDelta(A, B, new NpcSocialDelta(15, -2, 6, 19), 20);
+        Path graph = tempDir.resolve("livingworld/npc-social-graph.json");
+        byte[] original = Files.readAllBytes(graph);
+
+        for (int i = 0; i < 8; i++) {
+            PersonalitySocialSnapshot snapshot = PersonalitySocialSnapshotStoreView.capture(
+                    tempDir,
+                    A,
+                    "friendly",
+                    B
+            );
+            assertEquals(new NpcSocialState(15, -2, 6, 19), snapshot.directedSocialState());
+            PersonalitySocialContextRenderer.render(snapshot);
+        }
+        assertArrayEquals(original, Files.readAllBytes(graph));
+        assertNoUnrelatedStateFiles(tempDir);
+
+        Path freshRoot = tempDir.resolve("fresh-root");
+        Path freshLivingWorld = freshRoot.resolve("livingworld");
+        Files.createDirectories(freshLivingWorld);
+        Path freshGraph = freshLivingWorld.resolve("npc-social-graph.json");
+        Files.copy(graph, freshGraph, StandardCopyOption.REPLACE_EXISTING);
+        byte[] freshBefore = Files.readAllBytes(freshGraph);
+
+        PersonalitySocialSnapshot reloaded = PersonalitySocialSnapshotStoreView.capture(
+                freshRoot,
+                A,
+                "friendly",
+                B
+        );
+
+        assertEquals(new NpcSocialState(15, -2, 6, 19), reloaded.directedSocialState());
+        assertArrayEquals(freshBefore, Files.readAllBytes(freshGraph));
+        assertNoUnrelatedStateFiles(freshRoot);
+    }
+
+    @Test
     void directPairDirectionIsNeverInferredOrReversed() {
         NpcSocialGraphStore store = NpcSocialGraphStore.forWorld(tempDir);
         store.applyDelta(A, B, new NpcSocialDelta(9, 1, 0, 4), 20);
@@ -94,5 +134,12 @@ class PersonalitySocialSnapshotStoreViewTest {
         assertFalse(snapshot.hasCounterpart());
         assertEquals(NpcSocialState.NEUTRAL, snapshot.directedSocialState());
         assertFalse(Files.exists(graph));
+    }
+
+    private static void assertNoUnrelatedStateFiles(Path worldRoot) {
+        Path livingWorld = worldRoot.resolve("livingworld");
+        assertFalse(Files.exists(livingWorld.resolve("relationships.json")));
+        assertFalse(Files.exists(livingWorld.resolve("memory2.json")));
+        assertFalse(Files.exists(livingWorld.resolve("semantic-memory.json")));
     }
 }
