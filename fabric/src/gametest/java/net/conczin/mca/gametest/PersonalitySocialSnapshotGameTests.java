@@ -16,6 +16,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 
 public final class PersonalitySocialSnapshotGameTests implements FabricGameTest {
     @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
@@ -84,6 +85,36 @@ public final class PersonalitySocialSnapshotGameTests implements FabricGameTest 
         helper.assertTrue(rendered.size() == 2, "Directed renderer must remain fixed-size");
         helper.assertTrue(!joined.contains(source.getUUID().toString()), "Rendered context must not expose source UUID");
         helper.assertTrue(!joined.contains(counterpart.getUUID().toString()), "Rendered context must not expose counterpart UUID");
+        helper.succeed();
+    }
+
+    @GameTest(template = FabricGameTest.EMPTY_STRUCTURE)
+    public void everyMcaPersonalityMapsToItsCanonicalTransportToken(GameTestHelper helper) throws Exception {
+        VillagerEntityMCA source = helper.spawn(EntitiesMCA.MALE_VILLAGER, 2, 1, 2);
+        Path worldRoot = Files.createTempDirectory("villaigence-personality-token-gametest-");
+
+        for (Personality personality : Personality.values()) {
+            source.getVillagerBrain().setPersonality(personality);
+            PersonalitySocialSnapshot snapshot = PersonalitySocialSnapshotCapture.capture(
+                    worldRoot,
+                    source,
+                    null
+            );
+            String expected = personality.name().toLowerCase(Locale.ROOT);
+            helper.assertTrue(
+                    snapshot.personalityToken().equals(expected),
+                    "MCA Personality " + personality + " must map to canonical token " + expected
+            );
+            helper.assertTrue(
+                    source.getVillagerBrain().getPersonality() == personality,
+                    "Personality capture must not mutate MCA tracked state for " + personality
+            );
+        }
+
+        helper.assertTrue(
+                !Files.exists(worldRoot.resolve("livingworld").resolve("npc-social-graph.json")),
+                "Personality-only capture for every MCA enum value must not create the social graph"
+        );
         helper.succeed();
     }
 }
