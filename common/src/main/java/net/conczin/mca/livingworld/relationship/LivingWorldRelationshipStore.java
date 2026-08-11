@@ -2,6 +2,9 @@ package net.conczin.mca.livingworld.relationship;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import net.conczin.mca.livingworld.persistence.GsonJsonStoreCodec;
 import net.conczin.mca.livingworld.persistence.JsonStoreRecovery;
 
@@ -11,7 +14,9 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -55,13 +60,39 @@ public final class LivingWorldRelationshipStore {
         }
 
         try {
-            RelationshipFile loaded = CODEC.decode(Files.readString(file, StandardCharsets.UTF_8));
-            if (loaded == null || loaded.version != FORMAT_VERSION || loaded.relationships == null) {
-                throw new IllegalStateException("Relationship store schema is invalid: " + file);
+            JsonElement parsed = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8));
+            if (!parsed.isJsonObject()) {
+                throw new IllegalStateException("Relationship store root must be an object");
             }
-            LivingWorldRelationshipState state = loaded.relationships.get(key(villagerId, playerId));
-            return state == null ? LivingWorldRelationshipState.NEUTRAL : state;
+            JsonObject root = parsed.getAsJsonObject();
+            if (requiredInt(root, "version") != FORMAT_VERSION) {
+                throw new IllegalStateException("Unsupported relationship store format");
+            }
+
+            JsonElement relationshipsElement = root.get("relationships");
+            if (relationshipsElement == null || !relationshipsElement.isJsonObject()) {
+                throw new IllegalStateException("Relationship store relationships must be an object");
+            }
+
+            Set<String> canonicalKeys = new HashSet<>();
+            LivingWorldRelationshipState requested = null;
+            for (Map.Entry<String, JsonElement> entry : relationshipsElement.getAsJsonObject().entrySet()) {
+                RelationshipPair pair = parsePair(entry.getKey());
+                String canonicalKey = key(pair.villagerId(), pair.playerId());
+                if (!canonicalKeys.add(canonicalKey)) {
+                    throw new IllegalStateException("Duplicate canonical relationship pair: " + canonicalKey);
+                }
+
+                LivingWorldRelationshipState state = parseState(entry.getValue());
+                if (pair.villagerId().equals(villagerId) && pair.playerId().equals(playerId)) {
+                    requested = state;
+                }
+            }
+            return requested == null ? LivingWorldRelationshipState.NEUTRAL : requested;
         } catch (IOException | RuntimeException e) {
+            if (e instanceof IllegalStateException illegalState) {
+                throw illegalState;
+            }
             throw new IllegalStateException("Unable to read relationship store strictly: " + file, e);
         }
     }
@@ -125,8 +156,65 @@ public final class LivingWorldRelationshipStore {
         JsonStoreRecovery.writeAtomic(file, CODEC, data);
     }
 
+    private static LivingWorldRelationshipState parseState(JsonElement element) {
+        if (element == null || !element.isJsonObject()) {
+            throw new IllegalStateException("Relationship state must be an object");
+        }
+        JsonObject state = element.getAsJsonObject();
+        return new LivingWorldRelationshipState(
+                boundedStateValue(state, "trust"),
+                boundedStateValue(state, "respect"),
+                boundedStateValue(state, "fear"),
+                boundedStateValue(state, "affinity")
+        );
+    }
+
+    private static int boundedStateValue(JsonObject object, String field) {
+        int value = requiredInt(object, field);
+        if (value < -100 || value > 100) {
+            throw new IllegalStateException("Relationship field out of range: " + field);
+        }
+        return value;
+    }
+
+    private static int requiredInt(JsonObject object, String field) {
+        JsonElement element = object.get(field);
+        if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+            throw new IllegalStateException("Required integer field is missing or invalid: " + field);
+        }
+        String raw = element.getAsString();
+        if (!raw.matches("-?(0|[1-9][0-9]*)")) {
+            throw new IllegalStateException("Required integer field is not canonical: " + field);
+        }
+        try {
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("Required integer field is out of range: " + field, e);
+        }
+    }
+
+    private static RelationshipPair parsePair(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalStateException("Relationship key is blank");
+        }
+        int separator = raw.indexOf('/');
+        if (separator <= 0 || separator != raw.lastIndexOf('/') || separator == raw.length() - 1) {
+            throw new IllegalStateException("Relationship key is malformed: " + raw);
+        }
+        try {
+            UUID villager = UUID.fromString(raw.substring(0, separator));
+            UUID player = UUID.fromString(raw.substring(separator + 1));
+            return new RelationshipPair(villager, player);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("Relationship key contains an invalid UUID: " + raw, e);
+        }
+    }
+
     private static String key(UUID villagerId, UUID playerId) {
         return villagerId + "/" + playerId;
+    }
+
+    private record RelationshipPair(UUID villagerId, UUID playerId) {
     }
 
     private static final class RelationshipFile {
