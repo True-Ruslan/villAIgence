@@ -16,7 +16,7 @@ class SnapshotLayeredPromptWiringPolicyTest {
                 "src/main/java/net/conczin/mca/entity/ai/chatAI/OpenAIChatAI.java"));
         String compact = source.replaceAll("\\s+", " ");
 
-        String layeredCall = "SnapshotContextPromptPolicy.compose( snapshot.worldFacts(), PersonalitySocialContextRenderer.render(snapshot.personalitySocialSnapshot()), snapshot.operatorAuthoredContext(), snapshot.semanticMemoryContext(), snapshot.contradictionContext(), snapshot.memoryContext() )";
+        String layeredCall = "SnapshotContextPromptPolicy.compose( snapshot.worldFacts(), PersonalitySocialContextRenderer.render(snapshot.personalitySocialSnapshot()), personalitySocialGuidance, snapshot.operatorAuthoredContext(), snapshot.semanticMemoryContext(), snapshot.contradictionContext(), snapshot.memoryContext() )";
         int layered = compact.indexOf(layeredCall);
         int structured = compact.indexOf("SemanticBeliefExtractionPrompt.requiresStructuredResponse", layered >= 0 ? layered : 0);
 

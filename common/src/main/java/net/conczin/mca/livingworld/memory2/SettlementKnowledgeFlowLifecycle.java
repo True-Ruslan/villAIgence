@@ -1,5 +1,10 @@
 package net.conczin.mca.livingworld.memory2;
 
+import net.conczin.mca.livingworld.context.NpcPairDisposition;
+import net.conczin.mca.livingworld.context.PersonalitySocialInfluencePolicy;
+import net.conczin.mca.livingworld.relationship.NpcSocialGraphStrictPairReader;
+import net.conczin.mca.livingworld.relationship.NpcSocialState;
+
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -41,14 +46,34 @@ final class SettlementKnowledgeFlowLifecycle {
                     0,
                     0,
                     0,
+                    0,
                     List.of()
             );
         }
 
         List<NpcKnowledgeTransferResult.Status> statuses = new ArrayList<>(selection.opportunities().size());
+        int sociallySuppressed = 0;
         int attempted = 0;
         int admitted = 0;
         for (SettlementKnowledgeFlowSelector.Opportunity opportunity : selection.opportunities()) {
+            NpcSocialState social;
+            try {
+                social = NpcSocialGraphStrictPairReader.read(
+                        worldRoot,
+                        opportunity.speakerNpcId(),
+                        opportunity.listenerNpcId()
+                );
+            } catch (RuntimeException ignored) {
+                sociallySuppressed++;
+                continue;
+            }
+
+            NpcPairDisposition disposition = PersonalitySocialInfluencePolicy.pairDisposition(social);
+            if (!SettlementSocialKnowledgeSharingPolicy.isAllowed(disposition)) {
+                sociallySuppressed++;
+                continue;
+            }
+
             attempted++;
             NpcKnowledgeTransferResult result = NpcKnowledgeTransferLifecycle.transfer(
                     worldRoot,
@@ -67,6 +92,7 @@ final class SettlementKnowledgeFlowLifecycle {
                 selection.residentWindow().size(),
                 selection.speakersConsidered(),
                 selection.opportunities().size(),
+                sociallySuppressed,
                 attempted,
                 admitted,
                 statuses
@@ -77,6 +103,7 @@ final class SettlementKnowledgeFlowLifecycle {
             int residentWindowSize,
             int speakersConsidered,
             int opportunities,
+            int sociallySuppressedTransfers,
             int attemptedTransfers,
             int successfulTransfers,
             List<NpcKnowledgeTransferResult.Status> statuses
@@ -88,17 +115,22 @@ final class SettlementKnowledgeFlowLifecycle {
                     Math.min(SettlementKnowledgeFlowSelector.MAX_SPEAKERS_PER_CYCLE, speakersConsidered));
             opportunities = Math.max(0,
                     Math.min(SettlementKnowledgeFlowSelector.MAX_OPPORTUNITIES_PER_CYCLE, opportunities));
+            sociallySuppressedTransfers = Math.max(0,
+                    Math.min(opportunities, sociallySuppressedTransfers));
             attemptedTransfers = Math.max(0,
                     Math.min(SettlementKnowledgeFlowSelector.MAX_OPPORTUNITIES_PER_CYCLE, attemptedTransfers));
             successfulTransfers = Math.max(0, Math.min(attemptedTransfers, successfulTransfers));
             statuses = statuses == null ? List.of() : List.copyOf(statuses);
+            if (attemptedTransfers + sociallySuppressedTransfers != opportunities) {
+                throw new IllegalArgumentException("every opportunity must be attempted or socially suppressed");
+            }
             if (statuses.size() != attemptedTransfers) {
                 throw new IllegalArgumentException("status count must equal attempted transfers");
             }
         }
 
         static CycleResult empty() {
-            return new CycleResult(0, 0, 0, 0, 0, List.of());
+            return new CycleResult(0, 0, 0, 0, 0, 0, List.of());
         }
     }
 }
