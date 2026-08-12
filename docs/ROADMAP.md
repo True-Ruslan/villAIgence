@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation/validation state. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-08-12**, after PR #158 merged deliberate Personality + social dialogue/behavior integration.
+> Last reconciled: **2026-08-12**, after PR #160 merged the 0.3 release-convergence contract and verified candidate boundary.
 
 ## Product vision
 
@@ -67,6 +67,7 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 38. **Read-only social/personality context precedes social behavior policy.** PR #155 established the bounded direct-pair snapshot; behavior may consume it without inheriting mutation authority.
 39. **Social/personality influence is preference, not authority.** Dialogue tone and selected behavior gating may depend on the snapshot, but current world facts, safety policy, target validation and causal mutation rules remain stronger.
 40. **Authority-sensitive persistence reads fail closed without repair.** A behavior gate must not recover malformed social/relationship state into neutral/allowed authority.
+41. **Release convergence and publication are separate stages.** A planned candidate may pass full convergence while `NEXT_RELEASE.txt` remains unchanged; exact request, immutable release creation and installed acceptance each require their own evidence.
 
 ---
 
@@ -97,19 +98,22 @@ settlement-scale information flow without omniscience  COMPLETE / PR #147
 relationship/trust social epistemology                 COMPLETE / PR #149
 0.2 Memory 2.0 source capability track                 COMPLETE AT CURRENT PLANNED BOUNDARY / UNRELEASED
 
-0.3 Personality + NPC↔NPC Social Graph                 IN CONVERGENCE
+0.3 Personality + NPC↔NPC Social Graph                 CONVERGENCE COMPLETE / RELEASE REQUEST NEXT
 NPC↔NPC social-graph persistence foundation            COMPLETE / PR #151
 server-owned causal NPC↔NPC social mutation lifecycle COMPLETE / PR #153
 bounded read-only MCA Personality + pair snapshot      COMPLETE / PR #155
 deliberate dialogue/behavior integration               COMPLETE / PR #158
-0.3 convergence / release-candidate planning           NEXT
+0.3 convergence / release-candidate planning           COMPLETE / PR #160
+exact 0.3.0+1.21.1 release request / candidate         NEXT
 ```
 
 Immediate sequence:
 
 ```text
-0.3 convergence / release-candidate planning
-→ exact 0.3 candidate + installed acceptance
+exact 0.3.0+1.21.1 release request / candidate creation
+→ exact immutable release publication
+→ installed clean-state acceptance
+→ post-release state/roadmap/changelog reconciliation
 → richer knowledge ecosystem / 0.4
 ```
 
@@ -135,7 +139,7 @@ VAI-CONCUR-004:    NOT TESTED / DEFERRED
 
 The release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is clean-state; no legacy conversation importer or dual reader is planned.
 
-PRs #127 through #158 listed in `PROJECT_STATE.md` are post-release `[Unreleased]` source capabilities. Their automated evidence must not be represented as installed `0.2.0` acceptance.
+PRs #127 through #158 listed in `PROJECT_STATE.md` are post-release `[Unreleased]` source capabilities. Their automated evidence must not be represented as installed `0.2.0` acceptance. PR #160 is convergence/release infrastructure, not gameplay capability or installed evidence.
 
 ---
 
@@ -181,7 +185,8 @@ causal NPC↔NPC mutation lifecycle                COMPLETE / PR #153
 bounded read-only personality/social snapshot    COMPLETE / PR #155
 dialogue/behavior effect                         COMPLETE / PR #158
 high-frequency autonomous social evolution       NOT IN 0.3 BOUNDED SCOPE
-release convergence                              NEXT
+release convergence                              COMPLETE / PR #160
+exact 0.3.0+1.21.1 release request / candidate  NEXT
 ```
 
 ## Completed — NPC↔NPC social-graph persistence foundation
@@ -390,84 +395,140 @@ docs/superpowers/evidence/2026-08-11-personality-social-dialogue-behavior-tdd.md
 
 VillAIgence now has persistent directed NPC↔NPC social state, causal exactly-once mutation authority, bounded read-only Personality/direct-pair context, deterministic dialogue influence and a narrow server-owned behavior effect without transferring truth, gameplay or mutation authority to the provider.
 
-This does **not** mean a new installed release exists. The track now enters convergence/release-candidate planning.
+This does **not** mean a new installed release exists. The track then entered convergence/release-candidate planning.
+
+## Completed — 0.3 release convergence / candidate planning
+
+Merged through PR #160 / `03ccb2d5d047ca551a5ac6be6b927de4404f09cf`.
+
+Implemented convergence boundary:
+
+```text
+immutable 0.2.0+1.21.1 release baseline
++ actual post-release feature history
++ root CHANGELOG [Unreleased]
++ exact world/recovery-store contracts
++ current acceptance/deferred boundaries
+→ machine-readable 0.3.0+1.21.1 convergence contract
+→ deterministic fail-closed validation
+→ exact candidate/recovery/install plan
+→ publication trigger remains separate
+```
+
+Properties:
+
+- candidate identity is fixed at `0.3.0+1.21.1` and must match requested tag, filename, embedded metadata and manifest;
+- every post-`0.2.0` `feat:` capability through PR #158 is inventoried and traceable from root `[Unreleased]`;
+- release-infrastructure PRs #121/#122 remain a separate inventory;
+- current seven world stores and six auxiliary recovery stores are explicit and validated against production code;
+- the pre-1.0 private test-server boundary remains clean-state/no-migration;
+- manual canaries and `VAI-M2-INST-005` / `VAI-CONCUR-004` deferrals remain explicit;
+- pull-request history validation uses canonical base history rather than synthetic merge commits; exact release contexts use exact `HEAD`;
+- `docs/releases/NEXT_RELEASE.txt` intentionally remains `0.2.0+1.21.1`, so convergence itself cannot publish;
+- no runtime/config/persistence/provider/workflow-surface change was added.
+
+Frozen source head and delivery evidence:
+
+```text
+head:                                      41f76c518bae98a8c373522c76eb7066c280a3e9
+merge:                                     03ccb2d5d047ca551a5ac6be6b927de4404f09cf
+Repository security policy #2498:         SUCCESS / 31580558127
+VillAIgence CI #2862:                     SUCCESS / 31580558133
+VillAIgence Production Soak #509:         SUCCESS / 31580558351
+VillAIgence GitHub Release #842:          SUCCESS / 31580558274
+github-release publication:               SKIPPED
+review P0/P1/P2:                          0 / 0 / 0
+unresolved review threads:                0
+```
+
+Exact convergence plan/evidence:
+
+```text
+docs/releases/0.3.0+1.21.1-PLAN.md
+docs/releases/0.3.0-convergence.json
+docs/superpowers/evidence/2026-08-12-0.3-release-convergence-tdd.md
+```
+
+### Convergence exit criterion — met
+
+The current post-`0.2.0` capability set has one explicit 0.3 scope, exact candidate identity, deterministic automated acceptance map, honest manual/deferred boundary and verified rollback/recovery plan. Candidate creation is now authorized as the next separate shipping step.
 
 ---
 
-# NEXT — 0.3 convergence / release-candidate planning
+# NEXT — exact 0.3.0+1.21.1 release request / candidate creation
 
-The next step is **release-risk convergence, not feature expansion**.
+The next step is **shipping the proven boundary without expanding product scope**.
 
 ## Goal
 
-Turn the complete post-`0.2.0` source capability set into one explicit, auditable 0.3 release boundary before creating or publishing an exact candidate.
+Arm exactly `0.3.0+1.21.1` through the existing release trigger only after the dedicated request head passes the same deterministic release gates, then verify the immutable published artifact before installed acceptance.
 
 Target contract:
 
 ```text
-post-0.2 merged capabilities (#127 → #158)
-+ root CHANGELOG [Unreleased]
-+ current version/release automation
-+ current acceptance catalog
-+ current persistence/recovery matrix
-→ explicit 0.3 candidate scope
-→ exact release identity/version plan
-→ deterministic acceptance matrix
-→ explicit unavoidable manual/deferred matrix
-→ rollback/recovery plan
-→ exact candidate preparation
+green reconciled main
++ convergence contract/plan
++ NEXT_RELEASE.txt = 0.3.0+1.21.1
++ exact 0.3 changelog section
+→ exact release-request validation
+→ security + full CI + production soak + release dry-run
+→ independent review P0/P1/P2 = 0
+→ squash merge with expected-head protection
+→ main push publishes immutable 0.3.0+1.21.1
+→ verify tag/asset/manifest/embedded metadata/JAR identity
+→ installed clean-state acceptance
+→ post-release reconciliation
 ```
 
-## Required convergence decisions
+## Required release decisions
 
-1. **Release scope**
-   - inventory every post-`0.2.0` merged product capability exactly once;
-   - verify the intended 0.3 boundary includes social graph persistence, causal mutation, read-only snapshot and deliberate dialogue/behavior integration;
-   - explicitly exclude autonomous high-frequency agents, graph-neighborhood policy, factions/politics and 0.4 knowledge expansion.
+1. **Dedicated request only**
+   - change `docs/releases/NEXT_RELEASE.txt` to exactly `0.3.0+1.21.1` in a release-only PR;
+   - do not mix new gameplay/runtime scope into the request;
+   - do not alter the convergence contract unless validation exposes a real mismatch.
 
-2. **Persistence / migration boundary**
-   - inventory current stores and format/config changes;
-   - keep the accepted pre-1.0 clean-state test-server policy unless a real supported-data migration need is found;
-   - do not invent migration code merely because a release boundary is being prepared.
+2. **Changelog release boundary**
+   - move the shipped root `[Unreleased]` entries into the exact `0.3.0+1.21.1` section;
+   - preserve one canonical history entry per change rather than duplicating it;
+   - leave `[Unreleased]` ready for post-release work.
 
-3. **Exact identity**
-   - choose the exact 0.3 version only after verifying current version/tag/manifest automation;
-   - tag, filename, embedded metadata and release manifest must remain one immutable identity;
-   - release recovery may only rebuild from the immutable tag commit.
+3. **Exact-head gates**
+   - require repository security, complete CI, Production Soak and GitHub Release dry-run on one frozen request head;
+   - require release-request identity validation against `0.3.0+1.21.1`;
+   - independently review base→head and require P0/P1/P2 = 0 plus zero unresolved review threads.
 
-4. **Acceptance matrix**
-   - map every new post-release capability to existing deterministic tests/GameTests/production/recovery evidence;
-   - add new contract tests only for uncovered release-critical boundaries;
-   - keep `VAI-M2-INST-005` and `VAI-CONCUR-004` explicitly deferred unless real second-client evidence becomes available;
-   - distinguish candidate automation from installed server/client acceptance.
+4. **Immutable publication**
+   - merge only with expected-head protection;
+   - publication must happen from the resulting main commit through the existing workflow;
+   - never move/recreate an existing tag; recovery may rebuild only from the immutable tag commit;
+   - verify the released JAR is byte-identical to the production-accepted/package-verified JAR.
 
-5. **Delivery**
-   - final release-prep head requires security, full CI, production soak, release dry-run and independent P0/P1/P2=0 review;
-   - publication remains skipped during dry-run;
-   - exact candidate/tag/release is a separate authorized delivery action;
-   - installed clean-state acceptance happens after an exact candidate exists.
+5. **Installed acceptance**
+   - install the exact GitHub Release asset on the clean private test-server boundary defined in the plan;
+   - run required installed/manual canaries and record actual evidence only;
+   - keep `VAI-M2-INST-005` and `VAI-CONCUR-004` as NOT TESTED/deferred unless real evidence is obtained;
+   - reconcile `PROJECT_STATE.md`, `ROADMAP.md` and root changelog after release/acceptance.
 
 ## Required progression
 
 ```text
-convergence specification + checklist
-→ inventory CHANGELOG / version / stores / acceptance coverage
-→ RED contract tests only where a concrete release gap exists
-→ minimal release/CI corrections only for observed gaps
-→ freeze release-prep head
-→ security + full CI + production soak
-→ full release dry-run with github-release skipped
+release-only branch from reconciled main
+→ RED/validation if request identity or changelog release boundary is incomplete
+→ minimal release-request changes
+→ exact-head security / CI / soak / release dry-run
 → independent review P0/P1/P2 = 0
-→ exact 0.3 candidate preparation
+→ ready + squash merge with expected head
+→ verify published immutable tag/release/JAR identity
+→ install clean-state candidate
 → installed acceptance
 → post-release reconciliation
 ```
 
-### Convergence exit criterion
+### Release-request exit criterion
 
-The repository has one explicit 0.3 release scope, exact candidate identity plan, complete automated coverage map, honest manual/deferred boundary and verified rollback/recovery path, with no unresolved release-critical gap hidden behind source-level green CI.
+An immutable `0.3.0+1.21.1` GitHub Release exists from the exact accepted main commit, its artifact identity matches the production-accepted package, and installed acceptance is then performed and recorded separately.
 
-Only after this criterion is met should an exact 0.3 candidate be created. Do not jump directly into 0.4/0.5 work before closing the release boundary.
+Do not begin 0.4/0.5 feature expansion until this exact release/installed boundary is reconciled.
 
 ---
 
