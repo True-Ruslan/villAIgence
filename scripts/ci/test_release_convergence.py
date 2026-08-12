@@ -316,6 +316,12 @@ _No entries._
             tuple(contract["deferredInstalledCases"]),
         )
 
+    def test_exact_release_request_path_triggers_production_soak(self) -> None:
+        soak = (
+            REPOSITORY_ROOT / ".github/workflows/livingworld-soak.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("- 'docs/releases/NEXT_RELEASE.txt'", soak)
+
     def test_publication_trigger_is_previous_release_or_exact_candidate(self) -> None:
         contract = load_contract(REPOSITORY_ROOT / CONTRACT_PATH)
         request = (REPOSITORY_ROOT / "docs/releases/NEXT_RELEASE.txt").read_text(
