@@ -47,7 +47,8 @@ class ReleaseConvergenceContractPolicyTest {
         assertTrue(focusedTests.contains("VillAIgence GitHub Release"));
         assertTrue(focusedTests.contains("RELEASE_VERSION"));
         assertTrue(focusedTests.contains("check_history=release_workflow"));
-        assertTrue(focusedTests.contains("history_ref=resolve_history_ref("));
+        assertTrue(focusedTests.contains("history_ref = resolve_history_ref("));
+        assertTrue(focusedTests.contains("history_ref=history_ref"));
         assertTrue(focusedTests.contains("event_name=os.environ.get(\"GITHUB_EVENT_NAME\", \"\")"));
         assertTrue(focusedTests.contains("base_ref=os.environ.get(\"GITHUB_BASE_REF\", \"\")"));
     }
