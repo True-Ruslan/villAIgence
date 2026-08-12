@@ -46,7 +46,7 @@ This is the **canonical changelog** for the project.
   - `NPC_SOCIAL_CHANGE` is excluded from generic episodic prompt context and is never automatically promoted to Semantic FACT/BELIEF;
   - malformed/duplicate/inconsistent causal frontier state fails closed per attributable source, including malformed map keys and cursor payloads with missing required fields, without allowing one bad cursor to discard otherwise-valid graph edges through whole-file recovery;
   - real Fabric GameTest validates MCA-villager identity authority, and production startup/restart acceptance exercises the causal graph/audit replay boundary without changing provider schema/calls, public config, MCA Personality authority, NPC×player `relationships.json`, Semantic truth semantics, or official release identity.
-- Persistent bounded directed NPC↔NPC social-graph foundation for the 0.3 track:
+- Persistent bounded directed NPC↔NPC social-graph foundation for the 0.3 track (PR #151):
   - existing MCA `Personality` tracked entity/NBT state remains the canonical persistent personality source; no duplicate generated personality store is introduced;
   - new world-local `npc-social-graph.json` format v1 stores non-neutral directed NPC→NPC `trust`, `respect`, `fear` and `affinity` independently from NPC×player `relationships.json`;
   - social dimensions clamp to `[-100,+100]`, self/null pairs fail closed, neutral edges compact away, and each source NPC retains at most 64 non-neutral outgoing edges with reject-new/no-eviction capacity semantics;
