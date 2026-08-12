@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "candidateTag": "0.3.0+1.21.1",
+  "minecraftVersion": "1.21.1",
+  "previousRelease": {
+    "tag": "0.2.0+1.21.1",
+    "commit": "e426f588efefa6aa48a6e536c4a998421bbda241"
+  },
+  "publicationTrigger": "docs/releases/NEXT_RELEASE.txt",
+  "capabilityPullRequests": [
+    123,
+    125,
+    127,
+    129,
+    131,
+    133,
+    135,
+    137,
+    139,
+    141,
+    143,
+    145,
+    147,
+    149,
+    151,
+    153,
+    155,
+    158
+  ],
+  "releaseInfrastructurePullRequests": [121, 122],
+  "worldStores": [
+    "memory2.json",
+    "semantic-memory.json",
+    "events.json",
+    "relationships.json",
+    "voices.json",
+    "operator-lore.json",
+    "npc-social-graph.json"
+  ],
+  "recoveryStores": [
+    "memory2.json",
+    "semantic-memory.json",
+    "relationships.json",
+    "voices.json",
+    "operator-lore.json",
+    "npc-social-graph.json"
+  ],
+  "migrationPolicy": {
+    "cleanStateBoundary": true,
+    "migrationRequired": false,
+    "legacyConversationMigration": "cancelled-by-design"
+  },
+  "deliveryGates": [
+    "repository-security",
+    "full-ci",
+    "production-soak",
+    "release-dry-run",
+    "independent-review-p0-p1-p2-zero"
+  ],
+  "manualCanaryCases": [
+    "VAI-PCM-E2E-001",
+    "VAI-PCM-MULTI-001",
+    "VAI-PROX-MULTI-001",
+    "VAI-SEC-001",
+    "VAI-RESET-001",
+    "VAI-STT-001"
+  ],
+  "deferredInstalledCases": [
+    "VAI-M2-INST-005",
+    "VAI-CONCUR-004"
+  ],
+  "excludedScope": [
+    "autonomous-high-frequency-agents",
+    "graph-neighborhood-selection-or-ranking",
+    "factions-and-politics",
+    "0.4-knowledge-expansion"
+  ]
+}
