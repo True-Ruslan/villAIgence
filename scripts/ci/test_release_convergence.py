@@ -7,11 +7,13 @@ from pathlib import Path
 import unittest
 
 from release_convergence import (
+    ConvergenceContractError,
     EXPECTED_DEFERRED_INSTALLED_CASES,
     EXPECTED_MANUAL_CANARY_CASES,
     collect_feature_prs,
     extract_unreleased_section,
     load_contract,
+    resolve_history_ref,
     validate_contract,
     validate_repository_contract,
 )
@@ -22,12 +24,17 @@ CONTRACT_PATH = Path("docs/releases/0.3.0-convergence.json")
 
 class ReleaseConvergenceValidatorTest(unittest.TestCase):
     def test_repository_contract_matches_current_release_boundary(self) -> None:
-        check_history = os.environ.get("GITHUB_WORKFLOW") == "VillAIgence GitHub Release"
+        release_workflow = os.environ.get("GITHUB_WORKFLOW") == "VillAIgence GitHub Release"
+        history_ref = resolve_history_ref(
+            event_name=os.environ.get("GITHUB_EVENT_NAME", ""),
+            base_ref=os.environ.get("GITHUB_BASE_REF", ""),
+        )
         errors = validate_repository_contract(
             REPOSITORY_ROOT,
             contract_path=CONTRACT_PATH,
             requested_tag=os.environ.get("RELEASE_VERSION", ""),
-            check_history=check_history,
+            check_history=release_workflow,
+            history_ref=history_ref,
         )
         self.assertEqual((), errors)
 
@@ -64,6 +71,20 @@ class ReleaseConvergenceValidatorTest(unittest.TestCase):
             "chore: release prep (#160)",
         )
         self.assertEqual((123, 125), collect_feature_prs(messages))
+
+    def test_pull_request_release_history_uses_base_branch_not_synthetic_merge_head(self) -> None:
+        self.assertEqual(
+            "refs/remotes/origin/1.21.1",
+            resolve_history_ref(event_name="pull_request", base_ref="1.21.1"),
+        )
+
+    def test_push_and_tag_release_history_use_exact_head(self) -> None:
+        self.assertEqual("HEAD", resolve_history_ref(event_name="push", base_ref=""))
+        self.assertEqual("HEAD", resolve_history_ref(event_name="workflow_dispatch", base_ref=""))
+
+    def test_pull_request_history_without_base_ref_fails_closed(self) -> None:
+        with self.assertRaises(ConvergenceContractError):
+            resolve_history_ref(event_name="pull_request", base_ref="")
 
     def test_unreleased_parser_excludes_policy_header_and_released_sections(self) -> None:
         changelog = """# Changelog
