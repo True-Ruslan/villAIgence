@@ -4,6 +4,7 @@ from __future__ import annotations
 from copy import deepcopy
 import os
 from pathlib import Path
+import tempfile
 import unittest
 
 from release_convergence import (
@@ -23,6 +24,33 @@ CONTRACT_PATH = Path("docs/releases/0.3.0-convergence.json")
 
 
 class ReleaseConvergenceValidatorTest(unittest.TestCase):
+    def _write_validation_root(
+        self,
+        root: Path,
+        *,
+        changelog: str,
+        request: str,
+    ) -> None:
+        (root / "gradle.properties").write_text(
+            "minecraft_version=1.21.1\n",
+            encoding="utf-8",
+        )
+        (root / "CHANGELOG.md").write_text(changelog, encoding="utf-8")
+        releases = root / "docs/releases"
+        releases.mkdir(parents=True)
+        (releases / "NEXT_RELEASE.txt").write_text(
+            request + "\n",
+            encoding="utf-8",
+        )
+
+    @staticmethod
+    def _capability_inventory(contract: dict | object) -> str:
+        assert isinstance(contract, dict)
+        return "\n".join(
+            f"- Capability from PR #{pr}."
+            for pr in contract["capabilityPullRequests"]
+        )
+
     def test_repository_contract_matches_current_release_boundary(self) -> None:
         release_workflow = os.environ.get("GITHUB_WORKFLOW") == "VillAIgence GitHub Release"
         history_ref = resolve_history_ref(
@@ -104,6 +132,158 @@ PR #999 is not release inventory.
             extract_unreleased_section(changelog).strip(),
         )
 
+    def test_pre_request_stage_requires_capability_inventory_in_unreleased(self) -> None:
+        contract = dict(load_contract(REPOSITORY_ROOT / CONTRACT_PATH))
+        inventory = self._capability_inventory(contract)
+        changelog = f"""# Changelog
+
+## [Unreleased]
+{inventory}
+
+## [0.2.0+1.21.1] — 2026-08-07
+- Previous release.
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_validation_root(
+                root,
+                changelog=changelog,
+                request="0.2.0+1.21.1",
+            )
+            errors = validate_contract(contract, repository_root=root)
+        self.assertEqual((), errors)
+
+    def test_exact_candidate_request_moves_inventory_to_exact_release_section(self) -> None:
+        contract = dict(load_contract(REPOSITORY_ROOT / CONTRACT_PATH))
+        inventory = self._capability_inventory(contract)
+        changelog = f"""# Changelog
+
+## [Unreleased]
+_No entries._
+
+## [0.3.0+1.21.1] — 2026-08-12
+{inventory}
+
+## [0.2.0+1.21.1] — 2026-08-07
+- Previous release.
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_validation_root(
+                root,
+                changelog=changelog,
+                request="0.3.0+1.21.1",
+            )
+            errors = validate_contract(
+                contract,
+                repository_root=root,
+                requested_tag="0.3.0+1.21.1",
+            )
+        self.assertEqual((), errors)
+
+    def test_exact_candidate_request_rejects_missing_release_inventory(self) -> None:
+        contract = dict(load_contract(REPOSITORY_ROOT / CONTRACT_PATH))
+        inventory = "\n".join(
+            f"- Capability from PR #{pr}."
+            for pr in contract["capabilityPullRequests"][:-1]
+        )
+        changelog = f"""# Changelog
+
+## [Unreleased]
+_No entries._
+
+## [0.3.0+1.21.1] — 2026-08-12
+{inventory}
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_validation_root(
+                root,
+                changelog=changelog,
+                request="0.3.0+1.21.1",
+            )
+            errors = validate_contract(
+                contract,
+                repository_root=root,
+                requested_tag="0.3.0+1.21.1",
+            )
+        self.assertTrue(
+            any(
+                "release section 0.3.0+1.21.1 does not reference capability PR #158"
+                in error
+                for error in errors
+            )
+        )
+
+    def test_exact_candidate_request_rejects_shipped_inventory_duplication(self) -> None:
+        contract = dict(load_contract(REPOSITORY_ROOT / CONTRACT_PATH))
+        inventory = self._capability_inventory(contract)
+        changelog = f"""# Changelog
+
+## [Unreleased]
+- Duplicate shipped capability PR #123.
+
+## [0.3.0+1.21.1] — 2026-08-12
+{inventory}
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_validation_root(
+                root,
+                changelog=changelog,
+                request="0.3.0+1.21.1",
+            )
+            errors = validate_contract(
+                contract,
+                repository_root=root,
+                requested_tag="0.3.0+1.21.1",
+            )
+        self.assertTrue(
+            any("[Unreleased] duplicates shipped capability PR #123" in error for error in errors)
+        )
+
+    def test_requested_candidate_requires_armed_candidate_trigger(self) -> None:
+        contract = dict(load_contract(REPOSITORY_ROOT / CONTRACT_PATH))
+        inventory = self._capability_inventory(contract)
+        changelog = f"""# Changelog
+
+## [Unreleased]
+{inventory}
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_validation_root(
+                root,
+                changelog=changelog,
+                request="0.2.0+1.21.1",
+            )
+            errors = validate_contract(
+                contract,
+                repository_root=root,
+                requested_tag="0.3.0+1.21.1",
+            )
+        self.assertTrue(
+            any("requested candidate requires publication trigger 0.3.0+1.21.1" in error for error in errors)
+        )
+
+    def test_unknown_publication_trigger_fails_closed(self) -> None:
+        contract = dict(load_contract(REPOSITORY_ROOT / CONTRACT_PATH))
+        inventory = self._capability_inventory(contract)
+        changelog = f"""# Changelog
+
+## [Unreleased]
+{inventory}
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_validation_root(
+                root,
+                changelog=changelog,
+                request="0.2.9+1.21.1",
+            )
+            errors = validate_contract(contract, repository_root=root)
+        self.assertTrue(any("publication trigger must be previous release or exact candidate" in error for error in errors))
+
     def test_requested_tag_must_match_candidate(self) -> None:
         contract = load_contract(REPOSITORY_ROOT / CONTRACT_PATH)
         errors = validate_contract(
@@ -136,11 +316,15 @@ PR #999 is not release inventory.
             tuple(contract["deferredInstalledCases"]),
         )
 
-    def test_convergence_does_not_arm_publication_request(self) -> None:
+    def test_publication_trigger_is_previous_release_or_exact_candidate(self) -> None:
+        contract = load_contract(REPOSITORY_ROOT / CONTRACT_PATH)
         request = (REPOSITORY_ROOT / "docs/releases/NEXT_RELEASE.txt").read_text(
             encoding="utf-8"
         ).strip()
-        self.assertEqual("0.2.0+1.21.1", request)
+        self.assertIn(
+            request,
+            (contract["previousRelease"]["tag"], contract["candidateTag"]),
+        )
 
 
 if __name__ == "__main__":
