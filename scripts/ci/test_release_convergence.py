@@ -10,6 +10,7 @@ from release_convergence import (
     EXPECTED_DEFERRED_INSTALLED_CASES,
     EXPECTED_MANUAL_CANARY_CASES,
     collect_feature_prs,
+    extract_unreleased_section,
     load_contract,
     validate_contract,
     validate_repository_contract,
@@ -63,6 +64,24 @@ class ReleaseConvergenceValidatorTest(unittest.TestCase):
             "chore: release prep (#160)",
         )
         self.assertEqual((123, 125), collect_feature_prs(messages))
+
+    def test_unreleased_parser_excludes_policy_header_and_released_sections(self) -> None:
+        changelog = """# Changelog
+
+## Changelog policy
+PR #999 is not release inventory.
+
+## [Unreleased]
+- Capability from PR #123.
+- Capability from PR #151.
+
+## [0.2.0+1.21.1] - 2026-08-07
+- Historical PR #42.
+"""
+        self.assertEqual(
+            "- Capability from PR #123.\n- Capability from PR #151.",
+            extract_unreleased_section(changelog).strip(),
+        )
 
     def test_requested_tag_must_match_candidate(self) -> None:
         contract = load_contract(REPOSITORY_ROOT / CONTRACT_PATH)
