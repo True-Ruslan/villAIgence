@@ -2,7 +2,7 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md`. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-08-12**, after PR #158 merged deliberate Personality + social dialogue/behavior integration.
+> Last reconciled: **2026-08-12**, after PR #160 merged the 0.3 release-convergence contract and verified release-candidate boundary.
 >
 > Always distinguish source/unit evidence, common integration, GameTests, production-candidate evidence, exact-release evidence and installed operator server/client evidence.
 
@@ -19,12 +19,14 @@ NeoForge:                           compile compatibility required
 
 latest product merge:               PR #158
 latest product merge commit:        b3938678e9424a88f271131ac75a57b73ffec5bf
+latest convergence merge:           PR #160
+latest convergence merge commit:    03ccb2d5d047ca551a5ac6be6b927de4404f09cf
 latest official release:            0.2.0+1.21.1
 latest release commit:              e426f588efefa6aa48a6e536c4a998421bbda241
 installed 0.2.0 candidate JAR SHA:   56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
 
-next product slice:                 0.3 convergence / release-candidate planning
-then:                               exact 0.3 candidate + installed acceptance
+next product slice:                 exact 0.3.0+1.21.1 release request / candidate creation
+then:                               installed clean-state acceptance + post-release reconciliation
 ```
 
 Current delivery state:
@@ -56,12 +58,13 @@ bounded contradiction candidate/producer policy        COMPLETE / PR #145
 settlement-scale information flow without omniscience  COMPLETE / PR #147
 relationship/trust social epistemology                 COMPLETE / PR #149
 
-0.3 Personality + NPC↔NPC Social Graph                 IN CONVERGENCE
+0.3 Personality + NPC↔NPC Social Graph                 CONVERGENCE COMPLETE / RELEASE REQUEST NEXT
 NPC↔NPC social-graph persistence foundation            COMPLETE / PR #151
 server-owned causal NPC↔NPC social mutation lifecycle COMPLETE / PR #153
 bounded Personality + direct-pair social snapshot      COMPLETE / PR #155
 deliberate dialogue/behavior integration               COMPLETE / PR #158
-0.3 convergence / release-candidate planning           NEXT
+0.3 convergence / release-candidate planning           COMPLETE / PR #160
+exact 0.3.0+1.21.1 release request / candidate         NEXT
 ```
 
 Installed boundaries remain explicit:
@@ -74,6 +77,8 @@ VAI-CONCUR-004   NOT TESTED / DEFERRED
 Neither is represented as PASS.
 
 PRs #127, #129, #131, #133, #135, #137, #139, #141, #143, #145, #147, #149, #151, #153, #155 and #158 are merged automated source capabilities **after** the installed `0.2.0` release. Their CI/candidate evidence is not installed `0.2.0` acceptance.
+
+PR #160 is release-convergence infrastructure and evidence, not a gameplay capability and not installed acceptance. It deliberately leaves `docs/releases/NEXT_RELEASE.txt` at `0.2.0+1.21.1`; publication remains a separate explicit shipping step.
 
 ---
 
@@ -141,6 +146,7 @@ NPC Identity
 41. **Personality/social snapshot construction is read-only derived context.** It may expose only canonical MCA Personality plus one exact directed NPC pair, cannot enumerate the graph, and cannot mutate persistence or truth authority.
 42. **Social/personality influence is preference, not authority.** Dialogue tone and optional behavior gating may consume closed server-owned influence, but current observations, gameplay validation, truth rules and causal mutation authority remain stronger.
 43. **Behavior authorization does not use fail-open recovery.** Authority-sensitive social/relationship reads are strict, read-only and fail closed on malformed, unsafe or non-canonical persisted state rather than repairing it into neutral/allowed state.
+44. **Release convergence is not publication.** A planned candidate may be fully validated while `NEXT_RELEASE.txt` remains unchanged; exact release request, immutable tag/publication and installed acceptance are separate evidence stages.
 
 Canonical AI/state flow:
 
@@ -491,6 +497,63 @@ docs/superpowers/evidence/2026-08-11-personality-social-dialogue-behavior-tdd.md
 
 ---
 
+# PR #160 — 0.3 release convergence contract
+
+Merged release-convergence capability:
+
+```text
+immutable release baseline 0.2.0+1.21.1
++ actual post-release feat: history
++ root CHANGELOG [Unreleased]
++ seven world-store / six recovery-store contracts
++ explicit manual/deferred acceptance boundary
+→ machine-readable 0.3.0+1.21.1 convergence contract
+→ fail-closed CI/release-dry-run validation
+→ exact candidate plan
+→ publication trigger remains separate
+```
+
+Key guarantees:
+
+- planned exact candidate is `0.3.0+1.21.1`;
+- immutable previous release is `0.2.0+1.21.1` at `e426f588efefa6aa48a6e536c4a998421bbda241`;
+- actual post-release product capability inventory is #123, #125, #127, #129, #131, #133, #135, #137, #139, #141, #143, #145, #147, #149, #151, #153, #155 and #158;
+- release-infrastructure PRs #121/#122 are tracked separately from gameplay/product capability;
+- the convergence validator checks exact version identity, post-release feature history, root `[Unreleased]` traceability, world/recovery-store boundaries, clean-state/no-migration policy and exact installed manual/deferred boundaries;
+- pull-request release validation uses canonical base history rather than the synthetic merge head; exact release contexts validate `HEAD`;
+- `docs/releases/NEXT_RELEASE.txt` remains `0.2.0+1.21.1`, so PR #160 cannot arm or publish 0.3;
+- no runtime behavior, provider protocol, persistence format, public config, migration/backfill or GitHub Actions workflow count changed.
+
+Final exact-head evidence before squash merge:
+
+```text
+verified head:                           41f76c518bae98a8c373522c76eb7066c280a3e9
+merge commit:                            03ccb2d5d047ca551a5ac6be6b927de4404f09cf
+Repository security policy #2498:       SUCCESS / run 31580558127
+VillAIgence CI #2862:                   SUCCESS / run 31580558133
+VillAIgence Production Soak #509:       SUCCESS / run 31580558351
+VillAIgence GitHub Release #842:        SUCCESS / run 31580558274
+release publication job:                SKIPPED
+review P0/P1/P2:                        0 / 0 / 0
+unresolved review threads:              0
+```
+
+The full common suite, deterministic provider coverage, live Fabric GameTests, Fabric/NeoForge builds, production startup/restart acceptance, exact persistence recovery matrix, package verification, constrained soak and release dry-run all passed on the frozen head. Release dry-run verified accepted-JAR/package identity while `PUBLISH_RELEASE=false` kept publication skipped.
+
+Staged convergence evidence and exact candidate plan:
+
+```text
+docs/superpowers/evidence/2026-08-12-0.3-release-convergence-tdd.md
+docs/releases/0.3.0+1.21.1-PLAN.md
+docs/releases/0.3.0-convergence.json
+```
+
+### 0.3 convergence exit criterion — met
+
+The repository has one explicit 0.3 release scope, exact candidate identity, complete automated coverage map, honest manual/deferred boundary, clean-state migration policy and verified rollback/recovery path. The next step is the **separate explicit release request/candidate creation**, not further feature expansion.
+
+---
+
 # Automated acceptance and release boundary
 
 Canonical acceptance catalog remains:
@@ -530,7 +593,7 @@ Root `CHANGELOG.md` remains canonical product/release history. Significant runti
 
 `docs/CHANGELOG.md` remains historical engineering detail. Staged TDD evidence for recent slices is under `docs/superpowers/evidence/`.
 
-PR #158 already updated root `[Unreleased]`; this docs reconciliation does not duplicate or rewrite that product history.
+PR #160 already updated root `[Unreleased]` for convergence infrastructure; this docs reconciliation does not duplicate or rewrite that product history.
 
 ---
 
@@ -554,51 +617,39 @@ PR #158 already updated root `[Unreleased]`; this docs reconciliation does not d
 
 # Next optimal delivery step
 
-The next product slice is **0.3 convergence / release-candidate planning**.
+The next delivery slice is **exact `0.3.0+1.21.1` release request / candidate creation**.
 
-The 0.3 capability set is now source-complete at its intended bounded boundary: persistent directed NPC social state, causal mutation authority, read-only Personality/direct-pair snapshot, bounded dialogue guidance and narrow server-owned behavior effects all exist with production/restart evidence. The next step should therefore reduce release risk rather than add more autonomous behavior.
+Convergence is complete. Do not add more 0.3 gameplay scope before creating the exact candidate. The release request must remain a separate shipping change so that publication is impossible until the exact request head has passed release validation.
 
-Target convergence boundary:
-
-```text
-post-0.2 merged source capabilities (#127 → #158)
-+ current release/recovery automation
-+ current acceptance catalog
-+ root CHANGELOG [Unreleased]
-→ explicit 0.3 release-candidate scope
-→ exact version/release identity plan
-→ required automated + installed acceptance matrix
-→ known-deferred/manual boundary
-→ rollback/recovery plan
-→ exact candidate only after convergence gates pass
-```
-
-Required convergence work before any release publication:
-
-- inventory every post-`0.2.0` source capability and confirm it is represented once in root `[Unreleased]`;
-- audit persistence/config/schema changes and confirm no unsupported migration work is required for the accepted pre-1.0 clean-state test server boundary;
-- define the exact 0.3 release candidate version and ensure tag/filename/embedded metadata/manifest remain one identity;
-- map all new 0.2-post-release and 0.3 functionality to deterministic automated evidence and identify only genuinely unavoidable manual installed checks;
-- keep `VAI-M2-INST-005` and `VAI-CONCUR-004` explicitly deferred unless real second-client evidence becomes available;
-- verify the production/recovery workflow covers every current world-local auxiliary store including `npc-social-graph.json`;
-- run fresh full CI, security, production soak and release dry-run on the final release-prep head;
-- perform independent base→head review and require P0/P1/P2 = 0 before creating an exact candidate;
-- do not publish a release merely because source CI is green; exact candidate creation and installed acceptance remain separate stages.
-
-Recommended TDD/delivery order:
+Target shipping boundary:
 
 ```text
-release-convergence specification/checklist
-→ RED/contract tests for any missing release identity or acceptance-matrix coverage
-→ minimal CI/release-prep corrections only if a real gap is observed
-→ exact 0.3 candidate preparation
-→ complete release dry-run with publication skipped
-→ exact tag/release only after candidate gates pass
-→ installed clean-state acceptance on the private test server
-→ reconcile PROJECT_STATE / ROADMAP again
+green reconciled 1.21.1 main
++ docs/releases/0.3.0+1.21.1-PLAN.md
++ docs/releases/0.3.0-convergence.json
++ exact release request NEXT_RELEASE.txt = 0.3.0+1.21.1
+→ release-request validation on exact PR head
+→ squash merge with expected-head protection
+→ main push creates immutable 0.3.0+1.21.1 tag/release through existing workflow
+→ verify tag / asset / embedded metadata / manifest / accepted-JAR identity
+→ install exact release asset on a clean private test-server boundary
+→ run required installed acceptance
+→ record PASS / FAIL / NOT TESTED honestly
+→ reconcile PROJECT_STATE / ROADMAP / CHANGELOG release state
 ```
 
-Do not expand into 0.4 or autonomous 0.5 behavior until this convergence step decides and closes the 0.3 release boundary.
+Required release-request work:
+
+- start from current reconciled `1.21.1` main and change `docs/releases/NEXT_RELEASE.txt` to exactly `0.3.0+1.21.1` in a dedicated release PR;
+- move shipped root `[Unreleased]` entries into the exact `0.3.0+1.21.1` release section according to changelog governance, without duplicating history;
+- keep the machine-readable convergence contract unchanged unless a real release-critical mismatch is found;
+- require repository security, full CI, production soak and GitHub Release dry-run on the exact release-request head before merge;
+- independently review base→head and require P0/P1/P2 = 0 plus zero unresolved threads;
+- merge only with expected-head protection; do not move or recreate any existing tag;
+- after publication, verify the GitHub Release asset is byte-identical to the production-accepted/package-verified JAR;
+- only then perform installed clean-state acceptance; `VAI-M2-INST-005` and `VAI-CONCUR-004` remain explicit NOT TESTED/deferred unless real evidence becomes available.
+
+Do not start 0.4/0.5 feature expansion until the exact 0.3 release and installed acceptance boundary are reconciled.
 
 ---
 
