@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation/validation state. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-08-11**, after PR #155 merged the bounded read-only MCA Personality + direct NPC-pair social snapshot.
+> Last reconciled: **2026-08-12**, after PR #158 merged deliberate Personality + social dialogue/behavior integration.
 
 ## Product vision
 
@@ -45,7 +45,7 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 16. **Runtime behavior follows TDD.** Observe intended RED before production implementation, then implement smallest GREEN and re-run complete selected gates.
 17. **Causal history is not retrospective model narration.** Server-proven process linkage does not make dialogue prose true.
 18. **Player-scoped memory is filtered before ranking/allocation.** Foreign-player data consumes zero bounded slots.
-19. **Prompt authority is structurally ordered.** Current observations precede personality/social context, lore, memory, disagreement and lower-authority history.
+19. **Prompt authority is structurally ordered.** Current observations precede personality/social context, bounded guidance, lore, memory, disagreement and lower-authority history.
 20. **Long-horizon recall remains hard-bounded.** Recent/durable selection is deterministic and no memory becomes immortal.
 21. **NPC-to-NPC transfer is evidence-backed, never implicit omniscience.** Listener knowledge requires exact persisted speaker evidence and remains `BELIEF/NPC_TOLD`.
 22. **Rumor ancestry is bounded process evidence, not truth authority.** Multi-hop retelling carries immutable server-backed ancestry capped at eight hops.
@@ -64,8 +64,9 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 35. **NPC social changes require causal server evidence.** Runtime validates exact NPC identities and exact retained causes before changing a directed pair.
 36. **The NPC social graph owns exactly-once mutation replay.** Memory audit is bounded process evidence, not the mutation ledger.
 37. **Malformed attributable graph frontier state fails closed locally.** One bad cursor must not erase valid graph state or reopen a historical mutation.
-38. **Read-only social/personality context precedes social behavior policy.** PR #155 established the bounded direct-pair snapshot; behavior may now consume it without inheriting mutation authority.
-39. **Social/personality influence is preference, not authority.** Dialogue tone and selected behavior weighting may depend on the snapshot, but current world facts, safety policy, target validation and causal mutation rules remain stronger.
+38. **Read-only social/personality context precedes social behavior policy.** PR #155 established the bounded direct-pair snapshot; behavior may consume it without inheriting mutation authority.
+39. **Social/personality influence is preference, not authority.** Dialogue tone and selected behavior gating may depend on the snapshot, but current world facts, safety policy, target validation and causal mutation rules remain stronger.
+40. **Authority-sensitive persistence reads fail closed without repair.** A behavior gate must not recover malformed social/relationship state into neutral/allowed authority.
 
 ---
 
@@ -96,18 +97,19 @@ settlement-scale information flow without omniscience  COMPLETE / PR #147
 relationship/trust social epistemology                 COMPLETE / PR #149
 0.2 Memory 2.0 source capability track                 COMPLETE AT CURRENT PLANNED BOUNDARY / UNRELEASED
 
-0.3 Personality + NPC↔NPC Social Graph                 IN PROGRESS
+0.3 Personality + NPC↔NPC Social Graph                 IN CONVERGENCE
 NPC↔NPC social-graph persistence foundation            COMPLETE / PR #151
 server-owned causal NPC↔NPC social mutation lifecycle COMPLETE / PR #153
 bounded read-only MCA Personality + pair snapshot      COMPLETE / PR #155
-deliberate dialogue/behavior integration               NEXT
+deliberate dialogue/behavior integration               COMPLETE / PR #158
+0.3 convergence / release-candidate planning           NEXT
 ```
 
 Immediate sequence:
 
 ```text
-deliberate dialogue/behavior integration
-→ 0.3 convergence / release-candidate planning
+0.3 convergence / release-candidate planning
+→ exact 0.3 candidate + installed acceptance
 → richer knowledge ecosystem / 0.4
 ```
 
@@ -133,7 +135,7 @@ VAI-CONCUR-004:    NOT TESTED / DEFERRED
 
 The release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is clean-state; no legacy conversation importer or dual reader is planned.
 
-PRs #127 through #155 listed in `PROJECT_STATE.md` are post-release `[Unreleased]` source capabilities. Their automated evidence must not be represented as installed `0.2.0` acceptance.
+PRs #127 through #158 listed in `PROJECT_STATE.md` are post-release `[Unreleased]` source capabilities. Their automated evidence must not be represented as installed `0.2.0` acceptance.
 
 ---
 
@@ -177,8 +179,9 @@ NPC↔NPC directed graph persistence               COMPLETE / PR #151
 six-store corruption/recovery                    COMPLETE / PR #151
 causal NPC↔NPC mutation lifecycle                COMPLETE / PR #153
 bounded read-only personality/social snapshot    COMPLETE / PR #155
-dialogue/behavior effect                         NEXT
-high-frequency autonomous social evolution       NOT IMPLEMENTED
+dialogue/behavior effect                         COMPLETE / PR #158
+high-frequency autonomous social evolution       NOT IN 0.3 BOUNDED SCOPE
+release convergence                              NEXT
 ```
 
 ## Completed — NPC↔NPC social-graph persistence foundation
@@ -324,80 +327,147 @@ docs/superpowers/evidence/2026-08-11-personality-social-snapshot-tdd.md
 
 For one server interaction, VillAIgence can capture and safely render the NPC's canonical existing personality plus only the directly relevant directed social edge, with strict bounds, no persistence side effects, no graph-wide disclosure and no truth-authority leakage.
 
+## Completed — deliberate Personality + social dialogue/behavior integration
+
+Merged through PR #158 / `b3938678e9424a88f271131ac75a57b73ffec5bf`.
+
+Implemented boundary:
+
+```text
+PersonalitySocialSnapshot
+→ closed server-owned influence categories
+→ at most two fixed dialogue guidance lines
+→ centralized prompt placement
+
+existing deterministic settlement selector
+→ exact selected A→B social state
+→ allow/suppress only
+→ no fallback retargeting
+
+captured optionalCommand allowlist
+→ server-thread fresh relationship authorization
+→ existing command validation/call
+```
+
+Properties:
+
+- canonical MCA Personality remains the only persistent personality authority;
+- influence is closed/deterministic and cannot expose arbitrary graph content;
+- guidance changes tone/stance only and does not change FACT/BELIEF authority or memory ranking;
+- directed A→B and B→A influence remain asymmetric;
+- settlement social state never selects a pair; it can only suppress the already-selected transfer;
+- strong fear/distrust/antipathy suppresses transfer; neutral/positive state preserves existing bounded flow;
+- corrupt/unsafe social authority fails closed rather than recovering to neutral/allowed;
+- `follow-player` is revalidated on the server thread against fresh NPC×player relationship authority;
+- malformed/unsafe relationship authority fails closed without repair/mutation, while unrelated safe commands remain independent;
+- provider output still cannot author raw social deltas or bypass exact causal mutation admission;
+- no graph enumeration, high-frequency autonomous social loop, provider request/schema change, public config, persistence version/file or release publication was added;
+- live Fabric GameTests prove `FRIENDLY`, `CRABBY`, `ANXIOUS` mappings and asymmetric directed pair influence.
+
+Frozen source head and delivery evidence:
+
+```text
+head:                                      6522b69fc885635d9be79df574fb29b15a97eddf
+merge:                                     b3938678e9424a88f271131ac75a57b73ffec5bf
+Repository security policy #2456:         SUCCESS / 31548923212
+VillAIgence CI #2821:                     SUCCESS / 31548923255
+VillAIgence Production Soak #490:         SUCCESS / 31548923258
+VillAIgence GitHub Release #823:          SUCCESS / 31548923215
+github-release publication:               SKIPPED
+review P0/P1/P2:                          0 / 0 / 0
+unresolved review threads:                0
+```
+
+Review hardening found four real authority-integrity defects tests-first: recoverable social corruption becoming neutral/allow, capture-time relationship recovery erasing a later deny, hostile relationship payloads defaulting/clamping into allowed state, and non-canonical UUID keys being normalized by `UUID.fromString(...)`. All four now have permanent regression coverage.
+
+Staged TDD and review-hardening evidence:
+
+```text
+docs/superpowers/evidence/2026-08-11-personality-social-dialogue-behavior-tdd.md
+```
+
+### 0.3 bounded capability exit criterion — met at source/candidate layer
+
+VillAIgence now has persistent directed NPC↔NPC social state, causal exactly-once mutation authority, bounded read-only Personality/direct-pair context, deterministic dialogue influence and a narrow server-owned behavior effect without transferring truth, gameplay or mutation authority to the provider.
+
+This does **not** mean a new installed release exists. The track now enters convergence/release-candidate planning.
+
 ---
 
-# NEXT — deliberate dialogue/behavior integration / 0.3
+# NEXT — 0.3 convergence / release-candidate planning
 
-The next step is **influence without authority transfer**: use the proven read-only snapshot to shape dialogue tone and a narrow set of server-owned behavior preferences while keeping all hard gameplay and social mutations under existing validation.
+The next step is **release-risk convergence, not feature expansion**.
 
 ## Goal
 
-Turn `PersonalitySocialSnapshot` into bounded deterministic influence inputs. The provider may see style/stance guidance and propose existing structured intents, but it must never acquire raw graph-write authority or the ability to bypass current-world safety constraints.
+Turn the complete post-`0.2.0` source capability set into one explicit, auditable 0.3 release boundary before creating or publishing an exact candidate.
 
 Target contract:
 
 ```text
-immutable PersonalitySocialSnapshot
-+ current authoritative interaction/world context
-→ bounded deterministic PersonalitySocialInfluence
-→ fixed-size dialogue style/stance guidance
-+ explicit selected behavior-policy preference inputs
-→ provider text/intent proposal only
-→ server target/permission/state revalidation
-→ causal mutation lifecycle remains sole NPC↔NPC graph writer
+post-0.2 merged capabilities (#127 → #158)
++ root CHANGELOG [Unreleased]
++ current version/release automation
++ current acceptance catalog
++ current persistence/recovery matrix
+→ explicit 0.3 candidate scope
+→ exact release identity/version plan
+→ deterministic acceptance matrix
+→ explicit unavoidable manual/deferred matrix
+→ rollback/recovery plan
+→ exact candidate preparation
 ```
 
-## Required design decisions
+## Required convergence decisions
 
-1. **Influence representation**
-   - derive a small immutable server-owned influence object from personality + direct pair state;
-   - use closed categories/bounded numeric values only;
-   - do not pass mutable graph/store handles downstream.
+1. **Release scope**
+   - inventory every post-`0.2.0` merged product capability exactly once;
+   - verify the intended 0.3 boundary includes social graph persistence, causal mutation, read-only snapshot and deliberate dialogue/behavior integration;
+   - explicitly exclude autonomous high-frequency agents, graph-neighborhood policy, factions/politics and 0.4 knowledge expansion.
 
-2. **Dialogue effect**
-   - influence tone/stance only: e.g. warmth, caution, deference, hostility or openness within bounded server-authored guidance;
-   - do not change FACT/BELIEF authority, confidence, provenance, ranking or memory eligibility;
-   - neutral/no-counterpart state should preserve current dialogue behavior except for canonical personality already present.
+2. **Persistence / migration boundary**
+   - inventory current stores and format/config changes;
+   - keep the accepted pre-1.0 clean-state test-server policy unless a real supported-data migration need is found;
+   - do not invent migration code merely because a release boundary is being prepared.
 
-3. **Behavior effect**
-   - select a small existing policy surface before adding any new autonomous action system;
-   - social/personality preference may weight or gate optional behavior only after hard safety/permission/target checks;
-   - current-world facts and hard gameplay constraints always win.
+3. **Exact identity**
+   - choose the exact 0.3 version only after verifying current version/tag/manifest automation;
+   - tag, filename, embedded metadata and release manifest must remain one immutable identity;
+   - release recovery may only rebuild from the immutable tag commit.
 
-4. **Mutation boundary**
-   - provider output cannot author arbitrary trust/respect/fear/affinity deltas;
-   - any NPC↔NPC social change still requires exact retained server cause evidence and `NpcSocialMutationLifecycle` admission;
-   - no implicit graph write occurs because dialogue tone changed.
+4. **Acceptance matrix**
+   - map every new post-release capability to existing deterministic tests/GameTests/production/recovery evidence;
+   - add new contract tests only for uncovered release-critical boundaries;
+   - keep `VAI-M2-INST-005` and `VAI-CONCUR-004` explicitly deferred unless real second-client evidence becomes available;
+   - distinguish candidate automation from installed server/client acceptance.
 
-5. **Bounds and compatibility**
-   - no graph enumeration, neighborhood inference or per-tick autonomous social loop;
-   - no provider request-count/schema change unless a concrete need is proven;
-   - prompt additions stay fixed-size;
-   - no persistence/config/version change unless required by a proven product contract.
+5. **Delivery**
+   - final release-prep head requires security, full CI, production soak, release dry-run and independent P0/P1/P2=0 review;
+   - publication remains skipped during dry-run;
+   - exact candidate/tag/release is a separate authorized delivery action;
+   - installed clean-state acceptance happens after an exact candidate exists.
 
-## Required TDD progression
+## Required progression
 
 ```text
-integration specification + exact influence contract
-→ RED: deterministic influence for representative PersonalitySocialSnapshot states
-→ RED: asymmetric A→B/B→A states produce asymmetric influence
-→ RED: neutral/no-counterpart compatibility
-→ RED: fixed-size dialogue style guidance changes only intended tone/stance layer
-→ RED: current observed facts/safety policy outrank social preference
-→ RED: behavior preference cannot bypass target/permission/state validation
-→ RED: provider cannot author raw graph deltas
-→ RED: social mutation still requires exact causal lifecycle admission
-→ RED: influence evaluation writes no graph/relationships/Semantic/Memory/Personality state
-→ live GameTests for friendly/hostile/neutral interaction cases
-→ production startup/restart + provider contract compatibility
-→ exact-head CI / soak / release dry-run / review
+convergence specification + checklist
+→ inventory CHANGELOG / version / stores / acceptance coverage
+→ RED contract tests only where a concrete release gap exists
+→ minimal release/CI corrections only for observed gaps
+→ freeze release-prep head
+→ security + full CI + production soak
+→ full release dry-run with github-release skipped
+→ independent review P0/P1/P2 = 0
+→ exact 0.3 candidate preparation
+→ installed acceptance
+→ post-release reconciliation
 ```
 
-### Slice exit criterion
+### Convergence exit criterion
 
-Dialogue and selected server-owned behavior policies respond deterministically to the NPC's canonical personality and exact directed social relationship, while truth authority, gameplay safety, persistence ownership and social mutation authority remain unchanged.
+The repository has one explicit 0.3 release scope, exact candidate identity plan, complete automated coverage map, honest manual/deferred boundary and verified rollback/recovery path, with no unresolved release-critical gap hidden behind source-level green CI.
 
-After this slice, perform **0.3 convergence / release-candidate planning** rather than immediately expanding autonomous social evolution.
+Only after this criterion is met should an exact 0.3 candidate be created. Do not jump directly into 0.4/0.5 work before closing the release boundary.
 
 ---
 
