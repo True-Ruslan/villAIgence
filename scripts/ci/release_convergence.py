@@ -75,6 +75,17 @@ def load_contract(path: Path | str) -> Mapping[str, Any]:
     return value
 
 
+def extract_unreleased_section(changelog: str) -> str:
+    marker = "## [Unreleased]"
+    start = changelog.find(marker)
+    if start < 0:
+        raise ConvergenceContractError("CHANGELOG is missing ## [Unreleased]")
+    section_start = start + len(marker)
+    next_release = changelog.find("\n## [", section_start)
+    section_end = len(changelog) if next_release < 0 else next_release
+    return changelog[section_start:section_end]
+
+
 def _required_string(value: Mapping[str, Any], field: str) -> str:
     raw = value.get(field)
     if not isinstance(raw, str) or not raw.strip():
@@ -301,7 +312,7 @@ def validate_contract(
             )
 
         changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
-        unreleased = changelog.split("## [", 1)[0]
+        unreleased = extract_unreleased_section(changelog)
         for pr in capability_prs:
             if f"PR #{pr}" not in unreleased:
                 raise ConvergenceContractError(
