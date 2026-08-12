@@ -15,6 +15,7 @@ from select_acceptance_suites import (
     main,
     select_suites,
 )
+from test_release_convergence import ReleaseConvergenceValidatorTest
 
 
 class AcceptanceSuiteSelectionTest(unittest.TestCase):
