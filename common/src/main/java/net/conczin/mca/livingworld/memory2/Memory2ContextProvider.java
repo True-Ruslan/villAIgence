@@ -23,7 +23,7 @@ public final class Memory2ContextProvider {
     }
 
     public static List<String> load(Path worldRoot, UUID npcId, UUID playerId, long gameTime) {
-        return load(worldRoot, npcId, playerId, gameTime, "");
+        return load(worldRoot, npcId, playerId, gameTime, MemoryRecallQueryContext.current());
     }
 
     public static List<String> load(
