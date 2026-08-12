@@ -96,6 +96,58 @@ class Memory2DialogueHistoryTest {
     }
 
     @Test
+    void queryCanRecoverRelevantOlderExchangeWithoutCrossPlayerLeakOrGrowingPrompt() {
+        UUID npc = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        UUID otherPlayer = UUID.randomUUID();
+
+        Memory2DialogueIngestor.record(
+                tempDir,
+                npc,
+                player,
+                10L,
+                "My calibration phrase is amber-orchid-731",
+                "I will remember that calibration phrase.",
+                128,
+                1_000L
+        );
+        Memory2DialogueIngestor.record(
+                tempDir,
+                npc,
+                otherPlayer,
+                11L,
+                "My calibration phrase is private-cobalt-999",
+                "That phrase belongs only to you.",
+                128,
+                1_001L
+        );
+
+        for (int turn = 0; turn < 7; turn++) {
+            Memory2DialogueIngestor.record(
+                    tempDir,
+                    npc,
+                    player,
+                    20L + turn,
+                    "Unrelated recent topic " + turn + " about weather and chores",
+                    "Unrelated recent reply " + turn,
+                    128,
+                    2_000L + turn
+            );
+        }
+
+        List<WorkingMemoryMessage> history = Memory2DialogueHistory.load(
+                tempDir,
+                npc,
+                player,
+                "What is my calibration phrase?"
+        );
+
+        assertEquals(WorkingMemoryOrchestrator.MAX_RECENT_DIALOGUE_MESSAGES, history.size());
+        assertEquals(true, history.stream().anyMatch(message -> message.content().contains("amber-orchid-731")));
+        assertEquals(false, history.stream().anyMatch(message -> message.content().contains("private-cobalt-999")));
+    }
+
+    @Test
     void ignoresLegacyDialogueEventsWithoutStructuredPayload() {
         UUID npc = UUID.randomUUID();
         UUID player = UUID.randomUUID();
