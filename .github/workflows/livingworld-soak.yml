@@ -13,6 +13,7 @@ on:
       - 'common/src/main/java/net/conczin/mca/network/**'
       - 'common/src/test/java/net/conczin/mca/livingworld/**'
       - 'common/src/test/java/net/conczin/mca/network/**'
+      - 'docs/releases/NEXT_RELEASE.txt'
       - 'fabric/build.gradle'
       - 'fabric/production-acceptance-fixture.gradle'
       - 'fabric/src/productionAcceptanceFixture/**'

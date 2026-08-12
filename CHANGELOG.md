@@ -21,12 +21,18 @@ This is the **canonical changelog** for the project.
 
 ## [Unreleased]
 
+_No entries after the `0.3.0+1.21.1` release boundary yet._
+
+---
+
+## [0.3.0+1.21.1] — 2026-08-12
+
 ### Added
 
 - 0.3 release-convergence contract and fail-closed validation in PR #160:
   - `docs/releases/0.3.0-convergence.json` defines the planned exact `0.3.0+1.21.1` candidate, immutable `0.2.0+1.21.1` baseline, actual post-release capability/infrastructure inventories, world/recovery stores, clean-state migration boundary, delivery gates and honest manual/deferred acceptance boundary;
-  - standard-library convergence validation runs through the existing canonical CI/release contract harness, verifies post-release `feat:` history and root `[Unreleased]` coverage, and rejects mismatched requested tags or persistence/acceptance inventories;
-  - the permanent eight-workflow Actions surface is unchanged and `docs/releases/NEXT_RELEASE.txt` deliberately remains `0.2.0+1.21.1`, so convergence cannot itself arm, tag or publish the planned 0.3 release.
+  - standard-library convergence validation runs through the existing canonical CI/release contract harness, verifies post-release `feat:` history, requires capability traceability in root `[Unreleased]` before arming and in the exact `0.3.0+1.21.1` section after arming, rejects shipped-capability duplication back into `[Unreleased]`, and rejects mismatched requested tags or persistence/acceptance inventories;
+  - the permanent eight-workflow Actions surface is unchanged and `docs/releases/NEXT_RELEASE.txt` deliberately remained `0.2.0+1.21.1` during convergence so convergence itself could not arm, tag or publish the planned 0.3 release.
 - Deliberate personality/social dialogue and behavior integration for the 0.3 track:
   - live MCA Personality is interpreted through a closed server-owned style enum and rendered as at most one bounded dialogue-guidance line; direct NPC-pair state is interpreted through a closed directed disposition enum and may add at most one second guidance line, with no free-form names, UUIDs or numeric social values exposed as behavior instructions;
   - the snapshot prompt authority order is now current world facts → server-owned personality/direct-social descriptive state → bounded dialogue guidance derived from that same state → Operator Lore → Semantic Memory → live disagreement context → episodic/social history, while current observed facts remain authoritative;
@@ -162,7 +168,7 @@ This is the **canonical changelog** for the project.
   - ad-hoc commit artifact builds became manual-only in PR #121;
   - the redundant PR Gradle workflow was removed in PR #122;
   - wrapper validation remains in supply-chain verification;
-  - the permanent Actions surface is now the fail-closed canonical eight-workflow set.
+  - the permanent Actions surface is now the fail-closed canonical eight-workflow set, and exact release-request changes to `docs/releases/NEXT_RELEASE.txt` also trigger the existing Production Soak workflow so the constrained concurrency/restart gate runs on the exact request head without adding a ninth workflow.
 - New semantic extraction configuration is deliberately safe-by-default:
   - `semanticBeliefExtractionEnabled=false` by default;
   - `semanticBeliefMaxCandidatesPerTurn=3` by default and normalized to the bounded parser limit;
