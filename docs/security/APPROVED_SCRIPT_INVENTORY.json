@@ -56,6 +56,12 @@
       "ci": false
     },
     {
+      "path": "scripts/ci/release_convergence.py",
+      "purpose": "Validates the machine-readable 0.3 release-convergence contract, including exact candidate identity, post-release capability inventory, persistence/recovery scope and installed acceptance boundaries; performs no network requests and never arms release publication.",
+      "network": false,
+      "ci": false
+    },
+    {
       "path": "scripts/ci/repository_security_policy.py",
       "purpose": "Runs deterministic secret, source-policy, workflow-permission and script-inventory checks; its source contains detector signatures but performs no network requests.",
       "network": true,
@@ -96,6 +102,12 @@
       "purpose": "Standard-library tests for bounded restart, constrained-heap and stable-persistence soak acceptance; performs no network requests.",
       "network": false,
       "ci": true
+    },
+    {
+      "path": "scripts/ci/test_release_convergence.py",
+      "purpose": "Standard-library regression tests for the 0.3 release-convergence validator; executes transitively through the canonical acceptance-contract test harness and performs no network requests.",
+      "network": false,
+      "ci": false
     },
     {
       "path": "scripts/ci/test_select_acceptance_suites.py",
