@@ -24,12 +24,29 @@ public final class PersistentChatMemory {
     }
 
     public static List<Tuple<String, String>> load(ServerPlayer player, VillagerEntityMCA villager) {
-        return load(worldRoot(player), villager.getUUID(), player.getUUID());
+        return load(player, villager, null);
+    }
+
+    public static List<Tuple<String, String>> load(
+            ServerPlayer player,
+            VillagerEntityMCA villager,
+            String currentPlayerMessage
+    ) {
+        return load(worldRoot(player), villager.getUUID(), player.getUUID(), currentPlayerMessage);
     }
 
     public static List<Tuple<String, String>> load(Path worldRoot, UUID villagerId, UUID playerId) {
+        return load(worldRoot, villagerId, playerId, null);
+    }
+
+    public static List<Tuple<String, String>> load(
+            Path worldRoot,
+            UUID villagerId,
+            UUID playerId,
+            String currentPlayerMessage
+    ) {
         if (!LivingWorldConfig.getInstance().memory2Enabled) return List.of();
-        return Memory2DialogueHistory.load(worldRoot, villagerId, playerId).stream()
+        return Memory2DialogueHistory.load(worldRoot, villagerId, playerId, currentPlayerMessage).stream()
                 .map(PersistentChatMemory::toTuple)
                 .toList();
     }
