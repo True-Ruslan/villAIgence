@@ -27,6 +27,7 @@ TAG_PATTERN = re.compile(
 )
 SHA40_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 PR_SUFFIX_PATTERN = re.compile(r"\(#(?P<pr>[0-9]+)\)$")
+SAFE_BASE_REF_PATTERN = re.compile(r"^[0-9A-Za-z._/-]+$")
 
 EXPECTED_WORLD_STORES: tuple[str, ...] = (
     "memory2.json",
@@ -84,6 +85,28 @@ def extract_unreleased_section(changelog: str) -> str:
     next_release = changelog.find("\n## [", section_start)
     section_end = len(changelog) if next_release < 0 else next_release
     return changelog[section_start:section_end]
+
+
+def resolve_history_ref(*, event_name: str, base_ref: str) -> str:
+    event = event_name.strip()
+    if event != "pull_request":
+        return "HEAD"
+
+    base = base_ref.strip()
+    if not base:
+        raise ConvergenceContractError(
+            "pull_request release history requires GITHUB_BASE_REF"
+        )
+    if (
+        base.startswith("/")
+        or base.endswith("/")
+        or ".." in base
+        or SAFE_BASE_REF_PATTERN.fullmatch(base) is None
+    ):
+        raise ConvergenceContractError(
+            f"pull_request base ref is unsafe or invalid: {base!r}"
+        )
+    return f"refs/remotes/origin/{base}"
 
 
 def _required_string(value: Mapping[str, Any], field: str) -> str:
@@ -173,10 +196,26 @@ def collect_feature_prs(messages: Sequence[str]) -> tuple[int, ...]:
     return tuple(sorted(set(result)))
 
 
-def _history_messages(root: Path, previous_release_commit: str) -> tuple[str, ...]:
+def _history_messages(
+    root: Path,
+    previous_release_commit: str,
+    history_ref: str,
+) -> tuple[str, ...]:
     try:
+        verify = subprocess.run(
+            ["git", "rev-parse", "--verify", history_ref],
+            cwd=root,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if verify.returncode != 0:
+            raise ConvergenceContractError(
+                f"release history ref is unavailable: {history_ref}"
+            )
         ancestor = subprocess.run(
-            ["git", "merge-base", "--is-ancestor", previous_release_commit, "HEAD"],
+            ["git", "merge-base", "--is-ancestor", previous_release_commit, history_ref],
             cwd=root,
             check=False,
             stdout=subprocess.PIPE,
@@ -187,10 +226,11 @@ def _history_messages(root: Path, previous_release_commit: str) -> tuple[str, ..
         raise ConvergenceContractError("unable to execute git") from exception
     if ancestor.returncode != 0:
         raise ConvergenceContractError(
-            "previous release commit is unavailable or is not an ancestor of HEAD"
+            "previous release commit is unavailable or is not an ancestor of "
+            + history_ref
         )
     completed = subprocess.run(
-        ["git", "log", "--format=%s", f"{previous_release_commit}..HEAD"],
+        ["git", "log", "--format=%s", f"{previous_release_commit}..{history_ref}"],
         cwd=root,
         check=False,
         stdout=subprocess.PIPE,
@@ -210,6 +250,7 @@ def validate_contract(
     repository_root: Path | str,
     requested_tag: str = "",
     check_history: bool = False,
+    history_ref: str = "HEAD",
 ) -> tuple[str, ...]:
     root = Path(repository_root).resolve()
     errors: list[str] = []
@@ -320,7 +361,7 @@ def validate_contract(
                 )
 
         if check_history:
-            messages = _history_messages(root, previous_commit)
+            messages = _history_messages(root, previous_commit, history_ref)
             observed_features = collect_feature_prs(messages)
             if observed_features != capability_prs:
                 raise ConvergenceContractError(
@@ -352,6 +393,7 @@ def validate_repository_contract(
     contract_path: Path | str,
     requested_tag: str = "",
     check_history: bool = False,
+    history_ref: str = "HEAD",
 ) -> tuple[str, ...]:
     root = Path(repository_root).resolve()
     path = Path(contract_path)
@@ -366,6 +408,7 @@ def validate_repository_contract(
         repository_root=root,
         requested_tag=requested_tag.strip(),
         check_history=check_history,
+        history_ref=history_ref,
     )
 
 
@@ -377,6 +420,7 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--repository-root", default=".")
     parser.add_argument("--requested-tag", default="")
     parser.add_argument("--check-history", action="store_true")
+    parser.add_argument("--history-ref", default="HEAD")
     return parser.parse_args(argv)
 
 
@@ -387,6 +431,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         contract_path=args.contract,
         requested_tag=args.requested_tag,
         check_history=args.check_history,
+        history_ref=args.history_ref,
     )
     if errors:
         for error in errors:
