@@ -201,19 +201,18 @@ public final class LivingWorldRelationshipStore {
         if (separator <= 0 || separator != raw.lastIndexOf('/') || separator == raw.length() - 1) {
             throw new IllegalStateException("Relationship key is malformed: " + raw);
         }
+        UUID villager;
+        UUID player;
         try {
-            UUID villager = UUID.fromString(raw.substring(0, separator));
-            UUID player = UUID.fromString(raw.substring(separator + 1));
-            if (!raw.equals(key(villager, player))) {
-                throw new IllegalStateException("Relationship key is not canonical: " + raw);
-            }
-            return new RelationshipPair(villager, player);
+            villager = UUID.fromString(raw.substring(0, separator));
+            player = UUID.fromString(raw.substring(separator + 1));
         } catch (IllegalArgumentException e) {
-            if (e instanceof IllegalStateException illegalState) {
-                throw illegalState;
-            }
             throw new IllegalStateException("Relationship key contains an invalid UUID: " + raw, e);
         }
+        if (!raw.equals(key(villager, player))) {
+            throw new IllegalStateException("Relationship key is not canonical: " + raw);
+        }
+        return new RelationshipPair(villager, player);
     }
 
     private static String key(UUID villagerId, UUID playerId) {
