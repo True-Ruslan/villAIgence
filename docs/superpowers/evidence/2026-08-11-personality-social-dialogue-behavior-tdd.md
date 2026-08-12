@@ -165,6 +165,15 @@ The first frozen delivery candidate was deliberately rejected after a base→hea
 - VillAIgence CI #2807 / run `31547468952`: common + deterministic provider stage SUCCESS.
 - Fix: strict relationship authorization now parses raw JSON itself, validates format v1, canonical UUID pair keys, and all four required integer dimensions within `[-100,+100]`; any malformed authority fails closed without recovery or mutation.
 
+### Strict authority keys must be byte-canonical UUID pairs
+
+- Review finding: Java `UUID.fromString(...)` accepts shortened/non-canonical UUID forms such as `1-1-1-1-1` and normalizes them. Both strict authority readers therefore needed to reject raw keys that parse to a UUID pair but are not exactly the canonical lowercase `uuid/uuid` form emitted by the server-owned writers.
+- RED head: `37ec38d00b2e062af29eab6dc92b541f21d0964c`.
+- VillAIgence CI #2813 / run `31548287691`: **833 tests / 2 failures**, exactly the non-canonical relationship-key and social-edge-key cases.
+- GREEN head: `272b3220f1a9b6740afba840a60dc81f0874d9df`.
+- VillAIgence CI #2819 / run `31548660263`: common + deterministic provider stage SUCCESS.
+- Fix: both `LivingWorldRelationshipStore.readStrict(...)` and `NpcSocialGraphStrictPairReader` now require the raw pair key to equal the exact canonical pair reconstructed from the parsed UUIDs; shortened or otherwise normalizable forms fail closed without recovery or persistence mutation.
+
 ## Preserved invariants
 
 The completed behavior slice does not:
