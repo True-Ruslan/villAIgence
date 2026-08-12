@@ -31,16 +31,22 @@ class ReleaseConvergenceContractPolicyTest {
     }
 
     @Test
-    void ciAndReleaseDryRunExecuteConvergenceValidation() throws IOException {
+    void ciAndReleaseDryRunExecuteConvergenceValidationThroughCanonicalHarness() throws IOException {
         Path root = repositoryRoot();
         String ci = Files.readString(root.resolve(".github/workflows/livingworld-ci.yml"));
         String release = Files.readString(root.resolve(".github/workflows/livingworld-release.yml"));
+        String canonicalRunner = Files.readString(root.resolve("scripts/ci/test_select_acceptance_suites.py"));
+        String focusedTests = Files.readString(root.resolve("scripts/ci/test_release_convergence.py"));
 
-        assertTrue(ci.contains("python3 scripts/ci/test_release_convergence.py"));
-        assertTrue(ci.contains("python3 scripts/ci/release_convergence.py --check " + CONTRACT));
-        assertTrue(release.contains("python3 scripts/ci/test_release_convergence.py"));
-        assertTrue(release.contains("python3 scripts/ci/release_convergence.py --check " + CONTRACT));
-        assertTrue(release.contains("--requested-tag \"${RELEASE_VERSION:-}\""));
+        String canonicalCommand = "python3 scripts/ci/test_select_acceptance_suites.py";
+        assertTrue(ci.contains(canonicalCommand));
+        assertTrue(release.contains(canonicalCommand));
+        assertTrue(canonicalRunner.contains(
+                "from test_release_convergence import ReleaseConvergenceValidatorTest"));
+        assertTrue(focusedTests.contains("GITHUB_WORKFLOW"));
+        assertTrue(focusedTests.contains("VillAIgence GitHub Release"));
+        assertTrue(focusedTests.contains("RELEASE_VERSION"));
+        assertTrue(focusedTests.contains("check_history=check_history"));
     }
 
     @Test
