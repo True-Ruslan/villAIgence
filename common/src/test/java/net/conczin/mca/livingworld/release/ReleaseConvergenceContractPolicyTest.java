@@ -54,13 +54,16 @@ class ReleaseConvergenceContractPolicyTest {
     }
 
     @Test
-    void releaseRequestFileRemainsASeparatePublicationTrigger() throws IOException {
+    void releaseRequestFileArmsOnlyExactConvergenceCandidate() throws IOException {
         Path root = repositoryRoot();
         String release = Files.readString(root.resolve(".github/workflows/livingworld-release.yml"));
         String request = Files.readString(root.resolve("docs/releases/NEXT_RELEASE.txt")).trim();
+        String contract = Files.readString(root.resolve(CONTRACT));
 
-        assertEquals("0.2.0+1.21.1", request,
-                "convergence must not arm the 0.3 publication trigger");
+        assertEquals("0.3.0+1.21.1", request,
+                "release request must arm exactly the converged 0.3 candidate");
+        assertTrue(contract.contains("\"candidateTag\": \"" + request + "\""),
+                "publication trigger must match the machine-readable convergence candidate");
         assertTrue(release.contains("request_file='docs/releases/NEXT_RELEASE.txt'"));
     }
 
