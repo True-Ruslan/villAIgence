@@ -76,15 +76,37 @@ def load_contract(path: Path | str) -> Mapping[str, Any]:
     return value
 
 
-def extract_unreleased_section(changelog: str) -> str:
-    marker = "## [Unreleased]"
+def _extract_changelog_section(changelog: str, marker: str) -> str:
     start = changelog.find(marker)
     if start < 0:
-        raise ConvergenceContractError("CHANGELOG is missing ## [Unreleased]")
+        raise ConvergenceContractError(f"CHANGELOG is missing {marker}")
     section_start = start + len(marker)
     next_release = changelog.find("\n## [", section_start)
     section_end = len(changelog) if next_release < 0 else next_release
     return changelog[section_start:section_end]
+
+
+def extract_unreleased_section(changelog: str) -> str:
+    return _extract_changelog_section(changelog, "## [Unreleased]")
+
+
+def extract_release_section(changelog: str, release_tag: str) -> str:
+    return _extract_changelog_section(changelog, f"## [{release_tag}]")
+
+
+def _read_publication_request(root: Path, relative_path: str) -> str:
+    try:
+        raw = (root / relative_path).read_text(encoding="utf-8")
+    except OSError as exception:
+        raise ConvergenceContractError(
+            f"unable to read publication trigger: {relative_path}"
+        ) from exception
+    lines = [line.rstrip("\r") for line in raw.splitlines() if line.strip()]
+    if len(lines) != 1 or any(character.isspace() for character in lines[0]):
+        raise ConvergenceContractError(
+            "publication trigger must contain exactly one tag and no whitespace"
+        )
+    return lines[0]
 
 
 def resolve_history_ref(*, event_name: str, base_ref: str) -> str:
@@ -306,9 +328,19 @@ def validate_contract(
             raise ConvergenceContractError(
                 "publicationTrigger must remain docs/releases/NEXT_RELEASE.txt"
             )
+        publication_request = _read_publication_request(root, publication_trigger)
+        if publication_request not in (previous_tag, candidate_tag):
+            raise ConvergenceContractError(
+                "publication trigger must be previous release or exact candidate: "
+                f"previous={previous_tag}, candidate={candidate_tag}, actual={publication_request}"
+            )
         if requested_tag and requested_tag != candidate_tag:
             raise ConvergenceContractError(
                 f"requested release {requested_tag} does not match convergence candidate {candidate_tag}"
+            )
+        if requested_tag and publication_request != candidate_tag:
+            raise ConvergenceContractError(
+                f"requested candidate requires publication trigger {candidate_tag}"
             )
         if world_stores != EXPECTED_WORLD_STORES:
             raise ConvergenceContractError(
@@ -354,11 +386,24 @@ def validate_contract(
 
         changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
         unreleased = extract_unreleased_section(changelog)
-        for pr in capability_prs:
-            if f"PR #{pr}" not in unreleased:
-                raise ConvergenceContractError(
-                    f"CHANGELOG [Unreleased] does not reference capability PR #{pr}"
-                )
+        if publication_request == candidate_tag:
+            release_inventory = extract_release_section(changelog, candidate_tag)
+            for pr in capability_prs:
+                if f"PR #{pr}" not in release_inventory:
+                    raise ConvergenceContractError(
+                        f"CHANGELOG release section {candidate_tag} does not reference capability PR #{pr}"
+                    )
+            for pr in capability_prs:
+                if f"PR #{pr}" in unreleased:
+                    raise ConvergenceContractError(
+                        f"CHANGELOG [Unreleased] duplicates shipped capability PR #{pr}"
+                    )
+        else:
+            for pr in capability_prs:
+                if f"PR #{pr}" not in unreleased:
+                    raise ConvergenceContractError(
+                        f"CHANGELOG [Unreleased] does not reference capability PR #{pr}"
+                    )
 
         if check_history:
             messages = _history_messages(root, previous_commit, history_ref)
