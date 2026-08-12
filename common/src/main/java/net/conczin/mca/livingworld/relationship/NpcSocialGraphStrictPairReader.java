@@ -141,16 +141,22 @@ public final class NpcSocialGraphStrictPairReader {
         if (separator <= 0 || separator != raw.lastIndexOf('/') || separator == raw.length() - 1) {
             throw new IllegalStateException("NPC social edge key is malformed: " + raw);
         }
+        UUID source;
+        UUID target;
         try {
-            UUID source = UUID.fromString(raw.substring(0, separator));
-            UUID target = UUID.fromString(raw.substring(separator + 1));
-            if (source.equals(target)) {
-                throw new IllegalStateException("NPC social self-edge is invalid");
-            }
-            return new EdgePair(source, target);
+            source = UUID.fromString(raw.substring(0, separator));
+            target = UUID.fromString(raw.substring(separator + 1));
         } catch (IllegalArgumentException e) {
             throw new IllegalStateException("NPC social edge key contains an invalid UUID: " + raw, e);
         }
+        if (source.equals(target)) {
+            throw new IllegalStateException("NPC social self-edge is invalid");
+        }
+        String canonical = source + "/" + target;
+        if (!raw.equals(canonical)) {
+            throw new IllegalStateException("NPC social edge key is not canonical: " + raw);
+        }
+        return new EdgePair(source, target);
     }
 
     private record EdgePair(UUID sourceNpcId, UUID targetNpcId) {
