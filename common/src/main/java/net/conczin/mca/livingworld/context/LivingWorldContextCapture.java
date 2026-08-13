@@ -44,6 +44,15 @@ public final class LivingWorldContextCapture {
 
     /** Must be called on the Minecraft server thread. */
     public static LivingWorldContextSnapshot capture(ServerPlayer player, VillagerEntityMCA villager) {
+        return capture(player, villager, "");
+    }
+
+    /** Must be called on the Minecraft server thread. */
+    public static LivingWorldContextSnapshot capture(
+            ServerPlayer player,
+            VillagerEntityMCA villager,
+            String currentMessage
+    ) {
         LivingWorldConfig livingWorld = LivingWorldConfig.getInstance();
         List<String> context = new ArrayList<>();
         PersonalityModule.applySnapshotBase(context, villager, player);
@@ -99,7 +108,8 @@ public final class LivingWorldContextCapture {
                 worldRoot,
                 villager.getUUID(),
                 player.getUUID(),
-                gameTime
+                gameTime,
+                currentMessage
         );
         List<String> semanticMemoryContext = loadSemanticMemoryContext(
                 livingWorld,
@@ -189,11 +199,12 @@ public final class LivingWorldContextCapture {
             Path worldRoot,
             java.util.UUID villagerId,
             java.util.UUID playerId,
-            long gameTime
+            long gameTime,
+            String currentMessage
     ) {
         if (!config.memory2Enabled) return List.of();
         try {
-            return Memory2ContextProvider.load(worldRoot, villagerId, playerId, gameTime);
+            return Memory2ContextProvider.load(worldRoot, villagerId, playerId, gameTime, currentMessage);
         } catch (RuntimeException e) {
             MCA.LOGGER.warn("Unable to load bounded Memory 2.0 context for villager {} and player {}", villagerId, playerId, e);
             return List.of();

@@ -24,16 +24,28 @@ public final class MemoryRetriever {
     }
 
     static List<RankedMemory> rankCandidates(List<MemoryEvent> candidates, MemoryQuery query) {
+        return rankCandidates(candidates, query, "");
+    }
+
+    static List<RankedMemory> rankCandidates(
+            List<MemoryEvent> candidates,
+            MemoryQuery query,
+            String currentMessage
+    ) {
         if (candidates == null || candidates.isEmpty() || query == null) return List.of();
         return candidates.stream()
-                .map(event -> rank(event, query))
+                .map(event -> rank(event, query, currentMessage))
                 .sorted(RANKING)
                 .limit(query.maxResults())
                 .toList();
     }
 
     static RankedMemory rank(MemoryEvent event, MemoryQuery query) {
-        int relevance = relevanceScore(event, query);
+        return rank(event, query, "");
+    }
+
+    static RankedMemory rank(MemoryEvent event, MemoryQuery query, String currentMessage) {
+        int relevance = relevanceScore(event, query, currentMessage);
         int recency = recencyScore(event, query);
         int importance = event.importance();
         int confidence = event.confidence();
@@ -47,6 +59,10 @@ public final class MemoryRetriever {
     }
 
     static int relevanceScore(MemoryEvent event, MemoryQuery query) {
+        return relevanceScore(event, query, "");
+    }
+
+    static int relevanceScore(MemoryEvent event, MemoryQuery query, String currentMessage) {
         int dimensions = 0;
         int score = 0;
 
@@ -62,6 +78,11 @@ public final class MemoryRetriever {
         if (!query.preferredTypes().isEmpty()) {
             dimensions++;
             if (query.preferredTypes().contains(event.type())) score += 100;
+        }
+
+        if (MemoryLexicalRelevance.hasUsefulQuery(currentMessage)) {
+            dimensions++;
+            score += MemoryLexicalRelevance.score(currentMessage, event.summary());
         }
 
         return dimensions == 0 ? 100 : score / dimensions;
