@@ -46,7 +46,7 @@ class LegacyToolClosurePolicyTest {
             "scripts/ci/production_soak_acceptance.py",
             "scripts/ci/recovery_fixture_stage.py",
             "scripts/ci/release_convergence.py",
-            "scripts/ci/release_convergence_030.py",
+            "scripts/ci/release_convergence_baseline.py",
             "scripts/ci/release_convergence_runtime.py",
             "scripts/ci/repository_security_policy.py",
             "scripts/ci/select_acceptance_suites.py",
