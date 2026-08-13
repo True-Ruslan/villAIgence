@@ -21,7 +21,11 @@ This is the **canonical changelog** for the project.
 
 ## [Unreleased]
 
-_No entries after the `0.3.0+1.21.1` release boundary yet._
+### Fixed
+
+- Restored bounded targeted Memory 2.0 recall for older eligible dialogue that is still retained but has fallen outside the recency lane: deterministic query relevance is applied only after exact NPC/player eligibility, then merged inside the existing hard `32`-candidate boundary before the unchanged rank-to-`6` prompt limit; no persistence schema/version, public configuration, provider schema/call, migration or memory-window widening is introduced.
+- Text chat now persists the current player message and captures the immutable world/memory snapshot on the server thread before asynchronous provider work, so the current utterance can drive the same bounded query-aware retrieval without reading mutable server state off-thread.
+- PR #165 carries RED→GREEN regression coverage for retained-but-starved targeted recall plus cross-player/cross-NPC isolation. Automated CI, Production Soak, production acceptance, exact persistence recovery, GameTests, supported-loader builds and an exact release dry-run are green; installed `VAI-PCM-MULTI-001` acceptance remains explicitly pending the official `0.3.1+1.21.1` JAR and is not promoted to PASS here.
 
 ---
 
