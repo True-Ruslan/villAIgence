@@ -28,6 +28,12 @@
     158
   ],
   "releaseInfrastructurePullRequests": [121, 122],
+  "patchReleases": [
+    {
+      "tag": "0.3.1+1.21.1",
+      "pullRequests": [165]
+    }
+  ],
   "worldStores": [
     "memory2.json",
     "semantic-memory.json",
