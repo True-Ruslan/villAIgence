@@ -90,8 +90,8 @@ Before GitHub Release publication, `.github/workflows/livingworld-release.yml` m
 1. resolve exactly one requested `<mod_version>+<minecraft_version>` identity;
 2. prove the candidate/tag is current `1.21.1` HEAD at publication time;
 3. reject an already-consumed tag that points elsewhere;
-4. validate the 0.3 capability/persistence boundary plus exact changelog/release-request state;
-5. verify embedded Fabric and manifest release identity;
+4. select and require the complete release acceptance suite;
+5. verify the generic explicit release-version and packaged-metadata identity contract;
 6. run repository security and supply-chain policy;
 7. run production-acceptance, lifecycle, persistence-recovery and soak contract tests;
 8. stage the exact remapped Fabric candidate with `-Prelease_version=0.3.1+1.21.1`;
@@ -100,11 +100,11 @@ Before GitHub Release publication, `.github/workflows/livingworld-release.yml` m
 11. require fixture-ready terminal markers and restart-stable canonical stores;
 12. execute the current six-case destructive auxiliary-store recovery matrix;
 13. run the common suite, required Fabric server GameTests and risk catalog;
-14. build Fabric and NeoForge targets;
-15. package and smoke-check the public artifact;
+14. build Fabric and NeoForge targets and generate the dependency manifest;
+15. package and smoke-check the candidate artifact;
 16. prove byte-for-byte identity between the production-accepted and packaged JARs;
-17. upload JAR, SHA-256 and dependency manifest;
-18. create the immutable tag and GitHub Release only after every prior gate passes.
+17. upload JAR, SHA-256 and dependency manifest as the verified workflow artifact;
+18. only in publishing mode, create/verify the immutable tag and GitHub Release after every prior gate passes.
 
 The dedicated Production Soak workflow also runs on the exact release-request head because `docs/releases/NEXT_RELEASE.txt` is part of its PR trigger surface. This gives the release request fresh constrained-concurrency and repeated-restart evidence without adding another workflow.
 
