@@ -61,7 +61,7 @@ def _validate_patch_declarations(
         patch_prs.extend(prs)
         last_version = version
     if len(patch_prs) != len(set(patch_prs)):
-        raise ConvergenceContractError("patchReleases must not reuse pull requests across patch releases")
+        raise ConvergenceContractError("patchReleases must not reuse PRs across patch releases")
     baseline_prs = set(baseline._required_pr_list(contract, "capabilityPullRequests")) | set(
         baseline._required_pr_list(contract, "releaseInfrastructurePullRequests")
     )
