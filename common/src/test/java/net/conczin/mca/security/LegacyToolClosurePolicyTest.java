@@ -46,6 +46,8 @@ class LegacyToolClosurePolicyTest {
             "scripts/ci/production_soak_acceptance.py",
             "scripts/ci/recovery_fixture_stage.py",
             "scripts/ci/release_convergence.py",
+            "scripts/ci/release_convergence_baseline.py",
+            "scripts/ci/release_convergence_runtime.py",
             "scripts/ci/repository_security_policy.py",
             "scripts/ci/select_acceptance_suites.py",
             "scripts/ci/test_persistence_recovery_acceptance.py",
@@ -111,9 +113,9 @@ class LegacyToolClosurePolicyTest {
 
         for (Path surface : surfaces) {
             if (!Files.isRegularFile(surface)) continue;
-            String content = Files.readString(surface);
+            String surfaceContent = Files.readString(surface);
             for (String obsolete : REMOVED_REFERENCE_TOKENS) {
-                assertFalse(content.contains(obsolete),
+                assertFalse(surfaceContent.contains(obsolete),
                         "Removed utility is still referenced by "
                                 + root.relativize(surface) + ": " + obsolete);
             }

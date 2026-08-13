@@ -57,7 +57,19 @@
     },
     {
       "path": "scripts/ci/release_convergence.py",
-      "purpose": "Validates the machine-readable 0.3 release-convergence contract, including exact candidate identity, post-release capability inventory, persistence/recovery scope and installed acceptance boundaries; performs no network requests and never arms release publication.",
+      "purpose": "Compatibility entrypoint for the patch-aware 0.3.x release-convergence validator; performs no network requests and never arms release publication.",
+      "network": false,
+      "ci": false
+    },
+    {
+      "path": "scripts/ci/release_convergence_baseline.py",
+      "purpose": "Frozen 0.3.0 convergence validator retained as the exact baseline capability, persistence, recovery and acceptance contract for the 0.3.x patch line; performs no network requests.",
+      "network": false,
+      "ci": false
+    },
+    {
+      "path": "scripts/ci/release_convergence_runtime.py",
+      "purpose": "Adds fail-closed declared 0.3.x patch-release validation on top of the frozen 0.3.0 convergence baseline, including patch tag, PR inventory and changelog/history checks; performs no network requests.",
       "network": false,
       "ci": false
     },

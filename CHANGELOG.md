@@ -21,6 +21,12 @@ This is the **canonical changelog** for the project.
 
 ## [Unreleased]
 
+_No entries after the `0.3.1+1.21.1` release boundary yet._
+
+---
+
+## [0.3.1+1.21.1] — 2026-08-13
+
 ### Fixed
 
 - Restored bounded targeted Memory 2.0 recall for older eligible dialogue that is still retained but has fallen outside the recency lane: deterministic query relevance is applied only after exact NPC/player eligibility, then merged inside the existing hard `32`-candidate boundary before the unchanged rank-to-`6` prompt limit; no persistence schema/version, public configuration, provider schema/call, migration or memory-window widening is introduced.

@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReleaseConvergenceContractPolicyTest {
@@ -54,16 +53,19 @@ class ReleaseConvergenceContractPolicyTest {
     }
 
     @Test
-    void releaseRequestFileArmsOnlyExactConvergenceCandidate() throws IOException {
+    void releaseRequestFileArmsOnlyMachineReadableConvergenceRelease() throws IOException {
         Path root = repositoryRoot();
         String release = Files.readString(root.resolve(".github/workflows/livingworld-release.yml"));
         String request = Files.readString(root.resolve("docs/releases/NEXT_RELEASE.txt")).trim();
         String contract = Files.readString(root.resolve(CONTRACT));
 
-        assertEquals("0.3.0+1.21.1", request,
-                "release request must arm exactly the converged 0.3 candidate");
-        assertTrue(contract.contains("\"candidateTag\": \"" + request + "\""),
-                "publication trigger must match the machine-readable convergence candidate");
+        boolean isBaselineCandidate = contract.contains("\"candidateTag\": \"" + request + "\"");
+        int patchReleasesOffset = contract.indexOf("\"patchReleases\"");
+        boolean isDeclaredPatch = patchReleasesOffset >= 0
+                && contract.indexOf("\"tag\": \"" + request + "\"", patchReleasesOffset) >= 0;
+
+        assertTrue(isBaselineCandidate || isDeclaredPatch,
+                "release request must match the baseline candidate or an explicitly declared patch release");
         assertTrue(release.contains("request_file='docs/releases/NEXT_RELEASE.txt'"));
     }
 

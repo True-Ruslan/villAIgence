@@ -51,6 +51,15 @@ class ReleaseConvergenceValidatorTest(unittest.TestCase):
             for pr in contract["capabilityPullRequests"]
         )
 
+    @staticmethod
+    def _patch_inventory(contract: dict | object, tag: str) -> str:
+        assert isinstance(contract, dict)
+        patch = next(item for item in contract["patchReleases"] if item["tag"] == tag)
+        return "\n".join(
+            f"- Patch from PR #{pr}."
+            for pr in patch["pullRequests"]
+        )
+
     def test_repository_contract_matches_current_release_boundary(self) -> None:
         release_workflow = os.environ.get("GITHUB_WORKFLOW") == "VillAIgence GitHub Release"
         history_ref = resolve_history_ref(
@@ -66,7 +75,7 @@ class ReleaseConvergenceValidatorTest(unittest.TestCase):
         )
         self.assertEqual((), errors)
 
-    def test_exact_candidate_and_previous_release_are_explicit(self) -> None:
+    def test_exact_candidate_previous_release_and_patch_are_explicit(self) -> None:
         contract = load_contract(REPOSITORY_ROOT / CONTRACT_PATH)
         self.assertEqual("0.3.0+1.21.1", contract["candidateTag"])
         self.assertEqual("1.21.1", contract["minecraftVersion"])
@@ -74,6 +83,10 @@ class ReleaseConvergenceValidatorTest(unittest.TestCase):
         self.assertEqual(
             "e426f588efefa6aa48a6e536c4a998421bbda241",
             contract["previousRelease"]["commit"],
+        )
+        self.assertEqual(
+            ({"tag": "0.3.1+1.21.1", "pullRequests": [165]},),
+            tuple(contract["patchReleases"]),
         )
         self.assertEqual(
             "docs/releases/NEXT_RELEASE.txt",
@@ -242,6 +255,68 @@ _No entries._
             any("[Unreleased] duplicates shipped capability PR #123" in error for error in errors)
         )
 
+    def test_declared_patch_request_requires_baseline_and_patch_inventory(self) -> None:
+        contract = dict(load_contract(REPOSITORY_ROOT / CONTRACT_PATH))
+        baseline_inventory = self._capability_inventory(contract)
+        patch_inventory = self._patch_inventory(contract, "0.3.1+1.21.1")
+        changelog = f"""# Changelog
+
+## [Unreleased]
+_No entries._
+
+## [0.3.1+1.21.1] — 2026-08-13
+{patch_inventory}
+
+## [0.3.0+1.21.1] — 2026-08-12
+{baseline_inventory}
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_validation_root(
+                root,
+                changelog=changelog,
+                request="0.3.1+1.21.1",
+            )
+            errors = validate_contract(
+                contract,
+                repository_root=root,
+                requested_tag="0.3.1+1.21.1",
+            )
+        self.assertEqual((), errors)
+
+    def test_declared_patch_request_rejects_missing_patch_inventory(self) -> None:
+        contract = dict(load_contract(REPOSITORY_ROOT / CONTRACT_PATH))
+        baseline_inventory = self._capability_inventory(contract)
+        changelog = f"""# Changelog
+
+## [Unreleased]
+_No entries._
+
+## [0.3.1+1.21.1] — 2026-08-13
+- Patch notes without the declared PR.
+
+## [0.3.0+1.21.1] — 2026-08-12
+{baseline_inventory}
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_validation_root(
+                root,
+                changelog=changelog,
+                request="0.3.1+1.21.1",
+            )
+            errors = validate_contract(
+                contract,
+                repository_root=root,
+                requested_tag="0.3.1+1.21.1",
+            )
+        self.assertTrue(
+            any(
+                "patch release section 0.3.1+1.21.1 does not reference PR #165" in error
+                for error in errors
+            )
+        )
+
     def test_requested_candidate_requires_armed_candidate_trigger(self) -> None:
         contract = dict(load_contract(REPOSITORY_ROOT / CONTRACT_PATH))
         inventory = self._capability_inventory(contract)
@@ -282,16 +357,27 @@ _No entries._
                 request="0.2.9+1.21.1",
             )
             errors = validate_contract(contract, repository_root=root)
-        self.assertTrue(any("publication trigger must be previous release or exact candidate" in error for error in errors))
+        self.assertTrue(any("publication trigger must be previous release, exact candidate, or declared patch release" in error for error in errors))
 
-    def test_requested_tag_must_match_candidate(self) -> None:
+    def test_declared_patch_tag_is_accepted(self) -> None:
         contract = load_contract(REPOSITORY_ROOT / CONTRACT_PATH)
         errors = validate_contract(
             contract,
             repository_root=REPOSITORY_ROOT,
             requested_tag="0.3.1+1.21.1",
         )
-        self.assertTrue(any("does not match convergence candidate" in error for error in errors))
+        self.assertEqual((), errors)
+
+    def test_undeclared_patch_tag_fails_closed(self) -> None:
+        contract = load_contract(REPOSITORY_ROOT / CONTRACT_PATH)
+        errors = validate_contract(
+            contract,
+            repository_root=REPOSITORY_ROOT,
+            requested_tag="0.3.2+1.21.1",
+        )
+        self.assertTrue(
+            any("does not match convergence candidate or declared patch release" in error for error in errors)
+        )
 
     def test_missing_recovery_store_fails_closed(self) -> None:
         contract = deepcopy(load_contract(REPOSITORY_ROOT / CONTRACT_PATH))
@@ -322,14 +408,15 @@ _No entries._
         ).read_text(encoding="utf-8")
         self.assertIn("- 'docs/releases/NEXT_RELEASE.txt'", soak)
 
-    def test_publication_trigger_is_previous_release_or_exact_candidate(self) -> None:
+    def test_publication_trigger_is_previous_release_candidate_or_declared_patch(self) -> None:
         contract = load_contract(REPOSITORY_ROOT / CONTRACT_PATH)
         request = (REPOSITORY_ROOT / "docs/releases/NEXT_RELEASE.txt").read_text(
             encoding="utf-8"
         ).strip()
+        patch_tags = tuple(item["tag"] for item in contract["patchReleases"])
         self.assertIn(
             request,
-            (contract["previousRelease"]["tag"], contract["candidateTag"]),
+            (contract["previousRelease"]["tag"], contract["candidateTag"], *patch_tags),
         )
 
 
