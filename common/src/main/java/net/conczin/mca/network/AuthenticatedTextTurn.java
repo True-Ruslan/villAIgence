@@ -3,7 +3,10 @@ package net.conczin.mca.network;
 import net.conczin.mca.MCA;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.entity.ai.chatAI.ChatAI;
+import net.conczin.mca.livingworld.context.LivingWorldContextCapture;
+import net.conczin.mca.livingworld.context.LivingWorldContextSnapshot;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Objects;
@@ -33,10 +36,13 @@ public final class AuthenticatedTextTurn {
         String normalizedMessage = AuthenticatedTextTurnCore.normalize(message);
         if (!AuthenticatedTextTurnCore.isEligibleMessage(normalizedMessage)) return;
 
+        LivingWorldContextSnapshot snapshot = LivingWorldContextCapture.capture(player, villager, normalizedMessage);
+        MinecraftServer server = player.serverLevel().getServer();
+
         CompletableFuture.runAsync(() -> AuthenticatedTextTurnCore.execute(
                 session,
                 normalizedMessage,
-                (ignored, text) -> ChatAI.answer(player, villager, text),
+                (ignored, text) -> ChatAI.answer(server, player, villager, text, snapshot),
                 (ignored, response) -> villager.conversationManager.addMessage(
                         player,
                         Component.literal(response)
