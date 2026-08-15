@@ -63,6 +63,22 @@ public final class MemoryRetriever {
     }
 
     static int relevanceScore(MemoryEvent event, MemoryQuery query, String currentMessage) {
+        if (MemoryLexicalRelevance.hasUsefulQuery(currentMessage)) {
+            int dimensions = 1;
+            int score = MemoryLexicalRelevance.score(currentMessage, event.summary());
+
+            // Query-aware Memory 2.0 context already applies NPC/player eligibility before
+            // candidate allocation. Treat that boundary as eligibility, not as a positive
+            // relevance dimension: otherwise every eligible fresh dialogue receives a
+            // structural relevance bonus that can starve an older lexical match at rank-to-6.
+            if (!query.preferredTypes().isEmpty()) {
+                dimensions++;
+                if (query.preferredTypes().contains(event.type())) score += 100;
+            }
+
+            return score / dimensions;
+        }
+
         int dimensions = 0;
         int score = 0;
 
@@ -78,11 +94,6 @@ public final class MemoryRetriever {
         if (!query.preferredTypes().isEmpty()) {
             dimensions++;
             if (query.preferredTypes().contains(event.type())) score += 100;
-        }
-
-        if (MemoryLexicalRelevance.hasUsefulQuery(currentMessage)) {
-            dimensions++;
-            score += MemoryLexicalRelevance.score(currentMessage, event.summary());
         }
 
         return dimensions == 0 ? 100 : score / dimensions;
