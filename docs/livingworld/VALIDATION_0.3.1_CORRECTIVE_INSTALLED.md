@@ -1,189 +1,150 @@
-# VillAIgence 0.3.1 Corrective Installed Acceptance
+# VillAIgence 0.3.1 Corrective Installed Validation
 
-Status: **RELEASED / AUTOMATED RELEASE GATES PASS / INSTALLED CORRECTIVE CANARY PENDING**
+Status: **INSTALLED / OPERATIONAL / CORRECTIVE CANARY FAIL**
 
-## Exact release boundary
+## Release boundary
 
 - Release: `0.3.1+1.21.1`
 - Artifact: `villaigence-fabric-0.3.1+1.21.1.jar`
-- Official JAR SHA-256: `f7f40b920c6f72a0e9af864795f48a0f90479db42a145081f43923b71a95e29f`
+- SHA-256: `f7f40b920c6f72a0e9af864795f48a0f90479db42a145081f43923b71a95e29f`
 - Release commit: `bc7c68ac2f3a4f761aa3b03a2f5c1fe1201745ab`
-- Annotated tag object: `1186e7ed1b3b41ab847ea6f0fd8276adf652aed4`
 - GitHub Release workflow: run `31740268273` / run number `880` / `SUCCESS`
 - Release asset id: `513475330`
-- Post-release Nightly Acceptance: run `31769423563` / run number `8` / `SUCCESS`
+- Installed validation date: `2026-08-15` (`Europe/Moscow`)
+- Result: **INSTALLED CORRECTIVE CANARY FAIL**
 
-The `0.3.1` patch is intentionally narrow. It corrects the installed `VAI-PCM-MULTI-001` crowded-history recall defect found in `0.3.0`; it does not change persistence schema/version, provider schema/call count, public configuration, NPC/player eligibility, prompt bounds, or voice-target selection semantics.
+This validation repeats only the corrective `VAI-PCM-MULTI-001` boundary from the `0.3.0+1.21.1` installed result. Previously accepted voice, STT, security, restart, and other manual canaries were not repeated.
 
-Automated candidate/release evidence is already complete. This document exists only for the remaining installed evidence that CI cannot claim.
+## Installation evidence
 
-## Why only one canary is repeated
-
-`0.3.0+1.21.1` already produced installed PASS evidence for:
-
-```text
-Gate A             PASS
-Gate B             PASS
-VAI-PCM-E2E-001    PASS
-VAI-PROX-MULTI-001 PASS
-VAI-SEC-001        PASS
-VAI-RESET-001      PASS
-VAI-STT-001        PASS
-Personality smoke  PASS (exploratory)
-```
-
-The only required installed failure was:
+The official immutable GitHub Release asset was downloaded and verified before upload:
 
 ```text
-VAI-PCM-MULTI-001  FAIL
+f7f40b920c6f72a0e9af864795f48a0f90479db42a145081f43923b71a95e29f  villaigence-fabric-0.3.1+1.21.1.jar
 ```
 
-The runtime correction is limited to bounded query-aware Memory 2.0 retrieval plus immutable text-turn snapshot capture. Repeating unrelated manual canaries would add operator cost without testing the changed failure mode.
+The embedded Fabric metadata reported:
 
-Existing explicit deferrals remain unchanged:
+```text
+id:      mca
+name:    VillAIgence
+version: 0.3.1+1.21.1
+```
+
+The server was upgraded in place from `0.3.0+1.21.1`. Existing `world/livingworld` state was intentionally preserved because the corrective canary depends on the previously stored Muammer and Nurey markers.
+
+Recovery backup:
+
+```text
+/home/server/minecraft/backups/pre-villaigence-0.3.1-20260815-115916
+```
+
+The backup contains `world`, `config`, `mods`, a LivingWorld snapshot, pre/post persistence hashes, the prior active `0.3.0+1.21.1` JAR, crontab evidence, and the deployment log.
+
+All existing LivingWorld JSON hashes were unchanged across the installation restart.
+
+## Startup gate: PASS
+
+- Minecraft `1.21.1`
+- Fabric Loader `0.19.3`
+- Temurin Java `21.0.11`
+- Fabric API `0.116.14+1.21.1`
+- Simple Voice Chat `1.21.1-2.6.20`
+- VillAIgence internal mod ID `mca`, version `0.3.1+1.21.1`
+- Server reached `Done (0.690s)`
+- Minecraft TCP/UDP `25565` active
+- Simple Voice Chat UDP `24454` active
+- LinuxGSM monitor returned `OK`
+- Active server JAR SHA matched the official release SHA
+- No blocking Mixin, refmap, injection, VillAIgence, fatal, or crash error was found
+
+The startup log contained an external Mojang public-key request failure with `Network is unreachable`. This did not prevent startup, player login, provider-backed NPC responses, active ports, or LinuxGSM health checks.
+
+## Corrective canary
+
+### Preserved baseline
+
+The pre-`0.3.1` state remained valid and contained the expected owner-local events:
+
+- Muammer UUID: `34e2a220-7e85-4edc-8c93-52b068b97608`
+- Muammer marker: `amber-pine-314`
+- Nurey UUID: `4adf884f-81ad-4a88-bdf9-46eda1ce237a`
+- Nurey marker: `violet-river-926`
+
+### Muammer recall: FAIL
+
+An initial semantically equivalent request without punctuation failed. The required exact text was then sent:
+
+```text
+Муаммер, назови личный маркер, который я ранее сообщил именно тебе.
+```
+
+Persisted reply:
+
+```text
+Я же говорю, не помню никаких твоих маркеров! Ты вообще кто такой? И почему я должен что-то помнить, если ты не знаешь, как меня зовут?
+```
+
+The original `Amber-pine-314` dialogue remained present and valid under Muammer's UUID:
+
+- source event ID: `3252f67f-27f5-38bf-840c-d522c36b34fd`
+- exact corrective request event ID: `4bbc66b4-271b-3d21-b32e-19847e45cd2b`
+
+The exact installed recall criterion therefore failed.
+
+### Nurey recall: PASS
+
+Exact request:
+
+```text
+Нурэй, назови личный маркер, который я ранее сообщил именно тебе.
+```
+
+Persisted reply:
+
+```text
+Violet-river-926. Но я не понимаю, зачем тебе это.
+```
+
+The response was stored under Nurey's UUID with event ID `8b77e90c-99cd-3c0b-8ab0-45e14214825a`.
+
+### Isolation and integrity: PASS
+
+- Muammer did not answer with Nurey's marker.
+- Nurey did not answer with Muammer's marker.
+- `memory2.json` remained valid JSON.
+- All 14 stored dialogue event IDs were unique (`14/14`).
+- No duplicate installed response or event was observed.
+- Chat, STT, and TTS admission counts were all zero after completion.
+- LinuxGSM monitor remained `OK` after the canary.
+
+## Explicit deferred installed evidence
+
+These boundaries remain unchanged and must not be promoted by inference:
 
 ```text
 VAI-M2-INST-005  NOT TESTED / AUTOMATED EVIDENCE ONLY
 VAI-CONCUR-004   NOT TESTED / DEFERRED
 ```
 
-Neither may be promoted by inference.
-
-## Installed cutover
-
-The preferred corrective test reuses the retained `0.3.0` world/history because the defect itself requires an older still-retained marker that has fallen outside the normal recent lane. Do **not** wipe `world/livingworld/` for this canary.
-
-Before changing the active JAR:
-
-1. stop the server cleanly;
-2. preserve the current world, `config/`, and `mods/` state;
-3. retain the installed `0.3.0+1.21.1` JAR separately;
-4. install only the official `0.3.1+1.21.1` VillAIgence JAR;
-5. do not install original MCA Reborn alongside VillAIgence.
-
-On the known LinuxGSM layout, record the active JAR hash before startup:
-
-```bash
-cd /home/server/minecraft
-sha256sum mods/villaigence-fabric-0.3.1+1.21.1.jar
-```
-
-Required value:
+## Final disposition
 
 ```text
-f7f40b920c6f72a0e9af864795f48a0f90479db42a145081f43923b71a95e29f
+Official SHA            PASS
+Startup gate            PASS
+Muammer recall          FAIL
+Nurey recall            PASS
+Cross-NPC isolation     PASS
+Duplicate check         PASS
+Persistence validity    PASS
+VAI-PCM-MULTI-001       FAIL
+LinuxGSM monitor        OK
+VAI-M2-INST-005         NOT TESTED / AUTOMATED EVIDENCE ONLY
+VAI-CONCUR-004          NOT TESTED / DEFERRED
 ```
 
-If the hash differs, stop. The result would not be evidence for the official release.
+`0.3.1+1.21.1` remains installed and operational, but `VAI-PCM-MULTI-001` is **FAIL** because Muammer did not recall his preserved owner-local marker after the exact required text request.
 
-## Startup sanity
+The corrective installed acceptance gate is not satisfied. Under the delivery contract, this result does not authorize transition to the `0.4` Knowledge ecosystem milestone.
 
-Start the same retained world and confirm:
-
-- Minecraft `1.21.1` reaches `Done`;
-- VillAIgence internal mod ID `mca` reports version `0.3.1+1.21.1`;
-- no blocking Mixin/refmap/injection/VillAIgence startup error appears;
-- `memory2.json` remains valid;
-- the legacy removed `memory.json` path does not reappear.
-
-A startup failure is a release blocker even if recall is not exercised.
-
-## `VAI-PCM-MULTI-001` corrective canary
-
-### Existing retained identities/evidence
-
-The original installed failure used:
-
-- Muammer: `34e2a220-7e85-4edc-8c93-52b068b97608`
-- Nurey: `4adf884f-81ad-4a88-bdf9-46eda1ce237a`
-
-Their private markers were retained under separate NPC owners:
-
-- Muammer: `amber-pine-314`
-- Nurey: `violet-river-926`
-
-The `0.3.0` failure proved that both ownership and isolation were correct, but Muammer's older retained marker was starved from functional retrieval.
-
-### Required test sequence
-
-Use **exact text first** so STT cannot confound the retrieval verdict.
-
-1. Interact with Muammer and send exactly:
-
-```text
-Муаммер, назови личный маркер, который я ранее сообщил именно тебе.
-```
-
-2. Required Muammer result:
-
-```text
-response meaningfully recalls amber-pine-314
-```
-
-Exact capitalization is not required. A semantically unambiguous reproduction of the marker is required.
-
-3. Interact with Nurey and send exactly:
-
-```text
-Нурей, назови личный маркер, который я ранее сообщил именно тебе.
-```
-
-4. Required Nurey result:
-
-```text
-response meaningfully recalls violet-river-926
-```
-
-5. Isolation requirements:
-
-- Muammer must not answer with `violet-river-926`;
-- Nurey must not answer with `amber-pine-314`;
-- neither NPC may receive or persist the other NPC's private marker as its own dialogue history;
-- no duplicate response/event is allowed for either request.
-
-6. Confirm both original marker events are still present under their correct NPC UUIDs in `world/livingworld/memory2.json` after the test.
-
-A secondary voice repeat is optional. If STT distorts a marker, that voice attempt is inconclusive rather than a retrieval failure; the exact-text oracle above owns the corrective verdict.
-
-## PASS / FAIL rule
-
-`VAI-PCM-MULTI-001` is **PASS** only if all of the following hold on the official JAR bytes:
-
-```text
-official SHA verified
-server startup sane
-Muammer recalls amber-pine-314
-Nurey recalls violet-river-926
-no cross-NPC marker leakage
-no duplicate response/event
-memory2.json remains valid
-```
-
-It is **FAIL** if the exact text question cannot retrieve the retained correct marker, if ownership/isolation is violated, if duplicate persistence occurs, or if the official JAR cannot start safely on the retained world.
-
-## Evidence to record
-
-Fill this section only from the real installed run:
-
-```text
-Validation date/time:
-Server backup path:
-Installed JAR SHA-256:
-Startup: PASS / FAIL
-Muammer recall: PASS / FAIL
-Nurey recall: PASS / FAIL
-Isolation: PASS / FAIL
-Duplicate check: PASS / FAIL
-Persistence validity: PASS / FAIL
-VAI-PCM-MULTI-001: PASS / FAIL
-Relevant log/evidence path:
-Notes:
-```
-
-## Acceptance consequence
-
-If `VAI-PCM-MULTI-001` passes on the exact official `0.3.1+1.21.1` bytes, the sole confirmed `0.3.0` installed blocker is closed and the 0.3 corrective release can be recorded as installed-accepted for the executed required canary boundary.
-
-If it fails, do not start the 0.4 product track. Preserve logs and `world/livingworld/` evidence and open a new narrow corrective version; the immutable `0.3.1` tag/assets must not be modified.
-
-Until real evidence is recorded here, `0.3.1+1.21.1` remains **released and fully automated-accepted, but not installed-accepted**.
+`0.3.1+1.21.1` remains immutable and active on the private test server. Any further runtime correction must use a new patch version and must preserve the retained installed evidence for diagnosis and retest.
