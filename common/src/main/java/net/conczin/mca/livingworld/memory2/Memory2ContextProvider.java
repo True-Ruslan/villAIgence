@@ -71,15 +71,17 @@ public final class Memory2ContextProvider {
             List<MemoryEvent> baseline,
             String currentMessage
     ) {
-        if (!MemoryLexicalRelevance.hasUsefulQuery(currentMessage)) return baseline;
+        boolean queryAware = MemoryLexicalRelevance.hasUsefulQuery(currentMessage)
+                || MemoryReferentialRecall.hasRecallIntent(currentMessage);
+        if (!queryAware) return baseline;
 
         Comparator<MemoryEvent> queryFirst = Comparator
-                .comparingInt((MemoryEvent event) -> MemoryLexicalRelevance.score(currentMessage, event.summary()))
+                .comparingInt((MemoryEvent event) -> queryRelevanceScore(currentMessage, event))
                 .reversed()
                 .thenComparing(NEWEST_FIRST);
         List<MemoryEvent> queryRelevant = eligible.stream()
                 .limit(QUERY_SCAN_LIMIT)
-                .filter(event -> MemoryLexicalRelevance.score(currentMessage, event.summary()) > 0)
+                .filter(event -> queryRelevanceScore(currentMessage, event) > 0)
                 .sorted(queryFirst)
                 .limit(QUERY_RELEVANT_LIMIT)
                 .toList();
@@ -91,6 +93,13 @@ public final class Memory2ContextProvider {
         appendUniqueBounded(merged, seen, queryRelevant);
         appendUniqueBounded(merged, seen, baseline);
         return List.copyOf(merged);
+    }
+
+    private static int queryRelevanceScore(String currentMessage, MemoryEvent event) {
+        return Math.max(
+                MemoryLexicalRelevance.score(currentMessage, event.summary()),
+                MemoryReferentialRecall.score(currentMessage, event)
+        );
     }
 
     private static void appendUniqueBounded(
