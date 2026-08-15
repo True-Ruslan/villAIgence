@@ -16,14 +16,14 @@ final class MemoryReferentialRecall {
     private static final int MAX_QUERY_TOKENS = 24;
     private static final Pattern TOKEN_SEPARATOR = Pattern.compile("[^\\p{L}\\p{N}]+");
     private static final Pattern COMPACT_OPAQUE_MARKER = Pattern.compile(
-            "(?iu)(?<![\\p{L}\\p{N}])"
-                    + "(?=[\\p{L}\\p{N}_-]*\\p{L})"
-                    + "(?=[\\p{L}\\p{N}_-]*\\p{N})"
-                    + "[\\p{L}\\p{N}]+(?:[-_][\\p{L}\\p{N}]+)+"
-                    + "(?![\\p{L}\\p{N}])"
+            "(?i)(?<![a-z0-9])"
+                    + "(?=[a-z0-9_-]*[a-z])"
+                    + "(?=[a-z0-9_-]*\\d)"
+                    + "[a-z0-9]+(?:[-_][a-z0-9]+)+"
+                    + "(?![a-z0-9])"
     );
     private static final Pattern SPOKEN_OPAQUE_MARKER = Pattern.compile(
-            "(?iu)(?<!\\p{L})\\p{L}{3,}\\s+\\p{L}{3,}\\s+\\d{2,}(?!\\d)"
+            "(?i)(?<![a-z])[a-z]{3,}\\s+[a-z]{3,}\\s+\\d{2,}(?!\\d)"
     );
 
     private static final Set<String> MARKER_NOUN_STEMS = Set.of(
