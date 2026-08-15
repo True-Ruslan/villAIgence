@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
  */
 final class MemoryReferentialRecall {
     private static final int MAX_QUERY_TOKENS = 24;
+    private static final int MAX_SOURCE_TOKENS = 48;
     private static final Pattern TOKEN_SEPARATOR = Pattern.compile("[^\\p{L}\\p{N}]+");
     private static final Pattern COMPACT_OPAQUE_MARKER = Pattern.compile(
             "(?i)(?<![a-z0-9])"
@@ -33,6 +34,9 @@ final class MemoryReferentialRecall {
             "помн", "назов", "ранее", "раньше", "сообщ", "сказ", "говор",
             "remember", "recall", "name", "earlier", "previous", "told", "said"
     );
+    private static final Set<String> STORAGE_STEMS = Set.of(
+            "запомн", "сохран", "remember", "save", "keep"
+    );
 
     private MemoryReferentialRecall() {
     }
@@ -48,12 +52,16 @@ final class MemoryReferentialRecall {
         String playerText = event.dialogue() == null
                 ? event.summary()
                 : event.dialogue().playerMessage();
-        return containsOpaqueMarker(playerText) ? 100 : 0;
+        return hasStorageCue(playerText) && containsOpaqueMarker(playerText) ? 100 : 0;
     }
 
     static boolean hasRecallIntent(String queryText) {
         Set<String> tokens = tokens(queryText, MAX_QUERY_TOKENS);
         return containsStem(tokens, MARKER_NOUN_STEMS) && containsStem(tokens, RECALL_STEMS);
+    }
+
+    static boolean hasStorageCue(String text) {
+        return containsStem(tokens(text, MAX_SOURCE_TOKENS), STORAGE_STEMS);
     }
 
     static boolean containsOpaqueMarker(String text) {
