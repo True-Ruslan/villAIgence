@@ -76,6 +76,23 @@ class MemoryReferentialRecallTest {
         assertEquals(0, MemoryReferentialRecall.score(query, event));
     }
 
+    @Test
+    void unrelatedTechnicalIdentifierNeedsAnExplicitStorageCue() {
+        String query = "Муаммер, назови маркер, который я ранее сообщил тебе.";
+        MemoryEvent event = dialogue(
+                MemoryEvent.Provenance.PLAYER_TOLD,
+                "Player said: На сервере используется java-21. | NPC replied: Понятно.",
+                null
+        );
+
+        assertTrue(MemoryReferentialRecall.containsOpaqueMarker(event.summary()));
+        assertEquals(
+                0,
+                MemoryReferentialRecall.score(query, event),
+                "an arbitrary machine-like identifier must not become a personal marker without a storage cue"
+        );
+    }
+
     private static MemoryEvent dialogue(
             MemoryEvent.Provenance provenance,
             String summary,
