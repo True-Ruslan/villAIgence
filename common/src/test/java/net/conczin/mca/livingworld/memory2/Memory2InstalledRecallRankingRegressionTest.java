@@ -31,16 +31,7 @@ class Memory2InstalledRecallRankingRegressionTest {
         );
         store.append(oldMarker, 128);
 
-        for (int i = 0; i < 13; i++) {
-            store.append(dialogue(
-                    new UUID(0L, 9_000L + i),
-                    npc,
-                    player,
-                    290_000L + i,
-                    "Player said: обычный разговор номер " + i
-                            + " о погоде и деревне | NPC replied: Хорошо."
-            ), 128);
-        }
+        appendFreshNoise(store, npc, player);
 
         assertEquals(
                 50,
@@ -68,8 +59,66 @@ class Memory2InstalledRecallRankingRegressionTest {
         assertTrue(context.size() <= 6, "the existing final prompt result bound must remain hard");
         assertTrue(
                 context.stream().anyMatch(line -> line.contains("amber-pine-314")),
-                "RED: one-token targeted relevance must outrank unrelated fresh dialogue at the final rank-to-6 boundary"
+                "one-token targeted relevance must outrank unrelated fresh dialogue at the final rank-to-6 boundary"
         );
+    }
+
+    @Test
+    void markerRecallIntentRecoversOpaquePlayerToldMarkerWithoutLexicalOverlap() {
+        UUID npc = UUID.fromString("34e2a220-7e85-4edc-8c93-52b068b97608");
+        UUID player = UUID.fromString("00000000-0000-0000-0000-000000000702");
+        UUID markerEventId = UUID.fromString("3252f67f-27f5-38bf-840c-d522c36b34fd");
+        MemoryEventStore store = MemoryEventStore.forWorld(tempDir);
+
+        String query = "Муаммер, назови личный маркер, который я ранее сообщил именно тебе.";
+        MemoryEvent oldMarker = dialogue(
+                markerEventId,
+                npc,
+                player,
+                1L,
+                "Player said: Запомни amber-pine-314. | NPC replied: Хорошо."
+        );
+        store.append(oldMarker, 128);
+
+        appendFreshNoise(store, npc, player);
+
+        assertEquals(
+                0,
+                MemoryLexicalRelevance.score(query, oldMarker.summary()),
+                "the hardened regression must not depend on any shared useful lexical token"
+        );
+        assertEquals(14, store.getRecent(npc, 128).size());
+        assertTrue(
+                store.getRecent(npc, 128).stream().anyMatch(event -> event.id().equals(markerEventId)),
+                "the source marker remains retained; this is retrieval, not persistence loss"
+        );
+
+        List<String> context = Memory2ContextProvider.load(
+                tempDir,
+                npc,
+                player,
+                300_000L,
+                query
+        );
+
+        assertTrue(context.size() <= 6, "referential recall must not widen the final result bound");
+        assertTrue(
+                context.stream().anyMatch(line -> line.contains("amber-pine-314")),
+                "RED: explicit marker-recall intent must recover an older opaque player-told marker even with zero lexical overlap"
+        );
+    }
+
+    private static void appendFreshNoise(MemoryEventStore store, UUID npc, UUID player) {
+        for (int i = 0; i < 13; i++) {
+            store.append(dialogue(
+                    new UUID(0L, 9_000L + i),
+                    npc,
+                    player,
+                    290_000L + i,
+                    "Player said: обычный разговор номер " + i
+                            + " о погоде и деревне | NPC replied: Хорошо."
+            ), 128);
+        }
     }
 
     private static MemoryEvent dialogue(
