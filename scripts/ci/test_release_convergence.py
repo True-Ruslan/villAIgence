@@ -85,7 +85,10 @@ class ReleaseConvergenceValidatorTest(unittest.TestCase):
             contract["previousRelease"]["commit"],
         )
         self.assertEqual(
-            ({"tag": "0.3.1+1.21.1", "pullRequests": [165]},),
+            (
+                {"tag": "0.3.1+1.21.1", "pullRequests": [165]},
+                {"tag": "0.3.2+1.21.1", "pullRequests": [169]},
+            ),
             tuple(contract["patchReleases"]),
         )
         self.assertEqual(
@@ -364,7 +367,7 @@ _No entries._
         errors = validate_contract(
             contract,
             repository_root=REPOSITORY_ROOT,
-            requested_tag="0.3.1+1.21.1",
+            requested_tag="0.3.2+1.21.1",
         )
         self.assertEqual((), errors)
 
@@ -373,7 +376,7 @@ _No entries._
         errors = validate_contract(
             contract,
             repository_root=REPOSITORY_ROOT,
-            requested_tag="0.3.2+1.21.1",
+            requested_tag="0.3.3+1.21.1",
         )
         self.assertTrue(
             any("does not match convergence candidate or declared patch release" in error for error in errors)

@@ -21,13 +21,24 @@ This is the **canonical changelog** for the project.
 
 ## [Unreleased]
 
+_No entries after the `0.3.2+1.21.1` release boundary yet._
+
+---
+
+## [0.3.2+1.21.1] — 2026-08-15
+
 ### Fixed
 
-- Correct targeted Memory 2.0 final ranking after installed `0.3.1+1.21.1` acceptance exposed a retained owner-local marker that could still be starved at the final rank-to-`6` boundary. Query-aware ranking now treats already-enforced NPC/player matching as eligibility rather than as a positive relevance dimension, allowing an older one-token lexical match to outrank unrelated fresh dialogue inside the unchanged hard `32`-candidate / `6`-result bounds. No persistence schema/version, provider request/schema/call count, public configuration, migration, prompt-window widening or NPC/player isolation change is introduced.
+- PR #169 fixes the installed targeted Memory 2.0 recall defect that remained in `0.3.1+1.21.1`. Query-aware final ranking now treats exact NPC/player participant matching as an eligibility boundary rather than a universal positive relevance term, so an older one-token targeted dialogue is not displaced by unrelated fresh eligible dialogue.
+- Explicit marker/code/token recall has a bounded deterministic zero-overlap fallback for already-eligible `PLAYER_TOLD` dialogue only: the current query must express recall intent, the original player text must contain an explicit storage cue, and that text must contain a bounded machine-like opaque identifier such as `amber-pine-314` or `amber pine 314`. The score is used in the existing max-8 query lane and final max-6 ranker with the unchanged max-32 candidate bound.
+- False-positive hardening rejects natural-language numeric phrases, `NPC_TOLD` dialogue, storage commands masquerading as recall queries, and unrelated machine-like identifiers such as `java-21` without an original storage cue.
+- No persistence schema/version/file, migration/backfill, public configuration, provider request/schema/call count, embedding/vector retrieval, prompt-window widening, NPC/player isolation, FACT/BELIEF authority or voice-target semantics change is introduced.
 
 ### Validation
 
-- Installed `0.3.1+1.21.1` corrective validation on 2026-08-15 remained `VAI-PCM-MULTI-001 FAIL`: the official SHA, startup, persistence validity, unique-event integrity and cross-NPC isolation passed; Muammer did not recall retained `amber-pine-314`, while Nurey recalled `violet-river-926`. PR #169 then observed a dedicated installed-shaped RED with 839 common tests / exactly 1 failure before the minimal ranking correction. Automated GREEN evidence remains separate from installed acceptance; `0.4` stays blocked until a new official corrective patch is installed and the affected canary passes.
+- Installed `0.3.1+1.21.1` evidence on 2026-08-15 remains `VAI-PCM-MULTI-001 FAIL`: the exact official SHA, startup, persistence validity, 14/14 unique dialogue event IDs and cross-NPC isolation passed; Muammer failed to recall retained `amber-pine-314`, while Nurey recalled `violet-river-926`.
+- PR #169 used staged RED→GREEN hardening for one-token final-rank starvation, zero-overlap referential recall, natural numeric false-positive rejection and unrelated machine-ID rejection without a storage cue. Final exact-head Repository security, full CI, Production Soak and GitHub Release dry-run passed before merge.
+- Automated candidate/release evidence is not installed acceptance. `VAI-PCM-MULTI-001` remains pending for the official immutable `0.3.2+1.21.1` GitHub Release JAR; `VAI-M2-INST-005` and `VAI-CONCUR-004` remain NOT TESTED/deferred.
 
 ---
 
