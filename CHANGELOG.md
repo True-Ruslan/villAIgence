@@ -21,7 +21,13 @@ This is the **canonical changelog** for the project.
 
 ## [Unreleased]
 
-_No entries after the `0.3.1+1.21.1` release boundary yet._
+### Fixed
+
+- Correct targeted Memory 2.0 final ranking after installed `0.3.1+1.21.1` acceptance exposed a retained owner-local marker that could still be starved at the final rank-to-`6` boundary. Query-aware ranking now treats already-enforced NPC/player matching as eligibility rather than as a positive relevance dimension, allowing an older one-token lexical match to outrank unrelated fresh dialogue inside the unchanged hard `32`-candidate / `6`-result bounds. No persistence schema/version, provider request/schema/call count, public configuration, migration, prompt-window widening or NPC/player isolation change is introduced.
+
+### Validation
+
+- Installed `0.3.1+1.21.1` corrective validation on 2026-08-15 remained `VAI-PCM-MULTI-001 FAIL`: the official SHA, startup, persistence validity, unique-event integrity and cross-NPC isolation passed; Muammer did not recall retained `amber-pine-314`, while Nurey recalled `violet-river-926`. PR #169 then observed a dedicated installed-shaped RED with 839 common tests / exactly 1 failure before the minimal ranking correction. Automated GREEN evidence remains separate from installed acceptance; `0.4` stays blocked until a new official corrective patch is installed and the affected canary passes.
 
 ---
 
