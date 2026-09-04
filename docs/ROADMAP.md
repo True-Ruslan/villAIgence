@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation/validation state. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-08-12**, after PR #160 merged the 0.3 release-convergence contract and verified candidate boundary.
+> Last reconciled: **2026-08-15**, after PR #171 documented the 0.3.2+1.21.1 installed corrective test plan following the published 0.3.0 → 0.3.2 release line.
 
 ## Product vision
 
@@ -98,48 +98,56 @@ settlement-scale information flow without omniscience  COMPLETE / PR #147
 relationship/trust social epistemology                 COMPLETE / PR #149
 0.2 Memory 2.0 source capability track                 COMPLETE AT CURRENT PLANNED BOUNDARY / UNRELEASED
 
-0.3 Personality + NPC↔NPC Social Graph                 CONVERGENCE COMPLETE / RELEASE REQUEST NEXT
+0.3 Personality + NPC↔NPC Social Graph                 RELEASED (0.3.0-0.3.2) / INSTALLED ACCEPTANCE PENDING
 NPC↔NPC social-graph persistence foundation            COMPLETE / PR #151
 server-owned causal NPC↔NPC social mutation lifecycle COMPLETE / PR #153
 bounded read-only MCA Personality + pair snapshot      COMPLETE / PR #155
 deliberate dialogue/behavior integration               COMPLETE / PR #158
 0.3 convergence / release-candidate planning           COMPLETE / PR #160
-exact 0.3.0+1.21.1 release request / candidate         NEXT
+0.3.0+1.21.1 release request / candidate               RELEASED / PR #162
+0.3.1+1.21.1 corrective fix + release                  RELEASED / PR #165, #166 — INSTALLED CANARY FAIL
+0.3.2+1.21.1 corrective fix + release                  RELEASED / PR #169, #170 — INSTALLED CANARY PENDING
+0.3.2 installed corrective test plan                   READY FOR OPERATOR EXECUTION / PR #171
 ```
 
 Immediate sequence:
 
 ```text
-exact 0.3.0+1.21.1 release request / candidate creation
-→ exact immutable release publication
-→ installed clean-state acceptance
-→ post-release state/roadmap/changelog reconciliation
-→ richer knowledge ecosystem / 0.4
+operator executes docs/livingworld/TEST_PLAN_0.3.2_CORRECTIVE_INSTALLED.md on the retained world
+→ record VAI-PCM-MULTI-001 PASS / FAIL honestly
+→ on PASS: post-release state/roadmap/changelog reconciliation
+→ only then: richer knowledge ecosystem / 0.4
 ```
 
 `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two real graphical clients are available. It does not block server-side product development because concurrency semantics are automated.
 
 ---
 
-# Current official release — 0.2.0+1.21.1
+# Current official release — 0.3.2+1.21.1
 
 ```text
-tag:                     0.2.0+1.21.1
-release commit:          e426f588efefa6aa48a6e536c4a998421bbda241
-installed candidate SHA: 56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
+tag:                     0.3.2+1.21.1
+release commit:          3bb39e7ed126163efcdf971e85c89a4a5efd3111
+release asset SHA:       b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015
 ```
 
-Installed clean-state result:
+Installed acceptance boundary:
 
 ```text
-required:          7 PASS / 0 FAIL
-VAI-M2-INST-005:   NOT TESTED / AUTOMATED EVIDENCE ONLY
-VAI-CONCUR-004:    NOT TESTED / DEFERRED
+0.2.0+1.21.1 clean-state result (last PASS boundary):
+  required:          7 PASS / 0 FAIL
+  VAI-M2-INST-005:   NOT TESTED / AUTOMATED EVIDENCE ONLY
+  VAI-CONCUR-004:    NOT TESTED / DEFERRED
+
+0.3.1+1.21.1 installed attempt (2026-08-15): VAI-PCM-MULTI-001 FAIL (Muammer recall)
+0.3.2+1.21.1 installed corrective canary: NOT YET EXECUTED
 ```
 
-The release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is clean-state; no legacy conversation importer or dual reader is planned.
+`0.3.0+1.21.1` released the complete PR #123-#158 capability set (PR #162). Installed acceptance then found a real long-horizon targeted-recall defect, corrected across two narrow fix+release cycles (`0.3.1` via PR #165/#166, `0.3.2` via PR #169/#170). `0.3.2` is the current official release but does not yet have a PASS installed canary; see `docs/livingworld/TEST_PLAN_0.3.2_CORRECTIVE_INSTALLED.md` (PR #171).
 
-PRs #127 through #158 listed in `PROJECT_STATE.md` are post-release `[Unreleased]` source capabilities. Their automated evidence must not be represented as installed `0.2.0` acceptance. PR #160 is convergence/release infrastructure, not gameplay capability or installed evidence.
+The 0.2.0 release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is clean-state; no legacy conversation importer or dual reader is planned.
+
+PRs #127 through #158 listed in `PROJECT_STATE.md` are post-`0.2.0` source capabilities, all shipped in `0.3.0`. PR #160 was convergence/release infrastructure; PRs #165/#169 were narrow corrective runtime fixes; PR #171 is documentation-only.
 
 ---
 
@@ -186,7 +194,9 @@ bounded read-only personality/social snapshot    COMPLETE / PR #155
 dialogue/behavior effect                         COMPLETE / PR #158
 high-frequency autonomous social evolution       NOT IN 0.3 BOUNDED SCOPE
 release convergence                              COMPLETE / PR #160
-exact 0.3.0+1.21.1 release request / candidate  NEXT
+exact 0.3.0+1.21.1 release request / candidate  RELEASED / PR #162
+corrective fix + release cycles                  0.3.1 (PR #165/#166), 0.3.2 (PR #169/#170)
+installed corrective canary                      READY FOR OPERATOR EXECUTION / PR #171
 ```
 
 ## Completed — NPC↔NPC social-graph persistence foundation
@@ -455,9 +465,7 @@ The current post-`0.2.0` capability set has one explicit 0.3 scope, exact candid
 
 ---
 
-# NEXT — exact 0.3.0+1.21.1 release request / candidate creation
-
-The next step is **shipping the proven boundary without expanding product scope**.
+# Completed — exact 0.3.0+1.21.1 release request / candidate creation
 
 ## Goal
 
@@ -524,11 +532,58 @@ release-only branch from reconciled main
 → post-release reconciliation
 ```
 
-### Release-request exit criterion
+### Release-request exit criterion — met
 
-An immutable `0.3.0+1.21.1` GitHub Release exists from the exact accepted main commit, its artifact identity matches the production-accepted package, and installed acceptance is then performed and recorded separately.
+PR #162 published the immutable `0.3.0+1.21.1` GitHub Release from the exact accepted main commit with artifact identity matching the production-accepted package. Installed acceptance then found a real defect (see below), which the release-request/publication mechanism itself is not responsible for.
 
-Do not begin 0.4/0.5 feature expansion until this exact release/installed boundary is reconciled.
+---
+
+# Completed — 0.3.1 / 0.3.2 corrective fix + release cycles
+
+Installed `VAI-PCM-MULTI-001` acceptance on `0.3.0+1.21.1` found that older eligible `PLAYER_TOLD` dialogue could be starved out of the bounded 32-candidate/6-result recall window by newer unrelated eligible dialogue. Two narrow corrective cycles followed, each a runtime-fix PR plus a dedicated release PR:
+
+```text
+0.3.1+1.21.1  PR #165 (fix) + #166 (release)   deterministic query-aware relevance inside existing eligibility/bounds
+0.3.2+1.21.1  PR #169 (fix) + #170 (release)   eligibility-vs-relevance ranking correction + zero-overlap marker recall
+```
+
+Both cycles:
+
+- changed only Memory 2.0 query relevance/ranking, never persistence schema/version, migration, public config, provider schema/call, memory-window size or NPC/player isolation;
+- passed repository security, full CI, Production Soak and a GitHub Release dry-run on their exact head before merge;
+- were installed and re-tested against the same retained-world Muammer/Nurey markers rather than a reset world.
+
+`0.3.1+1.21.1` installed on 2026-08-15 (SHA `f7f40b920c6f72a0e9af864795f48a0f90479db42a145081f43923b71a95e29f`) still failed `VAI-PCM-MULTI-001`: Muammer could not recall `amber-pine-314` even though the source event remained correctly persisted and isolated. `0.3.2+1.21.1` (asset SHA `b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015`) is the current official release; its installed corrective canary has not yet been executed.
+
+---
+
+# NEXT — 0.3.2+1.21.1 operator-installed corrective canary
+
+The next step is the **operator-executed installed canary**, not a new source-capability PR.
+
+## Goal
+
+Prove that the official `0.3.2+1.21.1` GitHub Release JAR resolves the retained-but-starved targeted recall defect on the same retained private test-server world, without re-teaching either marker.
+
+## Required progression
+
+```text
+docs/livingworld/TEST_PLAN_0.3.2_CORRECTIVE_INSTALLED.md (PR #171)
+→ back up retained world/config/mods and pre-install persistence hashes
+→ install only the verified official 0.3.2+1.21.1 asset, keep world/config unchanged
+→ verify official asset SHA, embedded version and active installed JAR SHA
+→ verify pre-install persistence hashes unchanged across the restart
+→ run Muammer/Nurey exact-recall canary (D1-D3) without re-teaching either marker
+→ record VAI-PCM-MULTI-001 PASS / FAIL honestly with full evidence retained either way
+```
+
+### Exit criterion
+
+`VAI-PCM-MULTI-001` records an honest `PASS` on the exact official `0.3.2+1.21.1` asset, with Muammer/Nurey cross-isolation, persistence validity and unique-event-ID checks all passing. Only then are `docs/PROJECT_STATE.md`, this roadmap and root `CHANGELOG.md` reconciled to fully released/installed-accepted `0.3`, and only then does the first `0.4` slice begin.
+
+On `FAIL`: keep `0.3.2+1.21.1` running if server health is otherwise acceptable, leave `0.4` blocked, preserve the exact evidence the test plan lists, and return to root-cause analysis rather than shipping another speculative runtime correction.
+
+Do not begin 0.4/0.5 feature expansion until this exact installed-acceptance boundary is reconciled.
 
 ---
 
