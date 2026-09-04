@@ -21,7 +21,18 @@ This is the **canonical changelog** for the project.
 
 ## [Unreleased]
 
-_No entries after the `0.3.2+1.21.1` release boundary yet._
+### Added
+
+- First `0.4` Knowledge ecosystem slice: the automatic Semantic contradiction classifier now also recognizes a bounded numeric conflict, in addition to the existing standalone `not`/`не` negation rule.
+  - two statements oppose on a numeric conflict only when they have the same token count, differ at exactly one position, and that position holds two bare numeric tokens (optionally decimal or negative) with different parsed values;
+  - equal values written differently (e.g. `04` vs `4`) are not a conflict, and any non-numeric or multi-position difference remains unclassified;
+  - this extends `SemanticOppositionClassifier` only; `SemanticContradictionCandidateSelector`'s `16`-candidate/`8`-comparison bounds, `SemanticContradictionLifecycle`, persistence formats, provider protocol, public configuration and release identity are unchanged;
+  - antonyms, temporal disagreement and free-form semantic opposition remain deliberately unclassified, consistent with the original design's rejection of a broad deterministic rule catalogue (`docs/superpowers/specs/2026-08-10-bounded-contradiction-producer-design.md`) — each extension is scoped and justified on its own.
+
+### Validation
+
+- Tests-first: RED tests for `recognizesExactlyOneNumericConflictSymmetrically`, `recognizesDecimalAndNegativeNumericConflict`, `rejectsNumericTokensWithEqualValueButDifferentFormatting`, `rejectsNumericConflictWhenMoreThanOneTokenDiffers`, `rejectsNumericConflictAcrossDifferentTokenCounts` and `rejectsNonNumericSingleTokenDifference` were added to `SemanticOppositionClassifierTest` and observed failing before the minimal implementation; the prior numeric-difference case moved out of the "rejects" test into its own now-`true` assertion.
+- All 11 `SemanticOppositionClassifierTest` cases and all 325 tests in the `net.conczin.mca.livingworld.memory2` package pass after the change (verified locally outside the sandboxed Gradle/Fabric toolchain, which failed dependency verification and Loom cache resolution unrelated to this change); exact-head repository security/CI/soak/release-dry-run gates still apply before merge per project policy.
 
 ---
 
@@ -36,9 +47,10 @@ _No entries after the `0.3.2+1.21.1` release boundary yet._
 
 ### Validation
 
-- Installed `0.3.1+1.21.1` evidence on 2026-08-15 remains `VAI-PCM-MULTI-001 FAIL`: the exact official SHA, startup, persistence validity, 14/14 unique dialogue event IDs and cross-NPC isolation passed; Muammer failed to recall retained `amber-pine-314`, while Nurey recalled `violet-river-926`.
+- Installed `0.3.1+1.21.1` evidence on 2026-08-15 recorded `VAI-PCM-MULTI-001 FAIL`: the exact official SHA, startup, persistence validity, 14/14 unique dialogue event IDs and cross-NPC isolation passed; Muammer failed to recall retained `amber-pine-314`, while Nurey recalled `violet-river-926`.
 - PR #169 used staged RED→GREEN hardening for one-token final-rank starvation, zero-overlap referential recall, natural numeric false-positive rejection and unrelated machine-ID rejection without a storage cue. Final exact-head Repository security, full CI, Production Soak and GitHub Release dry-run passed before merge.
-- Automated candidate/release evidence is not installed acceptance. `VAI-PCM-MULTI-001` remains pending for the official immutable `0.3.2+1.21.1` GitHub Release JAR; `VAI-M2-INST-005` and `VAI-CONCUR-004` remain NOT TESTED/deferred.
+- Installed `0.3.2+1.21.1` evidence on 2026-09-04, on the official immutable GitHub Release JAR (SHA `b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015`): `VAI-PCM-MULTI-001 PASS`. Muammer recalled retained `amber-pine-314` and Nurey recalled `violet-river-926` with no cross-NPC leakage, on the same retained-world markers used for the `0.3.0`/`0.3.1` canaries. Full detail in `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`. `VAI-M2-INST-005` and `VAI-CONCUR-004` remain unaffected NOT TESTED/deferred.
+- `0.3` is now fully released and installed-accepted at `0.3.2+1.21.1`. The `0.4` Knowledge ecosystem milestone is unblocked.
 
 ---
 
