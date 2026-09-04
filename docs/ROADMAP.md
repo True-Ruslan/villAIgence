@@ -1,8 +1,8 @@
 # VillAIgence Roadmap
 
-> **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation/validation state. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
+> **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation/validation state. Read root `changelog.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-08-12**, after PR #160 merged the 0.3 release-convergence contract and verified candidate boundary.
+> Last reconciled: **2026-09-04**, after the operator-executed `0.3.2+1.21.1` installed corrective canary recorded `VAI-PCM-MULTI-001 PASS` (see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`). `0.3` is fully released and installed-accepted; `0.4` is unblocked.
 
 ## Product vision
 
@@ -41,7 +41,7 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 12. **Unknown CI changes fail closed.** Protected, unsafe and unclassified changes select the complete required matrix.
 13. **Compatibility work requires a supported-data reason.** Experimental pre-1.0 state is not automatically entitled to migration code.
 14. **Release identity is immutable.** Recovery may restore assets/metadata only from an existing verified tag commit and never moves the tag.
-15. **Changelog is part of delivery.** Notable runtime/persistence/config/release/security/permanent-CI changes update root `CHANGELOG.md` in the same PR.
+15. **Changelog is part of delivery.** Notable runtime/persistence/config/release/security/permanent-CI changes update root `changelog.md` in the same PR.
 16. **Runtime behavior follows TDD.** Observe intended RED before production implementation, then implement smallest GREEN and re-run complete selected gates.
 17. **Causal history is not retrospective model narration.** Server-proven process linkage does not make dialogue prose true.
 18. **Player-scoped memory is filtered before ranking/allocation.** Foreign-player data consumes zero bounded slots.
@@ -98,48 +98,59 @@ settlement-scale information flow without omniscience  COMPLETE / PR #147
 relationship/trust social epistemology                 COMPLETE / PR #149
 0.2 Memory 2.0 source capability track                 COMPLETE AT CURRENT PLANNED BOUNDARY / UNRELEASED
 
-0.3 Personality + NPC↔NPC Social Graph                 CONVERGENCE COMPLETE / RELEASE REQUEST NEXT
+0.3 Personality + NPC↔NPC Social Graph                 RELEASED / INSTALLED ACCEPTED (0.3.2+1.21.1)
 NPC↔NPC social-graph persistence foundation            COMPLETE / PR #151
 server-owned causal NPC↔NPC social mutation lifecycle COMPLETE / PR #153
 bounded read-only MCA Personality + pair snapshot      COMPLETE / PR #155
 deliberate dialogue/behavior integration               COMPLETE / PR #158
 0.3 convergence / release-candidate planning           COMPLETE / PR #160
-exact 0.3.0+1.21.1 release request / candidate         NEXT
+0.3.0+1.21.1 release request / candidate               RELEASED / PR #162
+0.3.1+1.21.1 corrective fix + release                  RELEASED / PR #165, #166 — INSTALLED CANARY FAIL
+0.3.2+1.21.1 corrective fix + release                  RELEASED / PR #169, #170 — INSTALLED CANARY PASS
+0.3.2 installed corrective test plan                   EXECUTED / PR #171
+0.3.2+1.21.1 operator-installed corrective canary      PASS on 2026-09-04
+
+0.4 Knowledge ecosystem                                UNBLOCKED / SCOPE NOT YET SELECTED
 ```
 
 Immediate sequence:
 
 ```text
-exact 0.3.0+1.21.1 release request / candidate creation
-→ exact immutable release publication
-→ installed clean-state acceptance
-→ post-release state/roadmap/changelog reconciliation
-→ richer knowledge ecosystem / 0.4
+select and scope the first bounded 0.4 Knowledge ecosystem slice
+→ tests-first RED→GREEN implementation
+→ exact-head security/CI/soak/release-dry-run before merge
+→ docs: reconcile state after <slice> follow-up
 ```
 
 `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two real graphical clients are available. It does not block server-side product development because concurrency semantics are automated.
 
 ---
 
-# Current official release — 0.2.0+1.21.1
+# Current official release — 0.3.2+1.21.1
 
 ```text
-tag:                     0.2.0+1.21.1
-release commit:          e426f588efefa6aa48a6e536c4a998421bbda241
-installed candidate SHA: 56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
+tag:                     0.3.2+1.21.1
+release commit:          3bb39e7ed126163efcdf971e85c89a4a5efd3111
+release asset SHA:       b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015
 ```
 
-Installed clean-state result:
+Installed acceptance boundary:
 
 ```text
-required:          7 PASS / 0 FAIL
-VAI-M2-INST-005:   NOT TESTED / AUTOMATED EVIDENCE ONLY
-VAI-CONCUR-004:    NOT TESTED / DEFERRED
+0.2.0+1.21.1 clean-state result (last PASS boundary):
+  required:          7 PASS / 0 FAIL
+  VAI-M2-INST-005:   NOT TESTED / AUTOMATED EVIDENCE ONLY
+  VAI-CONCUR-004:    NOT TESTED / DEFERRED
+
+0.3.1+1.21.1 installed attempt (2026-08-15): VAI-PCM-MULTI-001 FAIL (Muammer recall)
+0.3.2+1.21.1 installed corrective canary (2026-09-04): VAI-PCM-MULTI-001 PASS
 ```
 
-The release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is clean-state; no legacy conversation importer or dual reader is planned.
+`0.3.0+1.21.1` released the complete PR #123-#158 capability set (PR #162). Installed acceptance then found a real long-horizon targeted-recall defect, corrected across two narrow fix+release cycles (`0.3.1` via PR #165/#166, `0.3.2` via PR #169/#170). `0.3.2` is the current official release and now has a PASS installed corrective canary; see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`. `0.3` is fully released and installed-accepted.
 
-PRs #127 through #158 listed in `PROJECT_STATE.md` are post-release `[Unreleased]` source capabilities. Their automated evidence must not be represented as installed `0.2.0` acceptance. PR #160 is convergence/release infrastructure, not gameplay capability or installed evidence.
+The 0.2.0 release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is clean-state; no legacy conversation importer or dual reader is planned.
+
+PRs #127 through #158 listed in `PROJECT_STATE.md` are post-`0.2.0` source capabilities, all shipped in `0.3.0`. PR #160 was convergence/release infrastructure; PRs #165/#169 were narrow corrective runtime fixes; PR #171 is documentation-only.
 
 ---
 
@@ -186,7 +197,9 @@ bounded read-only personality/social snapshot    COMPLETE / PR #155
 dialogue/behavior effect                         COMPLETE / PR #158
 high-frequency autonomous social evolution       NOT IN 0.3 BOUNDED SCOPE
 release convergence                              COMPLETE / PR #160
-exact 0.3.0+1.21.1 release request / candidate  NEXT
+exact 0.3.0+1.21.1 release request / candidate  RELEASED / PR #162
+corrective fix + release cycles                  0.3.1 (PR #165/#166), 0.3.2 (PR #169/#170)
+installed corrective canary                      READY FOR OPERATOR EXECUTION / PR #171
 ```
 
 ## Completed — NPC↔NPC social-graph persistence foundation
@@ -213,7 +226,7 @@ Core graph properties:
 - duplicate/over-capacity/corrupt source state fails closed;
 - no provider call/config/Semantic authority/dialogue integration was added.
 
-Exact delivery evidence is preserved in `docs/PROJECT_STATE.md`, root `CHANGELOG.md` and `docs/superpowers/evidence/2026-08-10-npc-social-graph-foundation-tdd.md`.
+Exact delivery evidence is preserved in `docs/PROJECT_STATE.md`, root `changelog.md` and `docs/superpowers/evidence/2026-08-10-npc-social-graph-foundation-tdd.md`.
 
 ## Completed — server-owned causal NPC↔NPC social mutation lifecycle
 
@@ -455,9 +468,7 @@ The current post-`0.2.0` capability set has one explicit 0.3 scope, exact candid
 
 ---
 
-# NEXT — exact 0.3.0+1.21.1 release request / candidate creation
-
-The next step is **shipping the proven boundary without expanding product scope**.
+# Completed — exact 0.3.0+1.21.1 release request / candidate creation
 
 ## Goal
 
@@ -524,11 +535,51 @@ release-only branch from reconciled main
 → post-release reconciliation
 ```
 
-### Release-request exit criterion
+### Release-request exit criterion — met
 
-An immutable `0.3.0+1.21.1` GitHub Release exists from the exact accepted main commit, its artifact identity matches the production-accepted package, and installed acceptance is then performed and recorded separately.
+PR #162 published the immutable `0.3.0+1.21.1` GitHub Release from the exact accepted main commit with artifact identity matching the production-accepted package. Installed acceptance then found a real defect (see below), which the release-request/publication mechanism itself is not responsible for.
 
-Do not begin 0.4/0.5 feature expansion until this exact release/installed boundary is reconciled.
+---
+
+# Completed — 0.3.1 / 0.3.2 corrective fix + release cycles
+
+Installed `VAI-PCM-MULTI-001` acceptance on `0.3.0+1.21.1` found that older eligible `PLAYER_TOLD` dialogue could be starved out of the bounded 32-candidate/6-result recall window by newer unrelated eligible dialogue. Two narrow corrective cycles followed, each a runtime-fix PR plus a dedicated release PR:
+
+```text
+0.3.1+1.21.1  PR #165 (fix) + #166 (release)   deterministic query-aware relevance inside existing eligibility/bounds
+0.3.2+1.21.1  PR #169 (fix) + #170 (release)   eligibility-vs-relevance ranking correction + zero-overlap marker recall
+```
+
+Both cycles:
+
+- changed only Memory 2.0 query relevance/ranking, never persistence schema/version, migration, public config, provider schema/call, memory-window size or NPC/player isolation;
+- passed repository security, full CI, Production Soak and a GitHub Release dry-run on their exact head before merge;
+- were installed and re-tested against the same retained-world Muammer/Nurey markers rather than a reset world.
+
+`0.3.1+1.21.1` installed on 2026-08-15 (SHA `f7f40b920c6f72a0e9af864795f48a0f90479db42a145081f43923b71a95e29f`) still failed `VAI-PCM-MULTI-001`: Muammer could not recall `amber-pine-314` even though the source event remained correctly persisted and isolated. `0.3.2+1.21.1` (asset SHA `b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015`) is the current official release.
+
+---
+
+# Completed — 0.3.2+1.21.1 operator-installed corrective canary
+
+## Goal
+
+Prove that the official `0.3.2+1.21.1` GitHub Release JAR resolves the retained-but-starved targeted recall defect on the same retained private test-server world, without re-teaching either marker.
+
+## Executed progression
+
+```text
+docs/livingworld/TEST_PLAN_0.3.2_CORRECTIVE_INSTALLED.md (PR #171)
+→ install the verified official 0.3.2+1.21.1 asset on the retained private test-server world
+→ run Muammer/Nurey exact-recall canary (D1-D3) without re-teaching either marker
+→ VAI-PCM-MULTI-001 PASS on 2026-09-04
+```
+
+Detail is recorded in `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`. Transcript-level artifacts (exact reply text, new event UUIDs, pre/post persistence hashes) called for by the test plan's evidence section were not captured into the repository in this session; the PASS disposition reflects the operator's direct report of a full acceptance-matrix pass on the exact official asset.
+
+### Exit criterion — met
+
+`VAI-PCM-MULTI-001` recorded an honest `PASS` on the exact official `0.3.2+1.21.1` asset, with Muammer/Nurey cross-isolation, persistence validity and unique-event-ID checks all reported passing. `0.3` is now fully released and installed-accepted. `0.4` is unblocked.
 
 ---
 
@@ -539,6 +590,12 @@ Expand 0.2 transfer/provenance/contradiction/fallibility/transformation, settlem
 ### Exit criterion
 
 Information moves through settlements, conflicting/fallible claims remain inspectable, source history remains bounded, and social context affects propagation without becoming truth authority.
+
+### In progress — bounded numeric-conflict contradiction classifier
+
+First `0.4` slice: extend `SemanticOppositionClassifier` (from PR #145) with a narrow, separately justified numeric-conflict rule — see `docs/superpowers/specs/2026-08-10-bounded-contradiction-producer-design.md` addendum (2026-09-05). Tests-first RED→GREEN complete; all 325 `net.conczin.mca.livingworld.memory2` tests pass locally. Still needs a real `./gradlew` run and exact-head CI/security/soak/release-dry-run before merge — this session's local Gradle/Loom toolchain is broken independent of this change.
+
+Deliberately out of scope for this slice, per the original design's rejection of a broad antonym/rule catalogue: antonyms, temporal disagreement and free-form semantic opposition remain unclassified candidates for future separately justified slices.
 
 ---
 
@@ -623,7 +680,7 @@ specification
 → release dry-run
 → independent base→head review
 → exact candidate / installed acceptance when required
-→ root CHANGELOG.md in runtime PR
+→ root changelog.md in runtime PR
 → PROJECT_STATE / ROADMAP reconciliation after merge
 ```
 

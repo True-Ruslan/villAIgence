@@ -1,8 +1,8 @@
 # VillAIgence Project State
 
-> **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md`. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
+> **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md`. Read root `changelog.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-08-12**, after PR #160 merged the 0.3 release-convergence contract and verified release-candidate boundary.
+> Last reconciled: **2026-09-04**, after the operator-executed `0.3.2+1.21.1` installed corrective canary recorded `VAI-PCM-MULTI-001 PASS` (see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`). `0.3` is fully released and installed-accepted; `0.4` is unblocked.
 >
 > Always distinguish source/unit evidence, common integration, GameTests, production-candidate evidence, exact-release evidence and installed operator server/client evidence.
 
@@ -19,14 +19,17 @@ NeoForge:                           compile compatibility required
 
 latest product merge:               PR #158
 latest product merge commit:        b3938678e9424a88f271131ac75a57b73ffec5bf
-latest convergence merge:           PR #160
-latest convergence merge commit:    03ccb2d5d047ca551a5ac6be6b927de4404f09cf
-latest official release:            0.2.0+1.21.1
-latest release commit:              e426f588efefa6aa48a6e536c4a998421bbda241
-installed 0.2.0 candidate JAR SHA:   56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
+latest release-line merge:          PR #171 (docs-only corrective test plan)
+latest runtime fix merge:           PR #169
+latest runtime fix commit:          101c74d178ec29ca15f67ebd6041ef256a339f31
+latest official release:            0.3.2+1.21.1
+latest release commit:              3bb39e7ed126163efcdf971e85c89a4a5efd3111
+latest official release asset SHA:  b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015
+last installed acceptance PASS:     0.3.2+1.21.1 on 2026-09-04 — VAI-PCM-MULTI-001 PASS
+prior installed acceptance attempt: 0.3.1+1.21.1 on 2026-08-15 — VAI-PCM-MULTI-001 FAIL (Muammer recall)
 
-next product slice:                 exact 0.3.0+1.21.1 release request / candidate creation
-then:                               installed clean-state acceptance + post-release reconciliation
+next product slice:                 in progress — bounded numeric-conflict contradiction classifier extension
+then:                               TBD per 0.4 roadmap section
 ```
 
 Current delivery state:
@@ -58,13 +61,20 @@ bounded contradiction candidate/producer policy        COMPLETE / PR #145
 settlement-scale information flow without omniscience  COMPLETE / PR #147
 relationship/trust social epistemology                 COMPLETE / PR #149
 
-0.3 Personality + NPC↔NPC Social Graph                 CONVERGENCE COMPLETE / RELEASE REQUEST NEXT
+0.3 Personality + NPC↔NPC Social Graph                 RELEASED / INSTALLED ACCEPTED (0.3.2+1.21.1)
 NPC↔NPC social-graph persistence foundation            COMPLETE / PR #151
 server-owned causal NPC↔NPC social mutation lifecycle COMPLETE / PR #153
 bounded Personality + direct-pair social snapshot      COMPLETE / PR #155
 deliberate dialogue/behavior integration               COMPLETE / PR #158
 0.3 convergence / release-candidate planning           COMPLETE / PR #160
-exact 0.3.0+1.21.1 release request / candidate         NEXT
+0.3.0+1.21.1 exact release request / candidate         RELEASED / PR #162
+0.3.1+1.21.1 corrective fix (starved targeted recall)  RELEASED / PR #165, #166 — INSTALLED CANARY FAIL
+0.3.2+1.21.1 corrective fix (ranking eligibility bug)  RELEASED / PR #169, #170 — INSTALLED CANARY PASS
+0.3.2 installed corrective test plan                   EXECUTED / PR #171
+0.3.2+1.21.1 operator-installed corrective canary      PASS on 2026-09-04
+
+0.4 Knowledge ecosystem                                IN PROGRESS
+bounded numeric-conflict contradiction classifier      TESTS GREEN LOCALLY / AWAITING EXACT-HEAD CI GATES
 ```
 
 Installed boundaries remain explicit:
@@ -78,7 +88,11 @@ Neither is represented as PASS.
 
 PRs #127, #129, #131, #133, #135, #137, #139, #141, #143, #145, #147, #149, #151, #153, #155 and #158 are merged automated source capabilities **after** the installed `0.2.0` release. Their CI/candidate evidence is not installed `0.2.0` acceptance.
 
-PR #160 is release-convergence infrastructure and evidence, not a gameplay capability and not installed acceptance. It deliberately leaves `docs/releases/NEXT_RELEASE.txt` at `0.2.0+1.21.1`; publication remains a separate explicit shipping step.
+PR #160 is release-convergence infrastructure and evidence, not a gameplay capability and not installed acceptance. It deliberately left `docs/releases/NEXT_RELEASE.txt` at `0.2.0+1.21.1` at the time; publication was a separate explicit shipping step.
+
+PR #162 executed that release request and published the official `0.3.0+1.21.1` GitHub Release. PRs #165/#166 and #169/#170 are two narrow corrective fix+release cycles over immutable `0.3.0`/`0.3.1` respectively, driven by the installed `VAI-PCM-MULTI-001` targeted-recall canary rather than new product scope. PR #171 documented the exact operator procedure for the `0.3.2` installed corrective canary, which the operator then executed.
+
+Automated candidate/exact-release evidence for `0.3.0`, `0.3.1` and `0.3.2` is not installed acceptance by itself. The first installed attempt — `0.3.1+1.21.1` on 2026-08-15 — recorded `VAI-PCM-MULTI-001 FAIL` (Muammer failed to recall `amber-pine-314`; Nurey, isolation, persistence and startup all passed). The `0.3.2+1.21.1` installed corrective canary was executed on 2026-09-04 and recorded `VAI-PCM-MULTI-001 PASS` (see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`). `0.3` is now fully released and installed-accepted.
 
 ---
 
@@ -550,7 +564,44 @@ docs/releases/0.3.0-convergence.json
 
 ### 0.3 convergence exit criterion — met
 
-The repository has one explicit 0.3 release scope, exact candidate identity, complete automated coverage map, honest manual/deferred boundary, clean-state migration policy and verified rollback/recovery path. The next step is the **separate explicit release request/candidate creation**, not further feature expansion.
+The repository has one explicit 0.3 release scope, exact candidate identity, complete automated coverage map, honest manual/deferred boundary, clean-state migration policy and verified rollback/recovery path. PR #162 executed the separate explicit release request; the sections below cover publication and the two corrective cycles that followed.
+
+---
+
+# 0.3.0 → 0.3.2 release execution and installed corrective cycle
+
+PR #162 published official `0.3.0+1.21.1`, packaging the complete PR #123–#158 capability set. Installed `VAI-PCM-MULTI-001` acceptance on that release then found a real defect: older eligible `PLAYER_TOLD` dialogue could be starved out of the bounded 32-candidate/6-result window by newer unrelated eligible dialogue once retained history grew past the recency lane.
+
+```text
+0.3.0+1.21.1  PR #162           published (complete PR #123-#158 capability set)
+0.3.1+1.21.1  PR #165 (fix) + #166 (release)   corrective long-horizon query relevance fix
+0.3.2+1.21.1  PR #169 (fix) + #170 (release)   corrective eligibility/ranking fix
+0.3.2         PR #171 (docs)    installed corrective test plan, operator execution pending
+```
+
+Installed evidence timeline:
+
+```text
+0.3.1+1.21.1 installed 2026-08-15, SHA f7f40b920c6f72a0e9af864795f48a0f90479db42a145081f43923b71a95e29f
+  Official SHA / startup / persistence validity / 14-14 unique event IDs / cross-NPC isolation   PASS
+  Muammer recall (amber-pine-314)                                                                 FAIL
+  Nurey recall (violet-river-926)                                                                 PASS
+  VAI-PCM-MULTI-001                                                                                FAIL
+
+0.3.2+1.21.1 installed 2026-09-04, SHA b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015
+  Official SHA / embedded version / startup / persistence unchanged / Muammer+Nurey recall /
+  cross-NPC isolation / duplicate check / memory2.json validity / LinuxGSM monitor              PASS
+  VAI-PCM-MULTI-001                                                                                PASS
+```
+
+Key facts:
+
+- both corrective fixes are narrow: query-aware ranking/eligibility only, no persistence schema/version, migration, public config, provider schema/call, memory-window widening or NPC/player isolation change;
+- the retained source event for Muammer (`3252f67f-27f5-38bf-840c-d522c36b34fd`, marker `amber-pine-314`) was present and correctly owned throughout — the defect was retrieval/ranking, never persistence or UUID ownership;
+- each fix+release PR passed repository security, full CI, Production Soak and a GitHub Release dry-run on its exact head before merge;
+- `docs/livingworld/TEST_PLAN_0.3.2_CORRECTIVE_INSTALLED.md` was the authoritative operator procedure; `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md` records the executed PASS result (transcript-level detail — exact reply text, new event UUIDs, pre/post persistence hashes — was not captured into the repository and is noted there as an evidence-capture gap, not as a reason to distrust the reported PASS);
+- `VAI-M2-INST-005` and `VAI-CONCUR-004` remain unaffected NOT TESTED/deferred items;
+- `0.4` Knowledge ecosystem is now unblocked.
 
 ---
 
@@ -570,26 +621,30 @@ Remaining manual scenarios require installed graphical clients, physical microph
 Current official release remains:
 
 ```text
-tag:                     0.2.0+1.21.1
-release commit:          e426f588efefa6aa48a6e536c4a998421bbda241
-installed candidate SHA: 56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
+tag:                     0.3.2+1.21.1
+release commit:          3bb39e7ed126163efcdf971e85c89a4a5efd3111
+release asset SHA:       b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015
 ```
 
-Installed clean-world result remains:
+Installed acceptance boundary:
 
 ```text
-required:          7 PASS / 0 FAIL
-VAI-M2-INST-005:   NOT TESTED / AUTOMATED EVIDENCE ONLY
-VAI-CONCUR-004:    NOT TESTED / DEFERRED
+0.2.0+1.21.1 clean-world result:
+  required:          7 PASS / 0 FAIL
+  VAI-M2-INST-005:   NOT TESTED / AUTOMATED EVIDENCE ONLY
+  VAI-CONCUR-004:    NOT TESTED / DEFERRED
+
+0.3.1+1.21.1 installed attempt (2026-08-15): VAI-PCM-MULTI-001 FAIL
+0.3.2+1.21.1 installed corrective canary (2026-09-04): VAI-PCM-MULTI-001 PASS
 ```
 
-No source capability merged after `0.2.0` expands this installed-release claim without a later exact release candidate and explicit acceptance.
+`0.3.2+1.21.1` is the current official release and now has a PASS installed corrective canary — see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`. `VAI-M2-INST-005` and `VAI-CONCUR-004` remain unaffected NOT TESTED/deferred items across every release above.
 
 ---
 
 # Changelog governance
 
-Root `CHANGELOG.md` remains canonical product/release history. Significant runtime/persistence/config/release/security/permanent-CI changes update `[Unreleased]` in the same runtime PR.
+Root `changelog.md` remains canonical product/release history. Significant runtime/persistence/config/release/security/permanent-CI changes update `[Unreleased]` in the same runtime PR.
 
 `docs/CHANGELOG.md` remains historical engineering detail. Staged TDD evidence for recent slices is under `docs/superpowers/evidence/`.
 
@@ -601,7 +656,7 @@ PR #160 already updated root `[Unreleased]` for convergence infrastructure; this
 
 1. `VAI-CONCUR-004` real two-graphical-client Operator Lore conflict presentation remains deferred.
 2. `VAI-M2-INST-005` real second-player installed isolation remains untested; automated current-player/NPC-global/shared isolation exists.
-3. Automatic contradiction production intentionally recognizes only a narrow standalone English `not` / Russian `не` polarity pattern; antonym/numeric/temporal/free-form opposition needs a separately justified bounded extension.
+3. Automatic contradiction production recognizes only a narrow standalone English `not` / Russian `не` polarity pattern plus (as of the in-progress `0.4` slice) a bounded single-position numeric-value conflict; antonym/temporal/free-form opposition still needs a separately justified bounded extension.
 4. The current wording transform is intentionally narrow and deterministic; provider-authored open-ended paraphrase/generalization is not supported.
 5. Settlement dissemination uses home-village membership and bounded deterministic routing only; physical proximity, travel gossip, alliances and social-topology routing remain future work.
 6. NPC↔NPC social state now deliberately influences bounded dialogue guidance and exact-pair settlement knowledge suppression, but there is still no high-frequency autonomous social evolution or graph-neighborhood behavior policy.
@@ -617,39 +672,19 @@ PR #160 already updated root `[Unreleased]` for convergence infrastructure; this
 
 # Next optimal delivery step
 
-The next delivery slice is **exact `0.3.0+1.21.1` release request / candidate creation**.
+`0.3` is fully released and installed-accepted: `0.3.0+1.21.1` shipped the complete PR #123-#158 capability set (PR #162), two narrow corrective fix+release cycles resolved a real installed targeted-recall defect (`0.3.1` via PR #165/#166, `0.3.2` via PR #169/#170), and the operator-executed `0.3.2+1.21.1` installed corrective canary recorded `VAI-PCM-MULTI-001 PASS` on 2026-09-04 (`docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`).
 
-Convergence is complete. Do not add more 0.3 gameplay scope before creating the exact candidate. The release request must remain a separate shipping change so that publication is impossible until the exact request head has passed release validation.
+The first `0.4` slice is **in progress**: a bounded numeric-conflict extension to `SemanticOppositionClassifier` (see known gap #3 and `docs/superpowers/specs/2026-08-10-bounded-contradiction-producer-design.md` addendum). Tests-first RED→GREEN is done and all 325 tests in the `net.conczin.mca.livingworld.memory2` package pass locally. This was **not** run through the project's normal Gradle/Loom toolchain in this session — the local sandbox's Gradle dependency verification and Fabric/Loom cache are broken independent of this change (confirmed by reproducing the same failure on the pre-change tree). Instead, the affected pure-Java sources were compiled and tested directly with `javac`/JUnit console outside Gradle.
 
-Target shipping boundary:
+Before this slice is considered done, still required:
 
-```text
-green reconciled 1.21.1 main
-+ docs/releases/0.3.0+1.21.1-PLAN.md
-+ docs/releases/0.3.0-convergence.json
-+ exact release request NEXT_RELEASE.txt = 0.3.0+1.21.1
-→ release-request validation on exact PR head
-→ squash merge with expected-head protection
-→ main push creates immutable 0.3.0+1.21.1 tag/release through existing workflow
-→ verify tag / asset / embedded metadata / manifest / accepted-JAR identity
-→ install exact release asset on a clean private test-server boundary
-→ run required installed acceptance
-→ record PASS / FAIL / NOT TESTED honestly
-→ reconcile PROJECT_STATE / ROADMAP / CHANGELOG release state
-```
+- a real `./gradlew` run (repository security, full common-module `test`, Fabric/NeoForge builds, GameTests) on a working toolchain — likely the user's own machine or GitHub Actions CI, not this sandbox;
+- exact-head repository security / full CI / Production Soak / GitHub Release dry-run gates before merge, per this project's standing policy;
+- a normal PR (or equivalent squash merge) rather than a direct-to-`1.21.1` commit, if the user wants to keep the existing PR-numbered history convention.
 
-Required release-request work:
+After this slice merges and CI is green, pick the next `0.4` primitive (antonym extension explicitly deferred; settlement-routing-by-trust and graph capacity indexing remain open per known gaps #5/#7) following the same TDD/evidence discipline as `0.2`/`0.3`.
 
-- start from current reconciled `1.21.1` main and change `docs/releases/NEXT_RELEASE.txt` to exactly `0.3.0+1.21.1` in a dedicated release PR;
-- move shipped root `[Unreleased]` entries into the exact `0.3.0+1.21.1` release section according to changelog governance, without duplicating history;
-- keep the machine-readable convergence contract unchanged unless a real release-critical mismatch is found;
-- require repository security, full CI, production soak and GitHub Release dry-run on the exact release-request head before merge;
-- independently review base→head and require P0/P1/P2 = 0 plus zero unresolved threads;
-- merge only with expected-head protection; do not move or recreate any existing tag;
-- after publication, verify the GitHub Release asset is byte-identical to the production-accepted/package-verified JAR;
-- only then perform installed clean-state acceptance; `VAI-M2-INST-005` and `VAI-CONCUR-004` remain explicit NOT TESTED/deferred unless real evidence becomes available.
-
-Do not start 0.4/0.5 feature expansion until the exact 0.3 release and installed acceptance boundary are reconciled.
+There is no known outstanding technical blocker to `0.4` beyond this session's broken local toolchain; `VAI-M2-INST-005` and `VAI-CONCUR-004` remain the only open deferrals and are unrelated.
 
 ---
 
@@ -659,11 +694,11 @@ For a new development session:
 
 1. read `docs/PROJECT_STATE.md`;
 2. read `docs/ROADMAP.md`;
-3. read root `CHANGELOG.md`;
+3. read root `changelog.md`;
 4. inspect current `1.21.1` HEAD;
 5. inspect open/recent PRs, tags/releases and current CI;
 6. reconcile live GitHub state against these documents before changing code;
 7. use TDD for runtime behavior: specification → observed RED → minimal GREEN → focused regression → complete selected gates;
-8. update root `CHANGELOG.md` in runtime PRs and reconcile `PROJECT_STATE.md` / `ROADMAP.md` after merge.
+8. update root `changelog.md` in runtime PRs and reconcile `PROJECT_STATE.md` / `ROADMAP.md` after merge.
 
 Do not infer PASS from stale documentation. GitHub state and exact evidence must be checked each session.

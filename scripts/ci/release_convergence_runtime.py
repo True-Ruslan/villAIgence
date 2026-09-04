@@ -78,8 +78,8 @@ def _validate_frozen_candidate(contract: Mapping[str, Any], root: Path) -> tuple
         (shadow / "gradle.properties").write_text(
             (root / "gradle.properties").read_text(encoding="utf-8"), encoding="utf-8"
         )
-        (shadow / "CHANGELOG.md").write_text(
-            (root / "CHANGELOG.md").read_text(encoding="utf-8"), encoding="utf-8"
+        (shadow / "changelog.md").write_text(
+            (root / "changelog.md").read_text(encoding="utf-8"), encoding="utf-8"
         )
         releases = shadow / "docs/releases"
         releases.mkdir(parents=True)
@@ -129,7 +129,7 @@ def validate_contract(
         if baseline_errors:
             return baseline_errors
 
-        changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+        changelog = (root / "changelog.md").read_text(encoding="utf-8")
         unreleased = baseline.extract_unreleased_section(changelog)
         publication_version = baseline._semantic_version(publication)
         for patch_tag, prs in patches:

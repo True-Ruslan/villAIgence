@@ -1,1188 +1,350 @@
-# 7.7.22
-
-* Fixed Rare Crash
-* Fixed Library Preview rare corruption issue.
-* Improved guard enemy reaction interval with no performance loss.
-
-# 7.7.21
-
-* Fixed Villagers not being able to get through doors cause of their width.
-
-# 7.7.20
-
-* Fixed Rumours not working and throwing an error.
-* Fixed villager name changes not applying
-* Fixed typo in pastries.json which caused an error
-
-# 7.7.19
-
-* Fixed MCA Debug Editor breaking when editing a character while it is sitting down. 
-
-# 7.7.18
-
-Initial Release
-
-* Added Sirben female noises, thanks mintymacaron!
-* Improved guard behavior when players attack villagers.
-    * Guards now keep chasing attackers long enough to deliver their warning hits.
-    * Guards now warn, attack and pardon more consistently based on the player's warning level.
-    * Guard warning dialogue no longer stacks with the normal "ouch" dialogue on the same hit.
-* Improved archer guards in combat.
-    * Archers now draw and fire bows more reliably.
-    * Archer arrows should no longer be blocked by normal hurt immunity during fast combat.
-    * Left-handed villagers still look left-handed, while bows and weapons stay in the correct hand for Minecraft's
-      combat checks.
-* Guards without a home village can now wander instead of standing idle.
-* Villagers and guards can now visibly eat food to recover health when they are safe and out of combat.
-* Improved villager movement around awkward decorative blocks such as lanterns, which could previously confuse
-  pathfinding.
-    * Added a new MCA pathfinding tag so modpacks and addons can mark custom blocks with unusual collision shapes.
-    * Added config options for extra collision checks while villagers pathfind.
-    * The broader collision-check option is off by default, but can help modpacks with many custom block shapes.
-* Fixed `bountyHunterInterval <= 0` crashing
-* Fixed some mods breaking lighting rituals on fire.
-
-# 7.7.18-beta.10
-
-* Improved smart selection filtering in the polymorph UI: the generic **House** option is automatically filtered out if
-  **Big House** is also matched, preventing unnecessary choice prompts when scanning.
-* Empty icons don't render as graveyard anymore, House option now has an icon.
-* Improved building removal logic.
-
-# 7.7.18-beta.9
-
-* The **Ride Mount** button on the villager interaction screen now changes to **Dismount** if the villager is riding
-  something, making it easy to get them down.
-* Fixed a bug on dedicated servers where changing a villager's mood, infection, traits, personality, or relationship
-  hearts in the editor wouldn't save.
-* Improved how villager skins and clothing registries are loaded behind the scenes to be cleaner and more flexible.
-
-* Added a **Music Store** building.
-    * Villagers can now visit the Music Store when they are feeling sad.
-    * This helps raise their happiness, similar to how the inn works.
-
-* Improved overlapping building detection.
-    * When multiple building structures overlap, you can now choose which one should be used.
-
-* Improved villager AI performance.
-    * Villagers now do less unnecessary work every tick.
-    * Large villages should have fewer lag spikes and smoother server performance.
-    * Guard enemy scans are now cheaper, running only for villagers actively guarding, following a player, or fighting (
-      non-combat villagers skip this scan entirely to save performance).
-    * Villagers are less likely to waste pathfinding work when moving around the village.
-    * Villagers should no longer forget homes or jobs just because a path search briefly failed.
-    * Equipment checks for guards and archers are now cached, reducing repeated work.
-    * Villager health bonus updates are now cached instead of being recalculated every tick.
-
-* Fixed an issue where some villager movement state updates were running far more often than intended.
-* Fixed excessive repeated max-health modifier updates on villagers.
-* Fixed some expensive villager walking logic that could retry too many times in one tick by adding a retry cooldown
-  after failed attempts.
-
-# 7.7.18-beta.8
-
-* Villagers should stop floating in passenger seats such as boats.
-* Baby nametags are correctly adjusted
-* Villagers should be able to ride any entity that is rideable, including modded entities.
-* Fix Mood, Infection Progress and hearts not being editable due to recent modifications.
-
-# 7.7.18-beta.7
-
-* Villagers should stop having their trades reset.
-* Backported pathfinding maluses and pathfinding distance fixes.
-* Please report any issues on the GitHub Issues page or the Discord server, backing up your world is always recommended!
-
-# 7.7.18-beta.6
-
-* Removed old Head category from Destiny Screen.
-* Fixed eye layers rendering when you're invisible.
-* Added a NO_AGING trait ("No Aging") that prevents villagers from automatically growing up or aging over time. This
-  trait has a spawn chance of 0% and is only accessible/configurable via the Villager Editor (MCA Debug Book/Item).
-
-# 7.7.18-beta.5
-
-* Added a configuration option to choose the headstone/grave type spawned when a villager dies.
-* Fixed multiplayer issues when editing villagers and loading custom skin data.
-* Internal networking changes to hopefully make multiplayer work properly.
-    * As a result, generally especially in multiplayer sessions, UI changes are faster.
-* Fixed library clothing previews hiding legacy hair.
-* Selecting clothing generally or picking an outfit no longer hides hair.
-    * This was done initially because of the new hair system, however, if the hair overlaps with your character, you can
-      just select the bald hair option
-      in the hair screen.
-* Prevented babies, children, and non-spouse relatives from flirting, kissing, or accepting romantic items (bouquets,
-  engagement rings).
-* Age-locked the `Flirty` personality so it cannot be assigned to babies, toddlers, or children.
-* Added personality re-randomization when villagers age up to allow true character development and natural trait
-  changes.
-    *
-        - So children will change their personality.
-* Added an INFERTILE trait, villagers now have a chance to be infertile.
-    * If you'd like to remove the trait, you can do so in the MCA Debug Book.
-* Experimental JourneyMap compatibility.
-* Unknown trait doesn't show up anymore.
-* Spouses no longer count as biologically related.
-* Fixed `building_types` block tag resolution — tags like `#minecraft:candles` and `#minecraft:water` now correctly
-  match blocks during building scans.
-    * Previously, all data-pack block tags were silently ignored.
-    * For datapacks, you can now add in all tags including fluids!
-
-# 7.7.18-beta.4
-
-* Backports/fixes from 26.1.2
-* Guards now fight while you're following them. [BRAND NEW]
-* Fixed the clothing picker in the editor crashing on a server.
-* Fixed library.
-* Fixed spouse lookup for online players and made villager textures render properly.
-* Added configurable guards and archer equipment levels.
-* Added the AI system prompt fuse option for endpoints that do not support a separate system role.
-* Tombstones are now more resistant to explosions.
-* Minimaps now support MCA villagers (no more empty squares).
-
-# 7.7.18-beta.3
-
-* Fixed player hitbox scaling.
-* Player size changes now update more reliably after joining or editing a player.
-* Internal improvements.
-
-# 7.7.18-beta.2
-
-* Fixed selecting clothes in the editor resetting hair to bald
-* Small improvements.
-
-# 7.7.18-beta.1
-
-* Backup your world before using.
-* Beta release of the 1.21.1 content backport from 26.1.2
-* Added generated crib resources and datagen-backed recipes, advancements, and item models
-* Added updated skin, face, hair style, layered hair, and eye customization resources
-* Added generated eye texture cache clearing on resource reload
-* Added player hitbox scaling based on MCA player size and width (`scalePlayerHitboxWithSizeAndWidth`, disabled by
-  default)
-* Added `/mca-admin overrideVillageRequirements <target> <value>` for bypassing village rank requirements
-* Fixed Destiny teleportation failing silently when no valid destination is found
-* Fixed Destiny teleportation using invalid or out-of-bounds destinations
-* Fixed MCA player data refresh and cache handling for renderer and scaling updates
-* Fixed village requirement override data being saved, loaded, and applied to rank checks
-
-# 7.7.17
-
-* Fixed destiny status not being saved reliably
-* Fixed Hair buttons such as previous, next or random making you bald.
-
-# 7.7.16
-
-* Fixed Sirben shaders.
-
-# 7.7.15
-
-* More pathfinding improvements, NPC's should now properly pathfind to their beds without getting stuck,
-    * If they get stuck, increase villagerPathfindingDistance
-
-# 7.7.14
-
-* Fix pathfinding again
-
-# 7.7.13
-
-* Iron golems no longer attack regular MCA villagers
-* Guards detect threats from further away and use entity tags such as `#minecraft:undead` for targeting
-* Villagers now defend themselves when outside their village border
-* Villagers no longer sleep, eat, greet, or interact while in combat
-* Villagers now walk to a spot next to their bed instead of the bed block
-* Added a config option to disable guide books from advancements (`giveAdvancementBooks`)
-* Added a config option for villager pathfinding distance (`villagerPathfindingDistance`, default 192)
-
-# 7.7.12
-
-* Fixed golden apple on cure being consumed twice
-* Fixed baby item sent to oblivion on drop
-* Fixed adopting children not always updating parents
-* Fixed doors not always getting closed
-* Trades are no longer reshuffled when switching workplace but not profession
-* Archers now use bows even when not on duty
-* Fixed sleeping offset when using villager model
-* Added textures for adventurer and cultist in Squidward mode
-* Fixed various crashes
-* Fixed missing names for villagers spawned by spawn egg
-* Fixed cultist trades
-
-# 7.7.11
-
-* Fixed villager tracker search
-
-# 7.7.10
-
-* Improves family tree search
-* Fixes mail inbox loading
-
-# 7.7.9
-
-* Fixed crashes
-
-# 7.7.8
-
-* Villagers joined via inn now have random region names
-* Added Easy Anvil compat
-
-# 7.7.7
-
-* Synced translations
-* Updated TTS server URL in config
-
-# 7.7.6
-
-* Fixed issues with config (Thanks pau101!)
-* Synced translations
-* Fixed camera eye adjustment when using the player model
-
-# 7.7.5
-
-* Fixed MCA AI auth
-
-# 7.7.4
-
-* Fixed root advancement
-
-# 7.7.3
-
-* Fixed a crash on dedicated servers
-
-# 7.7.2
-
-* Fixed crashes (Thanks alfuwu!)
-* Fixed color blind shader loading
-
-# 7.7.0
-
-* Ported to 1.21.1
-
-# 7.6.10
-
-* Maybe fixed empty villages on pre-generated worlds (Thanks SlayerTheChikken!)
-
-# 7.6.8/9
-
-* Fixed a crash with llm command parsing
-
-# 7.6.7
-
-* Fixed a crash with The Aether
-* Added missing tombstone loot tables and fixed particle textures
-* Increased twin chance to 5%
-
-# 7.6.6
-
-* Allow tripplets, quadruplets, quintuplets, and beyond
-* Fixed a crash in the skin editor
-* Disabled guard teleportation by default again
-* Added experimental support for commands via ChatAI (`villagerChatAIUseTools` in the config, will react to trading, go
-  home, stay here, ...) (Thanks AdrisJ6 and Player2!)
-
-# 7.6.5
-
-* Fixed a crash
-
-# 7.6.4
-
-* Rose gold does no longer classify as gold, interfering with recipes
-* Fixed some GUI crashes
-* Fixed deaths counting sometimes twice (two mails, double hearts, ...)
-* ChatAI related stuff:
-    * Added better integration
-      with [Player2](https://github.com/Luke100000/minecraft-comes-alive/wiki/GPT3-based-conversations#Player2)
-    * Villager no longer starts to yap when you mention a fraction of their name
-    * Villagers will now try to respond in your selected language by default
-* TTS related stuff (https://github.com/Luke100000/minecraft-comes-alive/wiki/TTS):
-    * Added realtime TTS (experimental, worse quality, less languages, but works together with the ChatAI)
-    * Added TTS support for ElevenLabs (thanks BinaryGun951!) (Requires an ElevenLabs API key!)
-
-# 7.6.3
-
-* Turned villager teleportation back on by default
-* Fixed spawn group causing issues with some sound mods
-* Modded jobless traders now show the trade button
-
-# 7.6.2
-
-* Fixed crash on Turkish locale
-* Fixed Cribs crashing on wood compat mods
-* Fixed glowing villagers being visible
-* Fixed crash when using structure tags in destiny
-
-# 7.6.1
-
-* Fixed crash on Forge
-
-# 7.6.0
-
-* Added cribs, a lot of cribs, in all colors and woods
-* Some gift registry updates
-* Destiny now supports structure tags
-* Fixed compatibility issues with Productive Bees
-* Renamed names data dir to avoid conflicts
-
-# 7.5.22
-
-* Fixed Library Auth once again.
-* Fixed Steve skins being converted to Steve skins again.
-
-# 7.5.21
-
-* Fixed Library Auth when updating from older version
-
-# 7.5.20
-
-* Fixed Library Auth
-
-# 7.5.19
-
-* Fixed trait shaders
-* Rose gold dust is no longer part of the gold dust group to remove conflicts
-* Fixed incompatibility with Productive Bees
-* Added experimental long term memory to ChatAI
-* Hopefully fixed crashes
-* Villagers no longer grieve at single graves
-* Villager can now glow while invisible
-* You can now whistle villagers when they sit in vehicles
-* Height now affects Hemoglobin levels
-* Villagers no longer jump in front of gates
-
-# 7.5.18
-
-* Updated contributor book
-* Fixed ReaperSpawner eating all your CPU
-
-# 7.5.17
-
-* Now its compatible with Cobblemon!
-* Fixed TTS again!
-
-# 7.5.16
-
-* Fixed issues with building jars
-
-# 7.5.15
-
-* Merged [Inworld integration](https://github.com/Luke100000/minecraft-comes-alive/wiki/GPT3-based-conversations)
-  branch (thanks CSCMe!)
-* Fixed incompatibility with Cobblemon (thanks Apion!)
-* Fixed AI issues with Grim Reapers, causing him to go much higher than intended
-* Fixed issues when using Arabic numerals
-* Fixed crashes when using TTS
-* Fixed Inn spamming adventurers
-* Probably fixed deadlocks related to SpawnQueue and ReaperSpawner
-* Fixed incompatibility with AutoTranslation and related mods
-
-# 7.5.14
-
-* TTS language is now detected automatically
-
-# 7.5.13
-
-* Updated chatAI to v2
-    * See https://github.com/Luke100000/minecraft-comes-alive/wiki/GPT3-based-conversations
-    * Older versions will no longer work, technical reasons
-* Added TTS v2
-    * See https://github.com/Luke100000/minecraft-comes-alive/wiki/TTS
-
-# 7.5.12
-
-* Fixed various smaller issues
-* Personalities now have a few more phrases
-* Fixed harvest task not dropping items
-* Set workplace no longer messes up trades
-
-# 7.5.11
-
-* Fixed a crash
-
-# 7.5.10
-
-* Fixed data loading issues on systems with locales having non-western digits.
-* Villagers no longer harvest blocks in claimed regions
-* Added support for Let's Do Bakery
-* Fixed root advancement to appear on world load
-* Fixed villager marriage limit math
-* You can no longer restrict bells or gravestones, causing them to get stuck
-* Vanilla player models no longer modify your eye height
-* Player eye height now automatically refreshes on world join and editor changes
-* The editor now tells you if an incompatible mod disabled custom models
-* Removed vanilla mechanics for turning villagers into zombie villagers as this causes undefined behavior
-* Added HSV hair color option to editor
-* Added loot tables in case mods rely on them and let zombie villagers drop some flesh
-
-# 7.5.9
-
-* Wrong procreation cooldown on new worlds
-
-# 7.5.8
-
-* AI performance improvements
-* Dropped babies in the inventory no longer end up in the backrooms
-* Inverted marriage slider as this is more what people expect
-* Fixed large players receiving damage on the ceiling
-* Married adventurers no longer despawn
-* Added a procreation cooldown (3 in-game days by default)
-* Added attack-text cooldown
-* Fixed trait influenced gender preferences
-* Added gender override config flag for players
-
-# 7.5.7
-
-* Fixed a crash
-
-# 7.5.6
-
-* Added missing loot tables for some headstones
-
-# 7.5.5
-
-* Fixed server crash
-
-# 7.5.4
-
-* Removed size requirements of blueprint buildings
-* Restored C2ME compatibility
-* Fixed drunk behavior at fence gates when smart fence AI is disabled (which it is by default)
-* Fixed marriage slider not being saved
-* Fixed fallback translations on 1.19.4+
-* Added morph to the list of don't-render-custom-arms-when-installed list
-* You can no longer squish babies on the ceiling
-* Archers can now equip crossbows
-* The camera height is now correct
-* Added the ancient city as a rumor and starting location
-* Female cultists now also wear robes
-* Skin library now has...
-    * Much less data transfer
-    * A report system
-    * Filter buttons for hair and clothing
-    * Hopefully less connection issues thanks to a dedicated domain
-    * Global skins now actually work
-
-# 7.5.3
-
-* Ported to 1.20
-* Invalid skins are now hidden by default in the Skin Library
-* Added even more sanity checks when uploading stuff
-* Fixed father/mother at baby item not always being correct
-
-# 7.5.2
-
-* Removed gold dust
-* Added compression to skin library networking
-* Skin Editor will now reject most invalid skins
-    * Existing invalid skins are marked
-* Changing workspace will rebuild trades
-
-# 7.5.1
-
-* Fixed a critical performance issue when childrens are stuck in a wall
-* Disabled smarter door AI (which can open gates) by default due to reports of villagers not closing the door
-* Added a few config flags for customizing the destiny screen
-
-# 7.5.0
-
-* Added experimental Skin library, editor and uploader
-* Added civil registry, a log writing down all events in a village
-* Added the villager tracker, a compass being able to track the last known position of villagers
-* Fixed baby growth command
-* Move state and infection status are no longer on the gravestone
-* Fixed hugging being restricted to adults
-* Decreased tombstone text render distance to tackle lag
-
-# 7.4.9
-
-* Added compat with Chunks fade in
-
-# 7.4.8
-
-* Fixed a crash
-* Enabled toddler clothes
-* Extended Sirben lore
-* 1.19.3+ chiseled bookshelves now support MCA books
-* Golden apples can now cure children
-    * Using an apple on non-infected villagers will work as a gift now
-* Fixed compatibility with Custom Trading Screen
-* Added `fractionOfVanillaZombies` Config flag
-* Added `overwriteAllZombiesWithZombieVillagers` Config flag
-* Fixed a few purple uninitialized skin bois
-* Fixed "monster" advancement
-
-# 7.4.7
-
-* Fixed villagers not spawning
-* Fixed not being invisible while in destiny
-* Fixed a crash when telling stories in certain modded environments
-* Syned translations
-
-# 7.4.6
-
-* Added optional AI voice acting
-* Fixed reaction when lactose intolerant
-* Graveyards now print the minimum requirements correctly
-* Fixed some configs not being synced properly from the server
-* Improved whistle on sleeping villagers
-* Restricted buildings no longer increase (visual) max population
-* You can now set the home properly when changing the village
-* Adventurers no longer move in
-* Cooldown for being hurt messages
-* Added rumors, destiny and spawning to threads, decreasing lag and potentially fixing some timeouts
-* Added Armourers Workshop compatibility
-
-# 7.4.5
-
-* Fixed blueprint again
-* Fixed babbling babies on dedicated servers
-* Fixed AI not always responding
-
-# 7.4.4
-
-* Fixed missing skin color on hands
-* Fixed blueprint on dedicated servers
-
-# 7.4.3
-
-* Fixed crash when villagers have friends lol
-
-# 7.4.2
-
-* Fixed invalid task
-* Player in destiny now become invisible instead of spectator
-* Decreased village merging radius
-* Graveyards with only 1 or 2 headstones are not shown on the map anymore
-* Improved setting work place
-
-# 7.4.1
-
-* Improved AI and interaction times
-* Villager will now be audible to all (nearby) players
-* Villager can now speak to you while following or staying
-* Improved compatibility with some datapacks
-* Asking to go home now disabling following/staying
-* Improved and fixed set home, restricted homes, blueprint home sync and go home
-* Made all chances in the Config floats
-* Added nameTagDistance to control range of name-tags
-* Fixed Armor rendering issue
-* Fixed server crash when trying to eat something with status effects
-* Improved harvesting task
-* Fixed Sirben having the voice of god
-* Fixed config crash errors not being printed
-* Fixed compatibility with First Person mod and co
-* Fixed babies speaking fluent english
-
-# 7.4.0
-
-* Added AI benefits for patrons
-
-# 7.4.0 rc 4
-
-* Fixed placing babies
-
-# 7.4.0 rc 3
-
-* Fixed GPT3 AI on dedicated servers
-* AI now has a sense of biome, weather and daytime
-* Fixed crash on 1.19.3
-* Fixed a lag spike and improved overall village performance
-* Synced Patrons list
-* Fixed wrong baby name when placing from creative
-* Fixed 1.19.3 on Forge
-
-# 7.4.0 rc 1, 2
-
-* Simplified Villages
-    * Villager no longer rely on a village to find a home
-    * Buildings are no longer required and automatic scanning is disabled by default
-        * Frees a bit of CPU
-        * This can be toggled in the blueprint
-        * Manual tagging is possible too for more control
-    * Buildings do however grant buffs and upgrades to the community, boosting the mood and enhancing guards armor
-* Added special vision for Sirbens
-* Added PTG-3 based villager chat AI
-    * Enable in Config
-    * Speak their name once to start a conversation
-* Added more phrases
-    * Especially if you are a parent
-* Fewer crashes when crippling the Config
-* Improved dialogues
-    * Player Gender
-    * Added Greeting back
-    * Villager no longer welcome you if you are a Mayor or Monarch
-* Staff of Life now has 10 uses instead of 5
-* Fixed armor texture on female players
-* Fixed performance issue related to villager renderer
-* Fixed Turkish locale issues again
-* You can now start a village with a room (e.g. underground)
-* Added more phrases
-* Fixed villagers using the steve second layer
-* Villager can now open gates
-* Villager now prefer paths and dislike stepping on grass (potential unstable)
-* Improved grieving
-    * Villager will grieve when a close villager dies
-    * Villager will also grieve once a week at a graveyard
-* Improved taxes
-    * Tax items can now be configured
-* Fixed graveyards disappearing
-* Villager with family or friends will now spawn a gravestone if none was found
-* Updated most textures to SoyTutta
-* Updated and added additional headstones
-* Fixed blocked buildings
-* Added rock paper scissor dialogue options for children
-
-# 7.3.21
-
-* Added `percentageOfVanillaVillages` as a config value to randomly keep vanilla villages
-* Fixed adventurers spawning in unloaded chunk
-* Fixed crash when disabling MCA player model
-* Added tooltip to editor to avoid confusion when choosing vanilla model
-* Fixed players also having randomly colored hair
-* Several Changes to the Naming systems in MCA
-    * Player Naming has been fixed and works properly, much like how /nickname systems work (If you have an existing
-      custom name, MCA will use that instead)
-    * It is no longer possible to have a whitespace/empty name, and multiple safeguards have been placed to prevent
-      exploits.
-    * The `Nameless Traveler` code has been removed in favor of the above fix.
-* Added a Homosexuality Trait as a possible chance to spawn with
-    * This trait cannot be inherited from past/to future generations
-    * Having this trait will enforce gender restrictions in Relationship Items and Villagers entering relations with
-      those of the same gender
-    * Due to this trait being available, some relationship items being gifted may result in `incompatible` responses.
-    * In the event of this trait being applied alongside the bisexual trait, the homosexual trait will take priority.
-* Added `professionConversionsMap` as a config value, made for mod compatibility
-    * Designed to be able to use clothing from another profession, if your mod does not supply any to us
-    * Example: You can make a Butcher wear Armorer's clothing, or villagers wear a certain professions clothing by
-      default.
-    * Only Adult clothing is used in this, baby and child clothing remains unchanged.
-* Added `playerRendererBlacklist` to disable certain render elements of the player model if certain mods are present
-    * Supported Values: `arms`, `left_arm`, `right_arm`, `all`, `block_player`, `block_villager`
-* Fixed #373 (Gamemode being switched before user finishes destiny)
-    * Should also resolve the falling-through-world issue
-* Fixed #239, #368 (Compatibility Fix for older Spectrum Versions)
-* Added `villagerInteractionItemBlacklist` to limit certain items from being used to interact with MCA villagers
-    * By default, buckets are included to resolve Issue #273
-* Added command to convert vanilla villager within range
-* Fixed a possible crash when trying to edit a villager with an empty name; should now give it a random name instead
-* The `canBeAttractedTo` checks for a Player/Villager relationship now properly respect traits
-    * IE the same logic that is used for villagers now also applies to players
-* Added `shaderLocationsMap` to allow specifying custom shaders dependent on traits
-    * If the camera entity has the specified trait, it'll apply the shader, and remove it when the current camera entity
-      does not.
-    * Requires `enablePlayerShaders` to be true to utilize this feature
-* Added functionality for `Lactose Intolerance`
-    * Applies a Poison effect after usage, similar to if a spider eye were consumed
-* Traits that are not meant to be equipped by players will no longer be seen in the Editor or Destiny Screen
-    * This can be bypassed via the `bypassTraitRestrictions` setting
-
-# 7.3.20
-
-* Added backwards compatibility for 1.16.5 and 1.17.1, to align with the EOL of 1.19.0 and 1.19.1
-    * 1.19.0, 1.19.1, 1.17.1, and 1.16.5 are now officially considered EOL, and users should upgrade to retain support
-* You can no longer set the home of a villager who is either there temporarily or does not require a home
-* Fixed trades
-* Fixed equipment dropping
-* Fixed arms being funky in multiplayer
-
-# 7.3.19
-
-* Official Support has been added for the Quilt ModLoader (Requires QSL + Quilted Fabric API)
-* Added `villagerDimensionBlacklist`, modded villager whitelists, and `allowedSpawnReasons` as new config options
-    * Advanced Usage Only, tampering can lead to tears :(
-* Multiple Build Script adjustments to align with universal packaging + full automation
-* Fixed some wrong relationships on older worlds
-
-# 7.3.18
-
-* Fabric and Forge are now packaged as one universal jar file
-* Fixed trait inheritance change
-* Fixed updating villager name not reflecting change in Blueprint
-* Fixed profession name in Waila etc
-* Fixed outdated infection book
-
-# 7.3.17
-
-* Fixed an issue with the Bone Meal Check in `HarvestingTask` not taking into account modded items
-* Fixed an issue relating to a mismatched slot checked when a villager is left-handed and `HarvestingTask#bonemealCrop`
-  was ran
-* Rewritten `HarvestingTask#plantSeed` to allow modded plants to be properly planted, if specified in
-  the `villager_plantable` tag and a valid `BlockItem`
-    * This also fixes pumpkin and melon seeds not properly planting, despite being in the tag
-* Added a `minBuildingSize` as a counterpart to the previously implemented `maxBuildingSize` config option
-    * I'm not sure why someone wanted this, but...ok.
-* Editor Screen Paperdoll models will now follow your mouse, just like how the Inventory Screen behaves
-
-# 7.3.16
-
-* Fixed wrong pitch for babies
-* Pitch slowly increases with age
-* Fixed inconsistencies in relationship data with the Matchmaker's Ring
-    * Resolves cases of incest + Added `canBeAttractedTo` check support
-* Fixed a missing `getGender` check in creating a player's Family Tree entry
-* Fixed enchantments glint on villagers
-* Fixed using mca villager spawn eggs on mca villagers
-* Fixed Sneak-Interactions with mca villagers
-    * Should now open trades on applicable villagers
-    * Villagers that are Jobless will disagree with the proper sound effect
-* Fixed silent sound effect compatibility with Celebrate Sounds
-
-# 7.3.15
-
-* Fixed multiple rendering issues that were causing invisibility to not work on Villagers
-    * Also applies to players using the custom villager model
-* Added a `villagerRestockNotification` config option
-    * If enabled, will notify anyone in a villager's home village when a trade restock occurs
-* Undo the magical edit made to the failing villager state (ERR_EASTER_EGG_FLUKE)
-* Modified the Gift Satisfaction for ranged weapons to based off the range instead of a static `15`
-* Added the Angry and Celebratory Voice Lines for Villagers when using MCA voices
-* Added a `showNotificationsAsChat` config option to toggle villager notification style
-    * If true, the normal action bar notifications will instead show in chat.
-* Added preliminary/supplementary data for 7.4.0 content
-* Misc. Build Pipeline cleanups
-* Fixed mail notification
-* Fixed offline players not receiving letter of condolence
-* Villagers are no longer pissed when killing a Zombie Villager
-* Zombie Villagers without any family won't be buried
-* Infected villagers being killed by a zombie no longer duplicate their inventory
-* Infection now lasts longer
-* Adventurers with high hearts may stay without asking
-* Mood slowly change on its own, with slight tendency towards neutral
-* Fixed `getGender` checks for PlayerSaveData (Now should properly be reflected!)
-* Villagers have a voice pitch gene
-
-# 7.3.14
-
-* Fixed a crash that can occur when leaving a villager's name in the editor empty when switching tabs
-* Modified a failing villager state into something more...magical ;)
-
-# 7.3.13
-
-* Added Support for 1.19.1
-* Sneaking + Interacting with a villager with the editor item will now open their inventory!
-* Added Left-Handed Trait as a possible chance to spawn with
-    * This trait can be inherited from past/to future generations
-    * Having this trait will change their dominant hand in most tasks to be their left hand (Known to the player as the
-      off-hand slot)
-    * Some examples of this include Work Tasks, EquipmentSet's, and Melee Attacks (For Equipment, if a preset already
-      uses both hands, it'll remain unchanged.)
-    * Given Minecraft was never intended to support this type of gameplay, further tuning may be required in a future
-      update.
-
-# 7.3.11/7.3.12
-
-* Misc. Patches for 1.18.2 and 1.19 Dependencies (1.18.2 officially identifies as LTS now!)
-* Added `innArrivalNotification` config setting, for notifying players in the village that a new traveller has arrived!
-* Added a Night Owl schedule, in which Cultist's and Outlaws have a chance to use, based on the `nightOwlChance` config
-  setting (Default: 50% Chance)
-    * Enable `allowAnyNightOwl` to be able to apply this same chance to other professions
-    * Guard's will also now use `nightOwlChance` instead of using a random boolean to determine their schedule (Meaning
-      if you want more guards at night, increase `nightOwlChance`)
-* Added a Bisexuality Trait as a possible chance to spawn with
-    * This trait cannot be inherited from past/to future generations
-    * Having this trait will bypass gender restrictions in Relationship Items and Villagers entering relations with
-      those of the same gender
-    * Due to this trait being available, some relationship items being gifted may result in `incompatible` responses.
-
-# 7.3.10
-
-* Fixed Villager Fate achievements (Happy hunting!)
-* Added an achievement for dropping a baby? (There's more to this right?!)
-
-# 7.3.9
-
-* You can no longer trade with archers
-* Fixed crash in blueprint
-* Fixed villager following you after trade
-* Fixed villagers not working when previously told to stay
-* Fixed harvesting tasks not always harvesting
-* Added phrases for working
-* Villager no longer work when panicking
-* Villager can heal faster when eating
-
-# 7.3.8
-
-* Fixed forge server
-* Villager no longer make surprise sounds while trading
-* Fixed staying and following commands causing high CPU usage
-    * Panicking staying villagers will now run
-        * They will not return to original point yet, will be fixed in guards-update
-* Fixed issues when server and client have different java versions
-
-# 7.3.7
-
-* Fixed server crashing
-* Fixed some sounds not triggering
-* Enabled voices by default
-* Gave sirben more personality
-
-# 7.3.6
-
-* Finished sounds
-    * Normalized and denoised existing ones
-    * Added trading, hurt, snoring and coughing
-    * Added sounds for females
-* Reputation is now the sum of all hearts
-    * Reputation has been renamed to hearts
-* Villages with less than 3 (configurable) buildings are now considered settlements
-    * They will not trigger the enter-village notification
-* Children now grow up in 16 days instead of 8 (configurable)
-* Babies no longer greet you
-* Added rose gold dust recipe and therefore a way to obtain rose gold
-    * Removed rose gold ore
-* Being in a relationship helps for some interactions
-* A higher villager levels decreases infection rate
-* Fixed a few minor bugs
-* If you hit a villager, it will no longer follow you
-* Fixed armor texture on villagers
-
-# 7.3.5
-
-* Added potion of femininity/masculinity
-* Fixed promised villager marrying
-* Fixed black hair issue
-* Removed duplicate jobless skins
-* Adventurers no longer claim beds
-* Adventurers no longer complain about too crowded places
-* Adventurers now actually charge you when hiring them
-* Hopefully fixed Stuck-in-spectator mode bugs
-* Added fully vanilla mode to player model selection
-* Added a hint to the limited `/mca editor`
-* Reduced which villagers are converted to support mods (Easy Villagers)
-    * E.g. Igloo will have vanilla villagers now, for technical reasons
-* Less mca baby zombie villagers
-* Fixed apologizing to villagers after hit
-* Made interactions easier, except for stories if you are lying
-* Made bounty hunters more rare
-
-# 7.3.4
-
-* Engagement rings now set the relationship to engaged
-    * Engaged villagers won't marry someone else
-* Gifting a bouquet prevents villagers from marrying other villagers
-* More config for inn spawning behavior
-* Added (deceased) father and mother for all spawned villagers
-* Fixed compatibility issues with Origins mod
-* Added rainbow trait
-* Hair color now blends when color is gifted again
-* 2% of villagers dye their hair (configurable)
-
-# 7.3.3
-
-* Parents with same gender are now properly registered
-
-# 7.3.2
-
-* Added support for 1.19
-* Added support for advancements tied to fate
-* Added Adventurers
-    * Spawn twice a day at inns
-    * Despawn after 2 days
-    * Can trade, be hired and asked to stay
-* Villager now chooses the best equipment
-* Added more eye variants
-* Fixed zombies not always using zombie clothing
-* Villager on fire will now burn their clothes
-* The Sirben cult appeared
-* Added 50.000 names from 55 different countries
-    * Config option available to use modern USA names only
-* Destiny now sets spawn location
-* The /mca editor has been replaced by a limited version (configurable) to prefer comb and needle and string items
-* You can now start a village without villagers using the blueprint
-
-# 7.3.1
-
-* Traders now spawn in Inns
-* Added comb to modify the hairstyle of villagers and players
-* Added needle and thread to modify clothes of villagers and players
-* Fixed advancements and book rewards
-* Improved name distribution
-* Marriage and Birth notifications are now only printed within the village boundaries, or when being friends
-* Added config flag to disable boobs
-* Added support for Immersive Weathering
-* Fixed a few crashes
-* Taxes are now once a week
-* Fixed performance issue
-* Fixed persistent zombie villagers despawning
-
-# 7.3.0
-
-* Updated translations
-* Fixed crash on dedicated server when picking up children
-* Cleaned up config, added link to config wiki
-* Villager can no longer plant modded plants to remove a crash
-* Fixed a few crashes
-
-# 7.3.0 alpha 3
-
-* Switched to an injected based player model to hopefully improve mod support
-* Using the Player model now makes use of size and gender
-* Females are now in average 5% shorter than males
-* You can now choose between player and villager model in the destiny screen
-* Fixed modded profession being naked
-* Fixed massive family crashing whistle
-* Fixed root advancement
-* Fixed Gifting advancements
-* Fixed missing riding phrase
-* Fixed duplication issue when villager use bonemeal
-* Fixed chore animations
-* Added wandering around when no tasks have been found
-* Fixed young villagers not holding tools correctly
-
-# 7.3.0 alpha 2
-
-* Fixed Destiny partly working on dedicated servers
-* Fixed mod conflicts
-* Added clothing and hair selection
-* Bounty hunter no longer attack while in creative
-* Gifting a golden apple to a child now properly reduces the stack
-* Fixed a few wrong buttons
-* Added a few more config flags to control destiny, teleportation and editor access
-* Sneaking no longer breaks the model
-* Editor offers a button to select player or villager skin
-* Fixed issues with resizing window while in editor
-
-# 7.3.0 alpha 1
-
-* Added destiny
-    * You are asked to customize the player
-    * Then you can choose from a set of spawn location to start your journey
-* Massive dialogue overhaul with over 300 new phrases
-    * Added Rumor dialogue
-    * Added Time specific dialogues
-* Grumpy, Gloomy and Shy personalities
-
-# 7.2.0
-
-* Ported to 1.18.2
-* Modded Villager professions now display properly in all mca interfaces
-* Fixed incompatibility with eldritch mobs
-* Villager get 5 extra hearts per level
-* Added config flag to use squidward models
-* Fixed sleeping
-* Adjusted villager teleportation to be more configurable
-* Different ages will now move at different speed
-* Genes now affect speed
-* Converted villagers will now retain custom nbt data and age
-* Fixed inventory disappearing on convert
-* Fixed marriage and family tree loss on convert
-* Maximum building size and radius are now configurable
-* Fixed UI Scaling issues with interaction buttons
-* Fixed issues of bounty hunters spawning within villages if your y value is below its bounds
-* Added Village Merging
-* Fixed villagers struck by lighting
-* Added electrified trait
-* Increased button widths to better support different languages
-* Decrease revenge aggression based on the guards' relation to you
-* Added guard target list to config
-* Added aborting children by unconventional means
-* Updated the Blueprint Interface to appear more cohesive
-* Added `/mca-admin forceBuildingType <type>` to force a building's type
-* Fixed issues with Chores not working in 1.18.x
-* Added modded support to `ChoppingTask` as well as several optimizations
-* Mining Speed Multipliers can now effect `ChoppingTask` speed (The original 7 seconds is also configurable)
-* Fixed potential crashes when villagers perform Harvesting chores (Planting seeds throwing a NPE)
-* Fixed player marriage not saving
-* Sneaking before interacting with a villager will now open trading
-
-# 7.1.0
-
-* Ported to 1.18 (And 1.18.1)
-* Fixed missing chest tag
-* Added baby clothes
-* Fixed villagers not fully moving out of the old building
-
-# 7.0.8
-
-* Readded blacksmith functionality
-* Fixed scaling-flickering with iguana tweaks
-* Added text when trying to assign to invalid buildings
-* Improved interaction layout
-* Staff of Life can no longer be enchanted
-* Fixed chores phrase names
-* Command kill no longer counts as murder
-* Added config flag to disable name tags
-* Fixed log spam regarding invalid bounding boxes
-* Fixed issues when assigning family in editor
-* Buildings now support modded chests
-* Villagers will now use your editor name
-* Fixed letter author and creative mode usage
-* Strengthened Grim Reaper
-* Added mod support for atmospheric, autumity, berry good, buzzier bees, environmental, neopolitan, and upgrade aquatic
-* Villager now recognize and estimate the value of every (modded) armor, tool, sword, bow and food as a gift (accuracy
-  not guaranteed)
-
-# 7.0.7
-
-* Experienced villagers no longer become guards
-* The king can assign archers and guards at will
-* Fixed king rank
-* Can no longer pickup teens
-* Fixed curing zombie villagers
-* Added missing translations
-* Added book of supporter
-* Fixed gift desaturation not working
-* Improved teleportation, especially when following the player
-* Fixed the pixel gap of headstones
-* Fixed sleeping villagers not waking up when moved around
-* Added letter of condolence
-* Fixed dimension issues with player and villager data
-* Added mail system, used to notify the player about the death of family members
-* Glass roofs are now supported
-* Added more jobless skins
-* Updated translations and fixed wrong variable syntax
-* Added some admin commands
-* Temporary disabled baby tracker
-* You can now trade with family
-* Fixed inventory duplication bug
-* Fixed deadlock in relation with reaper spawner
-* Villager marriages now respect player hearts
-* Fixed gifting golden apple not reducing by 1
-* Fixed crash when hovering over unmarried villagers marriage-symbol
-* Villagers will also update baby time
-* Fixed datapack crash on some system locales
-* Hopefully fixed stuck-at-sleeping issues after loading world
-* Adding a building will also look for graveyards to decrease player confusion
-
-# 7.0.6
-
-* Fixed guards aggression towards mobs
-* Fixed profession change not always switching clothes
-* Added Family Tree item to search
-* Fixed crash
-* Fixed reaper summoning on some server
-
-# 7.0.5
-
-* Fixed issue with natural breeding
-* Blueprint will now better display vertically stacked buildings
-* Villager preview in the editor is now animated
-* Fixed wasting charges on already reviving villagers
-* Fixed a crash
-* Fixed opposite gender bug
-* Fixed villager marrying relatives
-* Guards now attack mca zombie villagers
-* No more sliding baby zombie villagers
-* Slightly enhanced village boundary determination
-* Fixed uninitialized zombie villager babies
-* Fixed flower pots with flowers not being recognized
-* Lost babies can now be retrieved by the spouse
-* Fixed crash on dedicated server when using randomized baby name
-* Village will now interact with each other
-* Iron golems will now slap the villager when hit accidentally and then chill
-* Guards will now support their citizen and have a custom dialogue when the player is the attacker
-* Improved archer AI
-* Fixed villager getting stuck in doors
-* Guards no longer panic when a raid happens
-* A wiped-out village will only send a last, bigger bounty hunter wave
-* Added all items to recipe book
-* Reworked female villager model
-* Fixed a bunch of marriage issues caused on death
-* Spouse and parents can now be modified in the villager editor
-* Fixed guard spam
-* Rank Mayor can now make villagers guards or archers manually
-* If the Grim Reaper summoning fails, feedback on why is given
-* Villager are now silent by default, configurable
-* Villages can now be renamed
-* Unlocked King rank
-
-# 7.0.4
-
-* Fixed widow icon
-* Player and villager marriage symbol now swapped
-* Taxes are initially set to 0%
-* Whistle recipe now requires gold instead of rose gold
-* Rings are no longer usable as gold ingots
-* Fixed a crash related to building detection
-* Integrated community re-shaded dna icon
-* Added Vegetarian trait
-* Fixed missing meat gift phrase
-* Replaced names by accurate database of babies born in the US in 2010
-* Fixed graves text for formatted names
-* Fixed reviving for villager died by height or void
-* When adopting, your spouse also becomes your children's mother
-* Decreased villager knockback
-* Fixed incorrect amount of bounty hunters
-* Added two more headstones
-* Fixed crash caused by zombie villagers on dedicated servers
-* Only player with merchant rank or higher will receive tax notifications
-* mca-admin commands no require op permission
-* Fixed smaller issues with building recognition
-* Automatic building scanning can now be disabled
-* Next to Buildings, you can now add more restrictive "rooms" instead in case your build is not recognized otherwise
-* Buildings can no longer intersect
-* If adding a building fails, a proper error message is now shown
-* Updating existing, intersected buildings work now
-* Fixed some villagers being confused on where they live
-* Fixed outdated translation variables
-* Setting the workplace makes them jobless for now, effectively causing them to look for a new job
-* You use both matchmaker rings now
-* Gifting cake works on every adult married villager
-* Buildings can now be marked as restricted, preventing villagers from moving in
-* Voice acting is now disabled by default
-* Fixed guards on duty randomly looking into the sky when talking to
-* Fixed at least one teleporting-away-while-following bug
-
-# 7.0.3
-
-* Attempting to talk to a zombie won't prevent you from performing an action
-* Fixed interaction fatigue reset
-* Added Interaction and gift analysis
-* Overhauled gift desaturation.
-    * Hearts reward will decrease, but won't drop below 0.
-    * Desaturation uses a configurable exponential curve, slightly favoring awesome stuff.
-    * Once a day by default, the villager forgets about the latest gift in the queue
-* Fixed "datapack" crash
-* Building tasks are now required to advance in ranks
-* Removed bed reserving, beds are searched on demand
-* Fixed villager-keep-following-you problem
-* Fixed greeting AI
-* Increase percentage of adult villagers
-* Fixed changing clothes of unemployed villagers
-* Increased frequency of marriage, births and guard spawns
-
-# 7.0.2
-
-* Fixed Server crash
-* Fixed crash when setting clothes or haircut when playing on a server
-* Added config flag to disable voice acting
-* Fixed scythe loosing its charge on non-tombstones
-* Fixed staff of life charges
-* You can no longer adopt adults
-* Fixed grown-up message appearing after world join
-* Fixed building detection on certain coordinates
-* Fixed tall villagers being too tall to live
-* Fixed phrases not being translated on dedicated servers
-* Synced Translations
-
-# 7.0.1
-
-* Fixed traits syncing issues and chance math
-* Fixed translation keys
-
-# 7.0.0
-
-* Giant initial update. This list may have missing parts.
-* Added mca villager and zombie villager
-* Added genetics, personality, traits and mood
-* Added dialogue engine
-    * Ported classic interactions
-    * Added adoption
-    * Added divorce and divorce papers
-* Added enhanced gifting
-    * Has a saturation Queue
-    * Respects villagers specific needs
-* Added wedding ring and engagement ring
-* Added Grim Reaper
-* Added graves, resurrection, Staff of Life and the Scythe
-* Added guards and archers
-* Added blueprint
-    * Added village management
-    * Added automatic building and village recognition
-    * Added initial building types to extend village functions
-    * Added rank, task system
-* Added taxes
-* Added chores
-* Added book with enhanced visuals
-* Added Advancements
-* Added Architecture to support Fabric and Forge
-* Added voice acting
-* Added initial translations´
+# Changelog
+
+All notable VillAIgence product, runtime, persistence, release and delivery changes are recorded here.
+
+This is the **canonical changelog** for the project.
+
+- `docs/PROJECT_STATE.md` describes the current verified state.
+- `docs/ROADMAP.md` describes future direction.
+- `docs/CHANGELOG.md` is the older detailed engineering-history ledger and is retained for historical evidence; new release/product history belongs here.
+
+## Changelog policy
+
+1. Every PR that changes runtime behavior, persistent data, public configuration, release semantics, security guarantees, or permanent CI guarantees must update `[Unreleased]` in the same PR.
+2. Test-only and documentation-only PRs update the changelog only when they change a user-visible or delivery guarantee.
+3. Release PRs move shipped `[Unreleased]` entries into the exact version section instead of duplicating them.
+4. Automated, exact-candidate, exact-release, and installed/manual evidence remain distinct claims.
+5. Failed or deferred acceptance is written explicitly and is never silently promoted to PASS.
+6. Pre-1.0 breaking data boundaries are called out directly.
+
+---
+
+## [Unreleased]
+
+### Added
+
+- First `0.4` Knowledge ecosystem slice: the automatic Semantic contradiction classifier now also recognizes a bounded numeric conflict, in addition to the existing standalone `not`/`не` negation rule.
+  - two statements oppose on a numeric conflict only when they have the same token count, differ at exactly one position, and that position holds two bare numeric tokens (optionally decimal or negative) with different parsed values;
+  - equal values written differently (e.g. `04` vs `4`) are not a conflict, and any non-numeric or multi-position difference remains unclassified;
+  - this extends `SemanticOppositionClassifier` only; `SemanticContradictionCandidateSelector`'s `16`-candidate/`8`-comparison bounds, `SemanticContradictionLifecycle`, persistence formats, provider protocol, public configuration and release identity are unchanged;
+  - antonyms, temporal disagreement and free-form semantic opposition remain deliberately unclassified, consistent with the original design's rejection of a broad deterministic rule catalogue (`docs/superpowers/specs/2026-08-10-bounded-contradiction-producer-design.md`) — each extension is scoped and justified on its own.
+
+### Validation
+
+- Tests-first: RED tests for `recognizesExactlyOneNumericConflictSymmetrically`, `recognizesDecimalAndNegativeNumericConflict`, `rejectsNumericTokensWithEqualValueButDifferentFormatting`, `rejectsNumericConflictWhenMoreThanOneTokenDiffers`, `rejectsNumericConflictAcrossDifferentTokenCounts` and `rejectsNonNumericSingleTokenDifference` were added to `SemanticOppositionClassifierTest` and observed failing before the minimal implementation; the prior numeric-difference case moved out of the "rejects" test into its own now-`true` assertion.
+- All 11 `SemanticOppositionClassifierTest` cases and all 325 tests in the `net.conczin.mca.livingworld.memory2` package pass after the change (verified locally outside the sandboxed Gradle/Fabric toolchain, which failed dependency verification and Loom cache resolution unrelated to this change); exact-head repository security/CI/soak/release-dry-run gates still apply before merge per project policy.
+
+---
+
+## [0.3.2+1.21.1] — 2026-08-15
+
+### Fixed
+
+- PR #169 fixes the installed targeted Memory 2.0 recall defect that remained in `0.3.1+1.21.1`. Query-aware final ranking now treats exact NPC/player participant matching as an eligibility boundary rather than a universal positive relevance term, so an older one-token targeted dialogue is not displaced by unrelated fresh eligible dialogue.
+- Explicit marker/code/token recall has a bounded deterministic zero-overlap fallback for already-eligible `PLAYER_TOLD` dialogue only: the current query must express recall intent, the original player text must contain an explicit storage cue, and that text must contain a bounded machine-like opaque identifier such as `amber-pine-314` or `amber pine 314`. The score is used in the existing max-8 query lane and final max-6 ranker with the unchanged max-32 candidate bound.
+- False-positive hardening rejects natural-language numeric phrases, `NPC_TOLD` dialogue, storage commands masquerading as recall queries, and unrelated machine-like identifiers such as `java-21` without an original storage cue.
+- No persistence schema/version/file, migration/backfill, public configuration, provider request/schema/call count, embedding/vector retrieval, prompt-window widening, NPC/player isolation, FACT/BELIEF authority or voice-target semantics change is introduced.
+
+### Validation
+
+- Installed `0.3.1+1.21.1` evidence on 2026-08-15 recorded `VAI-PCM-MULTI-001 FAIL`: the exact official SHA, startup, persistence validity, 14/14 unique dialogue event IDs and cross-NPC isolation passed; Muammer failed to recall retained `amber-pine-314`, while Nurey recalled `violet-river-926`.
+- PR #169 used staged RED→GREEN hardening for one-token final-rank starvation, zero-overlap referential recall, natural numeric false-positive rejection and unrelated machine-ID rejection without a storage cue. Final exact-head Repository security, full CI, Production Soak and GitHub Release dry-run passed before merge.
+- Installed `0.3.2+1.21.1` evidence on 2026-09-04, on the official immutable GitHub Release JAR (SHA `b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015`): `VAI-PCM-MULTI-001 PASS`. Muammer recalled retained `amber-pine-314` and Nurey recalled `violet-river-926` with no cross-NPC leakage, on the same retained-world markers used for the `0.3.0`/`0.3.1` canaries. Full detail in `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`. `VAI-M2-INST-005` and `VAI-CONCUR-004` remain unaffected NOT TESTED/deferred.
+- `0.3` is now fully released and installed-accepted at `0.3.2+1.21.1`. The `0.4` Knowledge ecosystem milestone is unblocked.
+
+---
+
+## [0.3.1+1.21.1] — 2026-08-13
+
+### Fixed
+
+- Restored bounded targeted Memory 2.0 recall for older eligible dialogue that is still retained but has fallen outside the recency lane: deterministic query relevance is applied only after exact NPC/player eligibility, then merged inside the existing hard `32`-candidate boundary before the unchanged rank-to-`6` prompt limit; no persistence schema/version, public configuration, provider schema/call, migration or memory-window widening is introduced.
+- Text chat now persists the current player message and captures the immutable world/memory snapshot on the server thread before asynchronous provider work, so the current utterance can drive the same bounded query-aware retrieval without reading mutable server state off-thread.
+- PR #165 carries RED→GREEN regression coverage for retained-but-starved targeted recall plus cross-player/cross-NPC isolation. Automated CI, Production Soak, production acceptance, exact persistence recovery, GameTests, supported-loader builds and an exact release dry-run are green; installed `VAI-PCM-MULTI-001` acceptance remains explicitly pending the official `0.3.1+1.21.1` JAR and is not promoted to PASS here.
+
+---
+
+## [0.3.0+1.21.1] — 2026-08-12
+
+### Added
+
+- 0.3 release-convergence contract and fail-closed validation in PR #160:
+  - `docs/releases/0.3.0-convergence.json` defines the planned exact `0.3.0+1.21.1` candidate, immutable `0.2.0+1.21.1` baseline, actual post-release capability/infrastructure inventories, world/recovery stores, clean-state migration boundary, delivery gates and honest manual/deferred acceptance boundary;
+  - standard-library convergence validation runs through the existing canonical CI/release contract harness, verifies post-release `feat:` history, requires capability traceability in root `[Unreleased]` before arming and in the exact `0.3.0+1.21.1` section after arming, rejects shipped-capability duplication back into `[Unreleased]`, and rejects mismatched requested tags or persistence/acceptance inventories;
+  - the permanent eight-workflow Actions surface is unchanged and `docs/releases/NEXT_RELEASE.txt` deliberately remained `0.2.0+1.21.1` during convergence so convergence itself could not arm, tag or publish the planned 0.3 release.
+- Deliberate personality/social dialogue and behavior integration for the 0.3 track:
+  - live MCA Personality is interpreted through a closed server-owned style enum and rendered as at most one bounded dialogue-guidance line; direct NPC-pair state is interpreted through a closed directed disposition enum and may add at most one second guidance line, with no free-form names, UUIDs or numeric social values exposed as behavior instructions;
+  - the snapshot prompt authority order is now current world facts → server-owned personality/direct-social descriptive state → bounded dialogue guidance derived from that same state → Operator Lore → Semantic Memory → live disagreement context → episodic/social history, while current observed facts remain authoritative;
+  - existing settlement knowledge flow keeps its deterministic selector unchanged, then reads only the already-selected exact speaker→listener social edge; strong fear, distrust or antipathy suppresses that exact transfer with no fallback/retargeting, while neutral/positive state preserves existing flow and a social-read failure fails closed;
+  - provider-proposed snapshot commands remain capture-time allowlisted and are revalidated immediately before server execution against fresh NPC×player relationship authority; `follow-player` is revoked on current low trust/high fear, malformed/non-regular relationship persistence fails closed without recovery mutation, missing persistence is neutral, and unrelated safe commands remain relationship-store independent;
+  - this slice adds no provider request/schema, public config, persistence file/version, migration/backfill, graph enumeration/ranking, provider-authored NPC social delta, NPC↔NPC LLM conversation, truth-score mutation or release identity change;
+  - unit/preservation coverage proves closed mapping, fixed-size rendering, prompt placement, exact A→B gating, neutral compatibility, byte-idempotent stores, fresh-root behavior and strict authorization reads; live Fabric GameTests prove real MCA Personality plus asymmetric directed-pair influence without mutating tracked Personality or `npc-social-graph.json`.
+- Bounded read-only MCA Personality + direct NPC-pair social snapshot for the 0.3 track:
+  - canonical personality authority remains the existing MCA `VillagerBrain.getPersonality()` tracked/NBT enum state; the immutable snapshot carries only a closed canonical lowercase token derived synchronously on the server thread, so no second persisted/generated personality model is introduced;
+  - an optional counterpart exposes exactly one directed `NpcSocialGraphStore.get(source,target)` state with no reverse inference, neighbor enumeration or graph-wide disclosure; the normal player↔NPC snapshot has no NPC counterpart and therefore does not open the social graph merely to answer a player;
+  - snapshot/rendering is fixed-size and read-only: repeated capture plus fresh-root reload preserves exact graph bytes/state and creates no `relationships.json`, `memory2.json` or `semantic-memory.json` side effects;
+  - the snapshot-aware prompt path preserves legacy identity/mood/age/profession context while de-duplicating personality, then composes current world facts → server-owned personality/direct-social descriptive state → Operator Lore → Semantic Memory → live disagreement context → episodic/social history;
+  - current observed facts remain authoritative, the social/personality layer cannot promote BELIEF to FACT or mutate confidence/provenance/ranking, and no provider call/schema, public config, world file/version, migration/backfill, autonomous social delta or release identity change is introduced;
+  - real Fabric GameTests validate live MCA `FRIENDLY`/`CRABBY` personality extraction, independent A→B/B→A direct social state, unchanged tracked Personality and byte-identical graph persistence.
+- Server-owned causal NPC↔NPC social mutation lifecycle for the 0.3 track:
+  - an additive latest-cause frontier per source NPC is persisted atomically with directed graph state inside existing `npc-social-graph.json` format v1, so graph replay protection does not depend on bounded `memory2.json` audit retention;
+  - deterministic mutation identity binds the source NPC and exact retained cause event, while reusing the same cause with another target or bounded delta fails closed instead of becoming a second mutation;
+  - authoritative causes are ordered by Minecraft `gameTime` then event UUID, and valid `APPLIED`, `NO_CHANGE` and `CAPACITY_REACHED` outcomes all consume the source frontier so an old event cannot become effective later;
+  - lifecycle admission requires an exact retained source-owned `SYSTEM_OBSERVED` `OBSERVATION|ACTION` event containing the target plus server-owned validation that both UUIDs are live MCA NPC identities;
+  - a primary applied mutation may append one structured bounded `NPC_SOCIAL_CHANGE / SYSTEM_OBSERVED` Memory 2.0 audit event with exact before/after state and cause ID, but audit loss never rolls back graph state and replay never backfills or duplicates audit history;
+  - `NPC_SOCIAL_CHANGE` is excluded from generic episodic prompt context and is never automatically promoted to Semantic FACT/BELIEF;
+  - malformed/duplicate/inconsistent causal frontier state fails closed per attributable source, including malformed map keys and cursor payloads with missing required fields, without allowing one bad cursor to discard otherwise-valid graph edges through whole-file recovery;
+  - real Fabric GameTest validates MCA-villager identity authority, and production startup/restart acceptance exercises the causal graph/audit replay boundary without changing provider schema/calls, public config, MCA Personality authority, NPC×player `relationships.json`, Semantic truth semantics, or official release identity.
+- Persistent bounded directed NPC↔NPC social-graph foundation for the 0.3 track (PR #151):
+  - existing MCA `Personality` tracked entity/NBT state remains the canonical persistent personality source; no duplicate generated personality store is introduced;
+  - new world-local `npc-social-graph.json` format v1 stores non-neutral directed NPC→NPC `trust`, `respect`, `fear` and `affinity` independently from NPC×player `relationships.json`;
+  - social dimensions clamp to `[-100,+100]`, self/null pairs fail closed, neutral edges compact away, and each source NPC retains at most 64 non-neutral outgoing edges with reject-new/no-eviction capacity semantics;
+  - hostile/corrupt load sanitation drops malformed/self/null/neutral records, fails closed on duplicate canonical pairs and over-capacity sources, and does not fabricate an order-dependent survivor set;
+  - current production/recovery automation expands from five to six canonical auxiliary stores and exercises real startup/restart plus independent corruption recovery of `npc-social-graph.json`, while immutable historical release recovery remains version-aware;
+  - this foundation adds no prompt/dialogue/behavior integration, provider social scoring, public config, Semantic authority change, `relationships.json` reinterpretation or release publication.
+- Controlled Semantic Memory BELIEF admission contract:
+  - `PLAYER_TOLD` requires matching `PLAYER_TOLD` DIALOGUE evidence;
+  - `NPC_TOLD` requires matching `NPC_TOLD` DIALOGUE evidence;
+  - `INFERRED` remains a non-authoritative BELIEF with explicit source-event evidence;
+  - `SYSTEM_OBSERVED` is rejected by the BELIEF path and remains reserved for FACT;
+  - admitted BELIEFs are replay-idempotent and use the existing deterministic consolidation/source-union pipeline.
+- Opt-in bounded `PLAYER_TOLD` BELIEF candidate extraction in the existing structured OpenAI/OpenRouter chat response:
+  - no second provider request;
+  - the model may propose statement strings only;
+  - server-owned code fixes NPC owner, player identity, `PLAYER_TOLD` provenance and persisted source DIALOGUE event;
+  - DIALOGUE is persisted before any BELIEF candidate can be admitted;
+  - malformed/empty candidate metadata fails soft and writes nothing;
+  - duplicate candidates are normalized/deduplicated and bounded to at most 8 hard-limit candidates, with a default configured limit of 3;
+  - the extraction path cannot create or promote FACT.
+- Trustworthy causal relationship memory in Memory 2.0:
+  - each new `RELATIONSHIP_CHANGE` retains the exact server-applied before/after trust, respect, fear and affinity state as structured data;
+  - a separate deterministic `RELATIONSHIP_CAUSE(DIALOGUE_TURN)` can link that exact transition to the exact persisted DIALOGUE event during which it occurred;
+  - source NPC/player identities and source event UUIDs are server-owned and validated against persisted world-local evidence;
+  - causal events are replay-idempotent and survive restart with their transition snapshot/source UUIDs intact even when bounded retention later removes referenced source events;
+  - recent causal history can be queried with exact NPC/player isolation before limiting and without fabricating missing evidence;
+  - free-form model explanations are never persisted as authoritative relationship causes, and causal events are not automatically promoted to Semantic FACT.
+- Bounded long-horizon Memory 2.0 recall:
+  - the normal 32-candidate prompt window reserves 24 slots for recent eligible memory and 8 for older durable eligible memory before the existing final ranker chooses at most 6 prompt entries;
+  - Semantic Memory reuses its existing deterministic durability/decay policy rather than introducing a second persistence policy;
+  - episodic/social Memory 2.0 now has deterministic game-time durability under capacity pressure so important older observations, actions and relationship history can survive weaker newer dialogue;
+  - episodic durability uses server-owned importance, confidence, absolute emotional weight, provenance, event type and Minecraft `gameTime`; no wall-clock age or provider decision participates;
+  - ordinary dialogue remains the least durable event tier, while `RELATIONSHIP_CAUSE` and `RELATIONSHIP_CHANGE` receive stronger bounded retention without becoming immortal;
+  - a weak append that is immediately rejected under pressure does not rewrite `memory2.json` when the retained state is unchanged.
+- Source-backed server-owned NPC-to-NPC Semantic knowledge transfer:
+  - the caller selects an exact persisted speaker Semantic entry by server-owned IDs and cannot inject arbitrary claim text, provenance, truth class, scope, source IDs, importance or confidence;
+  - the speaker source is reread authoritatively before transfer evidence is constructed;
+  - transfer first persists exact listener-owned `DIALOGUE / NPC_TOLD` evidence with deterministic identity, then rereads and validates that exact evidence before BELIEF admission;
+  - speaker FACT or BELIEF always becomes listener `BELIEF / NPC_TOLD`, never listener FACT, and the speaker's upstream provenance/source chain is not copied as listener authority;
+  - semantic subject scope is preserved without automatically adding the speaker to `relatedEntities`;
+  - exact retry is idempotent, while a later transfer at another authoritative `gameTime` creates distinct evidence that may consolidate into the same logical BELIEF with deterministic source union;
+  - bounded pressure reports explicit `SOURCE_NOT_RETAINED` and `BELIEF_NOT_RETAINED` outcomes without fabricating evidence or rolling back a legitimate persisted transfer event.
+- Provenance-aware bounded multi-hop rumors for NPC-to-NPC knowledge transfer:
+  - each new v2 transfer evidence event stores one immutable origin snapshot plus an ordered ancestry path under the deterministic `npc-knowledge-transfer-v2` identity namespace;
+  - first-hop origins are limited to `FACT/SYSTEM_OBSERVED`, `BELIEF/PLAYER_TOLD`, or `BELIEF/INFERRED`; downstream `BELIEF/NPC_TOLD` must inherit retained structured lineage and cannot reset its origin;
+  - lineage is acyclic and capped at eight hops, with explicit `PROVENANCE_CYCLE`, `PROVENANCE_LIMIT_REACHED`, and `PROVENANCE_UNAVAILABLE` outcomes;
+  - consolidated Semantic BELIEFs retain only direct transfer evidence IDs, while each direct evidence event carries its own bounded ancestry snapshot;
+  - canonical direct ancestry is selected by `gameTime DESC` then evidence UUID ascending before listener-specific cycle/limit checks, preventing listener-dependent fallback;
+  - exact statement and semantic subject scope are preserved across hops, provider/client input cannot inject provenance authority, and downstream knowledge always remains `BELIEF / NPC_TOLD`.
+- Deterministic server-owned Semantic contradiction representation:
+  - a new structured `SEMANTIC_CONTRADICTION / SYSTEM_OBSERVED` process-evidence event records that two exact retained Semantic claims were classified as contradictory without selecting a winner or changing either claim;
+  - shared `SemanticMemoryIdentity` exposes the existing logical consolidation dimensions so contradiction history survives source-union consolidation while existing `semantic-consolidated-v1` IDs remain byte-compatible;
+  - each contradiction snapshot stores logical claim identity, exact detected Semantic entry ID, original kind/provenance and canonical semantic subject scope, but deliberately stores no duplicate claim prose;
+  - deterministic `semantic-contradiction-v1` identity binds the owner, both complete canonical snapshots and authoritative `gameTime`, and A/B versus B/A ordering is canonical;
+  - recording accepts exact server-owned Semantic entry IDs only, rereads both sources authoritatively and exposes explicit `SOURCE_NOT_RETAINED`, `SCOPE_MISMATCH`, `SAME_CLAIM`, `EVENT_NOT_RETAINED` and rejection outcomes;
+  - resolved contradiction history returns a relation only while both logical claims remain live, canonically match the stored kind/provenance/scope and are eligible for the current player before limiting, so old process evidence cannot resurrect forgotten claim text;
+  - contradiction evidence is excluded from the generic episodic prompt path and cannot be converted into Semantic FACT; FACT/BELIEF/provenance/confidence/ranking of both source claims remain unchanged.
+- Dedicated bounded contradiction-aware snapshot prompt context:
+  - only currently resolvable, current-player-eligible contradiction relations are loaded, with a hard maximum of four relations per prompt;
+  - each relation renders both live Semantic claims with their original FACT/BELIEF kind, provenance and confidence, using the same 240-code-point normalization, reserved-template neutralization and escaping as ordinary Semantic Memory;
+  - disagreement is rendered in a separate server-authored layer after Semantic Memory and before episodic/social history, explicitly as remembered data rather than instructions or a truth verdict;
+  - current server-observed facts remain authoritative on conflict, and confidence, repetition, corroboration count or rumor depth never promotes a BELIEF to FACT;
+  - forgotten, malformed or foreign-player relations disappear before prompt allocation and historical contradiction evidence cannot restore missing claim prose;
+  - the disagreement layer is captured immutably on the server thread before asynchronous AI processing and fails soft to empty when unavailable.
+- Deterministic server-owned rumor fallibility metadata for retained `BELIEF / NPC_TOLD` Semantic memory:
+  - fallibility is derived from retained canonical `npc-knowledge-transfer-v2` provenance after existing player eligibility, bounded candidate selection and rank-to-6 retrieval;
+  - resolvable rumors expose `sourcePath=RESOLVED` plus the exact canonical source distance from one through eight hops and `transformationsUsed=0`;
+  - a retained rumor whose direct provenance evidence is forgotten or no longer valid exposes `sourcePath=UNRESOLVED` without fabricating a hop distance or reconstructing ancestry;
+  - the annotation is rendered inline in the already-selected Semantic slot, so no additional prompt result slot is created and the existing `32 / 24+8 / 6` bounds remain unchanged;
+  - FACT, PLAYER_TOLD and INFERRED lines retain their previous rendering, while fallibility guidance is emitted only when selected rumor fallibility metadata is actually present;
+  - source distance is process metadata only: it does not rank claims, select a contradiction winner, mutate confidence, promote BELIEF to FACT or weaken current server-observed FACT authority.
+- Bounded transformed-claim representation for sourced NPC rumors:
+  - the first distortion primitive is server-deterministic `OMIT_TRAILING_SENTENCE`; it may remove one trailing sentence but cannot insert, replace, reorder or invent tokens;
+  - a rumor lineage has a hard maximum of one transformation across the existing eight-hop provenance path, and later ordinary transfers carry the exact same immutable transformation snapshot without resetting the budget;
+  - original `npc-knowledge-transfer-v2` origin statement and hop ancestry remain intact and inspectable while listener knowledge remains `BELIEF / NPC_TOLD` with unchanged transfer confidence;
+  - exact transformed replay is idempotent, a second transformation request returns `TRANSFORMATION_LIMIT_REACHED`, non-applicable single-sentence input returns `TRANSFORMATION_NOT_APPLICABLE`, and conflicting transformed/plain payloads under one existing transfer identity are rejected;
+  - retained direct evidence exposes `transformationsUsed=0|1`; forgotten or invalid direct evidence exposes `transformationsUsed=UNKNOWN` rather than reconstructing history from surviving prose;
+  - transformed fallibility stays in the already-selected Semantic prompt slot, uses the existing safe statement renderer and never becomes a truth score, authority signal or instruction.
+- Bounded automatic Semantic contradiction candidate production after controlled FACT/BELIEF admission:
+  - the newly retained post-consolidation logical claim is reread before production and direct low-level `SemanticMemoryStore.append(...)` remains storage-only;
+  - candidate eligibility is enforced before allocation using same NPC owner, exact canonical Semantic scope, distinct logical claim identity and non-equivalent normalized text;
+  - at most 16 eligible candidates are materialized and at most 8 non-duplicate pairs are classified per admission, preventing all-pairs growth;
+  - retained valid contradiction pairs are suppressed before comparison budget and exact replay does not create another live relation;
+  - the initial classifier is deliberately conservative and deterministic: it recognizes only one standalone English `not` or Russian `не` polarity insertion/removal, while antonyms, numeric conflicts, free-form paraphrase and trailing-sentence omission remain unclassified;
+  - opposing pairs delegate to the existing exact-ID `SemanticContradictionLifecycle`; no provider request, client authority, truth winner, FACT promotion, confidence/importance/provenance mutation or claim deletion is introduced;
+  - no provider schema/call, public config, world file, persistence version/field, migration/backfill or release identity changes are required.
+- Bounded settlement-scale information flow without omniscience:
+  - MCA home-village membership is the only settlement boundary in this slice; no shared village knowledge store or cross-village broadcast is introduced;
+  - dissemination runs from the existing staggered loaded-village update path through a minimal `MixinVillage`, rather than a per-NPC tick or new scheduler;
+  - one cycle materializes at most 16 residents, considers at most 4 speakers, reads at most 2 retained Semantic source candidates per speaker and attempts at most 4 transfer opportunities;
+  - a retained source must predate the current 1200-tick cycle start, preventing newly received claims from cascading through multiple NPCs inside the same cycle;
+  - normalized statement plus exact canonical Semantic scope is the per-cycle knowledge key, so equivalent knowledge carried by multiple NPCs has a hard fan-out of one opportunity per cycle;
+  - each selected source/cycle maps to one deterministic listener with no fallback retargeting when that target already knows the scoped claim or transfer validation fails;
+  - every mutation delegates to the existing exact `NpcKnowledgeTransferLifecycle`; listener knowledge remains local `BELIEF/NPC_TOLD`, source scope is unchanged, v2 ancestry/transformation state is preserved and existing automatic contradiction production runs after listener admission;
+  - no provider request/schema/call, public config, world file, persistence version/field, migration/backfill, trust weighting, FACT promotion, confidence/provenance mutation or release identity change is introduced.
+- Relationship/trust social epistemology for player-origin BELIEF prompt context:
+  - the source player is resolved only from retained exact `DIALOGUE / PLAYER_TOLD` evidence or from an existing valid v2 `NPC_TOLD` rumor lineage whose exact retained origin is `BELIEF / PLAYER_TOLD`; claim scope or prose is never treated as source authority;
+  - only the current listener NPC × source-player `trust` value participates; `respect`, `fear` and `affinity` remain social state but are not epistemic credibility inputs in this slice;
+  - `trustDelta = trust / 10` is hard-bounded to `[-10,+10]`, and `effectiveBeliefConfidence` is a derived prompt-only value clamped to `[0,100]`;
+  - persisted Semantic confidence, ranking, retention, provenance, truth class, contradiction state and settlement routing remain unchanged, and FACT/INFERRED/non-player-origin knowledge receives no social weighting;
+  - derivation occurs only after the existing eligibility, 32-candidate long-horizon selection, ranking and max-6 result boundary, so high trust cannot allocate a prompt slot and low trust cannot remove one;
+  - selected lines retain `confidence=<persisted>` and may append `socialEpistemics={trustDelta=..., effectiveBeliefConfidence=...}` without rendering the source player's UUID;
+  - missing, forgotten, malformed or conflicting source evidence fails soft to the pre-feature Semantic rendering; existing rumor fallibility/transformation metadata can coexist with the social annotation;
+  - no provider call/schema, public config, world file, persistence field/version, migration/backfill, NPC↔NPC social graph or release identity change is introduced.
+
+### Changed
+
+- Repository governance was simplified after `0.2.0`:
+  - ad-hoc commit artifact builds became manual-only in PR #121;
+  - the redundant PR Gradle workflow was removed in PR #122;
+  - wrapper validation remains in supply-chain verification;
+  - the permanent Actions surface is now the fail-closed canonical eight-workflow set, and exact release-request changes to `docs/releases/NEXT_RELEASE.txt` also trigger the existing Production Soak workflow so the constrained concurrency/restart gate runs on the exact request head without adding a ninth workflow.
+- New semantic extraction configuration is deliberately safe-by-default:
+  - `semanticBeliefExtractionEnabled=false` by default;
+  - `semanticBeliefMaxCandidatesPerTurn=3` by default and normalized to the bounded parser limit;
+  - existing version-2 configs require no migration because missing fields receive safe defaults.
+- Player-scoped Memory 2.0 prompt retrieval now enforces exact current-player-or-NPC-global eligibility before bounded candidate selection:
+  - foreign-player Semantic Memory entries cannot consume candidate slots or enter another player's prompt;
+  - foreign-player episodic, relationship-change and causal-history events are likewise excluded before ranking;
+  - eligible current-player and NPC-global memories retain the existing deterministic ranking and hard bounds.
+- Long-horizon candidate selection preserves that same visibility boundary before **both** recent and durable allocation:
+  - foreign-player high-durability records consume zero durable slots;
+  - another NPC's memory consumes zero slots;
+  - NPC-global and shared current-player-plus-other-entity memory remain eligible;
+  - candidate/result limits remain `32` / `6`, and existing Semantic/episodic ranker weights are unchanged.
+- Snapshot prompt context is composed exactly once in deterministic authority order:
+  - current observed world facts first and authoritative for the turn;
+  - current server-owned personality/direct-NPC-social state next as bounded descriptive context, explicitly not a current-world fact override;
+  - bounded dialogue guidance derived only from that closed server-owned personality/direct-social state next; it changes style/disposition, not truth authority;
+  - Operator Lore next as background context;
+  - Semantic Memory next with FACT/BELIEF provenance labels preserved;
+  - dedicated live contradiction/disagreement context next without truth arbitration;
+  - episodic and social-history Memory 2.0 last among memory layers;
+  - structured-response/tool instructions remain after all context layers;
+  - conflicting BELIEFs remain non-authoritative and stale relationship/social history does not override current server-observed facts or the captured current descriptive state.
+- Long-horizon recall changes no persistence format/version, public configuration, provider request/retry behavior, relationship mutation authority or release identity contract; it adds no legacy `memory.json` reader, embeddings/vector database, background summarizer or extra LLM memory-management call.
+- NPC-to-NPC knowledge transfer reuses the existing `memory2.json` / `semantic-memory.json` formats, retention policies, Semantic consolidation, player-visibility eligibility and `32` / `24+8` / `6` long-horizon bounds; it adds no provider call, public config, client authority, autonomous visible NPC conversation, multi-hop rumor propagation or legacy migration.
+- Provenance-aware multi-hop rumors keep `memory2.json` format version 1 and the current Semantic persistence schema, retention coefficients, retrieval/ranking bounds, provider protocol, public configuration, voice/UI/scheduler/gameplay authority and release identity unchanged; there is no migration, backfill, dual reader, new store, second provider call, uncertainty model, distortion model or autonomous rumor-spread scheduler in this slice.
+- Semantic contradiction representation reuses `memory2.json` and `semantic-memory.json` format version 1, existing bounded retention and current player-scope eligibility; it adds no automatic contradiction detector, provider call/schema, public config, new store, migration/backfill, uncertainty/distortion/trust weighting, UI, scheduler or autonomous propagation.
+- Contradiction-aware prompt context adds no provider request/schema, public config, new persistence store/version, migration/backfill, automatic detector, winner selection, uncertainty/confidence mutation, distortion, trust weighting, UI, scheduler or autonomous propagation.
+- Rumor fallibility is a derived runtime view over retained v2 provenance; it adds no world file, JSON field, config value, migration/backfill, provider request/schema, evidence-ID namespace, confidence decay, trust weighting, automatic detector, transformed wording, UI, scheduler or autonomous rumor propagation.
+- Bounded transformed claims keep `memory2.json` at format version 1 and `semantic-memory.json` unchanged; the new transformation field is nullable structured process evidence on transfer events, while provider schema/call count, public config, v2 evidence identity, retrieval bounds, contradiction bounds, FACT admission, release identity, UI and autonomous propagation remain unchanged.
+- Settlement information flow reuses current `memory2.json` / `semantic-memory.json`, existing Memory 2.0 capacity, home-village membership and the existing village update cadence; it adds no durable scheduler ledger, settlement-global memory, new client authority or relationship/trust-based epistemic weighting.
+- Social epistemic trust is a read-only derived view over already-selected Semantic BELIEF plus existing relationship/source evidence; it adds no persistence write path, ranking coefficient, retention coefficient, contradiction policy, settlement routing rule or provider dependency.
+
+### Validation
+
+- Deliberate personality/social dialogue and behavior integration in PR #158 uses staged RED→GREEN gates for the closed influence model, fixed-size guidance renderer, centralized prompt placement, exact directed settlement social suppression and fresh command relationship authorization. Preservation coverage proves selector independence/no graph enumeration, neutral compatibility, no fallback retargeting, byte-identical social/knowledge persistence on suppression, fresh-root repeatability, strict fail-closed authorization reads without JSON recovery mutation and relationship-independent unrelated commands. Live Fabric GameTests exercise real MCA `FRIENDLY`/`CRABBY` Personality plus asymmetric A→B/B→A dispositions with no provider call. Exact staged evidence is recorded in `docs/superpowers/evidence/2026-08-11-personality-social-dialogue-behavior-tdd.md`.
+- Bounded personality/direct-social snapshot work in PR #155 uses staged compile/behavioral RED→GREEN gates for fixed-size loader-independent transport, exact read-only pair lookup, source-compatible immutable snapshot integration, personality de-duplication, prompt authority placement, live MCA Personality extraction and real server-thread capture. A direct MCA-enum common DTO experiment was rejected after it compiled but caused six runtime class-loading failures; typed enum authority is instead proven at the Fabric GameTest boundary. Preservation coverage exercises repeated capture/render, independent A→B/B→A state, byte-identical graph reads, fresh-root reload and no unrelated persistence writes. Exact staged evidence is recorded in `docs/superpowers/evidence/2026-08-11-personality-social-snapshot-tdd.md`.
+- Causal NPC↔NPC social mutation work in PR #153 uses staged compile/behavioral RED→GREEN gates for atomic source-frontier persistence, corruption sanitation, structured Memory 2.0 audit evidence, lifecycle authority, real MCA NPC identity validation and production restart replay. Review-hardening added two separate one-failure REDs: malformed-key attribution (774 tests / 1 failure) and malformed required cursor payload isolation (775 tests / 1 failure), both fixed without weakening runtime cursor invariants; exact TDD evidence is recorded in `docs/superpowers/evidence/2026-08-11-causal-npc-social-mutation-tdd.md`.
+- Controlled BELIEF admission was developed with a tests-first RED/GREEN boundary in PR #123.
+- Bounded player-told BELIEF extraction was developed through explicit RED/GREEN contract tests in PR #125; exact-head CI/release evidence is recorded in that PR.
+- Causal relationship memory in PR #127 was developed through staged RED/GREEN contracts for structured transition state, persisted-source cause admission, result-bearing ChatAI orchestration and restart/eviction-safe query behavior; a full-history test exposed and drove a deterministic retention-ordering fix before final verification.
+- FACT-over-BELIEF retrieval precedence in PR #129 uses separate observed RED/GREEN gates for semantic player isolation, episodic/social-history player isolation, snapshot memory de-duplication, four-layer prompt composition and direct provider wiring.
+- Long-horizon recall in PR #131 uses separate observed RED/GREEN gates for retained-but-starved Semantic recall, the pure bounded candidate selector, episodic FIFO pressure loss, the pure episodic retention policy, no-op rejected persistence writes and retained-but-starved episodic recall.
+- Long-horizon preservation evidence additionally exercises multi-day Minecraft game time, repeated persistence reloads, exact survivor/context equality, mixed two-NPC/two-player/shared-scope pressure and deterministic hundreds-of-record simulations without sleeps or wall-clock-dependent assertions.
+- NPC-to-NPC knowledge transfer in PR #133 uses observed compile RED gates for exact store authority lookup, canonical evidence/policy APIs and lifecycle API; an additional behavioral RED compiled successfully and failed exactly the two source-backed transfer assertions before the lifecycle implementation was added.
+- PR #133 preservation coverage exercises fail-closed ownership/input boundaries, byte-idempotent replay, corroborating Semantic source union, explicit partial-retention outcomes, fresh-root reload, global/private/shared scope, player Working Memory isolation, independent NPC pairs and deterministic long-horizon multi-NPC pressure without wall-clock-dependent expected behavior.
+- Provenance-aware rumor coverage in PR #135 exercises immutable persisted lineage, deterministic v2 identity, first-hop origin restrictions, exact retained-branch resolution, listener-independent no-fallback behavior, cycle-before-limit precedence, eight-hop bounds, field-by-field provenance mutation rejection, historical-v1/missing-direct-evidence fail-closed behavior, byte-idempotent replay after fresh-root reload, global/private/shared scope preservation, player Working Memory isolation, bounded forgetting/direct-evidence loss and a deterministic 10-NPC pressure/reload simulation.
+- Semantic contradiction representation in PR #137 uses separate observed compile RED gates for stable logical claim identity, structured event model/prompt isolation, canonical adapter/integrity policy, exact-ID lifecycle and live resolved history. Preservation-only coverage then exercises fresh-root restart, source-union consolidation, forgetting without claim resurrection, global/private/shared privacy before limiting, exact replay, bounded event rejection, malformed-evidence filtering, no duplicate claim prose, 240 Semantic + 240 episodic pressure records and forward/reverse deterministic snapshots without requiring a preservation production correction.
+- Contradiction-aware prompt context in PR #139 uses observed RED gates for shared safe claim rendering, bounded live disagreement formatting/provider loading, immutable snapshot capture and five-layer prompt wiring; preservation coverage adds 240 Semantic + 240 episodic pressure records, fresh-root reload, prompt-injection escaping and unchanged current-observed-fact authority without a preservation production correction.
+- Deterministic rumor fallibility in PR #141 uses observed RED gates for the pure fallibility state, retained-source resolver, inline selected-Semantic annotation and conditional prompt guidance. Preservation coverage exercises an exact eight-hop chain, >200 Semantic and >200 episodic pressure records, high-score foreign-player private noise, fresh-root reload equality, direct-evidence forgetting to explicit `UNRESOLVED`, existing prompt-injection escaping and unchanged current FACT authority without a preservation production correction.
+- Bounded transformed-claim work in PR #143 uses separate observed RED gates for deterministic transformation state, additive evidence persistence, canonical provenance propagation, server-owned lifecycle admission, honest fallibility state and prompt rendering. Preservation coverage exercises one interior transformation across an exact eight-hop chain, >200 Semantic and >200 episodic pressure records, foreign-player privacy-before-limit, safe prompt escaping, fresh-root replay/equality, lineage-wide budget persistence, unchanged downstream propagation, direct-evidence forgetting and fail-closed `PROVENANCE_UNAVAILABLE` without a preservation production correction.
+- Bounded contradiction candidate/producer work in PR #145 uses separate observed RED gates for bounded candidate selection, conservative opposition classification, producer/replay semantics and automatic controlled-admission integration. Preservation coverage exercises foreign-scope filtering before allocation, 16-candidate/8-comparison hard bounds, 10-NPC/>240-record pressure, forgetting without contradiction-prose resurrection, exact fresh-root reload and transformed trailing-sentence non-opposition; fixture-only ordering/API mistakes were corrected without weakening production authority policies.
+- Settlement-scale information flow in PR #147 uses observed compile RED gates for bounded opportunity selection, exact transfer lifecycle orchestration and the runtime adapter. A strengthened behavioral RED then proved that equivalent scoped knowledge carried by multiple NPCs could over-fan-out in one cycle and drove canonical statement+scope knowledge-key suppression. Preservation coverage exercises same-cycle anti-cascade, no-fallback replay, exact private scope, v2 ancestry, transformation carry-forward, contradiction production, fresh-root replay, later-cycle gradual spread, 12 settlements × 24 residents under hundreds of retained claims and supported-loader production startup; invalid PLAYER_TOLD/scope fixtures were corrected without weakening production authority policies.
+- Relationship/trust social epistemology in PR #149 begins with an observed tests-only compile RED for the absent pure trust-policy/state API, then validates exact retained source-player resolution, NPC×source-player relationship lookup and post-ranking prompt integration. Preservation-only coverage adds fresh-root equality across `memory2.json`/`semantic-memory.json`/`relationships.json`, 24 higher-confidence foreign-player private claims, live contradiction coexistence under opposite trust states and transformed player-origin rumor fallibility; these preservation checks required no production correction.
+- Existing current-FACT/current-relationship-state precedence tests remain green with long-horizon retrieval; transferred entries remain explicitly `BELIEF | provenance=NPC_TOLD` and retain the existing current-observed-fact-wins prompt framing.
+- Real two-graphical-client Operator Lore acceptance `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two graphical clients are available.
+
+---
+
+## [0.2.0+1.21.1] — 2026-08-07
+
+### Added
+
+- Memory 2.0 became the sole persistent dialogue-memory source.
+- Structured `DialogueExchange(playerMessage, npcReply)` payloads are persisted in DIALOGUE events.
+- Exact NPC/player dialogue retrieval filters eligible events before limiting and reconstructs chronological user/assistant history.
+- Current auxiliary corruption/recovery coverage uses five stores:
+  - `memory2.json`;
+  - `semantic-memory.json`;
+  - `relationships.json`;
+  - `voices.json`;
+  - `operator-lore.json`.
+
+### Changed
+
+- The experimental pre-0.2 `memory.json` conversation store was removed from the current runtime and recovery matrix.
+- The pre-1.0 rollout boundary is intentionally clean-state: no importer, dual reader, checkpoint ledger, or legacy conversation migration is provided.
+- Release recovery is version-aware so immutable historical releases keep their own persistence contracts.
+
+### Validation
+
+Exact installed Memory 2.0 acceptance for the byte-identified candidate:
+
+```text
+VAI-M2-INST-001  PASS
+VAI-M2-INST-002  PASS
+VAI-M2-INST-003  PASS
+VAI-M2-INST-004  PASS
+VAI-M2-INST-006  PASS
+VAI-M2-INST-007  PASS
+VAI-M2-INST-008  PASS
+
+Required total: 7 PASS / 0 FAIL
+VAI-M2-INST-005: NOT TESTED / AUTOMATED EVIDENCE ONLY
+VAI-CONCUR-004:  NOT TESTED / DEFERRED
+```
+
+The physical voice seed `silver-fox-482` was accepted by STT as `SilverFox482`; Memory 2.0 persisted and recalled the accepted transcript across restart. This is retained as a non-blocking STT-normalization observation rather than a memory failure.
+
+Candidate/runtime JAR SHA-256 used by the installed evidence:
+
+```text
+56293f86634b50b2def044429aac6f2cf0d197eb16ac1e60224708f7b3333aee
+```
+
+---
+
+## [0.1.26+1.21.1] — 2026-08-06
+
+### Added
+
+- Completed M11 Phase E automation across production staging, identity lifecycle, persistence recovery, authenticated sessions, voice transport, gameplay/navigation GameTests, fail-closed risk selection, and constrained-heap soak.
+- Added immutable release-recovery automation after a GitHub Actions publication outage.
+
+### Validation
+
+Installed canaries on the exact accepted release bytes:
+
+```text
+VAI-BOOT-002    PASS
+VAI-NAV-001     PASS
+VAI-GAME-001    PASS
+VAI-GAME-003    PASS
+VAI-AI-006      PASS
+VAI-CONCUR-004  NOT TESTED / DEFERRED
+
+Total: 5 PASS / 0 FAIL / 1 NOT TESTED
+```
+
+Release JAR SHA-256:
+
+```text
+5728f0f1a57b4c268df9b73603539f09ca30945a2ba251e72a5169ab45ae0a53
+```
+
+---
+
+## Earlier history
+
+Detailed implementation/TDD/security history for the earlier `0.1.x` development line remains preserved in `docs/CHANGELOG.md` and version-specific validation documents under `docs/livingworld/` and `docs/security/`.

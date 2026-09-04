@@ -16,7 +16,7 @@ The current official release line is **`0.2.0+1.21.1`**, which begins the Memory
 
 See:
 
-- [CHANGELOG.md](CHANGELOG.md) — canonical product/release changelog;
+- [changelog.md](changelog.md) — canonical product/release changelog;
 - [Project state](docs/PROJECT_STATE.md) — exact current implementation and validation state;
 - [Roadmap](docs/ROADMAP.md) — current development direction;
 - [Releases](../../releases) — published artifacts.
@@ -310,7 +310,7 @@ Text replies are intentionally published before TTS, so a TTS failure or local T
 
 - [Project state](docs/PROJECT_STATE.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Changelog](CHANGELOG.md)
+- [Changelog](changelog.md)
 - [Configuration](docs/livingworld/CONFIGURATION.md)
 - [AI diagnostics](docs/livingworld/DIAGNOSTICS.md)
 - [Voice and STT/TTS](docs/livingworld/VOICE.md)
@@ -336,7 +336,7 @@ VillAIgence remains licensed under **GPL-3.0** and retains attribution to MCA Re
 
 ## Contributing
 
-Keep changes scoped, use TDD for runtime behavior, test Fabric/NeoForge behavior where relevant, preserve server authority around AI actions/data, update root `CHANGELOG.md` for notable delivery changes, and do not change compatibility-sensitive `mca`/`livingworld` identities without an explicit migration design.
+Keep changes scoped, use TDD for runtime behavior, test Fabric/NeoForge behavior where relevant, preserve server authority around AI actions/data, update root `changelog.md` for notable delivery changes, and do not change compatibility-sensitive `mca`/`livingworld` identities without an explicit migration design.
 
 ## Credits
 

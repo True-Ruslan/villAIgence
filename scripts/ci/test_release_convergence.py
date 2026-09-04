@@ -35,7 +35,7 @@ class ReleaseConvergenceValidatorTest(unittest.TestCase):
             "minecraft_version=1.21.1\n",
             encoding="utf-8",
         )
-        (root / "CHANGELOG.md").write_text(changelog, encoding="utf-8")
+        (root / "changelog.md").write_text(changelog, encoding="utf-8")
         releases = root / "docs/releases"
         releases.mkdir(parents=True)
         (releases / "NEXT_RELEASE.txt").write_text(
