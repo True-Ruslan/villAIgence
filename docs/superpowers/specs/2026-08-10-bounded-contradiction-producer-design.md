@@ -180,3 +180,11 @@ Implementation must preserve the roadmap progression:
 ## Exit criterion
 
 Ordinary controlled Semantic admission automatically feeds a strictly bounded, deterministic contradiction producer. Foreign-player and incompatible-scope claims consume zero candidate/comparison slots; at most eight pairs are classified per admission; only conservative validated opposition reaches the existing contradiction lifecycle; replay is duplicate-safe; and no claim authority, confidence, provenance or persistence contract is changed.
+
+## Addendum (2026-09-05) — bounded numeric conflict extension
+
+Per the original trade-off note above, a separately justified extension was added to `SemanticOppositionClassifier` for the first `0.4` Knowledge ecosystem slice: exactly one differing token position, in otherwise-identical token sequences, that holds two bare numeric tokens with different parsed values (e.g. `"There are 4 guards"` vs `"There are 5 guards"`).
+
+This mirrors the existing negation rule's shape (single-position structural difference, no semantic word list) rather than reopening option C (a broad antonym/rule catalogue), which remains rejected. Antonyms, temporal disagreement and free-form opposition remain unclassified and would each need their own separately justified, narrowly scoped extension design.
+
+No change to `SemanticContradictionCandidateSelector` bounds, `SemanticContradictionLifecycle`, persistence formats, provider protocol or public configuration was required.

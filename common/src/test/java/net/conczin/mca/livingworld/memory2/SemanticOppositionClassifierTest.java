@@ -31,7 +31,7 @@ class SemanticOppositionClassifierTest {
     }
 
     @Test
-    void rejectsEquivalentDoubleNegationAntonymsNumbersAndReorderedStatements() {
+    void rejectsEquivalentDoubleNegationAntonymsAndReorderedStatements() {
         assertFalse(SemanticOppositionClassifier.opposes(
                 belief(id(30), "The gate is open"),
                 belief(id(31), "  THE   GATE IS OPEN ")
@@ -45,12 +45,61 @@ class SemanticOppositionClassifierTest {
                 belief(id(35), "The gate is closed")
         ));
         assertFalse(SemanticOppositionClassifier.opposes(
-                belief(id(36), "There are 4 guards"),
-                belief(id(37), "There are 5 guards")
-        ));
-        assertFalse(SemanticOppositionClassifier.opposes(
                 belief(id(38), "The gate is open"),
                 belief(id(39), "Open is the gate not")
+        ));
+    }
+
+    @Test
+    void recognizesExactlyOneNumericConflictSymmetrically() {
+        SemanticMemoryEntry four = belief(id(60), "There are 4 guards");
+        SemanticMemoryEntry five = belief(id(61), "There are 5 guards");
+
+        assertTrue(SemanticOppositionClassifier.opposes(four, five));
+        assertTrue(SemanticOppositionClassifier.opposes(five, four));
+    }
+
+    @Test
+    void recognizesDecimalAndNegativeNumericConflict() {
+        assertTrue(SemanticOppositionClassifier.opposes(
+                belief(id(62), "The temperature is 2.5 degrees"),
+                belief(id(63), "The temperature is 3.5 degrees")
+        ));
+        assertTrue(SemanticOppositionClassifier.opposes(
+                belief(id(64), "The balance is -10 coins"),
+                belief(id(65), "The balance is 10 coins")
+        ));
+    }
+
+    @Test
+    void rejectsNumericTokensWithEqualValueButDifferentFormatting() {
+        assertFalse(SemanticOppositionClassifier.opposes(
+                belief(id(66), "There are 04 guards"),
+                belief(id(67), "There are 4 guards")
+        ));
+    }
+
+    @Test
+    void rejectsNumericConflictWhenMoreThanOneTokenDiffers() {
+        assertFalse(SemanticOppositionClassifier.opposes(
+                belief(id(68), "There are 4 guards"),
+                belief(id(69), "There are 5 soldiers")
+        ));
+    }
+
+    @Test
+    void rejectsNumericConflictAcrossDifferentTokenCounts() {
+        assertFalse(SemanticOppositionClassifier.opposes(
+                belief(id(70), "There are 4 guards"),
+                belief(id(71), "There are now 5 guards")
+        ));
+    }
+
+    @Test
+    void rejectsNonNumericSingleTokenDifference() {
+        assertFalse(SemanticOppositionClassifier.opposes(
+                belief(id(72), "The gate is open"),
+                belief(id(73), "The gate is red")
         ));
     }
 

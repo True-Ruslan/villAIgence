@@ -21,7 +21,18 @@ This is the **canonical changelog** for the project.
 
 ## [Unreleased]
 
-_No entries after the `0.3.2+1.21.1` release boundary yet._
+### Added
+
+- First `0.4` Knowledge ecosystem slice: the automatic Semantic contradiction classifier now also recognizes a bounded numeric conflict, in addition to the existing standalone `not`/`не` negation rule.
+  - two statements oppose on a numeric conflict only when they have the same token count, differ at exactly one position, and that position holds two bare numeric tokens (optionally decimal or negative) with different parsed values;
+  - equal values written differently (e.g. `04` vs `4`) are not a conflict, and any non-numeric or multi-position difference remains unclassified;
+  - this extends `SemanticOppositionClassifier` only; `SemanticContradictionCandidateSelector`'s `16`-candidate/`8`-comparison bounds, `SemanticContradictionLifecycle`, persistence formats, provider protocol, public configuration and release identity are unchanged;
+  - antonyms, temporal disagreement and free-form semantic opposition remain deliberately unclassified, consistent with the original design's rejection of a broad deterministic rule catalogue (`docs/superpowers/specs/2026-08-10-bounded-contradiction-producer-design.md`) — each extension is scoped and justified on its own.
+
+### Validation
+
+- Tests-first: RED tests for `recognizesExactlyOneNumericConflictSymmetrically`, `recognizesDecimalAndNegativeNumericConflict`, `rejectsNumericTokensWithEqualValueButDifferentFormatting`, `rejectsNumericConflictWhenMoreThanOneTokenDiffers`, `rejectsNumericConflictAcrossDifferentTokenCounts` and `rejectsNonNumericSingleTokenDifference` were added to `SemanticOppositionClassifierTest` and observed failing before the minimal implementation; the prior numeric-difference case moved out of the "rejects" test into its own now-`true` assertion.
+- All 11 `SemanticOppositionClassifierTest` cases and all 325 tests in the `net.conczin.mca.livingworld.memory2` package pass after the change (verified locally outside the sandboxed Gradle/Fabric toolchain, which failed dependency verification and Loom cache resolution unrelated to this change); exact-head repository security/CI/soak/release-dry-run gates still apply before merge per project policy.
 
 ---
 

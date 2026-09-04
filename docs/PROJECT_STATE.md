@@ -28,7 +28,7 @@ latest official release asset SHA:  b51cfcf3f46718fac9620586cf8b5aae53356c600d5a
 last installed acceptance PASS:     0.3.2+1.21.1 on 2026-09-04 — VAI-PCM-MULTI-001 PASS
 prior installed acceptance attempt: 0.3.1+1.21.1 on 2026-08-15 — VAI-PCM-MULTI-001 FAIL (Muammer recall)
 
-next product slice:                 first 0.4 Knowledge ecosystem slice (scope not yet selected)
+next product slice:                 in progress — bounded numeric-conflict contradiction classifier extension
 then:                               TBD per 0.4 roadmap section
 ```
 
@@ -73,7 +73,8 @@ deliberate dialogue/behavior integration               COMPLETE / PR #158
 0.3.2 installed corrective test plan                   EXECUTED / PR #171
 0.3.2+1.21.1 operator-installed corrective canary      PASS on 2026-09-04
 
-0.4 Knowledge ecosystem                                UNBLOCKED / SCOPE NOT YET SELECTED
+0.4 Knowledge ecosystem                                IN PROGRESS
+bounded numeric-conflict contradiction classifier      TESTS GREEN LOCALLY / AWAITING EXACT-HEAD CI GATES
 ```
 
 Installed boundaries remain explicit:
@@ -655,7 +656,7 @@ PR #160 already updated root `[Unreleased]` for convergence infrastructure; this
 
 1. `VAI-CONCUR-004` real two-graphical-client Operator Lore conflict presentation remains deferred.
 2. `VAI-M2-INST-005` real second-player installed isolation remains untested; automated current-player/NPC-global/shared isolation exists.
-3. Automatic contradiction production intentionally recognizes only a narrow standalone English `not` / Russian `не` polarity pattern; antonym/numeric/temporal/free-form opposition needs a separately justified bounded extension.
+3. Automatic contradiction production recognizes only a narrow standalone English `not` / Russian `не` polarity pattern plus (as of the in-progress `0.4` slice) a bounded single-position numeric-value conflict; antonym/temporal/free-form opposition still needs a separately justified bounded extension.
 4. The current wording transform is intentionally narrow and deterministic; provider-authored open-ended paraphrase/generalization is not supported.
 5. Settlement dissemination uses home-village membership and bounded deterministic routing only; physical proximity, travel gossip, alliances and social-topology routing remain future work.
 6. NPC↔NPC social state now deliberately influences bounded dialogue guidance and exact-pair settlement knowledge suppression, but there is still no high-frequency autonomous social evolution or graph-neighborhood behavior policy.
@@ -673,15 +674,17 @@ PR #160 already updated root `[Unreleased]` for convergence infrastructure; this
 
 `0.3` is fully released and installed-accepted: `0.3.0+1.21.1` shipped the complete PR #123-#158 capability set (PR #162), two narrow corrective fix+release cycles resolved a real installed targeted-recall defect (`0.3.1` via PR #165/#166, `0.3.2` via PR #169/#170), and the operator-executed `0.3.2+1.21.1` installed corrective canary recorded `VAI-PCM-MULTI-001 PASS` on 2026-09-04 (`docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`).
 
-The next delivery slice is **selecting and scoping the first `0.4` Knowledge ecosystem source capability** per `docs/ROADMAP.md`'s `0.4` section. No specific `0.4` slice has been selected yet as of this reconciliation — do not assume one is in progress without checking current PRs/branches first.
+The first `0.4` slice is **in progress**: a bounded numeric-conflict extension to `SemanticOppositionClassifier` (see known gap #3 and `docs/superpowers/specs/2026-08-10-bounded-contradiction-producer-design.md` addendum). Tests-first RED→GREEN is done and all 325 tests in the `net.conczin.mca.livingworld.memory2` package pass locally. This was **not** run through the project's normal Gradle/Loom toolchain in this session — the local sandbox's Gradle dependency verification and Fabric/Loom cache are broken independent of this change (confirmed by reproducing the same failure on the pre-change tree). Instead, the affected pure-Java sources were compiled and tested directly with `javac`/JUnit console outside Gradle.
 
-Before starting `0.4` implementation:
+Before this slice is considered done, still required:
 
-- read the `0.4 — Knowledge ecosystem and rumors` section of `docs/ROADMAP.md` for the intended expansion of existing transfer/provenance/contradiction/fallibility/transformation, settlement-flow and social-epistemology primitives;
-- pick one bounded, independently shippable slice rather than a broad multi-capability change;
-- follow the same TDD/evidence discipline used for `0.2`/`0.3`: tests-first RED→GREEN, exact-head security/CI/soak/release-dry-run before merge, and a `docs: reconcile state after X` follow-up PR.
+- a real `./gradlew` run (repository security, full common-module `test`, Fabric/NeoForge builds, GameTests) on a working toolchain — likely the user's own machine or GitHub Actions CI, not this sandbox;
+- exact-head repository security / full CI / Production Soak / GitHub Release dry-run gates before merge, per this project's standing policy;
+- a normal PR (or equivalent squash merge) rather than a direct-to-`1.21.1` commit, if the user wants to keep the existing PR-numbered history convention.
 
-There is no known outstanding technical blocker to starting `0.4`; `VAI-M2-INST-005` and `VAI-CONCUR-004` remain the only open deferrals and are unrelated to `0.4` scoping.
+After this slice merges and CI is green, pick the next `0.4` primitive (antonym extension explicitly deferred; settlement-routing-by-trust and graph capacity indexing remain open per known gaps #5/#7) following the same TDD/evidence discipline as `0.2`/`0.3`.
+
+There is no known outstanding technical blocker to `0.4` beyond this session's broken local toolchain; `VAI-M2-INST-005` and `VAI-CONCUR-004` remain the only open deferrals and are unrelated.
 
 ---
 

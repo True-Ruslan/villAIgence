@@ -591,6 +591,12 @@ Expand 0.2 transfer/provenance/contradiction/fallibility/transformation, settlem
 
 Information moves through settlements, conflicting/fallible claims remain inspectable, source history remains bounded, and social context affects propagation without becoming truth authority.
 
+### In progress — bounded numeric-conflict contradiction classifier
+
+First `0.4` slice: extend `SemanticOppositionClassifier` (from PR #145) with a narrow, separately justified numeric-conflict rule — see `docs/superpowers/specs/2026-08-10-bounded-contradiction-producer-design.md` addendum (2026-09-05). Tests-first RED→GREEN complete; all 325 `net.conczin.mca.livingworld.memory2` tests pass locally. Still needs a real `./gradlew` run and exact-head CI/security/soak/release-dry-run before merge — this session's local Gradle/Loom toolchain is broken independent of this change.
+
+Deliberately out of scope for this slice, per the original design's rejection of a broad antonym/rule catalogue: antonyms, temporal disagreement and free-form semantic opposition remain unclassified candidates for future separately justified slices.
+
 ---
 
 # 0.5 — Autonomous NPC agents
