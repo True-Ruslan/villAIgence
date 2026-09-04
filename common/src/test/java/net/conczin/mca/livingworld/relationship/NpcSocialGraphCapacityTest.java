@@ -97,6 +97,75 @@ class NpcSocialGraphCapacityTest {
         assertEquals(new NpcSocialState(1, 2, 3, 4), independent.after());
     }
 
+    @Test
+    void outgoingCapacityStaysCorrectAcrossManySourcesWithChurnOnOneCachedInstance() {
+        NpcSocialGraphStore store = store();
+        int sourceCount = 40;
+        List<UUID> sources = new ArrayList<>();
+        for (int sourceIndex = 0; sourceIndex < sourceCount; sourceIndex++) {
+            sources.add(new UUID(2_000L + sourceIndex, 20_000L + sourceIndex));
+        }
+
+        // Fill every source to exactly capacity, interleaved rather than one-at-a-time per
+        // source, so a shared/global index would show cross-source contamination if broken.
+        List<List<UUID>> retainedPerSource = new ArrayList<>();
+        for (UUID ignored : sources) retainedPerSource.add(new ArrayList<>());
+        for (int edgeIndex = 0; edgeIndex < 64; edgeIndex++) {
+            for (int sourceIndex = 0; sourceIndex < sourceCount; sourceIndex++) {
+                UUID source = sources.get(sourceIndex);
+                UUID target = new UUID(3_000L + sourceIndex, 30_000L + sourceIndex * 1000L + edgeIndex);
+                retainedPerSource.get(sourceIndex).add(target);
+                assertEquals(
+                        NpcSocialGraphMutation.Status.APPLIED,
+                        store.applyDelta(source, target, new NpcSocialDelta(1, 0, 0, 0), 10).status(),
+                        "source " + sourceIndex + " edge " + edgeIndex + " should be admitted"
+                );
+            }
+        }
+
+        // Every source is independently at capacity now.
+        for (int sourceIndex = 0; sourceIndex < sourceCount; sourceIndex++) {
+            UUID overflow = new UUID(4_000L + sourceIndex, 40_000L + sourceIndex);
+            assertEquals(
+                    NpcSocialGraphMutation.Status.CAPACITY_REACHED,
+                    store.applyDelta(sources.get(sourceIndex), overflow, new NpcSocialDelta(1, 0, 0, 0), 10).status(),
+                    "source " + sourceIndex + " should already be at capacity"
+            );
+        }
+
+        // Retire a different-sized batch of edges per source, then confirm each source can
+        // admit exactly that many new edges afterward, no more, no less, and no cross-source
+        // leakage of freed capacity.
+        for (int sourceIndex = 0; sourceIndex < sourceCount; sourceIndex++) {
+            UUID source = sources.get(sourceIndex);
+            int freed = sourceIndex % 5;
+            List<UUID> targets = retainedPerSource.get(sourceIndex);
+            for (int freeIndex = 0; freeIndex < freed; freeIndex++) {
+                assertEquals(
+                        NpcSocialGraphMutation.Status.APPLIED,
+                        store.applyDelta(source, targets.get(freeIndex), new NpcSocialDelta(-1, 0, 0, 0), 10).status()
+                );
+                assertEquals(NpcSocialState.NEUTRAL, store.get(source, targets.get(freeIndex)));
+            }
+
+            for (int newEdgeIndex = 0; newEdgeIndex < freed; newEdgeIndex++) {
+                UUID replacement = new UUID(5_000L + sourceIndex, 50_000L + sourceIndex * 1000L + newEdgeIndex);
+                assertEquals(
+                        NpcSocialGraphMutation.Status.APPLIED,
+                        store.applyDelta(source, replacement, new NpcSocialDelta(1, 0, 0, 0), 10).status(),
+                        "source " + sourceIndex + " should have exactly " + freed + " freed slot(s)"
+                );
+            }
+
+            UUID overflowAfterRefill = new UUID(6_000L + sourceIndex, 60_000L + sourceIndex);
+            assertEquals(
+                    NpcSocialGraphMutation.Status.CAPACITY_REACHED,
+                    store.applyDelta(source, overflowAfterRefill, new NpcSocialDelta(1, 0, 0, 0), 10).status(),
+                    "source " + sourceIndex + " should be back at capacity after refilling exactly its freed slots"
+            );
+        }
+    }
+
     private NpcSocialGraphStore store() {
         Path file = tempDir.resolve("npc-social-graph.json");
         return new NpcSocialGraphStore(file);
