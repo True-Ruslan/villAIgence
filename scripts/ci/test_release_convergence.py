@@ -20,7 +20,7 @@ from release_convergence import (
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-CONTRACT_PATH = Path("docs/releases/0.3.0-convergence.json")
+CONTRACT_PATH = Path("docs/releases/0.4.0-convergence.json")
 
 
 class ReleaseConvergenceValidatorTest(unittest.TestCase):
@@ -77,35 +77,23 @@ class ReleaseConvergenceValidatorTest(unittest.TestCase):
 
     def test_exact_candidate_previous_release_and_patch_are_explicit(self) -> None:
         contract = load_contract(REPOSITORY_ROOT / CONTRACT_PATH)
-        self.assertEqual("0.3.0+1.21.1", contract["candidateTag"])
+        self.assertEqual("0.4.0+1.21.1", contract["candidateTag"])
         self.assertEqual("1.21.1", contract["minecraftVersion"])
-        self.assertEqual("0.2.0+1.21.1", contract["previousRelease"]["tag"])
+        self.assertEqual("0.3.2+1.21.1", contract["previousRelease"]["tag"])
         self.assertEqual(
-            "e426f588efefa6aa48a6e536c4a998421bbda241",
+            "3bb39e7ed126163efcdf971e85c89a4a5efd3111",
             contract["previousRelease"]["commit"],
         )
-        self.assertEqual(
-            (
-                {"tag": "0.3.1+1.21.1", "pullRequests": [165]},
-                {"tag": "0.3.2+1.21.1", "pullRequests": [169]},
-            ),
-            tuple(contract["patchReleases"]),
-        )
+        self.assertEqual((), tuple(contract["patchReleases"]))
         self.assertEqual(
             "docs/releases/NEXT_RELEASE.txt",
             contract["publicationTrigger"],
         )
 
-    def test_post_release_capability_inventory_starts_at_123_not_127(self) -> None:
+    def test_post_release_capability_inventory_is_exactly_172(self) -> None:
         contract = load_contract(REPOSITORY_ROOT / CONTRACT_PATH)
-        self.assertEqual(
-            (
-                123, 125, 127, 129, 131, 133, 135, 137, 139,
-                141, 143, 145, 147, 149, 151, 153, 155, 158,
-            ),
-            tuple(contract["capabilityPullRequests"]),
-        )
-        self.assertEqual((121, 122), tuple(contract["releaseInfrastructurePullRequests"]))
+        self.assertEqual((172,), tuple(contract["capabilityPullRequests"]))
+        self.assertEqual((), tuple(contract["releaseInfrastructurePullRequests"]))
 
     def test_feature_history_parser_ignores_docs_and_keeps_feature_prs(self) -> None:
         messages = (
@@ -156,7 +144,7 @@ PR #999 is not release inventory.
 ## [Unreleased]
 {inventory}
 
-## [0.2.0+1.21.1] — 2026-08-07
+## [0.3.2+1.21.1] — 2026-08-15
 - Previous release.
 """
         with tempfile.TemporaryDirectory() as directory:
@@ -164,7 +152,7 @@ PR #999 is not release inventory.
             self._write_validation_root(
                 root,
                 changelog=changelog,
-                request="0.2.0+1.21.1",
+                request="0.3.2+1.21.1",
             )
             errors = validate_contract(contract, repository_root=root)
         self.assertEqual((), errors)
@@ -177,10 +165,10 @@ PR #999 is not release inventory.
 ## [Unreleased]
 _No entries._
 
-## [0.3.0+1.21.1] — 2026-08-12
+## [0.4.0+1.21.1] — 2026-09-05
 {inventory}
 
-## [0.2.0+1.21.1] — 2026-08-07
+## [0.3.2+1.21.1] — 2026-08-15
 - Previous release.
 """
         with tempfile.TemporaryDirectory() as directory:
@@ -188,12 +176,12 @@ _No entries._
             self._write_validation_root(
                 root,
                 changelog=changelog,
-                request="0.3.0+1.21.1",
+                request="0.4.0+1.21.1",
             )
             errors = validate_contract(
                 contract,
                 repository_root=root,
-                requested_tag="0.3.0+1.21.1",
+                requested_tag="0.4.0+1.21.1",
             )
         self.assertEqual((), errors)
 
@@ -208,7 +196,7 @@ _No entries._
 ## [Unreleased]
 _No entries._
 
-## [0.3.0+1.21.1] — 2026-08-12
+## [0.4.0+1.21.1] — 2026-09-05
 {inventory}
 """
         with tempfile.TemporaryDirectory() as directory:
@@ -216,16 +204,16 @@ _No entries._
             self._write_validation_root(
                 root,
                 changelog=changelog,
-                request="0.3.0+1.21.1",
+                request="0.4.0+1.21.1",
             )
             errors = validate_contract(
                 contract,
                 repository_root=root,
-                requested_tag="0.3.0+1.21.1",
+                requested_tag="0.4.0+1.21.1",
             )
         self.assertTrue(
             any(
-                "release section 0.3.0+1.21.1 does not reference capability PR #158"
+                "release section 0.4.0+1.21.1 does not reference capability PR #172"
                 in error
                 for error in errors
             )
@@ -237,9 +225,9 @@ _No entries._
         changelog = f"""# Changelog
 
 ## [Unreleased]
-- Duplicate shipped capability PR #123.
+- Duplicate shipped capability PR #172.
 
-## [0.3.0+1.21.1] — 2026-08-12
+## [0.4.0+1.21.1] — 2026-09-05
 {inventory}
 """
         with tempfile.TemporaryDirectory() as directory:
@@ -247,30 +235,31 @@ _No entries._
             self._write_validation_root(
                 root,
                 changelog=changelog,
-                request="0.3.0+1.21.1",
+                request="0.4.0+1.21.1",
             )
             errors = validate_contract(
                 contract,
                 repository_root=root,
-                requested_tag="0.3.0+1.21.1",
+                requested_tag="0.4.0+1.21.1",
             )
         self.assertTrue(
-            any("[Unreleased] duplicates shipped capability PR #123" in error for error in errors)
+            any("[Unreleased] duplicates shipped capability PR #172" in error for error in errors)
         )
 
     def test_declared_patch_request_requires_baseline_and_patch_inventory(self) -> None:
         contract = dict(load_contract(REPOSITORY_ROOT / CONTRACT_PATH))
+        contract["patchReleases"] = [{"tag": "0.4.1+1.21.1", "pullRequests": [999]}]
         baseline_inventory = self._capability_inventory(contract)
-        patch_inventory = self._patch_inventory(contract, "0.3.1+1.21.1")
+        patch_inventory = self._patch_inventory(contract, "0.4.1+1.21.1")
         changelog = f"""# Changelog
 
 ## [Unreleased]
 _No entries._
 
-## [0.3.1+1.21.1] — 2026-08-13
+## [0.4.1+1.21.1] — 2026-09-06
 {patch_inventory}
 
-## [0.3.0+1.21.1] — 2026-08-12
+## [0.4.0+1.21.1] — 2026-09-05
 {baseline_inventory}
 """
         with tempfile.TemporaryDirectory() as directory:
@@ -278,27 +267,28 @@ _No entries._
             self._write_validation_root(
                 root,
                 changelog=changelog,
-                request="0.3.1+1.21.1",
+                request="0.4.1+1.21.1",
             )
             errors = validate_contract(
                 contract,
                 repository_root=root,
-                requested_tag="0.3.1+1.21.1",
+                requested_tag="0.4.1+1.21.1",
             )
         self.assertEqual((), errors)
 
     def test_declared_patch_request_rejects_missing_patch_inventory(self) -> None:
         contract = dict(load_contract(REPOSITORY_ROOT / CONTRACT_PATH))
+        contract["patchReleases"] = [{"tag": "0.4.1+1.21.1", "pullRequests": [999]}]
         baseline_inventory = self._capability_inventory(contract)
         changelog = f"""# Changelog
 
 ## [Unreleased]
 _No entries._
 
-## [0.3.1+1.21.1] — 2026-08-13
+## [0.4.1+1.21.1] — 2026-09-06
 - Patch notes without the declared PR.
 
-## [0.3.0+1.21.1] — 2026-08-12
+## [0.4.0+1.21.1] — 2026-09-05
 {baseline_inventory}
 """
         with tempfile.TemporaryDirectory() as directory:
@@ -306,16 +296,16 @@ _No entries._
             self._write_validation_root(
                 root,
                 changelog=changelog,
-                request="0.3.1+1.21.1",
+                request="0.4.1+1.21.1",
             )
             errors = validate_contract(
                 contract,
                 repository_root=root,
-                requested_tag="0.3.1+1.21.1",
+                requested_tag="0.4.1+1.21.1",
             )
         self.assertTrue(
             any(
-                "patch release section 0.3.1+1.21.1 does not reference PR #165" in error
+                "patch release section 0.4.1+1.21.1 does not reference PR #999" in error
                 for error in errors
             )
         )
@@ -333,15 +323,15 @@ _No entries._
             self._write_validation_root(
                 root,
                 changelog=changelog,
-                request="0.2.0+1.21.1",
+                request="0.3.2+1.21.1",
             )
             errors = validate_contract(
                 contract,
                 repository_root=root,
-                requested_tag="0.3.0+1.21.1",
+                requested_tag="0.4.0+1.21.1",
             )
         self.assertTrue(
-            any("requested candidate requires publication trigger 0.3.0+1.21.1" in error for error in errors)
+            any("requested candidate requires publication trigger 0.4.0+1.21.1" in error for error in errors)
         )
 
     def test_unknown_publication_trigger_fails_closed(self) -> None:
@@ -362,22 +352,33 @@ _No entries._
             errors = validate_contract(contract, repository_root=root)
         self.assertTrue(any("publication trigger must be previous release, exact candidate, or declared patch release" in error for error in errors))
 
-    def test_declared_patch_tag_is_accepted(self) -> None:
-        contract = load_contract(REPOSITORY_ROOT / CONTRACT_PATH)
-        errors = validate_contract(
-            contract,
-            repository_root=REPOSITORY_ROOT,
-            requested_tag="0.3.2+1.21.1",
-        )
-        self.assertEqual((), errors)
-
     def test_undeclared_patch_tag_fails_closed(self) -> None:
-        contract = load_contract(REPOSITORY_ROOT / CONTRACT_PATH)
-        errors = validate_contract(
-            contract,
-            repository_root=REPOSITORY_ROOT,
-            requested_tag="0.3.3+1.21.1",
-        )
+        contract = dict(load_contract(REPOSITORY_ROOT / CONTRACT_PATH))
+        contract["patchReleases"] = [{"tag": "0.4.1+1.21.1", "pullRequests": [999]}]
+        inventory = self._capability_inventory(contract)
+        changelog = f"""# Changelog
+
+## [Unreleased]
+_No entries._
+
+## [0.4.1+1.21.1] — 2026-09-06
+- Patch from PR #999.
+
+## [0.4.0+1.21.1] — 2026-09-05
+{inventory}
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_validation_root(
+                root,
+                changelog=changelog,
+                request="0.4.1+1.21.1",
+            )
+            errors = validate_contract(
+                contract,
+                repository_root=root,
+                requested_tag="0.3.3+1.21.1",
+            )
         self.assertTrue(
             any("does not match convergence candidate or declared patch release" in error for error in errors)
         )
