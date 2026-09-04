@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation/validation state. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-08-15**, after PR #171 documented the 0.3.2+1.21.1 installed corrective test plan following the published 0.3.0 → 0.3.2 release line.
+> Last reconciled: **2026-09-04**, after the operator-executed `0.3.2+1.21.1` installed corrective canary recorded `VAI-PCM-MULTI-001 PASS` (see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`). `0.3` is fully released and installed-accepted; `0.4` is unblocked.
 
 ## Product vision
 
@@ -98,7 +98,7 @@ settlement-scale information flow without omniscience  COMPLETE / PR #147
 relationship/trust social epistemology                 COMPLETE / PR #149
 0.2 Memory 2.0 source capability track                 COMPLETE AT CURRENT PLANNED BOUNDARY / UNRELEASED
 
-0.3 Personality + NPC↔NPC Social Graph                 RELEASED (0.3.0-0.3.2) / INSTALLED ACCEPTANCE PENDING
+0.3 Personality + NPC↔NPC Social Graph                 RELEASED / INSTALLED ACCEPTED (0.3.2+1.21.1)
 NPC↔NPC social-graph persistence foundation            COMPLETE / PR #151
 server-owned causal NPC↔NPC social mutation lifecycle COMPLETE / PR #153
 bounded read-only MCA Personality + pair snapshot      COMPLETE / PR #155
@@ -106,17 +106,20 @@ deliberate dialogue/behavior integration               COMPLETE / PR #158
 0.3 convergence / release-candidate planning           COMPLETE / PR #160
 0.3.0+1.21.1 release request / candidate               RELEASED / PR #162
 0.3.1+1.21.1 corrective fix + release                  RELEASED / PR #165, #166 — INSTALLED CANARY FAIL
-0.3.2+1.21.1 corrective fix + release                  RELEASED / PR #169, #170 — INSTALLED CANARY PENDING
-0.3.2 installed corrective test plan                   READY FOR OPERATOR EXECUTION / PR #171
+0.3.2+1.21.1 corrective fix + release                  RELEASED / PR #169, #170 — INSTALLED CANARY PASS
+0.3.2 installed corrective test plan                   EXECUTED / PR #171
+0.3.2+1.21.1 operator-installed corrective canary      PASS on 2026-09-04
+
+0.4 Knowledge ecosystem                                UNBLOCKED / SCOPE NOT YET SELECTED
 ```
 
 Immediate sequence:
 
 ```text
-operator executes docs/livingworld/TEST_PLAN_0.3.2_CORRECTIVE_INSTALLED.md on the retained world
-→ record VAI-PCM-MULTI-001 PASS / FAIL honestly
-→ on PASS: post-release state/roadmap/changelog reconciliation
-→ only then: richer knowledge ecosystem / 0.4
+select and scope the first bounded 0.4 Knowledge ecosystem slice
+→ tests-first RED→GREEN implementation
+→ exact-head security/CI/soak/release-dry-run before merge
+→ docs: reconcile state after <slice> follow-up
 ```
 
 `VAI-CONCUR-004` remains `NOT TESTED / DEFERRED` until two real graphical clients are available. It does not block server-side product development because concurrency semantics are automated.
@@ -140,10 +143,10 @@ Installed acceptance boundary:
   VAI-CONCUR-004:    NOT TESTED / DEFERRED
 
 0.3.1+1.21.1 installed attempt (2026-08-15): VAI-PCM-MULTI-001 FAIL (Muammer recall)
-0.3.2+1.21.1 installed corrective canary: NOT YET EXECUTED
+0.3.2+1.21.1 installed corrective canary (2026-09-04): VAI-PCM-MULTI-001 PASS
 ```
 
-`0.3.0+1.21.1` released the complete PR #123-#158 capability set (PR #162). Installed acceptance then found a real long-horizon targeted-recall defect, corrected across two narrow fix+release cycles (`0.3.1` via PR #165/#166, `0.3.2` via PR #169/#170). `0.3.2` is the current official release but does not yet have a PASS installed canary; see `docs/livingworld/TEST_PLAN_0.3.2_CORRECTIVE_INSTALLED.md` (PR #171).
+`0.3.0+1.21.1` released the complete PR #123-#158 capability set (PR #162). Installed acceptance then found a real long-horizon targeted-recall defect, corrected across two narrow fix+release cycles (`0.3.1` via PR #165/#166, `0.3.2` via PR #169/#170). `0.3.2` is the current official release and now has a PASS installed corrective canary; see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`. `0.3` is fully released and installed-accepted.
 
 The 0.2.0 release intentionally removed the experimental raw `memory.json` conversation store from current runtime/recovery. The accepted pre-1.0 rollout boundary is clean-state; no legacy conversation importer or dual reader is planned.
 
@@ -553,37 +556,30 @@ Both cycles:
 - passed repository security, full CI, Production Soak and a GitHub Release dry-run on their exact head before merge;
 - were installed and re-tested against the same retained-world Muammer/Nurey markers rather than a reset world.
 
-`0.3.1+1.21.1` installed on 2026-08-15 (SHA `f7f40b920c6f72a0e9af864795f48a0f90479db42a145081f43923b71a95e29f`) still failed `VAI-PCM-MULTI-001`: Muammer could not recall `amber-pine-314` even though the source event remained correctly persisted and isolated. `0.3.2+1.21.1` (asset SHA `b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015`) is the current official release; its installed corrective canary has not yet been executed.
+`0.3.1+1.21.1` installed on 2026-08-15 (SHA `f7f40b920c6f72a0e9af864795f48a0f90479db42a145081f43923b71a95e29f`) still failed `VAI-PCM-MULTI-001`: Muammer could not recall `amber-pine-314` even though the source event remained correctly persisted and isolated. `0.3.2+1.21.1` (asset SHA `b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015`) is the current official release.
 
 ---
 
-# NEXT — 0.3.2+1.21.1 operator-installed corrective canary
-
-The next step is the **operator-executed installed canary**, not a new source-capability PR.
+# Completed — 0.3.2+1.21.1 operator-installed corrective canary
 
 ## Goal
 
 Prove that the official `0.3.2+1.21.1` GitHub Release JAR resolves the retained-but-starved targeted recall defect on the same retained private test-server world, without re-teaching either marker.
 
-## Required progression
+## Executed progression
 
 ```text
 docs/livingworld/TEST_PLAN_0.3.2_CORRECTIVE_INSTALLED.md (PR #171)
-→ back up retained world/config/mods and pre-install persistence hashes
-→ install only the verified official 0.3.2+1.21.1 asset, keep world/config unchanged
-→ verify official asset SHA, embedded version and active installed JAR SHA
-→ verify pre-install persistence hashes unchanged across the restart
+→ install the verified official 0.3.2+1.21.1 asset on the retained private test-server world
 → run Muammer/Nurey exact-recall canary (D1-D3) without re-teaching either marker
-→ record VAI-PCM-MULTI-001 PASS / FAIL honestly with full evidence retained either way
+→ VAI-PCM-MULTI-001 PASS on 2026-09-04
 ```
 
-### Exit criterion
+Detail is recorded in `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`. Transcript-level artifacts (exact reply text, new event UUIDs, pre/post persistence hashes) called for by the test plan's evidence section were not captured into the repository in this session; the PASS disposition reflects the operator's direct report of a full acceptance-matrix pass on the exact official asset.
 
-`VAI-PCM-MULTI-001` records an honest `PASS` on the exact official `0.3.2+1.21.1` asset, with Muammer/Nurey cross-isolation, persistence validity and unique-event-ID checks all passing. Only then are `docs/PROJECT_STATE.md`, this roadmap and root `CHANGELOG.md` reconciled to fully released/installed-accepted `0.3`, and only then does the first `0.4` slice begin.
+### Exit criterion — met
 
-On `FAIL`: keep `0.3.2+1.21.1` running if server health is otherwise acceptable, leave `0.4` blocked, preserve the exact evidence the test plan lists, and return to root-cause analysis rather than shipping another speculative runtime correction.
-
-Do not begin 0.4/0.5 feature expansion until this exact installed-acceptance boundary is reconciled.
+`VAI-PCM-MULTI-001` recorded an honest `PASS` on the exact official `0.3.2+1.21.1` asset, with Muammer/Nurey cross-isolation, persistence validity and unique-event-ID checks all reported passing. `0.3` is now fully released and installed-accepted. `0.4` is unblocked.
 
 ---
 

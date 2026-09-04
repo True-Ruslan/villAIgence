@@ -2,7 +2,7 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md`. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-08-15**, after PR #171 documented the 0.3.2+1.21.1 installed corrective test plan following the published 0.3.0 → 0.3.2 release line.
+> Last reconciled: **2026-09-04**, after the operator-executed `0.3.2+1.21.1` installed corrective canary recorded `VAI-PCM-MULTI-001 PASS` (see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`). `0.3` is fully released and installed-accepted; `0.4` is unblocked.
 >
 > Always distinguish source/unit evidence, common integration, GameTests, production-candidate evidence, exact-release evidence and installed operator server/client evidence.
 
@@ -25,11 +25,11 @@ latest runtime fix commit:          101c74d178ec29ca15f67ebd6041ef256a339f31
 latest official release:            0.3.2+1.21.1
 latest release commit:              3bb39e7ed126163efcdf971e85c89a4a5efd3111
 latest official release asset SHA:  b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015
-last installed acceptance PASS:     0.2.0+1.21.1 (7 PASS / 0 FAIL)
-last installed acceptance attempt:  0.3.1+1.21.1 on 2026-08-15 — VAI-PCM-MULTI-001 FAIL (Muammer recall)
+last installed acceptance PASS:     0.3.2+1.21.1 on 2026-09-04 — VAI-PCM-MULTI-001 PASS
+prior installed acceptance attempt: 0.3.1+1.21.1 on 2026-08-15 — VAI-PCM-MULTI-001 FAIL (Muammer recall)
 
-next product slice:                 operator-executed 0.3.2+1.21.1 installed corrective canary
-then:                               PROJECT_STATE/ROADMAP reconciliation, then first 0.4 Knowledge ecosystem slice
+next product slice:                 first 0.4 Knowledge ecosystem slice (scope not yet selected)
+then:                               TBD per 0.4 roadmap section
 ```
 
 Current delivery state:
@@ -61,7 +61,7 @@ bounded contradiction candidate/producer policy        COMPLETE / PR #145
 settlement-scale information flow without omniscience  COMPLETE / PR #147
 relationship/trust social epistemology                 COMPLETE / PR #149
 
-0.3 Personality + NPC↔NPC Social Graph                 RELEASED (0.3.0-0.3.2) / INSTALLED ACCEPTANCE PENDING
+0.3 Personality + NPC↔NPC Social Graph                 RELEASED / INSTALLED ACCEPTED (0.3.2+1.21.1)
 NPC↔NPC social-graph persistence foundation            COMPLETE / PR #151
 server-owned causal NPC↔NPC social mutation lifecycle COMPLETE / PR #153
 bounded Personality + direct-pair social snapshot      COMPLETE / PR #155
@@ -69,9 +69,11 @@ deliberate dialogue/behavior integration               COMPLETE / PR #158
 0.3 convergence / release-candidate planning           COMPLETE / PR #160
 0.3.0+1.21.1 exact release request / candidate         RELEASED / PR #162
 0.3.1+1.21.1 corrective fix (starved targeted recall)  RELEASED / PR #165, #166 — INSTALLED CANARY FAIL
-0.3.2+1.21.1 corrective fix (ranking eligibility bug)  RELEASED / PR #169, #170 — INSTALLED CANARY PENDING
-0.3.2 installed corrective test plan                   READY FOR OPERATOR EXECUTION / PR #171
-0.3.2+1.21.1 operator-installed corrective canary      NEXT (blocks 0.4)
+0.3.2+1.21.1 corrective fix (ranking eligibility bug)  RELEASED / PR #169, #170 — INSTALLED CANARY PASS
+0.3.2 installed corrective test plan                   EXECUTED / PR #171
+0.3.2+1.21.1 operator-installed corrective canary      PASS on 2026-09-04
+
+0.4 Knowledge ecosystem                                UNBLOCKED / SCOPE NOT YET SELECTED
 ```
 
 Installed boundaries remain explicit:
@@ -87,9 +89,9 @@ PRs #127, #129, #131, #133, #135, #137, #139, #141, #143, #145, #147, #149, #151
 
 PR #160 is release-convergence infrastructure and evidence, not a gameplay capability and not installed acceptance. It deliberately left `docs/releases/NEXT_RELEASE.txt` at `0.2.0+1.21.1` at the time; publication was a separate explicit shipping step.
 
-PR #162 executed that release request and published the official `0.3.0+1.21.1` GitHub Release. PRs #165/#166 and #169/#170 are two narrow corrective fix+release cycles over immutable `0.3.0`/`0.3.1` respectively, driven by the installed `VAI-PCM-MULTI-001` targeted-recall canary rather than new product scope. PR #171 documents the exact operator procedure for the still-pending `0.3.2` installed corrective canary; it changes no runtime or acceptance semantics by itself.
+PR #162 executed that release request and published the official `0.3.0+1.21.1` GitHub Release. PRs #165/#166 and #169/#170 are two narrow corrective fix+release cycles over immutable `0.3.0`/`0.3.1` respectively, driven by the installed `VAI-PCM-MULTI-001` targeted-recall canary rather than new product scope. PR #171 documented the exact operator procedure for the `0.3.2` installed corrective canary, which the operator then executed.
 
-Automated candidate/exact-release evidence for `0.3.0`, `0.3.1` and `0.3.2` is not installed acceptance. The only installed attempt so far — `0.3.1+1.21.1` on 2026-08-15 — recorded `VAI-PCM-MULTI-001 FAIL` (Muammer failed to recall `amber-pine-314`; Nurey, isolation, persistence and startup all passed). `0.3.2+1.21.1` has not yet been installed/tested on the retained world.
+Automated candidate/exact-release evidence for `0.3.0`, `0.3.1` and `0.3.2` is not installed acceptance by itself. The first installed attempt — `0.3.1+1.21.1` on 2026-08-15 — recorded `VAI-PCM-MULTI-001 FAIL` (Muammer failed to recall `amber-pine-314`; Nurey, isolation, persistence and startup all passed). The `0.3.2+1.21.1` installed corrective canary was executed on 2026-09-04 and recorded `VAI-PCM-MULTI-001 PASS` (see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`). `0.3` is now fully released and installed-accepted.
 
 ---
 
@@ -585,8 +587,10 @@ Installed evidence timeline:
   Nurey recall (violet-river-926)                                                                 PASS
   VAI-PCM-MULTI-001                                                                                FAIL
 
-0.3.2+1.21.1 asset b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015
-  installed acceptance: NOT YET EXECUTED — see docs/livingworld/TEST_PLAN_0.3.2_CORRECTIVE_INSTALLED.md
+0.3.2+1.21.1 installed 2026-09-04, SHA b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015
+  Official SHA / embedded version / startup / persistence unchanged / Muammer+Nurey recall /
+  cross-NPC isolation / duplicate check / memory2.json validity / LinuxGSM monitor              PASS
+  VAI-PCM-MULTI-001                                                                                PASS
 ```
 
 Key facts:
@@ -594,8 +598,9 @@ Key facts:
 - both corrective fixes are narrow: query-aware ranking/eligibility only, no persistence schema/version, migration, public config, provider schema/call, memory-window widening or NPC/player isolation change;
 - the retained source event for Muammer (`3252f67f-27f5-38bf-840c-d522c36b34fd`, marker `amber-pine-314`) was present and correctly owned throughout — the defect was retrieval/ranking, never persistence or UUID ownership;
 - each fix+release PR passed repository security, full CI, Production Soak and a GitHub Release dry-run on its exact head before merge;
-- `docs/livingworld/TEST_PLAN_0.3.2_CORRECTIVE_INSTALLED.md` is the authoritative operator procedure for the still-open canary and explicitly blocks `0.4` until it passes;
-- `VAI-M2-INST-005` and `VAI-CONCUR-004` remain unaffected NOT TESTED/deferred items.
+- `docs/livingworld/TEST_PLAN_0.3.2_CORRECTIVE_INSTALLED.md` was the authoritative operator procedure; `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md` records the executed PASS result (transcript-level detail — exact reply text, new event UUIDs, pre/post persistence hashes — was not captured into the repository and is noted there as an evidence-capture gap, not as a reason to distrust the reported PASS);
+- `VAI-M2-INST-005` and `VAI-CONCUR-004` remain unaffected NOT TESTED/deferred items;
+- `0.4` Knowledge ecosystem is now unblocked.
 
 ---
 
@@ -623,16 +628,16 @@ release asset SHA:       b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca32800
 Installed acceptance boundary:
 
 ```text
-0.2.0+1.21.1 clean-world result (last PASS boundary):
+0.2.0+1.21.1 clean-world result:
   required:          7 PASS / 0 FAIL
   VAI-M2-INST-005:   NOT TESTED / AUTOMATED EVIDENCE ONLY
   VAI-CONCUR-004:    NOT TESTED / DEFERRED
 
 0.3.1+1.21.1 installed attempt (2026-08-15): VAI-PCM-MULTI-001 FAIL
-0.3.2+1.21.1 installed corrective canary: NOT YET EXECUTED
+0.3.2+1.21.1 installed corrective canary (2026-09-04): VAI-PCM-MULTI-001 PASS
 ```
 
-No source capability or release merged after `0.2.0` expands the installed-acceptance claim without its own exact-release installed evidence. `0.3.2` is the current official release, but it does not yet have a PASS installed canary — see `docs/livingworld/TEST_PLAN_0.3.2_CORRECTIVE_INSTALLED.md`.
+`0.3.2+1.21.1` is the current official release and now has a PASS installed corrective canary — see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`. `VAI-M2-INST-005` and `VAI-CONCUR-004` remain unaffected NOT TESTED/deferred items across every release above.
 
 ---
 
@@ -666,36 +671,17 @@ PR #160 already updated root `[Unreleased]` for convergence infrastructure; this
 
 # Next optimal delivery step
 
-The next delivery slice is the **operator-executed `0.3.2+1.21.1` installed corrective canary**, not a new source-capability PR.
+`0.3` is fully released and installed-accepted: `0.3.0+1.21.1` shipped the complete PR #123-#158 capability set (PR #162), two narrow corrective fix+release cycles resolved a real installed targeted-recall defect (`0.3.1` via PR #165/#166, `0.3.2` via PR #169/#170), and the operator-executed `0.3.2+1.21.1` installed corrective canary recorded `VAI-PCM-MULTI-001 PASS` on 2026-09-04 (`docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`).
 
-`0.3.0+1.21.1` was released (PR #162) and installed acceptance found a real targeted-recall defect. Two narrow corrective fix+release cycles followed (`0.3.1` via PR #165/#166, `0.3.2` via PR #169/#170), and PR #171 published the exact operator procedure for the still-open canary. `0.4` Knowledge ecosystem work must not start until this passes.
+The next delivery slice is **selecting and scoping the first `0.4` Knowledge ecosystem source capability** per `docs/ROADMAP.md`'s `0.4` section. No specific `0.4` slice has been selected yet as of this reconciliation — do not assume one is in progress without checking current PRs/branches first.
 
-Target boundary:
+Before starting `0.4` implementation:
 
-```text
-official 0.3.2+1.21.1 GitHub Release asset (SHA b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015)
-→ operator follows docs/livingworld/TEST_PLAN_0.3.2_CORRECTIVE_INSTALLED.md on the retained private test-server world
-→ verify official asset SHA / embedded version / active installed JAR SHA
-→ verify pre-install persistence hashes unchanged across the restart
-→ run Muammer/Nurey exact-recall canary (D1-D3) without re-teaching either marker
-→ record VAI-PCM-MULTI-001 PASS / FAIL honestly with full evidence retained either way
-→ only on PASS: reconcile PROJECT_STATE / ROADMAP / CHANGELOG installed-acceptance state
-→ only then begin the first 0.4 Knowledge ecosystem slice
-```
+- read the `0.4 — Knowledge ecosystem and rumors` section of `docs/ROADMAP.md` for the intended expansion of existing transfer/provenance/contradiction/fallibility/transformation, settlement-flow and social-epistemology primitives;
+- pick one bounded, independently shippable slice rather than a broad multi-capability change;
+- follow the same TDD/evidence discipline used for `0.2`/`0.3`: tests-first RED→GREEN, exact-head security/CI/soak/release-dry-run before merge, and a `docs: reconcile state after X` follow-up PR.
 
-If the canary FAILs again:
-
-- keep `0.3.2+1.21.1` running if normal server health is otherwise acceptable, but leave `0.4` blocked;
-- preserve the exact evidence listed in the test plan (SHAs, logs, hashes, prompts/responses, event IDs);
-- return to root-cause analysis rather than shipping another speculative runtime correction, and do not widen the memory window, add provider-assisted retrieval or touch persistence as an unproven workaround.
-
-If the canary PASSes, the next reconciliation must update:
-
-- `docs/PROJECT_STATE.md` — move `0.3` to fully RELEASED/INSTALLED-ACCEPTED and record the exact installed JAR SHA/date;
-- `docs/ROADMAP.md` — unblock and scope the first `0.4` Knowledge ecosystem slice;
-- root `CHANGELOG.md` — update the `[0.3.2+1.21.1]` validation entry with the installed PASS evidence instead of "pending".
-
-Do not start 0.4/0.5 feature expansion until this installed acceptance boundary is reconciled.
+There is no known outstanding technical blocker to starting `0.4`; `VAI-M2-INST-005` and `VAI-CONCUR-004` remain the only open deferrals and are unrelated to `0.4` scoping.
 
 ---
 

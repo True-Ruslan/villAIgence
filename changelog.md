@@ -36,9 +36,10 @@ _No entries after the `0.3.2+1.21.1` release boundary yet._
 
 ### Validation
 
-- Installed `0.3.1+1.21.1` evidence on 2026-08-15 remains `VAI-PCM-MULTI-001 FAIL`: the exact official SHA, startup, persistence validity, 14/14 unique dialogue event IDs and cross-NPC isolation passed; Muammer failed to recall retained `amber-pine-314`, while Nurey recalled `violet-river-926`.
+- Installed `0.3.1+1.21.1` evidence on 2026-08-15 recorded `VAI-PCM-MULTI-001 FAIL`: the exact official SHA, startup, persistence validity, 14/14 unique dialogue event IDs and cross-NPC isolation passed; Muammer failed to recall retained `amber-pine-314`, while Nurey recalled `violet-river-926`.
 - PR #169 used staged RED→GREEN hardening for one-token final-rank starvation, zero-overlap referential recall, natural numeric false-positive rejection and unrelated machine-ID rejection without a storage cue. Final exact-head Repository security, full CI, Production Soak and GitHub Release dry-run passed before merge.
-- Automated candidate/release evidence is not installed acceptance. `VAI-PCM-MULTI-001` remains pending for the official immutable `0.3.2+1.21.1` GitHub Release JAR; `VAI-M2-INST-005` and `VAI-CONCUR-004` remain NOT TESTED/deferred.
+- Installed `0.3.2+1.21.1` evidence on 2026-09-04, on the official immutable GitHub Release JAR (SHA `b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015`): `VAI-PCM-MULTI-001 PASS`. Muammer recalled retained `amber-pine-314` and Nurey recalled `violet-river-926` with no cross-NPC leakage, on the same retained-world markers used for the `0.3.0`/`0.3.1` canaries. Full detail in `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`. `VAI-M2-INST-005` and `VAI-CONCUR-004` remain unaffected NOT TESTED/deferred.
+- `0.3` is now fully released and installed-accepted at `0.3.2+1.21.1`. The `0.4` Knowledge ecosystem milestone is unblocked.
 
 ---
 
