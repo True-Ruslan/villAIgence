@@ -56,6 +56,17 @@ public final class PersistentNpcVoiceStore {
         return assigned;
     }
 
+    /**
+     * Drops the voice assignment for a permanently-gone NPC. Without this, {@code profiles} grows
+     * by one entry for every NPC that ever lived.
+     */
+    public synchronized boolean removeNpc(UUID npcId) {
+        if (npcId == null) return false;
+        boolean removed = data.profiles.remove(npcId.toString()) != null;
+        if (removed) save();
+        return removed;
+    }
+
     private VoiceFile loadFailOpen() {
         try {
             VoiceFile loaded = JsonStoreRecovery.loadOrRecover(

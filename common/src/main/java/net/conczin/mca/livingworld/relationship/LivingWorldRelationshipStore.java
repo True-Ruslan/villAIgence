@@ -102,6 +102,19 @@ public final class LivingWorldRelationshipStore {
         this.data = load();
     }
 
+    /**
+     * Drops every player relationship recorded against a permanently-gone villager. Without this,
+     * {@code relationships} grows by one entry per player a villager ever interacted with, for
+     * every villager that ever lived.
+     */
+    public synchronized boolean removeNpc(UUID villagerId) {
+        if (villagerId == null) return false;
+        String prefix = villagerId + "/";
+        boolean removed = data.relationships.keySet().removeIf(key -> key.startsWith(prefix));
+        if (removed) save();
+        return removed;
+    }
+
     public synchronized LivingWorldRelationshipState get(UUID villagerId, UUID playerId) {
         if (villagerId == null || playerId == null) return LivingWorldRelationshipState.NEUTRAL;
         return data.relationships.getOrDefault(key(villagerId, playerId), LivingWorldRelationshipState.NEUTRAL);

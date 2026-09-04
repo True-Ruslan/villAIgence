@@ -69,6 +69,17 @@ public final class MemoryEventStore {
         if (!before.equals(retained)) save();
     }
 
+    /**
+     * Drops all retained events for a permanently-gone NPC. Without this, {@code eventsByNpc}
+     * grows by one entry for every NPC that ever lived, even though each entry is itself bounded.
+     */
+    public synchronized boolean removeNpc(UUID npcId) {
+        if (npcId == null) return false;
+        boolean removed = data.eventsByNpc.remove(npcId.toString()) != null;
+        if (removed) save();
+        return removed;
+    }
+
     public synchronized List<MemoryEvent> getRecent(UUID npcId, int maxResults) {
         return getRecentMatching(npcId, maxResults, ignored -> true);
     }

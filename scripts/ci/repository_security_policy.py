@@ -245,23 +245,62 @@ def verify_script_inventory(root: Path, paths: list[str], errors: list[str]) -> 
     )
 
 
+def approved_secret_exceptions(root: Path, errors: list[str]) -> list[dict]:
+    path = root / "docs/security/APPROVED_SECRET_SCAN_EXCEPTIONS.json"
+    if not path.is_file():
+        errors.append("secret scan exception registry is missing")
+        return []
+    try:
+        value = load_json(path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        errors.append(f"cannot read secret scan exceptions: {exc}")
+        return []
+    entries = value.get("exceptions")
+    if value.get("schema") != 1 or not isinstance(entries, list):
+        errors.append("secret scan exceptions must use schema=1 and an exceptions array")
+        return []
+    return entries
+
+
 def scan_secrets(root: Path, paths: list[str], errors: list[str]) -> None:
+    exceptions = approved_secret_exceptions(root, errors)
+    used: set[int] = set()
     findings: list[Finding] = []
+
     for relative in paths:
         text = read_text(root / relative)
         if text is None:
             continue
         for line_number, line in enumerate(text.splitlines(), start=1):
-            if "security-scan: allow" in line:
-                continue
             for rule, pattern in SECRET_PATTERNS:
-                if pattern.search(line):
+                if not pattern.search(line):
+                    continue
+                allowed = False
+                for index, exception in enumerate(exceptions):
+                    if not isinstance(exception, dict):
+                        continue
+                    if (
+                        exception.get("path") == relative
+                        and exception.get("rule") == rule
+                        and isinstance(exception.get("contains"), str)
+                        and exception["contains"] in line
+                        and isinstance(exception.get("reason"), str)
+                        and exception["reason"].strip()
+                    ):
+                        used.add(index)
+                        allowed = True
+                        break
+                if not allowed:
                     findings.append(Finding(rule, relative, line_number, "<redacted>"))
     if findings:
         errors.append(
             "high-confidence secret patterns found:\n  "
             + "\n  ".join(f"{finding.path}:{finding.line} [{finding.rule}]" for finding in findings)
         )
+
+    unused = [entry for index, entry in enumerate(exceptions) if index not in used]
+    if unused:
+        errors.append("unused/stale secret scan exceptions:\n  " + "\n  ".join(map(str, unused)))
 
 
 def approved_source_exceptions(root: Path, errors: list[str]) -> list[dict]:

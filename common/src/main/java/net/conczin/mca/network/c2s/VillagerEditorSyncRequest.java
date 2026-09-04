@@ -161,7 +161,12 @@ public record VillagerEditorSyncRequest(String command, UUID uuid, CompoundTag d
 
     @Override
     public void handleServer(ServerPlayer player) {
-        Entity entity = player.serverLevel().getEntity(uuid);
+        Optional<Entity> authorized = VillagerEditorAuthority.resolve(player, uuid);
+        if (authorized.isEmpty()) {
+            return;
+        }
+        Entity entity = authorized.get();
+
         switch (command) {
             case "skin", "hair", "layered_hair", "hair_base", "hair_bangs", "hair_back", "hair_front", "hair_extra", "clothing", "gender", "sync" ->
                     saveEntity(player, entity, data.copy());

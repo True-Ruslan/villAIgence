@@ -11,6 +11,7 @@ import net.conczin.mca.entity.ai.brain.VillagerTasksMCA;
 import net.conczin.mca.entity.ai.navigation.MCAGroundPathNavigation;
 import net.conczin.mca.entity.ai.relationship.*;
 import net.conczin.mca.entity.interaction.VillagerCommandHandler;
+import net.conczin.mca.livingworld.memory2.NpcRemovalLifecycle;
 import net.conczin.mca.registry.*;
 import net.conczin.mca.resources.Names;
 import net.conczin.mca.resources.Rank;
@@ -82,6 +83,7 @@ import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.pathfinder.PathType;
+import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
@@ -1112,6 +1114,10 @@ public class VillagerEntityMCA extends Villager implements VillagerLike<Villager
             inventory.clearContent();
         } else {
             InventoryUtils.dropAllItems(this, inventory);
+        }
+
+        if (level() instanceof ServerLevel serverLevel) {
+            NpcRemovalLifecycle.purge(serverLevel.getServer().getWorldPath(LevelResource.ROOT), getUUID());
         }
 
         Optional<Village> village = residency.getHomeVillage();
