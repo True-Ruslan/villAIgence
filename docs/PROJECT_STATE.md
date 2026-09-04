@@ -17,8 +17,8 @@ Java:                               21
 primary distribution:               Fabric
 NeoForge:                           compile compatibility required
 
-latest product merge:               PR #158
-latest product merge commit:        b3938678e9424a88f271131ac75a57b73ffec5bf
+latest product merge:               PR #172 (first 0.4 slice: bounded numeric-conflict classifier)
+latest product merge commit:        3868399b62d8fc47750e3d61404a53c496fefd87
 latest release-line merge:          PR #171 (docs-only corrective test plan)
 latest runtime fix merge:           PR #169
 latest runtime fix commit:          101c74d178ec29ca15f67ebd6041ef256a339f31
@@ -28,7 +28,7 @@ latest official release asset SHA:  b51cfcf3f46718fac9620586cf8b5aae53356c600d5a
 last installed acceptance PASS:     0.3.2+1.21.1 on 2026-09-04 — VAI-PCM-MULTI-001 PASS
 prior installed acceptance attempt: 0.3.1+1.21.1 on 2026-08-15 — VAI-PCM-MULTI-001 FAIL (Muammer recall)
 
-next product slice:                 in progress — bounded numeric-conflict contradiction classifier extension
+next product slice:                 in progress — NpcSocialGraphStore O(1) outgoing-capacity index
 then:                               TBD per 0.4 roadmap section
 ```
 
@@ -74,7 +74,8 @@ deliberate dialogue/behavior integration               COMPLETE / PR #158
 0.3.2+1.21.1 operator-installed corrective canary      PASS on 2026-09-04
 
 0.4 Knowledge ecosystem                                IN PROGRESS
-bounded numeric-conflict contradiction classifier      TESTS GREEN LOCALLY / AWAITING EXACT-HEAD CI GATES
+bounded numeric-conflict contradiction classifier      COMPLETE / PR #172
+NpcSocialGraphStore O(1) outgoing-capacity index       TESTS GREEN LOCALLY / AWAITING EXACT-HEAD CI GATES
 ```
 
 Installed boundaries remain explicit:
@@ -660,7 +661,7 @@ PR #160 already updated root `[Unreleased]` for convergence infrastructure; this
 4. The current wording transform is intentionally narrow and deterministic; provider-authored open-ended paraphrase/generalization is not supported.
 5. Settlement dissemination uses home-village membership and bounded deterministic routing only; physical proximity, travel gossip, alliances and social-topology routing remain future work.
 6. NPC↔NPC social state now deliberately influences bounded dialogue guidance and exact-pair settlement knowledge suppression, but there is still no high-frequency autonomous social evolution or graph-neighborhood behavior policy.
-7. New-edge capacity admission still scans the flat graph map; acceptable at current event-driven frequency, but index before high-frequency autonomous mutation.
+7. ~~New-edge capacity admission still scans the flat graph map~~ — RESOLVED: `NpcSocialGraphStore` now maintains a derived per-source-NPC outgoing-edge-count index (`outgoingNonNeutralCounts`), seeded once from the sanitized edge map at load and updated incrementally on every `applyDelta`/`applyCausalDelta` commit, so capacity admission is O(1) instead of an O(n) scan of the whole graph on every mutation.
 8. NPC×player social epistemology currently uses trust only and only as a derived post-ranking annotation for player-origin BELIEF; NPC↔NPC state does not modify truth, ranking or source credibility.
 9. Causal social frontier stores only the latest ordered cause per source NPC by design; retained Memory 2.0 audit is bounded process history, not an unbounded mutation ledger.
 10. `PersistentChatMemory` remains a no-storage compatibility façade pending inherited AI call-surface refactoring.
@@ -674,15 +675,16 @@ PR #160 already updated root `[Unreleased]` for convergence infrastructure; this
 
 `0.3` is fully released and installed-accepted: `0.3.0+1.21.1` shipped the complete PR #123-#158 capability set (PR #162), two narrow corrective fix+release cycles resolved a real installed targeted-recall defect (`0.3.1` via PR #165/#166, `0.3.2` via PR #169/#170), and the operator-executed `0.3.2+1.21.1` installed corrective canary recorded `VAI-PCM-MULTI-001 PASS` on 2026-09-04 (`docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`).
 
-The first `0.4` slice is **in progress**: a bounded numeric-conflict extension to `SemanticOppositionClassifier` (see known gap #3 and `docs/superpowers/specs/2026-08-10-bounded-contradiction-producer-design.md` addendum). Tests-first RED→GREEN is done and all 325 tests in the `net.conczin.mca.livingworld.memory2` package pass locally. This was **not** run through the project's normal Gradle/Loom toolchain in this session — the local sandbox's Gradle dependency verification and Fabric/Loom cache are broken independent of this change (confirmed by reproducing the same failure on the pre-change tree). Instead, the affected pure-Java sources were compiled and tested directly with `javac`/JUnit console outside Gradle.
+The first `0.4` slice is **complete and merged**: `PR #172` added a bounded numeric-conflict extension to `SemanticOppositionClassifier` (see known gap #3 and `docs/superpowers/specs/2026-08-10-bounded-contradiction-producer-design.md` addendum), squash-merged as commit `3868399b6`. That PR also fixed two unrelated repository-hygiene issues discovered along the way: a duplicate root `CHANGELOG.md`/`changelog.md` git-tracking landmine on case-insensitive filesystems, and a genuine upstream Fabric API jar re-signing event that broke `gradle/verification-metadata.xml` checksum pinning (resolved with `<also-trust>` entries after confirming byte-identical decompressed content across variants). All exact-head repository security / full CI / Production Soak / GitHub Release dry-run gates passed before merge.
+
+The second `0.4` slice is **in progress**: replacing `NpcSocialGraphStore`'s O(n) `outgoingEdgeCount` full-map scan (known gap #7) with an O(1) derived index (`outgoingNonNeutralCounts`) seeded once at load and updated incrementally on every `applyDelta`/`applyCausalDelta` commit. Two new characterization tests were added first against the unmodified O(n) implementation (`NpcSocialGraphCapacityTest.outgoingCapacityStaysCorrectAcrossManySourcesWithChurnOnOneCachedInstance`, `NpcSocialGraphPreservationTest.freshRootReloadRebuildsOutgoingCapacityIndexAtTheExactSameBoundary`) and confirmed green, then the refactor was applied and all 58 `relationship`-package tests plus the full 383-test combined `memory2`+`relationship` suite still pass. Verified locally via `javac`/JUnit console outside Gradle (this session's sandboxed Gradle/Fabric-Loom toolchain remains broken, independent of this change).
 
 Before this slice is considered done, still required:
 
-- a real `./gradlew` run (repository security, full common-module `test`, Fabric/NeoForge builds, GameTests) on a working toolchain — likely the user's own machine or GitHub Actions CI, not this sandbox;
-- exact-head repository security / full CI / Production Soak / GitHub Release dry-run gates before merge, per this project's standing policy;
-- a normal PR (or equivalent squash merge) rather than a direct-to-`1.21.1` commit, if the user wants to keep the existing PR-numbered history convention.
+- a real `./gradlew` run and exact-head repository security / full CI / Production Soak / GitHub Release dry-run gates on a working toolchain (GitHub Actions CI, not this sandbox);
+- push a PR, watch CI green, merge.
 
-After this slice merges and CI is green, pick the next `0.4` primitive (antonym extension explicitly deferred; settlement-routing-by-trust and graph capacity indexing remain open per known gaps #5/#7) following the same TDD/evidence discipline as `0.2`/`0.3`.
+After this slice merges, pick the next `0.4` primitive (antonym extension explicitly deferred; settlement-routing-by-trust remains open per known gap #5) following the same TDD/evidence discipline as `0.2`/`0.3`.
 
 There is no known outstanding technical blocker to `0.4` beyond this session's broken local toolchain; `VAI-M2-INST-005` and `VAI-CONCUR-004` remain the only open deferrals and are unrelated.
 

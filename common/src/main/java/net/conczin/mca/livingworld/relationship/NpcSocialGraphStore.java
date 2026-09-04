@@ -33,6 +33,12 @@ public final class NpcSocialGraphStore {
 
     private final Path file;
     private final Set<UUID> blockedCausalSources = new HashSet<>();
+    /**
+     * Derived, non-persisted index of non-neutral outgoing edges per source NPC. Seeded once
+     * from the sanitized edge map at load and then kept in sync incrementally by every mutation,
+     * so capacity admission is O(1) instead of scanning the entire edge map on every mutation.
+     */
+    private final Map<UUID, Integer> outgoingNonNeutralCounts = new HashMap<>();
     private GraphFile data;
 
     public static NpcSocialGraphStore forWorld(Path worldRoot) {
@@ -104,6 +110,7 @@ public final class NpcSocialGraphStore {
         } else {
             data.edges.put(key, after);
         }
+        adjustOutgoingCount(sourceNpcId, before, after);
         save();
         return new NpcSocialGraphMutation(
                 NpcSocialGraphMutation.Status.APPLIED,
@@ -213,6 +220,7 @@ public final class NpcSocialGraphStore {
             } else {
                 data.edges.put(edgeKey, after);
             }
+            adjustOutgoingCount(sourceNpcId, before, after);
             outcome = NpcSocialMutationCursor.Outcome.APPLIED;
             status = NpcSocialCausalMutation.Status.APPLIED;
         }
@@ -298,12 +306,32 @@ public final class NpcSocialGraphStore {
         );
     }
 
-    private long outgoingEdgeCount(UUID sourceNpcId) {
-        String prefix = sourceNpcId + "/";
-        return data.edges.entrySet().stream()
-                .filter(entry -> entry.getKey().startsWith(prefix))
-                .filter(entry -> entry.getValue() != null && !entry.getValue().isNeutral())
-                .count();
+    private int outgoingEdgeCount(UUID sourceNpcId) {
+        return outgoingNonNeutralCounts.getOrDefault(sourceNpcId, 0);
+    }
+
+    /**
+     * Keeps {@link #outgoingNonNeutralCounts} in exact sync with a committed edge transition.
+     * Must be called exactly once per actually-committed {@code data.edges} change, with the
+     * same before/after values used to decide that commit.
+     */
+    private void adjustOutgoingCount(UUID sourceNpcId, NpcSocialState before, NpcSocialState after) {
+        if (before.isNeutral() && !after.isNeutral()) {
+            outgoingNonNeutralCounts.merge(sourceNpcId, 1, Integer::sum);
+        } else if (!before.isNeutral() && after.isNeutral()) {
+            outgoingNonNeutralCounts.computeIfPresent(sourceNpcId, (id, count) -> count > 1 ? count - 1 : null);
+        }
+    }
+
+    private static Map<UUID, Integer> outgoingCounts(Map<String, NpcSocialState> edges) {
+        Map<UUID, Integer> counts = new HashMap<>();
+        for (String canonicalKey : edges.keySet()) {
+            EdgePair pair = parseKey(canonicalKey);
+            if (pair != null) {
+                counts.merge(pair.sourceNpcId(), 1, Integer::sum);
+            }
+        }
+        return counts;
     }
 
     private GraphFile load() {
@@ -317,6 +345,8 @@ public final class NpcSocialGraphStore {
         );
         loaded.edges = sanitizeEdges(loaded.edges);
         loaded.causalFrontiers = sanitizeCausalFrontiers(loaded.causalFrontiers);
+        outgoingNonNeutralCounts.clear();
+        outgoingNonNeutralCounts.putAll(outgoingCounts(loaded.edges));
         return loaded;
     }
 
@@ -458,13 +488,7 @@ public final class NpcSocialGraphStore {
             sanitized.remove(conflict);
         }
 
-        Map<UUID, Integer> outgoingCounts = new HashMap<>();
-        for (String canonicalKey : sanitized.keySet()) {
-            EdgePair pair = parseKey(canonicalKey);
-            if (pair != null) {
-                outgoingCounts.merge(pair.sourceNpcId(), 1, Integer::sum);
-            }
-        }
+        Map<UUID, Integer> outgoingCounts = outgoingCounts(sanitized);
         Set<UUID> overCapacitySources = new HashSet<>();
         for (Map.Entry<UUID, Integer> count : outgoingCounts.entrySet()) {
             if (count.getValue() > MAX_OUTGOING_EDGES_PER_NPC) {

@@ -23,16 +23,28 @@ This is the **canonical changelog** for the project.
 
 ### Added
 
-- First `0.4` Knowledge ecosystem slice: the automatic Semantic contradiction classifier now also recognizes a bounded numeric conflict, in addition to the existing standalone `not`/`не` negation rule.
+- First `0.4` Knowledge ecosystem slice (PR #172, merged `3868399b6`): the automatic Semantic contradiction classifier now also recognizes a bounded numeric conflict, in addition to the existing standalone `not`/`не` negation rule.
   - two statements oppose on a numeric conflict only when they have the same token count, differ at exactly one position, and that position holds two bare numeric tokens (optionally decimal or negative) with different parsed values;
   - equal values written differently (e.g. `04` vs `4`) are not a conflict, and any non-numeric or multi-position difference remains unclassified;
   - this extends `SemanticOppositionClassifier` only; `SemanticContradictionCandidateSelector`'s `16`-candidate/`8`-comparison bounds, `SemanticContradictionLifecycle`, persistence formats, provider protocol, public configuration and release identity are unchanged;
   - antonyms, temporal disagreement and free-form semantic opposition remain deliberately unclassified, consistent with the original design's rejection of a broad deterministic rule catalogue (`docs/superpowers/specs/2026-08-10-bounded-contradiction-producer-design.md`) — each extension is scoped and justified on its own.
 
+### Changed
+
+- Second `0.4` Knowledge ecosystem slice (in progress): `NpcSocialGraphStore` capacity admission is now O(1) instead of scanning the entire flat edge map on every mutation.
+  - a derived, non-persisted `outgoingNonNeutralCounts` index is seeded once from the sanitized edge map at load and updated incrementally on every committed `applyDelta`/`applyCausalDelta` transition (neutral→non-neutral increments, non-neutral→neutral decrements, non-neutral→non-neutral updates leave it unchanged);
+  - `sanitizeEdges`'s existing load-time over-capacity check reuses the same counting helper instead of duplicating it;
+  - no change to the `64`-per-source-NPC capacity bound, `npc-social-graph.json` format, persistence semantics, `NpcSocialMutationLifecycle` contract, or any public API — this is an internal performance refactor only.
+
+### Fixed
+
+- Repository hygiene, bundled in PR #172: dropped a duplicate root `CHANGELOG.md`/`changelog.md` git-tracking landmine (case-insensitive filesystems silently desynced the two paths; kept `changelog.md` only, repointed the three `scripts/ci/release_convergence_*` scripts that hardcoded `CHANGELOG.md`), and resolved a genuine upstream Fabric API jar re-signing event that broke `gradle/verification-metadata.xml` pinning for 43 `net.fabricmc.fabric-api:*` artifacts (confirmed byte-identical decompressed content across the old/new signed variants; added `<also-trust>` entries for both after observing different CI runners' CDN edges disagreeing mid-propagation).
+
 ### Validation
 
-- Tests-first: RED tests for `recognizesExactlyOneNumericConflictSymmetrically`, `recognizesDecimalAndNegativeNumericConflict`, `rejectsNumericTokensWithEqualValueButDifferentFormatting`, `rejectsNumericConflictWhenMoreThanOneTokenDiffers`, `rejectsNumericConflictAcrossDifferentTokenCounts` and `rejectsNonNumericSingleTokenDifference` were added to `SemanticOppositionClassifierTest` and observed failing before the minimal implementation; the prior numeric-difference case moved out of the "rejects" test into its own now-`true` assertion.
-- All 11 `SemanticOppositionClassifierTest` cases and all 325 tests in the `net.conczin.mca.livingworld.memory2` package pass after the change (verified locally outside the sandboxed Gradle/Fabric toolchain, which failed dependency verification and Loom cache resolution unrelated to this change); exact-head repository security/CI/soak/release-dry-run gates still apply before merge per project policy.
+- PR #172: tests-first RED tests for `recognizesExactlyOneNumericConflictSymmetrically`, `recognizesDecimalAndNegativeNumericConflict`, `rejectsNumericTokensWithEqualValueButDifferentFormatting`, `rejectsNumericConflictWhenMoreThanOneTokenDiffers`, `rejectsNumericConflictAcrossDifferentTokenCounts` and `rejectsNonNumericSingleTokenDifference` were added to `SemanticOppositionClassifierTest` and observed failing before the minimal implementation; the prior numeric-difference case moved out of the "rejects" test into its own now-`true` assertion. All 11 `SemanticOppositionClassifierTest` cases and all 325 tests in `net.conczin.mca.livingworld.memory2` passed. Merged as `3868399b6` after exact-head repository security, full CI, Production Soak and GitHub Release dry-run all passed.
+- Capacity index (in progress): characterization-first — two new tests were added against the unmodified O(n) implementation and confirmed passing before any production code changed: `NpcSocialGraphCapacityTest.outgoingCapacityStaysCorrectAcrossManySourcesWithChurnOnOneCachedInstance` (40 independent sources, interleaved fill-to-64, staggered partial retire/refill, proving no cross-source leakage) and `NpcSocialGraphPreservationTest.freshRootReloadRebuildsOutgoingCapacityIndexAtTheExactSameBoundary` (fresh-root reload rebuilds the index from disk to the exact same capacity boundary as live incremental tracking). After the refactor, both still pass, along with all 58 tests in `net.conczin.mca.livingworld.relationship` and all 383 tests in the combined `memory2`+`relationship` suite.
+- Verified locally with `javac`/JUnit console outside Gradle (this session's sandboxed Gradle/Fabric-Loom toolchain remains broken independent of this change); exact-head repository security/CI/soak/release-dry-run gates still apply before merge per project policy.
 
 ---
 
