@@ -1,6 +1,6 @@
 # VillAIgence Project State
 
-> **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md`. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
+> **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md`. Read root `changelog.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
 > Last reconciled: **2026-09-04**, after the operator-executed `0.3.2+1.21.1` installed corrective canary recorded `VAI-PCM-MULTI-001 PASS` (see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`). `0.3` is fully released and installed-accepted; `0.4` is unblocked.
 >
@@ -644,7 +644,7 @@ Installed acceptance boundary:
 
 # Changelog governance
 
-Root `CHANGELOG.md` remains canonical product/release history. Significant runtime/persistence/config/release/security/permanent-CI changes update `[Unreleased]` in the same runtime PR.
+Root `changelog.md` remains canonical product/release history. Significant runtime/persistence/config/release/security/permanent-CI changes update `[Unreleased]` in the same runtime PR.
 
 `docs/CHANGELOG.md` remains historical engineering detail. Staged TDD evidence for recent slices is under `docs/superpowers/evidence/`.
 
@@ -694,11 +694,11 @@ For a new development session:
 
 1. read `docs/PROJECT_STATE.md`;
 2. read `docs/ROADMAP.md`;
-3. read root `CHANGELOG.md`;
+3. read root `changelog.md`;
 4. inspect current `1.21.1` HEAD;
 5. inspect open/recent PRs, tags/releases and current CI;
 6. reconcile live GitHub state against these documents before changing code;
 7. use TDD for runtime behavior: specification → observed RED → minimal GREEN → focused regression → complete selected gates;
-8. update root `CHANGELOG.md` in runtime PRs and reconcile `PROJECT_STATE.md` / `ROADMAP.md` after merge.
+8. update root `changelog.md` in runtime PRs and reconcile `PROJECT_STATE.md` / `ROADMAP.md` after merge.
 
 Do not infer PASS from stale documentation. GitHub state and exact evidence must be checked each session.

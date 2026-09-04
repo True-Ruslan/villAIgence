@@ -384,7 +384,7 @@ def validate_contract(
                 "capability and release infrastructure PR inventories must be disjoint"
             )
 
-        changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+        changelog = (root / "changelog.md").read_text(encoding="utf-8")
         unreleased = extract_unreleased_section(changelog)
         if publication_request == candidate_tag:
             release_inventory = extract_release_section(changelog, candidate_tag)

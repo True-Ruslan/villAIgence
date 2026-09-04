@@ -1,6 +1,6 @@
 # VillAIgence Roadmap
 
-> **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation/validation state. Read root `CHANGELOG.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
+> **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation/validation state. Read root `changelog.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
 > Last reconciled: **2026-09-04**, after the operator-executed `0.3.2+1.21.1` installed corrective canary recorded `VAI-PCM-MULTI-001 PASS` (see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`). `0.3` is fully released and installed-accepted; `0.4` is unblocked.
 
@@ -41,7 +41,7 @@ Compatibility-sensitive internal naming remains `mca`, `LivingWorld` and `living
 12. **Unknown CI changes fail closed.** Protected, unsafe and unclassified changes select the complete required matrix.
 13. **Compatibility work requires a supported-data reason.** Experimental pre-1.0 state is not automatically entitled to migration code.
 14. **Release identity is immutable.** Recovery may restore assets/metadata only from an existing verified tag commit and never moves the tag.
-15. **Changelog is part of delivery.** Notable runtime/persistence/config/release/security/permanent-CI changes update root `CHANGELOG.md` in the same PR.
+15. **Changelog is part of delivery.** Notable runtime/persistence/config/release/security/permanent-CI changes update root `changelog.md` in the same PR.
 16. **Runtime behavior follows TDD.** Observe intended RED before production implementation, then implement smallest GREEN and re-run complete selected gates.
 17. **Causal history is not retrospective model narration.** Server-proven process linkage does not make dialogue prose true.
 18. **Player-scoped memory is filtered before ranking/allocation.** Foreign-player data consumes zero bounded slots.
@@ -226,7 +226,7 @@ Core graph properties:
 - duplicate/over-capacity/corrupt source state fails closed;
 - no provider call/config/Semantic authority/dialogue integration was added.
 
-Exact delivery evidence is preserved in `docs/PROJECT_STATE.md`, root `CHANGELOG.md` and `docs/superpowers/evidence/2026-08-10-npc-social-graph-foundation-tdd.md`.
+Exact delivery evidence is preserved in `docs/PROJECT_STATE.md`, root `changelog.md` and `docs/superpowers/evidence/2026-08-10-npc-social-graph-foundation-tdd.md`.
 
 ## Completed — server-owned causal NPC↔NPC social mutation lifecycle
 
@@ -680,7 +680,7 @@ specification
 → release dry-run
 → independent base→head review
 → exact candidate / installed acceptance when required
-→ root CHANGELOG.md in runtime PR
+→ root changelog.md in runtime PR
 → PROJECT_STATE / ROADMAP reconciliation after merge
 ```
 
