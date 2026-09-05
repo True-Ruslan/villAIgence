@@ -26,7 +26,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 /** OpenAI-compatible Audio API implementation used by LivingWorld voice input/output. */
-public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSpeechProvider {
+public final class OpenAIAudioProvider {
     private static final int MAX_ERROR_DETAIL_CHARS = 240;
     private final LivingWorldConfig config;
 
@@ -34,7 +34,6 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
         this.config = config;
     }
 
-    @Override
     public String transcribe(PcmAudio audio) throws IOException {
         return transcribe(audio, newRequestDeadline());
     }
@@ -88,12 +87,10 @@ public final class OpenAIAudioProvider implements SpeechToTextProvider, TextToSp
         return new Gson().toJson(request);
     }
 
-    @Override
     public PcmAudio synthesize(String text) throws IOException {
         return synthesize(new TtsRequest(text, config.ttsVoice, TtsVoiceStyle.NEUTRAL));
     }
 
-    @Override
     public PcmAudio synthesize(TtsRequest request) throws IOException {
         return synthesize(request, newRequestDeadline());
     }

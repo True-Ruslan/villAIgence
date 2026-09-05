@@ -19,11 +19,13 @@ public record InteractionDialogueMessage(
         String question,
         String answer
 ) implements HandleablePayload {
+    private static final int MAX_ID_LENGTH = 256;
+
     public static final CustomPacketPayload.Type<InteractionDialogueMessage> TYPE = new CustomPacketPayload.Type<>(MCA.locate("interaction_dialogue"));
     public static final StreamCodec<FriendlyByteBuf, InteractionDialogueMessage> STREAM_CODEC = StreamCodec.composite(
             UUIDUtil.STREAM_CODEC, InteractionDialogueMessage::villagerUUID,
-            ByteBufCodecs.STRING_UTF8, InteractionDialogueMessage::question,
-            ByteBufCodecs.STRING_UTF8, InteractionDialogueMessage::answer,
+            ByteBufCodecs.stringUtf8(MAX_ID_LENGTH), InteractionDialogueMessage::question,
+            ByteBufCodecs.stringUtf8(MAX_ID_LENGTH), InteractionDialogueMessage::answer,
             InteractionDialogueMessage::new
     );
 

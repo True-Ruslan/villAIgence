@@ -283,7 +283,10 @@ def scan_secrets(root: Path, paths: list[str], errors: list[str]) -> None:
                         exception.get("path") == relative
                         and exception.get("rule") == rule
                         and isinstance(exception.get("contains"), str)
-                        and exception["contains"] in line
+                        # Exact full-line match, not a substring: a short/generic substring
+                        # approved for one line would otherwise silently approve any other,
+                        # unreviewed line in the same file that happens to contain it too.
+                        and exception["contains"] == line.strip()
                         and isinstance(exception.get("reason"), str)
                         and exception["reason"].strip()
                     ):
@@ -344,7 +347,10 @@ def scan_source_security(root: Path, paths: list[str], errors: list[str]) -> Non
                         exception.get("path") == relative
                         and exception.get("rule") == rule
                         and isinstance(exception.get("contains"), str)
-                        and exception["contains"] in line
+                        # Exact full-line match, not a substring: a short/generic substring
+                        # approved for one line would otherwise silently approve any other,
+                        # unreviewed line in the same file that happens to contain it too.
+                        and exception["contains"] == line.strip()
                         and isinstance(exception.get("reason"), str)
                         and exception["reason"].strip()
                     ):

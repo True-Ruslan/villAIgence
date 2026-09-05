@@ -17,9 +17,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public record FamilyTreeUUIDLookup(String search) implements HandleablePayload {
+    private static final int MAX_SEARCH_LENGTH = 128;
+
     public static final CustomPacketPayload.Type<FamilyTreeUUIDLookup> TYPE = new CustomPacketPayload.Type<>(MCA.locate("family_tree_uuid_lookup"));
     public static final StreamCodec<FriendlyByteBuf, FamilyTreeUUIDLookup> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.STRING_UTF8, FamilyTreeUUIDLookup::search,
+            ByteBufCodecs.stringUtf8(MAX_SEARCH_LENGTH), FamilyTreeUUIDLookup::search,
             FamilyTreeUUIDLookup::new
     );
 
