@@ -41,6 +41,33 @@ class PersistentNpcVoiceStoreTest {
     }
 
     @Test
+    void removeNpcDropsOnlyThatNpcsVoiceAssignment() {
+        Path file = tempDir.resolve("livingworld").resolve("voices.json");
+        UUID gone = UUID.randomUUID();
+        UUID staying = UUID.randomUUID();
+
+        PersistentNpcVoiceStore store = new PersistentNpcVoiceStore(file);
+        NpcVoiceProfile stayingProfile = store.resolve(gone, NpcVoiceGender.MALE, NpcVoiceAgeGroup.ADULT, catalog());
+        stayingProfile = store.resolve(staying, NpcVoiceGender.FEMALE, NpcVoiceAgeGroup.ADULT, catalog());
+
+        assertTrue(store.removeNpc(gone));
+
+        // Re-resolving the removed NPC's id must assign fresh, not reuse the purged profile.
+        NpcVoiceProfile reassigned = store.resolve(gone, NpcVoiceGender.FEMALE, NpcVoiceAgeGroup.CHILD, catalog());
+        assertEquals("child-f", reassigned.voiceId());
+
+        PersistentNpcVoiceStore reloaded = new PersistentNpcVoiceStore(file);
+        assertEquals(stayingProfile, reloaded.resolve(staying, NpcVoiceGender.FEMALE, NpcVoiceAgeGroup.ADULT, catalog()));
+    }
+
+    @Test
+    void removeNpcOnUnknownOrNullNpcIsNoOp() {
+        PersistentNpcVoiceStore store = new PersistentNpcVoiceStore(tempDir.resolve("livingworld").resolve("voices.json"));
+        assertFalse(store.removeNpc(UUID.randomUUID()));
+        assertFalse(store.removeNpc(null));
+    }
+
+    @Test
     void ageBucketTransitionReassignsVoiceButStableBucketDoesNot() {
         Path file = tempDir.resolve("livingworld").resolve("voices.json");
         UUID npc = new UUID(21L, 22L);

@@ -2,45 +2,40 @@ package net.conczin.mca.client.tts;
 
 import net.conczin.mca.MCA;
 import net.conczin.mca.client.tts.sound.PCMAudioStream;
+import net.conczin.mca.util.MaxSizeHashMap;
 
 import java.io.*;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 public class AudioCache {
     private static final int MIN_SIZE = 128;
+    private static final int MAX_IN_MEMORY_ENTRIES = 64;
     private static final String CACHE_DIR = "tts_cache/";
-    private static final MessageDigest MESSAGEDIGEST;
-    public static Map<String, PCMAudioStream> inMemory = new ConcurrentHashMap<>();
-
-    static {
-        try {
-            MESSAGEDIGEST = MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    public static Map<String, PCMAudioStream> inMemory = Collections.synchronizedMap(new MaxSizeHashMap<>(MAX_IN_MEMORY_ENTRIES));
 
     private static void setInMemoryAudio(String identifier, ByteBuffer buffer) {
-        if (inMemory.containsKey(identifier)) {
-            inMemory.get(identifier).setBuffer(buffer);
-        } else {
-            inMemory.put(identifier, new PCMAudioStream(buffer));
+        // Collections.synchronizedMap only synchronizes individual calls, so a compound
+        // check-then-act needs to synchronize on the map itself to stay race-free.
+        synchronized (inMemory) {
+            PCMAudioStream existing = inMemory.get(identifier);
+            if (existing != null) {
+                existing.setBuffer(buffer);
+            } else {
+                inMemory.put(identifier, new PCMAudioStream(buffer));
+            }
         }
     }
 
     public static PCMAudioStream getPCMAudioStream(String identifier) {
-        if (inMemory.containsKey(identifier)) {
-            return inMemory.get(identifier);
-        } else {
-            return new PCMAudioStream(readFromDisk(identifier));
-        }
+        PCMAudioStream cached = inMemory.get(identifier);
+        return cached != null ? cached : new PCMAudioStream(readFromDisk(identifier));
     }
 
     public static boolean get(String identifier, Consumer<OutputStream> retriever, boolean persistent) {
@@ -102,8 +97,12 @@ public class AudioCache {
     }
 
     public static String getHash(String text) {
-        MESSAGEDIGEST.update(text.getBytes());
-        return toHex(MESSAGEDIGEST.digest()).toLowerCase(Locale.ROOT);
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return toHex(digest.digest(text.getBytes())).toLowerCase(Locale.ROOT);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static String toHex(byte[] bytes) {

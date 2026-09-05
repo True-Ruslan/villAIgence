@@ -4,7 +4,7 @@
     {
       "path": "build.gradle",
       "rule": "GRADLE_PROCESS_EXEC",
-      "contains": "providers.exec",
+      "contains": "def rawTags = providers.exec {",
       "reason": "Reads the exact Git tag at HEAD to derive the build version; arguments are fixed and no untrusted input is executed."
     },
     {
@@ -16,7 +16,7 @@
     {
       "path": "common/src/main/java/net/conczin/mca/client/gui/immersive_library/RecordTypeAdapterFactory.java",
       "rule": "JAVA_REFLECTION_ACCESS",
-      "contains": "constructor.setAccessible(true)",
+      "contains": "constructor.setAccessible(true);",
       "reason": "The Gson TypeAdapter instantiates a statically selected record type through its declared canonical constructor; no model, provider or user-controlled class name is loaded."
     }
   ]

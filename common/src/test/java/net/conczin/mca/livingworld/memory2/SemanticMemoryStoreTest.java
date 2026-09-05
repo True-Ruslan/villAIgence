@@ -39,6 +39,32 @@ class SemanticMemoryStoreTest {
     }
 
     @Test
+    void removeNpcDropsOnlyThatNpcsEntries() {
+        Path file = tempDir.resolve("semantic-memory.json");
+        UUID gone = UUID.randomUUID();
+        UUID staying = UUID.randomUUID();
+
+        SemanticMemoryStore store = new SemanticMemoryStore(file);
+        store.append(entry(UUID.randomUUID(), gone, 10L, "gone-fact"), 8);
+        store.append(entry(UUID.randomUUID(), staying, 10L, "staying-fact"), 8);
+
+        assertEquals(true, store.removeNpc(gone));
+        assertEquals(List.of(), store.getRecent(gone, 8));
+        assertEquals(List.of("staying-fact"), store.getRecent(staying, 8).stream().map(SemanticMemoryEntry::statement).toList());
+
+        SemanticMemoryStore reloaded = new SemanticMemoryStore(file);
+        assertEquals(List.of(), reloaded.getRecent(gone, 8));
+        assertEquals(List.of("staying-fact"), reloaded.getRecent(staying, 8).stream().map(SemanticMemoryEntry::statement).toList());
+    }
+
+    @Test
+    void removeNpcOnUnknownOrNullNpcIsNoOp() {
+        SemanticMemoryStore store = new SemanticMemoryStore(tempDir.resolve("semantic-memory.json"));
+        assertEquals(false, store.removeNpc(UUID.randomUUID()));
+        assertEquals(false, store.removeNpc(null));
+    }
+
+    @Test
     void retentionPressureKeepsStrongOlderKnowledgeInsteadOfNewestOnly() {
         Path file = tempDir.resolve("semantic-memory.json");
         SemanticMemoryStore store = new SemanticMemoryStore(file);

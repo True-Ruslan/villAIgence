@@ -39,6 +39,33 @@ class MemoryEventStoreTest {
     }
 
     @Test
+    void removeNpcDropsOnlyThatNpcsEvents() {
+        UUID gone = UUID.randomUUID();
+        UUID staying = UUID.randomUUID();
+        Path file = tempDir.resolve("memory2.json");
+        MemoryEventStore store = new MemoryEventStore(file);
+
+        store.append(event("gone-event", gone, 10L), 5);
+        MemoryEvent stayingEvent = event("staying-event", staying, 10L);
+        store.append(stayingEvent, 5);
+
+        assertEquals(true, store.removeNpc(gone));
+        assertEquals(List.of(), store.getRecent(gone, 10));
+        assertEquals(List.of(stayingEvent.id()), store.getRecent(staying, 10).stream().map(MemoryEvent::id).toList());
+
+        MemoryEventStore reloaded = new MemoryEventStore(file);
+        assertEquals(List.of(), reloaded.getRecent(gone, 10));
+        assertEquals(List.of(stayingEvent.id()), reloaded.getRecent(staying, 10).stream().map(MemoryEvent::id).toList());
+    }
+
+    @Test
+    void removeNpcOnUnknownOrNullNpcIsNoOp() {
+        MemoryEventStore store = new MemoryEventStore(tempDir.resolve("memory2.json"));
+        assertEquals(false, store.removeNpc(UUID.randomUUID()));
+        assertEquals(false, store.removeNpc(null));
+    }
+
+    @Test
     void pressureKeepsOldImportantObservationOverNewerWeakDialogueAfterReload() {
         UUID npc = UUID.fromString("00000000-0000-0000-0000-000000000401");
         UUID player = UUID.fromString("00000000-0000-0000-0000-000000000402");

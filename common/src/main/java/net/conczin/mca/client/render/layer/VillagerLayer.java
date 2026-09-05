@@ -33,6 +33,17 @@ public abstract class VillagerLayer<T extends LivingEntity, M extends HumanoidMo
         TEXTURE_EXIST_CACHE.put(MCA.locate("temp"), true);
     }
 
+    /**
+     * Must run on every resource-pack reload: a texture's existence verdict and any cached
+     * resolved identifier can both change when packs are swapped, and neither map ever expires
+     * or bounds itself otherwise.
+     */
+    public static void clearCache() {
+        TEXTURE_CACHE.clear();
+        TEXTURE_EXIST_CACHE.clear();
+        TEXTURE_EXIST_CACHE.put(MCA.locate("temp"), true);
+    }
+
     public final M model;
 
     public VillagerLayer(RenderLayerParent<T, M> renderer, M model) {

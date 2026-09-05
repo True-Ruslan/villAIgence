@@ -29,6 +29,11 @@ public record GetInteractDataRequest(int id) implements HandleablePayload {
     @Override
     public void handleServer(ServerPlayer player) {
         Entity entity = player.level().getEntity(id);
+        boolean inRange = entity != null && entity.isAlive() && entity.level() == player.level()
+                && player.distanceToSqr(entity) <= VillagerEditorAuthority.MAX_DISTANCE_SQUARED;
+        if (!inRange) {
+            return;
+        }
         if (entity instanceof VillagerLike<?> villager) {
             Set<Constraint> constraints = Constraint.allMatching(villager, player);
             EntityRelationship relationship = ((CompassionateEntity<?>) villager).getRelationships();
