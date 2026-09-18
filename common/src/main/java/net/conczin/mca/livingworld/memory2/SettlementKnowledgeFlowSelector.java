@@ -70,16 +70,22 @@ final class SettlementKnowledgeFlowSelector {
                     cycleIndex,
                     SemanticMemoryIdentity.logicalClaimId(source)
             );
-            if (listenerNpcId == null) continue;
+            if (listenerNpcId == null || listenerAlreadyKnows(store, listenerNpcId, source)) continue;
 
             List<UUID> routeCandidates = SettlementSocialKnowledgeRoutingPolicy.candidateWindow(
                     residentWindow,
                     speakerNpcId,
                     listenerNpcId
             );
-            boolean routeWindowAlreadyKnows = routeCandidates.stream()
-                    .anyMatch(candidate -> listenerAlreadyKnows(store, candidate, source));
-            if (routeWindowAlreadyKnows) continue;
+            boolean routeWindowLearnedThisCycle = routeCandidates.stream()
+                    .anyMatch(candidate -> listenerLearnedDuringCycle(
+                            store,
+                            candidate,
+                            source,
+                            cycleStart,
+                            gameTime
+                    ));
+            if (routeWindowLearnedThisCycle) continue;
 
             opportunities.add(new Opportunity(speakerNpcId, listenerNpcId, source.id()));
         }
@@ -141,6 +147,22 @@ final class SettlementKnowledgeFlowSelector {
         return store.findMatching(
                 listenerNpcId,
                 entry -> sourceKey.equals(KnowledgeKey.of(entry))
+        ).isPresent();
+    }
+
+    private static boolean listenerLearnedDuringCycle(
+            SemanticMemoryStore store,
+            UUID listenerNpcId,
+            SemanticMemoryEntry source,
+            long cycleStart,
+            long gameTime
+    ) {
+        KnowledgeKey sourceKey = KnowledgeKey.of(source);
+        return store.findMatching(
+                listenerNpcId,
+                entry -> sourceKey.equals(KnowledgeKey.of(entry))
+                        && entry.gameTime() >= cycleStart
+                        && entry.gameTime() <= gameTime
         ).isPresent();
     }
 
