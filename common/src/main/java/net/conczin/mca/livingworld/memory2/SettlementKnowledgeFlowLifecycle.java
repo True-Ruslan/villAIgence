@@ -40,13 +40,19 @@ final class SettlementKnowledgeFlowLifecycle {
                     villageId,
                     gameTime,
                     residentIds,
-                    (speakerNpcId, candidateListenerIds) -> NpcSocialGraphStrictPairReader.readMany(
-                            worldRoot,
-                            speakerNpcId,
-                            candidateListenerIds
-                    )
+                    (speakerNpcId, candidateListenerIds) -> {
+                        try {
+                            return NpcSocialGraphStrictPairReader.readMany(
+                                    worldRoot,
+                                    speakerNpcId,
+                                    candidateListenerIds
+                            );
+                        } catch (RuntimeException strictReadFailure) {
+                            throw new SocialRoutingUnavailableException(strictReadFailure);
+                        }
+                    }
             );
-        } catch (RuntimeException ignored) {
+        } catch (SocialRoutingUnavailableException ignored) {
             // Preserve fail-closed legacy behavior for malformed social authority:
             // select the deterministic route without social preference, then the exact-pair strict
             // revalidation below suppresses it. No alternative transfer route is authorized.
@@ -115,6 +121,12 @@ final class SettlementKnowledgeFlowLifecycle {
                 admitted,
                 statuses
         );
+    }
+
+    private static final class SocialRoutingUnavailableException extends RuntimeException {
+        private SocialRoutingUnavailableException(RuntimeException cause) {
+            super(cause);
+        }
     }
 
     record CycleResult(
