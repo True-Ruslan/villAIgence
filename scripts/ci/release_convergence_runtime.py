@@ -188,6 +188,7 @@ def validate_repository_contract(
     requested_tag: str = "",
     check_history: bool = False,
     history_ref: str = "HEAD",
+    current_feature_pr: int | None = None,
 ) -> tuple[str, ...]:
     root = Path(repository_root).resolve()
     path = Path(contract_path)
