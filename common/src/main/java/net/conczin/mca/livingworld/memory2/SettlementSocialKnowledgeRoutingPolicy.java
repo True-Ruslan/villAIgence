@@ -30,9 +30,13 @@ final class SettlementSocialKnowledgeRoutingPolicy {
             UUID candidate = candidateListenerIds.get(index);
             if (candidate == null) continue;
 
-            NpcSocialState state = directedStates == null
-                    ? NpcSocialState.NEUTRAL
-                    : directedStates.getOrDefault(candidate, NpcSocialState.NEUTRAL);
+            if (directedStates == null || !directedStates.containsKey(candidate)) {
+                continue;
+            }
+            NpcSocialState state = directedStates.get(candidate);
+            if (state == null) {
+                continue;
+            }
             NpcPairDisposition disposition = PersonalitySocialInfluencePolicy.pairDisposition(state);
             if (!SettlementSocialKnowledgeSharingPolicy.isAllowed(disposition)) {
                 continue;
