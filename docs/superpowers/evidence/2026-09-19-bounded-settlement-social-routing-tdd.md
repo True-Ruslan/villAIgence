@@ -138,6 +138,40 @@ Tests-only hardening adds explicit coverage for:
 
 These tests do not widen runtime behavior. Any failure is treated as a contract defect rather than a test to be weakened.
 
+## 5. Base→head review hardening — strict batch reads
+
+A base→head performance review found that the first correct routing implementation could perform one complete `npc-social-graph.json` read/parse for every candidate and then one more for revalidation. With four opportunities and four candidates this allowed up to 20 whole-file reads per settlement cycle.
+
+A tests-only batch-reader contract was added first:
+
+```text
+commit: f5921aa331db6c8d417527418e5321a6d26a345a
+```
+
+The first CI attempt (#3053) correctly stopped earlier in the release-convergence contract because registering PR #178 changed the capability inventory from `(172,)` to `(172, 178)` while two convergence unit expectations still encoded the old inventory. Those tests were advanced without weakening validation.
+
+The intended Java RED then ran:
+
+```text
+commit: 49716bd9fd5ee14031e1b5d1d95888a8205f464c
+VillAIgence CI #3055
+run: 35400982927
+acceptance/release/security prechecks: SUCCESS
+:common:compileTestJava: FAILURE as intended
+exact diagnostic: 5 cannot-find-symbol errors for absent NpcSocialGraphStrictPairReader.readMany(...)
+```
+
+Minimal GREEN:
+
+```text
+2cdc797a2fa011d9b84aa30e05c02091433d929c  perf: batch strict NPC social reads
+3c099b979b48dd862745c19b2886842fd6f7cc57  perf: batch settlement social candidate reads
+```
+
+`readMany` validates the complete persisted social graph exactly once, returns exact directed states for the requested distinct targets and explicit neutral for missing edges, and preserves fail-closed rejection of malformed/untrusted persistence. The existing single-pair `read` delegates to the same implementation.
+
+The settlement lifecycle now performs one batch read for its at-most-four candidate window and retains the separate fresh exact-pair revalidation immediately before transfer. On VillAIgence CI #3060, the full common test step passed after this change; final exact-head delivery gates are rerun after documentation/evidence reconciliation.
+
 ## Persistence and migration
 
 No new world store, format version, field, migration or backfill is introduced.
