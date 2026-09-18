@@ -15,6 +15,7 @@ EXPECTED_MANUAL_CANARY_CASES = baseline.EXPECTED_MANUAL_CANARY_CASES
 collect_feature_prs = baseline.collect_feature_prs
 extract_unreleased_section = baseline.extract_unreleased_section
 load_contract = baseline.load_contract
+resolve_current_feature_pr = baseline.resolve_current_feature_pr
 resolve_history_ref = baseline.resolve_history_ref
 
 
@@ -96,6 +97,7 @@ def validate_contract(
     requested_tag: str = "",
     check_history: bool = False,
     history_ref: str = "HEAD",
+    current_feature_pr: int | None = None,
 ) -> tuple[str, ...]:
     root = Path(repository_root).resolve()
     try:
@@ -115,6 +117,7 @@ def validate_contract(
                 requested_tag=requested_tag,
                 check_history=check_history,
                 history_ref=history_ref,
+                current_feature_pr=current_feature_pr,
             )
         if publication not in patch_by_tag:
             return ("publication trigger must be previous release, exact candidate, or declared patch release",)
@@ -146,7 +149,10 @@ def validate_contract(
             previous_commit = baseline._required_string(previous, "commit").lower()
             messages = baseline._history_messages(root, previous_commit, history_ref)
             capability_prs = baseline._required_pr_list(contract, "capabilityPullRequests")
-            observed_features = baseline.collect_feature_prs(messages)
+            observed_features = baseline._include_current_feature_pr(
+                baseline.collect_feature_prs(messages),
+                current_feature_pr,
+            )
             if observed_features != capability_prs:
                 return (
                     "capabilityPullRequests do not match actual post-release feat: history: "
@@ -197,6 +203,7 @@ def validate_repository_contract(
         requested_tag=requested_tag.strip(),
         check_history=check_history,
         history_ref=history_ref,
+        current_feature_pr=current_feature_pr,
     )
 
 
@@ -207,6 +214,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--requested-tag", default="")
     parser.add_argument("--check-history", action="store_true")
     parser.add_argument("--history-ref", default="HEAD")
+    parser.add_argument("--current-feature-pr", type=int, default=None)
     args = parser.parse_args(argv)
     errors = validate_repository_contract(
         args.repository_root,
@@ -214,6 +222,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         requested_tag=args.requested_tag,
         check_history=args.check_history,
         history_ref=args.history_ref,
+        current_feature_pr=args.current_feature_pr,
     )
     if errors:
         for error in errors:
