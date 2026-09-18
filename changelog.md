@@ -34,6 +34,7 @@ This is the **canonical changelog** for the project.
 - Third `0.4` Knowledge ecosystem slice (PR #178): settlement knowledge flow now uses a strictly bounded social-topology route over the already-selected settlement residents.
   - each selected source considers at most four deterministic listener candidates; no graph-neighborhood enumeration or provider/LLM routing authority is introduced;
   - direct speaker→listener social state is read through the strict fail-closed reader; `AFFILIATIVE`/`RESPECTFUL` routes are preferred over neutral routes, while `FEARFUL`/`DISTRUSTFUL`/`ANTIPATHETIC` candidates are ineligible;
+  - the at-most-four candidate states are obtained with one strict whole-file validation/parse per opportunity, then the selected exact pair is re-read immediately before mutation; this preserves fail-closed revalidation without multiplying full-file reads by candidate count;
   - reverse-only social state cannot influence speaker→listener routing, positive state outside the bounded listener window is invisible, and malformed social persistence suppresses the opportunity instead of authorizing a fallback;
   - the selected exact pair is revalidated before transfer; once a claim successfully fans out in a settlement cycle, a later social-graph mutation in that same cycle cannot retarget the source to a second listener;
   - later settlement cycles may still propagate the claim to another deterministic listener, preserving the existing gradual dissemination contract;
