@@ -591,11 +591,22 @@ Expand 0.2 transfer/provenance/contradiction/fallibility/transformation, settlem
 
 Information moves through settlements, conflicting/fallible claims remain inspectable, source history remains bounded, and social context affects propagation without becoming truth authority.
 
-### In progress — bounded numeric-conflict contradiction classifier
+### Completed slices
 
-First `0.4` slice: extend `SemanticOppositionClassifier` (from PR #145) with a narrow, separately justified numeric-conflict rule — see `docs/superpowers/specs/2026-08-10-bounded-contradiction-producer-design.md` addendum (2026-09-05). Tests-first RED→GREEN complete; all 325 `net.conczin.mca.livingworld.memory2` tests pass locally. Still needs a real `./gradlew` run and exact-head CI/security/soak/release-dry-run before merge — this session's local Gradle/Loom toolchain is broken independent of this change.
+- PR #172: bounded numeric-conflict extension for `SemanticOppositionClassifier`.
+- PR #173: O(1) derived outgoing-capacity index for `NpcSocialGraphStore`, preserving the existing 64-edge bound and persistence format.
+- PR #174: client→server authority and permanent-NPC-removal hardening, including tombstone identity continuity and cleanup of UUID-keyed Living World stores.
 
-Deliberately out of scope for this slice, per the original design's rejection of a broad antonym/rule catalogue: antonyms, temporal disagreement and free-form semantic opposition remain unclassified candidates for future separately justified slices.
+### In progress — bounded explicit temporal-token contradiction classifier
+
+The next classifier extension remains deliberately structural and conservative. Two otherwise-identical token sequences may oppose when exactly one token differs and both differing tokens are valid values from the same explicit temporal family:
+
+- strict ISO calendar dates: `YYYY-MM-DD`;
+- local 24-hour clock times: `H:mm` or `HH:mm`.
+
+Equivalent values with different accepted formatting (for example `9:30` vs `09:30`) are not contradictions. Invalid dates/times, punctuation-attached tokens, date-vs-time comparisons, deictic words such as `today`/`tomorrow`, multi-token temporal phrases, antonyms and free-form semantic opposition remain unclassified.
+
+This slice adds no provider call, persistence field/version, public configuration or truth authority. It extends only the already-bounded deterministic classifier after candidate selection, preserving the existing 16-candidate / 8-comparison limits.
 
 ---
 
