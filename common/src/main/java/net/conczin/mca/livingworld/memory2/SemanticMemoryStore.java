@@ -70,6 +70,18 @@ public final class SemanticMemoryStore {
         if (!before.equals(retained)) save();
     }
 
+    /**
+     * Drops all retained semantic entries for a permanently-gone NPC. Without this,
+     * {@code entriesByNpc} grows by one entry for every NPC that ever lived, even though each
+     * entry is itself bounded.
+     */
+    public synchronized boolean removeNpc(UUID npcId) {
+        if (npcId == null) return false;
+        boolean removed = data.entriesByNpc.remove(npcId.toString()) != null;
+        if (removed) save();
+        return removed;
+    }
+
     public synchronized List<SemanticMemoryEntry> getRecent(UUID npcId, int maxResults) {
         return getRecentMatching(npcId, maxResults, ignored -> true);
     }

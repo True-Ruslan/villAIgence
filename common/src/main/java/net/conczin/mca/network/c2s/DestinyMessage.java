@@ -27,9 +27,11 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import java.util.EnumSet;
 
 public record DestinyMessage(String location, boolean isClosing) implements HandleablePayload {
+    private static final int MAX_LOCATION_LENGTH = 256;
+
     public static final CustomPacketPayload.Type<DestinyMessage> TYPE = new CustomPacketPayload.Type<>(MCA.locate("destiny_message"));
     public static final StreamCodec<FriendlyByteBuf, DestinyMessage> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.STRING_UTF8, DestinyMessage::location,
+            ByteBufCodecs.stringUtf8(MAX_LOCATION_LENGTH), DestinyMessage::location,
             ByteBufCodecs.BOOL, DestinyMessage::isClosing,
             DestinyMessage::new
     );

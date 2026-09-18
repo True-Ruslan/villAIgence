@@ -37,6 +37,33 @@ class LivingWorldRelationshipStoreTest {
     }
 
     @Test
+    void removeNpcDropsOnlyThatVillagersRelationships() {
+        UUID gone = UUID.randomUUID();
+        UUID staying = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        Path file = tempDir.resolve("relationships.json");
+
+        LivingWorldRelationshipStore store = new LivingWorldRelationshipStore(file);
+        store.applyDelta(gone, player, new LivingWorldRelationshipDelta(3, 0, 0, 0), 5);
+        store.applyDelta(staying, player, new LivingWorldRelationshipDelta(2, 0, 0, 0), 5);
+
+        assertTrue(store.removeNpc(gone));
+        assertEquals(LivingWorldRelationshipState.NEUTRAL, store.get(gone, player));
+        assertEquals(new LivingWorldRelationshipState(2, 0, 0, 0), store.get(staying, player));
+
+        LivingWorldRelationshipStore reloaded = new LivingWorldRelationshipStore(file);
+        assertEquals(LivingWorldRelationshipState.NEUTRAL, reloaded.get(gone, player));
+        assertEquals(new LivingWorldRelationshipState(2, 0, 0, 0), reloaded.get(staying, player));
+    }
+
+    @Test
+    void removeNpcOnUnknownOrNullNpcIsNoOp() {
+        LivingWorldRelationshipStore store = new LivingWorldRelationshipStore(tempDir.resolve("relationships.json"));
+        assertFalse(store.removeNpc(UUID.randomUUID()));
+        assertFalse(store.removeNpc(null));
+    }
+
+    @Test
     void repeatedDeltasRemainBounded() {
         UUID villager = UUID.randomUUID();
         UUID player = UUID.randomUUID();

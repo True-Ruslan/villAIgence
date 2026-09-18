@@ -21,6 +21,7 @@ import java.util.Optional;
 public record ConfirmBuildingPolymorphMessage(BlockPos source, boolean strictScan, String chosenType) implements HandleablePayload {
     public static final CustomPacketPayload.Type<ConfirmBuildingPolymorphMessage> TYPE = new CustomPacketPayload.Type<>(MCA.locate("confirm_building_polymorph"));
     private static final double MAX_SOURCE_DISTANCE_SQR = 16.0D * 16.0D;
+    private static final int MAX_CHOSEN_TYPE_LENGTH = 256;
 
     private static final StreamCodec<FriendlyByteBuf, BlockPos> BLOCK_POS_CODEC = StreamCodec.of(
             (buf, pos) -> buf.writeBlockPos(pos), buf -> buf.readBlockPos()
@@ -29,7 +30,7 @@ public record ConfirmBuildingPolymorphMessage(BlockPos source, boolean strictSca
     public static final StreamCodec<FriendlyByteBuf, ConfirmBuildingPolymorphMessage> STREAM_CODEC = StreamCodec.composite(
             BLOCK_POS_CODEC, ConfirmBuildingPolymorphMessage::source,
             ByteBufCodecs.BOOL, ConfirmBuildingPolymorphMessage::strictScan,
-            ByteBufCodecs.STRING_UTF8, ConfirmBuildingPolymorphMessage::chosenType,
+            ByteBufCodecs.stringUtf8(MAX_CHOSEN_TYPE_LENGTH), ConfirmBuildingPolymorphMessage::chosenType,
             ConfirmBuildingPolymorphMessage::new
     );
 

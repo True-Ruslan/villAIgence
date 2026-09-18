@@ -60,8 +60,11 @@ public record GetVillagerRequest(UUID id) implements HandleablePayload {
 
     @Override
     public void handleServer(ServerPlayer player) {
-        Entity e = player.serverLevel().getEntity(id);
-        CompoundTag villagerData = getVillagerData(e);
+        Optional<Entity> authorized = VillagerEditorAuthority.resolve(player, id);
+        if (authorized.isEmpty()) {
+            return;
+        }
+        CompoundTag villagerData = getVillagerData(authorized.get());
         if (villagerData != null) {
             Network.sendToPlayer(new GetVillagerResponse(villagerData), player);
         }

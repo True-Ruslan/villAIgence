@@ -120,4 +120,42 @@ class NpcSocialGraphStoreTest {
         assertEquals(NpcSocialState.NEUTRAL, store.get(source, target));
         assertEquals(NpcSocialState.NEUTRAL, new NpcSocialGraphStore(file).get(source, target));
     }
+
+    @Test
+    void removeNpcPurgesOutgoingAndIncomingEdgesButKeepsOthers() {
+        UUID gone = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        UUID bystanderA = UUID.randomUUID();
+        UUID bystanderB = UUID.randomUUID();
+        Path file = tempDir.resolve("npc-social-graph.json");
+
+        NpcSocialGraphStore store = new NpcSocialGraphStore(file);
+        store.applyDelta(gone, other, new NpcSocialDelta(5, 5, 0, 0), 10);
+        store.applyDelta(other, gone, new NpcSocialDelta(3, 0, 0, 2), 10);
+        store.applyDelta(bystanderA, bystanderB, new NpcSocialDelta(4, 1, 0, 0), 10);
+
+        assertTrue(store.removeNpc(gone));
+
+        assertEquals(NpcSocialState.NEUTRAL, store.get(gone, other));
+        assertEquals(NpcSocialState.NEUTRAL, store.get(other, gone));
+        assertEquals(new NpcSocialState(4, 1, 0, 0), store.get(bystanderA, bystanderB));
+
+        // A fresh outgoing edge from the removed NPC's id must be admitted as if it never existed,
+        // proving the outgoing-capacity counter was cleaned up alongside the edges.
+        assertEquals(
+                NpcSocialGraphMutation.Status.APPLIED,
+                store.applyDelta(gone, bystanderA, new NpcSocialDelta(1, 0, 0, 0), 10).status()
+        );
+
+        NpcSocialGraphStore reloaded = new NpcSocialGraphStore(file);
+        assertEquals(NpcSocialState.NEUTRAL, reloaded.get(other, gone));
+        assertEquals(new NpcSocialState(4, 1, 0, 0), reloaded.get(bystanderA, bystanderB));
+    }
+
+    @Test
+    void removeNpcOnUnknownNpcIsNoOp() {
+        NpcSocialGraphStore store = new NpcSocialGraphStore(tempDir.resolve("npc-social-graph.json"));
+        assertFalse(store.removeNpc(UUID.randomUUID()));
+        assertFalse(store.removeNpc(null));
+    }
 }

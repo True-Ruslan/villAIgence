@@ -306,6 +306,40 @@ public final class NpcSocialGraphStore {
         );
     }
 
+    /**
+     * Removes every trace of a permanently-gone NPC: its outgoing/incoming edges, its outgoing
+     * capacity counter and its causal frontier. Without this, {@link #data}'s maps grow without
+     * bound as NPCs are born and die over the lifetime of a world.
+     */
+    public synchronized boolean removeNpc(UUID npcId) {
+        if (npcId == null) return false;
+
+        String prefix = npcId + "/";
+        String suffix = "/" + npcId;
+        List<String> staleEdgeKeys = data.edges.keySet().stream()
+                .filter(edgeKey -> edgeKey.startsWith(prefix) || edgeKey.endsWith(suffix))
+                .toList();
+
+        boolean hadFrontier = data.causalFrontiers.remove(npcId.toString()) != null;
+        boolean hadCount = outgoingNonNeutralCounts.remove(npcId) != null;
+        boolean hadBlocked = blockedCausalSources.remove(npcId);
+
+        if (staleEdgeKeys.isEmpty() && !hadFrontier && !hadCount && !hadBlocked) {
+            return false;
+        }
+
+        for (String edgeKey : staleEdgeKeys) {
+            data.edges.remove(edgeKey);
+            EdgePair pair = parseKey(edgeKey);
+            if (pair != null && !pair.sourceNpcId().equals(npcId)) {
+                outgoingNonNeutralCounts.computeIfPresent(pair.sourceNpcId(), (id, count) -> count > 1 ? count - 1 : null);
+            }
+        }
+
+        save();
+        return true;
+    }
+
     private int outgoingEdgeCount(UUID sourceNpcId) {
         return outgoingNonNeutralCounts.getOrDefault(sourceNpcId, 0);
     }

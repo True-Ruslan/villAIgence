@@ -5,6 +5,14 @@ artifact_label="${1:?artifact label is required}"
 is_release="${2:-false}"
 dist_dir="${3:-dist}"
 
+# artifact_label is interpolated into file paths below; today's callers always pass a
+# regex-validated tag or a run-number-derived string, but this script has no independent
+# defense of its own against a future caller passing something like "../" or a space.
+if [[ ! "${artifact_label}" =~ ^[A-Za-z0-9._+-]+$ ]]; then
+  echo "::error title=Invalid artifact label::artifact_label must match ^[A-Za-z0-9._+-]+\$, got '${artifact_label}'."
+  exit 1
+fi
+
 mkdir -p "${dist_dir}"
 
 printf 'Available Fabric JARs:\n'

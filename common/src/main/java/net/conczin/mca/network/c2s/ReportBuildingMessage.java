@@ -21,10 +21,12 @@ import java.util.Locale;
 import java.util.Optional;
 
 public record ReportBuildingMessage(Action action, String data) implements HandleablePayload {
+    private static final int MAX_DATA_LENGTH = 256;
+
     public static final CustomPacketPayload.Type<ReportBuildingMessage> TYPE = new CustomPacketPayload.Type<>(MCA.locate("report_building"));
     public static final StreamCodec<FriendlyByteBuf, ReportBuildingMessage> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.idMapper(i -> Action.values()[i], Action::ordinal), ReportBuildingMessage::action,
-            ByteBufCodecs.optional(ByteBufCodecs.STRING_UTF8).map(o -> o.orElse(null), o -> o == null ? java.util.Optional.empty() : java.util.Optional.of(o)), ReportBuildingMessage::data,
+            ByteBufCodecs.idMapper(i -> i >= 0 && i < Action.values().length ? Action.values()[i] : Action.AUTO_SCAN, Action::ordinal), ReportBuildingMessage::action,
+            ByteBufCodecs.optional(ByteBufCodecs.stringUtf8(MAX_DATA_LENGTH)).map(o -> o.orElse(null), o -> o == null ? java.util.Optional.empty() : java.util.Optional.of(o)), ReportBuildingMessage::data,
             ReportBuildingMessage::new
     );
 

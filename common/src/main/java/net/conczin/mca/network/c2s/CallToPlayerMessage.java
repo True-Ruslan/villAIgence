@@ -3,6 +3,7 @@ package net.conczin.mca.network.c2s;
 import net.conczin.mca.MCA;
 import net.conczin.mca.entity.VillagerEntityMCA;
 import net.conczin.mca.network.HandleablePayload;
+import net.conczin.mca.server.world.data.PlayerSaveData;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -11,6 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 
 import java.util.UUID;
+import java.util.stream.Stream;
 
 public record CallToPlayerMessage(UUID uuid) implements HandleablePayload {
     public static final CustomPacketPayload.Type<CallToPlayerMessage> TYPE = new CustomPacketPayload.Type<>(MCA.locate("call_to_player"));
@@ -21,14 +23,26 @@ public record CallToPlayerMessage(UUID uuid) implements HandleablePayload {
 
     @Override
     public void handleServer(ServerPlayer player) {
+        if (!isFamilyMember(player, uuid)) {
+            return;
+        }
+
         Entity e = player.serverLevel().getEntity(uuid);
-        if (e instanceof VillagerEntityMCA v) {
+        if (e instanceof VillagerEntityMCA v && e.level() == player.level()) {
             if (v.isSleeping()) {
                 v.stopSleeping();
             }
             v.stopRiding();
             v.setPos(player.getX(), player.getY(), player.getZ());
         }
+    }
+
+    private static boolean isFamilyMember(ServerPlayer player, UUID targetUuid) {
+        PlayerSaveData playerData = PlayerSaveData.get(player);
+        return Stream.concat(
+                playerData.getFamilyEntry().getAllRelatives(4),
+                playerData.getPartnerUUID().stream()
+        ).anyMatch(targetUuid::equals);
     }
 
     @Override

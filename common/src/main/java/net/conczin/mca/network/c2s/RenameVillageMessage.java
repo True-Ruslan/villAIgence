@@ -9,10 +9,12 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 
 public record RenameVillageMessage(int id, String name) implements HandleablePayload {
+    private static final int MAX_NAME_LENGTH = 256;
+
     public static final CustomPacketPayload.Type<RenameVillageMessage> TYPE = new CustomPacketPayload.Type<>(MCA.locate("rename_village"));
     public static final StreamCodec<FriendlyByteBuf, RenameVillageMessage> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.INT, RenameVillageMessage::id,
-            ByteBufCodecs.STRING_UTF8, RenameVillageMessage::name,
+            ByteBufCodecs.stringUtf8(MAX_NAME_LENGTH), RenameVillageMessage::name,
             RenameVillageMessage::new
     );
 

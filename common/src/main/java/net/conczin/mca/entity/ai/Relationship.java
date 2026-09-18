@@ -158,7 +158,7 @@ public class Relationship<T extends Mob & VillagerLike<T>> implements EntityRela
         }
 
         if (!beRemembered) {
-            getFamilyEntry().streamParents().forEach(uuid -> getFamilyTree().remove(uuid));
+            getFamilyEntry().clearParents();
             getFamilyTree().remove(entity.getUUID());
         }
 

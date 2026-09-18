@@ -13,13 +13,15 @@
       "net.conczin.mca.gametest.TombstoneControlGameTests",
       "net.conczin.mca.gametest.TombstoneInventoryDeathGameTests",
       "net.conczin.mca.gametest.TombstoneIdentityReplayGameTests",
+      "net.conczin.mca.gametest.TombstoneLivingWorldRetentionGameTests",
       "net.conczin.mca.gametest.NavigationWaterSurfaceGameTests",
       "net.conczin.mca.gametest.NavigationObstacleGameTests",
       "net.conczin.mca.gametest.NavigationLadderGameTests",
       "net.conczin.mca.gametest.NavigationDoorGameTests",
       "net.conczin.mca.gametest.GameplayInteractionGameTests",
       "net.conczin.mca.entity.ai.brain.tasks.chore.FishingCatchGameTests",
-      "net.conczin.mca.gametest.MountedArcherControlGameTests"
+      "net.conczin.mca.gametest.MountedArcherControlGameTests",
+      "net.conczin.mca.network.c2s.BabyNamingAuthorityGameTests"
     ]
   },
   "mixins": [

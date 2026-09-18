@@ -14,9 +14,11 @@ import net.minecraft.world.entity.Entity;
 import java.util.UUID;
 
 public record InteractionVillagerMessage(String command, UUID villagerUUID) implements HandleablePayload {
+    private static final int MAX_COMMAND_LENGTH = 256;
+
     public static final CustomPacketPayload.Type<InteractionVillagerMessage> TYPE = new CustomPacketPayload.Type<>(MCA.locate("interaction_villager"));
     public static final StreamCodec<FriendlyByteBuf, InteractionVillagerMessage> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.STRING_UTF8, InteractionVillagerMessage::command,
+            ByteBufCodecs.stringUtf8(MAX_COMMAND_LENGTH), InteractionVillagerMessage::command,
             UUIDUtil.STREAM_CODEC, InteractionVillagerMessage::villagerUUID,
             InteractionVillagerMessage::new
     );

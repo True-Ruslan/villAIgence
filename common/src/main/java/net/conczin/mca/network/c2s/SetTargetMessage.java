@@ -17,9 +17,11 @@ import java.util.Arrays;
 import java.util.UUID;
 
 public record SetTargetMessage(String targetName, UUID targetUUID) implements HandleablePayload {
+    private static final int MAX_NAME_LENGTH = 256;
+
     public static final CustomPacketPayload.Type<SetTargetMessage> TYPE = new CustomPacketPayload.Type<>(MCA.locate("set_target"));
     public static final StreamCodec<FriendlyByteBuf, SetTargetMessage> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.STRING_UTF8, SetTargetMessage::targetName,
+            ByteBufCodecs.stringUtf8(MAX_NAME_LENGTH), SetTargetMessage::targetName,
             UUIDUtil.STREAM_CODEC, SetTargetMessage::targetUUID,
             SetTargetMessage::new
     );

@@ -18,6 +18,8 @@ import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -26,6 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import static net.conczin.mca.client.gui.immersive_library.Api.request;
 
 public class SkinCache {
+    private static final int MAX_CACHED_SKINS = 64;
+
     static final Map<Integer, Boolean> requested = new ConcurrentHashMap<>();
     static final Map<Integer, Integer> cachedVersions = new ConcurrentHashMap<>();
     static final Map<Integer, ResourceLocation> textureIdentifiers = new ConcurrentHashMap<>();
@@ -33,6 +37,31 @@ public class SkinCache {
     static final Map<Integer, SkinMeta> metas = new ConcurrentHashMap<>();
     private static final ResourceLocation DEFAULT_SKIN = MCA.locate("skins/empty.png");
     private static final Gson gson = new Gson();
+
+    /**
+     * Tracks which content ids are still "live", oldest-accessed first. Every content id that
+     * ever loads a texture stays in {@link #textureIdentifiers}/{@link #images}/{@link #metas}
+     * forever otherwise, holding a registered GPU texture and a decoded {@link NativeImage} per
+     * entry for the rest of the client session.
+     */
+    private static final Map<Integer, Boolean> lruOrder = Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Integer, Boolean> eldest) {
+            if (size() <= MAX_CACHED_SKINS) return false;
+            evict(eldest.getKey());
+            return true;
+        }
+    });
+
+    private static void evict(int contentid) {
+        ResourceLocation identifier = textureIdentifiers.remove(contentid);
+        if (identifier != null) {
+            Minecraft.getInstance().getTextureManager().release(identifier);
+        }
+        images.remove(contentid);
+        metas.remove(contentid);
+        cachedVersions.remove(contentid);
+    }
 
     private static File getFile(String key) {
         //noinspection ResultOfMethodCallIgnored
@@ -84,6 +113,8 @@ public class SkinCache {
      *                       Downloads the assets if they are not up to date
      */
     public static void sync(int contentid, int currentVersion) {
+        lruOrder.put(contentid, true);
+
         // Fetch the version identifier which we have on disk, or -1
         int version = cachedVersions.computeIfAbsent(contentid, id -> {
             File file = getFile(contentid + ".version");

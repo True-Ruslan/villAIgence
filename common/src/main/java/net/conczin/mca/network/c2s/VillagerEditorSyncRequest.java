@@ -56,9 +56,11 @@ public record VillagerEditorSyncRequest(String command, UUID uuid, CompoundTag d
             "AgeState",
             "PlayerModel"
     };
+    private static final int MAX_COMMAND_LENGTH = 64;
+
     public static final CustomPacketPayload.Type<VillagerEditorSyncRequest> TYPE = new CustomPacketPayload.Type<>(MCA.locate("villager_editor_sync_request"));
     public static final StreamCodec<FriendlyByteBuf, VillagerEditorSyncRequest> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.STRING_UTF8, VillagerEditorSyncRequest::command,
+            ByteBufCodecs.stringUtf8(MAX_COMMAND_LENGTH), VillagerEditorSyncRequest::command,
             UUIDUtil.STREAM_CODEC, VillagerEditorSyncRequest::uuid,
             ByteBufCodecs.COMPOUND_TAG, VillagerEditorSyncRequest::data,
             VillagerEditorSyncRequest::new
@@ -161,7 +163,12 @@ public record VillagerEditorSyncRequest(String command, UUID uuid, CompoundTag d
 
     @Override
     public void handleServer(ServerPlayer player) {
-        Entity entity = player.serverLevel().getEntity(uuid);
+        Optional<Entity> authorized = VillagerEditorAuthority.resolve(player, uuid);
+        if (authorized.isEmpty()) {
+            return;
+        }
+        Entity entity = authorized.get();
+
         switch (command) {
             case "skin", "hair", "layered_hair", "hair_base", "hair_bangs", "hair_back", "hair_front", "hair_extra", "clothing", "gender", "sync" ->
                     saveEntity(player, entity, data.copy());

@@ -16,9 +16,11 @@ import net.minecraft.world.item.ItemStack;
 import java.util.Arrays;
 
 public record DamageItemMessage(String itemIdentifier) implements HandleablePayload {
+    private static final int MAX_IDENTIFIER_LENGTH = 256;
+
     public static final CustomPacketPayload.Type<DamageItemMessage> TYPE = new CustomPacketPayload.Type<>(MCA.locate("damage_item"));
     public static final StreamCodec<FriendlyByteBuf, DamageItemMessage> STREAM_CODEC = StreamCodec.composite(
-            ByteBufCodecs.STRING_UTF8, DamageItemMessage::itemIdentifier,
+            ByteBufCodecs.stringUtf8(MAX_IDENTIFIER_LENGTH), DamageItemMessage::itemIdentifier,
             DamageItemMessage::new
     );
 
