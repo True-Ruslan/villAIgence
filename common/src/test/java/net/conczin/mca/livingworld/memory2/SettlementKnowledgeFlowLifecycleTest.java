@@ -85,6 +85,62 @@ class SettlementKnowledgeFlowLifecycleTest {
     }
 
     @Test
+    void positiveDirectedRouteIsPreferredOverLegacyNeutralTarget() {
+        Path world = tempDir.resolve("social-routing-preference");
+        UUID speaker = id(150);
+        UUID listenerA = id(151);
+        UUID listenerB = id(152);
+        UUID listenerC = id(153);
+        UUID sourceId = id(154);
+        long cycleTime = 3_600L;
+        List<UUID> residents = List.of(speaker, listenerA, listenerB, listenerC);
+
+        appendSourceFact(world, speaker, sourceId, "The western mill reopened");
+
+        SettlementKnowledgeFlowSelector.SelectionResult legacySelection =
+                SettlementKnowledgeFlowSelector.select(
+                        SemanticMemoryStore.forWorld(world),
+                        21,
+                        cycleTime,
+                        residents
+                );
+        SettlementKnowledgeFlowSelector.Opportunity legacyOpportunity =
+                legacySelection.opportunities().stream()
+                        .filter(value -> value.sourceSemanticEntryId().equals(sourceId))
+                        .findFirst()
+                        .orElseThrow();
+        UUID legacyNeutralTarget = legacyOpportunity.listenerNpcId();
+        UUID respectedTarget = residents.stream()
+                .filter(id -> !id.equals(speaker))
+                .filter(id -> !id.equals(legacyNeutralTarget))
+                .findFirst()
+                .orElseThrow();
+
+        NpcSocialGraphStore.forWorld(world).applyDelta(
+                speaker,
+                respectedTarget,
+                new NpcSocialDelta(0, 80, 0, 0),
+                100
+        );
+
+        SettlementKnowledgeFlowLifecycle.CycleResult result =
+                SettlementKnowledgeFlowLifecycle.runCycle(
+                        world,
+                        21,
+                        cycleTime,
+                        residents,
+                        64,
+                        64
+                );
+
+        assertEquals(1, result.successfulTransfers());
+        assertTrue(SemanticMemoryStore.forWorld(world).getRecent(respectedTarget, 64).stream()
+                .anyMatch(entry -> SemanticMemoryIdentity.canonicalStatement(entry.statement())
+                        .equals("the western mill reopened")));
+        assertTrue(SemanticMemoryStore.forWorld(world).getRecent(legacyNeutralTarget, 64).isEmpty());
+    }
+
+    @Test
     void adverseSpeakerToListenerSocialStateSuppressesExactTransferWithoutFallback() {
         List<NpcSocialDelta> adverseStates = List.of(
                 new NpcSocialDelta(0, 0, 75, 0),
