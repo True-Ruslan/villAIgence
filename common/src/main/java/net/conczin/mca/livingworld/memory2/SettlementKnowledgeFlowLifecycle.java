@@ -32,13 +32,37 @@ final class SettlementKnowledgeFlowLifecycle {
             return CycleResult.empty();
         }
 
-        SettlementKnowledgeFlowSelector.SelectionResult selection =
-                SettlementKnowledgeFlowSelector.select(
-                        SemanticMemoryStore.forWorld(worldRoot),
-                        villageId,
-                        gameTime,
-                        residentIds
-                );
+        SemanticMemoryStore semanticStore = SemanticMemoryStore.forWorld(worldRoot);
+        SettlementKnowledgeFlowSelector.SelectionResult selection;
+        try {
+            selection = SettlementKnowledgeFlowSelector.select(
+                    semanticStore,
+                    villageId,
+                    gameTime,
+                    residentIds,
+                    (speakerNpcId, candidateListenerIds) -> {
+                        try {
+                            return NpcSocialGraphStrictPairReader.readMany(
+                                    worldRoot,
+                                    speakerNpcId,
+                                    candidateListenerIds
+                            );
+                        } catch (RuntimeException strictReadFailure) {
+                            throw new SocialRoutingUnavailableException(strictReadFailure);
+                        }
+                    }
+            );
+        } catch (SocialRoutingUnavailableException ignored) {
+            // Preserve fail-closed legacy behavior for malformed social authority:
+            // select the deterministic route without social preference, then the exact-pair strict
+            // revalidation below suppresses it. No alternative transfer route is authorized.
+            selection = SettlementKnowledgeFlowSelector.select(
+                    semanticStore,
+                    villageId,
+                    gameTime,
+                    residentIds
+            );
+        }
         if (selection.opportunities().isEmpty()) {
             return new CycleResult(
                     selection.residentWindow().size(),
@@ -97,6 +121,12 @@ final class SettlementKnowledgeFlowLifecycle {
                 admitted,
                 statuses
         );
+    }
+
+    private static final class SocialRoutingUnavailableException extends RuntimeException {
+        private SocialRoutingUnavailableException(RuntimeException cause) {
+            super(cause);
+        }
     }
 
     record CycleResult(

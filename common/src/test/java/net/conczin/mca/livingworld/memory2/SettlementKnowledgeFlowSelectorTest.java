@@ -5,8 +5,11 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -124,6 +127,58 @@ class SettlementKnowledgeFlowSelectorTest {
                     "cycle=" + cycle + " opportunities=" + result.opportunities()
             );
         }
+    }
+
+    @Test
+    void socialRoutingPrefersPositiveDirectedCandidateInsideBoundedListenerWindow() {
+        Path world = tempDir.resolve("social-routing");
+        SemanticMemoryStore store = SemanticMemoryStore.forWorld(world);
+        UUID speaker = id(15);
+        UUID listenerA = id(16);
+        UUID listenerB = id(17);
+        UUID listenerC = id(18);
+        UUID listenerD = id(19);
+        List<UUID> residents = List.of(speaker, listenerA, listenerB, listenerC, listenerD);
+
+        SemanticMemoryEntry source = fact(id(150), speaker, "The west watchtower needs repairs", List.of(), 200L);
+        store.append(source, 64);
+
+        AtomicReference<List<UUID>> inspected = new AtomicReference<>();
+        AtomicReference<UUID> preferred = new AtomicReference<>();
+
+        SettlementKnowledgeFlowSelector.SelectionResult result =
+                SettlementKnowledgeFlowSelector.select(
+                        store,
+                        22,
+                        3_600L,
+                        residents,
+                        (sourceNpcId, candidateListenerIds) -> {
+                            assertEquals(speaker, sourceNpcId);
+                            assertTrue(candidateListenerIds.size() <= 4);
+                            assertFalse(candidateListenerIds.contains(speaker));
+                            inspected.set(candidateListenerIds);
+
+                            Map<UUID, net.conczin.mca.livingworld.relationship.NpcSocialState> states =
+                                    new LinkedHashMap<>();
+                            for (UUID candidate : candidateListenerIds) {
+                                states.put(candidate, net.conczin.mca.livingworld.relationship.NpcSocialState.NEUTRAL);
+                            }
+                            UUID positive = candidateListenerIds.getLast();
+                            states.put(
+                                    positive,
+                                    new net.conczin.mca.livingworld.relationship.NpcSocialState(75, 0, 0, 75)
+                            );
+                            preferred.set(positive);
+                            return states;
+                        }
+                );
+
+        assertFalse(inspected.get().isEmpty());
+        SettlementKnowledgeFlowSelector.Opportunity opportunity = result.opportunities().stream()
+                .filter(value -> value.sourceSemanticEntryId().equals(source.id()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(preferred.get(), opportunity.listenerNpcId());
     }
 
     @Test

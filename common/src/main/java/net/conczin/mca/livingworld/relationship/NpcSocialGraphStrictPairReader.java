@@ -11,6 +11,9 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -26,6 +29,7 @@ import java.util.UUID;
 public final class NpcSocialGraphStrictPairReader {
     private static final int FORMAT_VERSION = 1;
     private static final int MAX_OUTGOING_EDGES_PER_NPC = 64;
+    private static final int MAX_REQUESTED_TARGETS = 4;
 
     private NpcSocialGraphStrictPairReader() {
     }
@@ -35,15 +39,39 @@ public final class NpcSocialGraphStrictPairReader {
             UUID sourceNpcId,
             UUID targetNpcId
     ) {
-        if (worldRoot == null || sourceNpcId == null || targetNpcId == null || sourceNpcId.equals(targetNpcId)) {
-            throw new IllegalArgumentException("worldRoot and a distinct source/target NPC pair are required");
+        if (targetNpcId == null) {
+            throw new IllegalArgumentException("target NPC is required");
         }
+        return readMany(worldRoot, sourceNpcId, List.of(targetNpcId)).get(targetNpcId);
+    }
+
+    public static Map<UUID, NpcSocialState> readMany(
+            Path worldRoot,
+            UUID sourceNpcId,
+            List<UUID> targetNpcIds
+    ) {
+        if (worldRoot == null || sourceNpcId == null || targetNpcIds == null || targetNpcIds.isEmpty()) {
+            throw new IllegalArgumentException("worldRoot, source NPC and at least one target NPC are required");
+        }
+        if (targetNpcIds.size() > MAX_REQUESTED_TARGETS) {
+            throw new IllegalArgumentException("strict NPC social batch read is limited to " + MAX_REQUESTED_TARGETS + " targets");
+        }
+
+        LinkedHashSet<UUID> requestedTargets = new LinkedHashSet<>();
+        for (UUID targetNpcId : targetNpcIds) {
+            if (targetNpcId == null || sourceNpcId.equals(targetNpcId) || !requestedTargets.add(targetNpcId)) {
+                throw new IllegalArgumentException("target NPCs must be distinct, non-null and different from the source NPC");
+            }
+        }
+
+        LinkedHashMap<UUID, NpcSocialState> requested = new LinkedHashMap<>();
+        requestedTargets.forEach(target -> requested.put(target, NpcSocialState.NEUTRAL));
 
         Path file = worldRoot.toAbsolutePath().normalize()
                 .resolve("livingworld")
                 .resolve("npc-social-graph.json");
         if (!Files.exists(file, LinkOption.NOFOLLOW_LINKS)) {
-            return NpcSocialState.NEUTRAL;
+            return Map.copyOf(requested);
         }
         if (Files.isSymbolicLink(file) || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
             throw new IllegalStateException("NPC social graph is not a regular file: " + file);
@@ -66,7 +94,6 @@ public final class NpcSocialGraphStrictPairReader {
 
             Set<String> canonicalKeys = new HashSet<>();
             Map<UUID, Integer> outgoingCounts = new HashMap<>();
-            NpcSocialState requested = null;
             for (Map.Entry<String, JsonElement> entry : edgesElement.getAsJsonObject().entrySet()) {
                 EdgePair pair = parsePair(entry.getKey());
                 String canonicalKey = pair.sourceNpcId() + "/" + pair.targetNpcId();
@@ -83,11 +110,11 @@ public final class NpcSocialGraphStrictPairReader {
                     throw new IllegalStateException("NPC social graph source exceeds outgoing edge capacity");
                 }
 
-                if (pair.sourceNpcId().equals(sourceNpcId) && pair.targetNpcId().equals(targetNpcId)) {
-                    requested = state;
+                if (pair.sourceNpcId().equals(sourceNpcId) && requested.containsKey(pair.targetNpcId())) {
+                    requested.put(pair.targetNpcId(), state);
                 }
             }
-            return requested == null ? NpcSocialState.NEUTRAL : requested;
+            return Map.copyOf(requested);
         } catch (IOException | RuntimeException e) {
             if (e instanceof IllegalStateException illegalState) {
                 throw illegalState;

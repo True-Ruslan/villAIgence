@@ -28,6 +28,11 @@ This is the **canonical changelog** for the project.
   - equal values written differently (e.g. `04` vs `4`) are not a conflict, and any non-numeric or multi-position difference remains unclassified;
   - this extends `SemanticOppositionClassifier` only; `SemanticContradictionCandidateSelector`'s `16`-candidate/`8`-comparison bounds, `SemanticContradictionLifecycle`, persistence formats, provider protocol, public configuration and release identity are unchanged;
   - antonyms, temporal disagreement and free-form semantic opposition remain deliberately unclassified, consistent with the original design's rejection of a broad deterministic rule catalogue (`docs/superpowers/specs/2026-08-10-bounded-contradiction-producer-design.md`) — each extension is scoped and justified on its own.
+- Third `0.4` Knowledge ecosystem slice (PR #177): bounded settlement social-topology routing now chooses among at most four already-eligible deterministic listener candidates using only direct speaker→listener server-owned social state.
+  - adverse direct dispositions are excluded; the first positive direct route is preferred over neutral routes, while stable candidate order remains the deterministic tie-breaker;
+  - routing never enumerates graph neighborhoods, never considers a fifth candidate, and never retargets after the selected listener fails knowledge/revalidation checks;
+  - strict social authority is batch-read once per speaker window and the selected exact pair is revalidated again immediately before transfer; malformed/unsafe social persistence therefore remains fail-closed without repair or mutation;
+  - transfer still delegates to the existing `NpcKnowledgeTransferLifecycle`, so listener knowledge remains local `BELIEF/NPC_TOLD` with unchanged provenance, truth authority, capacity, persistence format and provider protocol.
 
 ### Changed
 
@@ -48,9 +53,10 @@ This is the **canonical changelog** for the project.
 
 ### Validation
 
+- PR #177 began with a tests-only RED on head `6d281b036`: Production Soak #583 failed at `:common:compileTestJava` specifically because the bounded routing policy, strict `readMany(...)` batch API and social-aware selector overload did not yet exist. Production code was added only after that observed RED.
 - PR #174 tombstone lifecycle used a true RED→GREEN Fabric GameTest: CI #2980 failed because a tombstone-captured same-UUID NPC lost its seeded Living World memory; after gating purge on permanent death, the exact test and complete server GameTest/loader suite passed on CI #2983.
 - PR #174 baby-naming authority hardening used a separate Fabric GameTest. An initial common-source-set attempt was rejected as invalid RED because that source set lacks Minecraft runtime classes; the corrected test-only head `8c19f795a` then produced the intended RED in CI #2987 on the missing server-side authority predicate. Minimal production commit `2ffc0d128` made the common suite, risk catalog, server GameTests, supported loader builds and production-acceptance contract GREEN in CI #2988 before this changelog reconciliation.
-- Final merge still requires all exact-head Repository security, Supply-chain verification, VillAIgence CI, Production Soak and GitHub Release dry-run gates to pass after this changelog update.
+- PR #174 final head `d098e7ec6` passed Repository security #2624, Supply-chain verification #187, VillAIgence CI #2989, Production Soak #581 and GitHub Release dry-run #917 before squash merge as `ae14e4069`.
 
 - PR #172: tests-first RED tests for `recognizesExactlyOneNumericConflictSymmetrically`, `recognizesDecimalAndNegativeNumericConflict`, `rejectsNumericTokensWithEqualValueButDifferentFormatting`, `rejectsNumericConflictWhenMoreThanOneTokenDiffers`, `rejectsNumericConflictAcrossDifferentTokenCounts` and `rejectsNonNumericSingleTokenDifference` were added to `SemanticOppositionClassifierTest` and observed failing before the minimal implementation; the prior numeric-difference case moved out of the "rejects" test into its own now-`true` assertion. All 11 `SemanticOppositionClassifierTest` cases and all 325 tests in `net.conczin.mca.livingworld.memory2` passed. Merged as `3868399b6` after exact-head repository security, full CI, Production Soak and GitHub Release dry-run all passed.
 - PR #173: characterization-first coverage proved capacity isolation across 40 interleaved sources and exact fresh-root index reconstruction before the O(1) refactor. After the refactor, both new tests still passed together with all 58 `net.conczin.mca.livingworld.relationship` tests and all 383 combined `memory2`+`relationship` tests. Merged as `b67d530e6` after exact-head Repository security #2609, VillAIgence CI #2974, Production Soak #565 and GitHub Release #903 all passed.

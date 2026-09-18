@@ -1,10 +1,13 @@
 package net.conczin.mca.livingworld.memory2;
 
+import net.conczin.mca.livingworld.relationship.NpcSocialState;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -27,6 +30,28 @@ final class SettlementKnowledgeFlowSelector {
             int villageId,
             long gameTime,
             Collection<UUID> residentIds
+    ) {
+        return select(
+                store,
+                villageId,
+                gameTime,
+                residentIds,
+                (sourceNpcId, candidateListenerIds) -> candidateListenerIds.stream()
+                        .collect(java.util.stream.Collectors.toMap(
+                                id -> id,
+                                id -> NpcSocialState.NEUTRAL,
+                                (left, right) -> left,
+                                java.util.LinkedHashMap::new
+                        ))
+        );
+    }
+
+    static SelectionResult select(
+            SemanticMemoryStore store,
+            int villageId,
+            long gameTime,
+            Collection<UUID> residentIds,
+            SocialRouteReader socialRouteReader
     ) {
         if (store == null || residentIds == null || residentIds.isEmpty()) {
             return SelectionResult.empty();
@@ -63,13 +88,19 @@ final class SettlementKnowledgeFlowSelector {
             KnowledgeKey knowledgeKey = KnowledgeKey.of(source);
             if (!allocatedKnowledge.add(knowledgeKey)) continue;
 
-            UUID listenerNpcId = deterministicListener(
+            List<UUID> listenerCandidates = deterministicListenerWindow(
                     residentWindow,
                     speakerNpcId,
                     villageId,
                     cycleIndex,
                     SemanticMemoryIdentity.logicalClaimId(source)
             );
+            Map<UUID, NpcSocialState> directedStates = socialRouteReader == null
+                    ? Map.of()
+                    : socialRouteReader.read(speakerNpcId, listenerCandidates);
+            UUID listenerNpcId = SettlementSocialKnowledgeRoutingPolicy
+                    .select(listenerCandidates, directedStates)
+                    .orElse(null);
             if (listenerNpcId == null || listenerAlreadyKnows(store, listenerNpcId, source)) continue;
 
             opportunities.add(new Opportunity(speakerNpcId, listenerNpcId, source.id()));
@@ -109,7 +140,7 @@ final class SettlementKnowledgeFlowSelector {
                 && !SemanticMemoryIdentity.canonicalStatement(entry.statement()).isBlank();
     }
 
-    private static UUID deterministicListener(
+    private static List<UUID> deterministicListenerWindow(
             List<UUID> residentWindow,
             UUID speakerNpcId,
             int villageId,
@@ -119,8 +150,15 @@ final class SettlementKnowledgeFlowSelector {
         List<UUID> listeners = residentWindow.stream()
                 .filter(id -> !id.equals(speakerNpcId))
                 .toList();
-        if (listeners.isEmpty()) return null;
-        return listeners.get(indexFor(listeners.size(), villageId, cycleIndex, sourceLogicalId));
+        if (listeners.isEmpty()) return List.of();
+
+        int start = indexFor(listeners.size(), villageId, cycleIndex, sourceLogicalId);
+        int limit = Math.min(SettlementSocialKnowledgeRoutingPolicy.MAX_CANDIDATES, listeners.size());
+        List<UUID> window = new ArrayList<>(limit);
+        for (int offset = 0; offset < limit; offset++) {
+            window.add(listeners.get((start + offset) % listeners.size()));
+        }
+        return List.copyOf(window);
     }
 
     private static boolean listenerAlreadyKnows(
@@ -143,6 +181,11 @@ final class SettlementKnowledgeFlowSelector {
             seed = 31L * seed + identity.getLeastSignificantBits();
         }
         return (int) Math.floorMod(seed, (long) size);
+    }
+
+    @FunctionalInterface
+    interface SocialRouteReader {
+        Map<UUID, NpcSocialState> read(UUID sourceNpcId, List<UUID> candidateListenerIds);
     }
 
     record Opportunity(UUID speakerNpcId, UUID listenerNpcId, UUID sourceSemanticEntryId) {

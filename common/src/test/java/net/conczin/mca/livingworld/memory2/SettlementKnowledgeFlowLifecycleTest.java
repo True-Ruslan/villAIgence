@@ -129,6 +129,61 @@ class SettlementKnowledgeFlowLifecycleTest {
     }
 
     @Test
+    void positiveDirectRouteCanReplaceLegacyNeutralTargetWithinBoundedWindow() {
+        Path world = tempDir.resolve("positive-routing");
+        UUID speaker = id(260);
+        UUID listenerA = id(261);
+        UUID listenerB = id(262);
+        UUID listenerC = id(263);
+        UUID sourceId = id(264);
+        long cycleTime = 5_400L;
+        List<UUID> residents = List.of(speaker, listenerA, listenerB, listenerC);
+
+        appendSourceFact(world, speaker, sourceId, "The mill has spare grain");
+
+        SettlementKnowledgeFlowSelector.Opportunity legacyOpportunity =
+                SettlementKnowledgeFlowSelector.select(
+                        SemanticMemoryStore.forWorld(world),
+                        14,
+                        cycleTime,
+                        residents
+                ).opportunities().stream()
+                        .filter(value -> value.sourceSemanticEntryId().equals(sourceId))
+                        .findFirst()
+                        .orElseThrow();
+
+        UUID preferred = residents.stream()
+                .filter(id -> !id.equals(speaker))
+                .filter(id -> !id.equals(legacyOpportunity.listenerNpcId()))
+                .findFirst()
+                .orElseThrow();
+        NpcSocialGraphStore.forWorld(world).applyDelta(
+                speaker,
+                preferred,
+                new NpcSocialDelta(75, 0, 0, 75),
+                100
+        );
+
+        SettlementKnowledgeFlowLifecycle.CycleResult result = SettlementKnowledgeFlowLifecycle.runCycle(
+                world,
+                14,
+                cycleTime,
+                residents,
+                64,
+                64
+        );
+
+        assertEquals(1, result.opportunities());
+        assertEquals(0, result.sociallySuppressedTransfers());
+        assertEquals(1, result.attemptedTransfers());
+        assertEquals(1, result.successfulTransfers());
+        assertTrue(SemanticMemoryStore.forWorld(world).getRecent(preferred, 64).stream()
+                .anyMatch(entry -> entry.statement().equals("The mill has spare grain")));
+        assertTrue(SemanticMemoryStore.forWorld(world).getRecent(legacyOpportunity.listenerNpcId(), 64).stream()
+                .noneMatch(entry -> entry.statement().equals("The mill has spare grain")));
+    }
+
+    @Test
     void reverseOnlyHostilityDoesNotBlockSpeakerToListenerTransfer() {
         Path world = tempDir.resolve("reverse-only-hostility");
         UUID speaker = id(300);
