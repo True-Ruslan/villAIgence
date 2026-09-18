@@ -20,11 +20,11 @@ For each selected source claim:
 1. Construct a deterministic listener window independent of social state.
 2. The listener window contains at most **four** distinct residents and never the speaker.
 3. If any listener in that exact window already carries the same canonical statement + exact related-entity scope, emit no new opportunity. This preserves one successful fan-out on same-cycle replay even if social state later changes.
-4. Strictly read only speaker→candidate direct social state. Reverse edges never influence the route.
+4. Strictly read only speaker→candidate direct social state. The bounded candidate window is validated/read in one strict batch parse; reverse edges never influence the route.
 5. Classify candidates with the existing server-owned `PersonalitySocialInfluencePolicy`.
 6. Exclude `FEARFUL`, `DISTRUSTFUL` and `ANTIPATHETIC` candidates.
 7. Prefer positive `AFFILIATIVE` / `RESPECTFUL` candidates over `NEUTRAL`; preserve deterministic candidate order within a tier.
-8. After one listener is chosen, revalidate that **exact** pair before transfer. If authority becomes unsafe/adverse, suppress the opportunity; never retarget or fallback after selection.
+8. After one listener is chosen, revalidate that **exact** pair with a fresh strict read before transfer. If authority becomes unsafe/adverse, suppress the opportunity; never retarget or fallback after selection.
 
 ## Authority and safety
 
