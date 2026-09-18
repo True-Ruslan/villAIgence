@@ -684,14 +684,11 @@ The second `0.4` slice is **complete and merged**: PR #173 replaced `NpcSocialGr
 
 **Rule going forward**: once `0.4.0-convergence.json` exists, every new `feat:`-prefixed capability PR must add its PR number to that file's `capabilityPullRequests` (not `0.3.0-convergence.json`, which stays frozen) in the same PR — exactly the existing "update root `changelog.md` `[Unreleased]` in the runtime PR" policy, just extended to this second ledger. `fix:`/`perf:`/`docs:`/`release:`-prefixed commits are not scanned by `collect_feature_prs` and don't need this.
 
-Before the capacity-index slice is considered done, still required:
-
-- a real `./gradlew` run and exact-head repository security / full CI / Production Soak / GitHub Release dry-run gates on a working toolchain (GitHub Actions CI, not this sandbox);
-- push a PR, watch CI green, merge.
+PR #173 is fully complete: characterization coverage, exact-head Repository security / full CI / Production Soak / GitHub Release dry-run and squash merge all succeeded.
 
 Next `0.4` primitive: settlement-routing-by-trust (known gap #5). Keep it bounded and server-authoritative: social state may affect which already-eligible settlement knowledge paths propagate, but must not become truth authority or create omniscient broadcast. Use tests-first RED→GREEN and update `docs/releases/0.4.0-convergence.json` in the same PR if the implementation lands as a `feat:` capability.
 
-There is no known outstanding technical blocker to `0.4` beyond this session's broken local toolchain; `VAI-M2-INST-005` and `VAI-CONCUR-004` remain the only open deferrals and are unrelated.
+There is no known outstanding technical blocker to `0.4`; `VAI-M2-INST-005` and `VAI-CONCUR-004` remain the only open deferrals and are unrelated.
 
 ---
 
