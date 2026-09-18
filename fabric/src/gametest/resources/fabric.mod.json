@@ -20,7 +20,8 @@
       "net.conczin.mca.gametest.NavigationDoorGameTests",
       "net.conczin.mca.gametest.GameplayInteractionGameTests",
       "net.conczin.mca.entity.ai.brain.tasks.chore.FishingCatchGameTests",
-      "net.conczin.mca.gametest.MountedArcherControlGameTests"
+      "net.conczin.mca.gametest.MountedArcherControlGameTests",
+      "net.conczin.mca.network.c2s.BabyNamingAuthorityGameTests"
     ]
   },
   "mixins": [
