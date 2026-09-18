@@ -90,9 +90,9 @@ class ReleaseConvergenceValidatorTest(unittest.TestCase):
             contract["publicationTrigger"],
         )
 
-    def test_post_release_capability_inventory_is_exactly_172(self) -> None:
+    def test_post_release_capability_inventory_matches_current_0_4_features(self) -> None:
         contract = load_contract(REPOSITORY_ROOT / CONTRACT_PATH)
-        self.assertEqual((172,), tuple(contract["capabilityPullRequests"]))
+        self.assertEqual((172, 178), tuple(contract["capabilityPullRequests"]))
         self.assertEqual((), tuple(contract["releaseInfrastructurePullRequests"]))
 
     def test_feature_history_parser_ignores_docs_and_keeps_feature_prs(self) -> None:
@@ -213,7 +213,7 @@ _No entries._
             )
         self.assertTrue(
             any(
-                "release section 0.4.0+1.21.1 does not reference capability PR #172"
+                "release section 0.4.0+1.21.1 does not reference capability PR #178"
                 in error
                 for error in errors
             )
