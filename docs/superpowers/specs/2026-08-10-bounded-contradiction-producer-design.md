@@ -188,3 +188,26 @@ Per the original trade-off note above, a separately justified extension was adde
 This mirrors the existing negation rule's shape (single-position structural difference, no semantic word list) rather than reopening option C (a broad antonym/rule catalogue), which remains rejected. Antonyms, temporal disagreement and free-form opposition remain unclassified and would each need their own separately justified, narrowly scoped extension design.
 
 No change to `SemanticContradictionCandidateSelector` bounds, `SemanticContradictionLifecycle`, persistence formats, provider protocol or public configuration was required.
+
+
+## Addendum (2026-09-19) — bounded explicit temporal-token conflict extension
+
+The next `0.4` extension remains structural and deliberately narrower than natural-language temporal reasoning.
+
+A pair may be classified as opposing on time only when:
+
+1. both normalized statements have the same token count;
+2. they differ at exactly one token position;
+3. both differing tokens belong to the same supported explicit temporal family; and
+4. the parsed temporal values differ.
+
+Supported families are intentionally limited to:
+
+- strict ISO calendar dates: `YYYY-MM-DD`, validated as real calendar dates;
+- local 24-hour clock times: `H:mm` or `HH:mm`, validated to `00:00..23:59`.
+
+Equivalent accepted representations of the same value (for example `9:30` and `09:30`) are not contradictions. Invalid dates/times, punctuation-attached tokens, date-vs-time comparisons, multi-position differences, relative/deictic words such as `today`/`tomorrow`, time zones, ranges and free-form temporal language remain unclassified.
+
+This is intentional: relative time requires an authoritative reference instant and locale/world-time semantics. Treating words such as `today` and `tomorrow` as static opposites would create historical false positives as game time advances.
+
+The extension remains downstream of the existing bounded candidate selector, so the 16-candidate / 8-comparison budget is unchanged. It adds no provider call, persistence field/version, configuration or truth authority and does not select a winning claim.
