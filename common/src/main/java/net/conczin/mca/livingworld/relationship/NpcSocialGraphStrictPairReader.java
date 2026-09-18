@@ -39,6 +39,9 @@ public final class NpcSocialGraphStrictPairReader {
             UUID sourceNpcId,
             UUID targetNpcId
     ) {
+        if (targetNpcId == null) {
+            throw new IllegalArgumentException("target NPC is required");
+        }
         return readMany(worldRoot, sourceNpcId, List.of(targetNpcId)).get(targetNpcId);
     }
 
