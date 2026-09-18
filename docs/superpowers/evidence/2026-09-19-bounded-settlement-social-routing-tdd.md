@@ -172,6 +172,54 @@ Minimal GREEN:
 
 The settlement lifecycle now performs one batch read for its at-most-four candidate window and retains the separate fresh exact-pair revalidation immediately before transfer. On VillAIgence CI #3060, the full common test step passed after this change; final exact-head delivery gates are rerun after documentation/evidence reconciliation.
 
+## 6. Release-convergence self-registration hardening
+
+The final release dry-run exposed a governance contradiction in the existing convergence validator:
+
+```text
+VillAIgence GitHub Release #946
+run: 35401492672
+Run production acceptance contract tests: FAILURE
+diagnostic:
+capabilityPullRequests do not match actual post-release feat: history:
+contract=(172, 178), history=(172,)
+```
+
+This was a real delivery-contract defect, not a product-runtime failure. Project policy requires every new `feat:` capability PR to register its own PR number in the active convergence ledger in the same PR, but pull-request history validation intentionally reads the real base branch `refs/remotes/origin/1.21.1` rather than GitHub's synthetic merge commit. Therefore an unmerged PR could never simultaneously satisfy both rules.
+
+The fix preserves the original trust boundary:
+
+- pull-request validation continues to inspect real base-branch history;
+- GitHub event metadata supplies the current PR number/title explicitly to the release contract step;
+- only a `pull_request` whose title starts with `feat:` and whose PR number is a positive decimal may contribute one pending feature PR to the observed capability set;
+- non-feature PRs contribute nothing;
+- push, tag and workflow-dispatch validation contribute nothing pending, so after merge PR #178 must be physically present in git history or convergence fails;
+- synthetic merge history is still not treated as canonical feature history.
+
+Tests-first contract commit:
+
+```text
+6249b85cb62cbabd0439756e5fc540f06b88f245
+test: define pending feature PR convergence context
+```
+
+The intended RED occurred in VillAIgence CI #3068 before any build/runtime work:
+
+```text
+Run acceptance suite selector contract tests: FAILURE
+ImportError: cannot import name 'resolve_current_feature_pr'
+```
+
+The first propagation pass was also rejected by the same contract suite because `validate_repository_contract` had not yet exposed the new argument:
+
+```text
+TypeError: validate_repository_contract() got an unexpected keyword argument 'current_feature_pr'
+```
+
+After completing the fail-closed helper and API propagation, VillAIgence CI #3078 passed the acceptance-suite selector contract tests. More importantly, GitHub Release dry-run #952 passed the previously failing `Run production acceptance contract tests` step using `(172,)` from real base history plus verified pending feature PR `178`.
+
+This is a permanent release/CI guarantee; it does not change runtime behavior, persistence, configuration or publication state.
+
 ## Persistence and migration
 
 No new world store, format version, field, migration or backfill is introduced.
