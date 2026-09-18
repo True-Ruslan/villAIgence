@@ -104,6 +104,56 @@ class SemanticOppositionClassifierTest {
     }
 
     @Test
+    void recognizesStrictIsoDateConflictSymmetrically() {
+        SemanticMemoryEntry first = belief(id(74), "The fair starts 2026-09-19");
+        SemanticMemoryEntry second = belief(id(75), "The fair starts 2026-09-20");
+
+        assertTrue(SemanticOppositionClassifier.opposes(first, second));
+        assertTrue(SemanticOppositionClassifier.opposes(second, first));
+    }
+
+    @Test
+    void recognizesLocalClockTimeConflictSymmetrically() {
+        SemanticMemoryEntry first = belief(id(76), "The gate opens at 09:30");
+        SemanticMemoryEntry second = belief(id(77), "The gate opens at 10:30");
+
+        assertTrue(SemanticOppositionClassifier.opposes(first, second));
+        assertTrue(SemanticOppositionClassifier.opposes(second, first));
+    }
+
+    @Test
+    void rejectsEquivalentClockTimeWithDifferentAcceptedFormatting() {
+        assertFalse(SemanticOppositionClassifier.opposes(
+                belief(id(78), "The gate opens at 9:30"),
+                belief(id(79), "The gate opens at 09:30")
+        ));
+    }
+
+    @Test
+    void rejectsInvalidCrossFamilyAndPunctuationAttachedTemporalTokens() {
+        assertFalse(SemanticOppositionClassifier.opposes(
+                belief(id(80), "The fair starts 2026-02-30"),
+                belief(id(81), "The fair starts 2026-03-01")
+        ));
+        assertFalse(SemanticOppositionClassifier.opposes(
+                belief(id(82), "The event starts 2026-09-19"),
+                belief(id(83), "The event starts 09:30")
+        ));
+        assertFalse(SemanticOppositionClassifier.opposes(
+                belief(id(84), "The fair starts 2026-09-19."),
+                belief(id(85), "The fair starts 2026-09-20.")
+        ));
+    }
+
+    @Test
+    void rejectsTemporalConflictWhenAnotherTokenAlsoDiffers() {
+        assertFalse(SemanticOppositionClassifier.opposes(
+                belief(id(86), "The fair starts 2026-09-19 north"),
+                belief(id(87), "The market starts 2026-09-20 north")
+        ));
+    }
+
+    @Test
     void trailingSentenceOmissionAloneIsNotOpposition() {
         SemanticMemoryEntry source = belief(id(40), "The gate is open. A guard is nearby.");
         SemanticMemoryEntry transformed = belief(id(41), "The gate is open.");
