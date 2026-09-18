@@ -8,7 +8,10 @@ import net.conczin.mca.livingworld.relationship.NpcSocialState;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Executes one bounded settlement knowledge-flow cycle through the existing transfer lifecycle. */
@@ -56,19 +59,53 @@ final class SettlementKnowledgeFlowLifecycle {
         int attempted = 0;
         int admitted = 0;
         for (SettlementKnowledgeFlowSelector.Opportunity opportunity : selection.opportunities()) {
-            NpcSocialState social;
+            List<UUID> routeCandidates = SettlementSocialKnowledgeRoutingPolicy.candidateWindow(
+                    selection.residentWindow(),
+                    opportunity.speakerNpcId(),
+                    opportunity.listenerNpcId()
+            );
+            Map<UUID, NpcSocialState> directStates = new LinkedHashMap<>();
+            boolean unsafeAuthority = false;
+            for (UUID candidate : routeCandidates) {
+                try {
+                    directStates.put(
+                            candidate,
+                            NpcSocialGraphStrictPairReader.read(
+                                    worldRoot,
+                                    opportunity.speakerNpcId(),
+                                    candidate
+                            )
+                    );
+                } catch (RuntimeException ignored) {
+                    unsafeAuthority = true;
+                    break;
+                }
+            }
+            if (unsafeAuthority) {
+                sociallySuppressed++;
+                continue;
+            }
+
+            Optional<UUID> selectedListener =
+                    SettlementSocialKnowledgeRoutingPolicy.select(routeCandidates, directStates);
+            if (selectedListener.isEmpty()) {
+                sociallySuppressed++;
+                continue;
+            }
+
+            UUID listenerNpcId = selectedListener.get();
+            NpcSocialState revalidated;
             try {
-                social = NpcSocialGraphStrictPairReader.read(
+                revalidated = NpcSocialGraphStrictPairReader.read(
                         worldRoot,
                         opportunity.speakerNpcId(),
-                        opportunity.listenerNpcId()
+                        listenerNpcId
                 );
             } catch (RuntimeException ignored) {
                 sociallySuppressed++;
                 continue;
             }
-
-            NpcPairDisposition disposition = PersonalitySocialInfluencePolicy.pairDisposition(social);
+            NpcPairDisposition disposition = PersonalitySocialInfluencePolicy.pairDisposition(revalidated);
             if (!SettlementSocialKnowledgeSharingPolicy.isAllowed(disposition)) {
                 sociallySuppressed++;
                 continue;
@@ -78,7 +115,7 @@ final class SettlementKnowledgeFlowLifecycle {
             NpcKnowledgeTransferResult result = NpcKnowledgeTransferLifecycle.transfer(
                     worldRoot,
                     opportunity.speakerNpcId(),
-                    opportunity.listenerNpcId(),
+                    listenerNpcId,
                     opportunity.sourceSemanticEntryId(),
                     Math.max(0L, gameTime),
                     Math.max(1, maxEventsPerNpc),
