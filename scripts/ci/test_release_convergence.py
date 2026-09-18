@@ -14,6 +14,7 @@ from release_convergence import (
     collect_feature_prs,
     extract_unreleased_section,
     load_contract,
+    resolve_current_feature_pr,
     resolve_history_ref,
     validate_contract,
     validate_repository_contract,
@@ -61,10 +62,16 @@ class ReleaseConvergenceValidatorTest(unittest.TestCase):
         )
 
     def test_repository_contract_matches_current_release_boundary(self) -> None:
+        event_name = os.environ.get("GITHUB_EVENT_NAME", "")
         release_workflow = os.environ.get("GITHUB_WORKFLOW") == "VillAIgence GitHub Release"
         history_ref = resolve_history_ref(
-            event_name=os.environ.get("GITHUB_EVENT_NAME", ""),
+            event_name=event_name,
             base_ref=os.environ.get("GITHUB_BASE_REF", ""),
+        )
+        current_feature_pr = resolve_current_feature_pr(
+            event_name=event_name,
+            pr_number=os.environ.get("CURRENT_PR_NUMBER", ""),
+            pr_title=os.environ.get("CURRENT_PR_TITLE", ""),
         )
         errors = validate_repository_contract(
             REPOSITORY_ROOT,
@@ -72,6 +79,7 @@ class ReleaseConvergenceValidatorTest(unittest.TestCase):
             requested_tag=os.environ.get("RELEASE_VERSION", ""),
             check_history=release_workflow,
             history_ref=history_ref,
+            current_feature_pr=current_feature_pr,
         )
         self.assertEqual((), errors)
 
@@ -103,6 +111,44 @@ class ReleaseConvergenceValidatorTest(unittest.TestCase):
             "chore: release prep (#160)",
         )
         self.assertEqual((123, 125), collect_feature_prs(messages))
+
+    def test_pull_request_feature_context_supplies_pending_capability_pr(self) -> None:
+        self.assertEqual(
+            178,
+            resolve_current_feature_pr(
+                event_name="pull_request",
+                pr_number="178",
+                pr_title="feat: add bounded settlement social-topology routing",
+            ),
+        )
+
+    def test_pull_request_non_feature_context_does_not_extend_capability_history(self) -> None:
+        self.assertIsNone(
+            resolve_current_feature_pr(
+                event_name="pull_request",
+                pr_number="179",
+                pr_title="docs: reconcile project state",
+            )
+        )
+
+    def test_non_pull_request_context_never_supplies_pending_capability_pr(self) -> None:
+        self.assertIsNone(
+            resolve_current_feature_pr(
+                event_name="push",
+                pr_number="178",
+                pr_title="feat: should already be in git history",
+            )
+        )
+
+    def test_pull_request_feature_context_requires_positive_decimal_pr_number(self) -> None:
+        for invalid in ("", "0", "-1", "abc", "178.0"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ConvergenceContractError):
+                    resolve_current_feature_pr(
+                        event_name="pull_request",
+                        pr_number=invalid,
+                        pr_title="feat: invalid pending capability context",
+                    )
 
     def test_pull_request_release_history_uses_base_branch_not_synthetic_merge_head(self) -> None:
         self.assertEqual(
