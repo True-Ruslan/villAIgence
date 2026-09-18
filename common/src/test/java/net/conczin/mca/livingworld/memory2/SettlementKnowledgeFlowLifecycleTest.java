@@ -141,6 +141,76 @@ class SettlementKnowledgeFlowLifecycleTest {
     }
 
     @Test
+    void sameCycleSocialChangeCannotRetargetSuccessfulSourceToSecondListener() {
+        Path world = tempDir.resolve("social-routing-replay");
+        UUID speaker = id(160);
+        UUID listenerA = id(161);
+        UUID listenerB = id(162);
+        UUID listenerC = id(163);
+        UUID sourceId = id(164);
+        long cycleTime = 4_200L;
+        List<UUID> residents = List.of(speaker, listenerA, listenerB, listenerC);
+
+        appendSourceFact(world, speaker, sourceId, "The northern ford is passable");
+
+        SettlementKnowledgeFlowSelector.SelectionResult legacySelection =
+                SettlementKnowledgeFlowSelector.select(
+                        SemanticMemoryStore.forWorld(world),
+                        22,
+                        cycleTime,
+                        residents
+                );
+        UUID legacyNeutralTarget = legacySelection.opportunities().stream()
+                .filter(value -> value.sourceSemanticEntryId().equals(sourceId))
+                .findFirst()
+                .orElseThrow()
+                .listenerNpcId();
+        List<UUID> alternates = residents.stream()
+                .filter(id -> !id.equals(speaker))
+                .filter(id -> !id.equals(legacyNeutralTarget))
+                .toList();
+        UUID firstPositiveTarget = alternates.get(0);
+        UUID secondPositiveTarget = alternates.get(1);
+
+        NpcSocialGraphStore social = NpcSocialGraphStore.forWorld(world);
+        social.applyDelta(
+                speaker,
+                firstPositiveTarget,
+                new NpcSocialDelta(0, 80, 0, 0),
+                100
+        );
+
+        SettlementKnowledgeFlowLifecycle.CycleResult first =
+                SettlementKnowledgeFlowLifecycle.runCycle(
+                        world, 22, cycleTime, residents, 64, 64);
+        assertEquals(1, first.successfulTransfers());
+        assertEquals(1, listenersKnowing(world, speaker, residents, "the northern ford is passable"));
+
+        social.applyDelta(
+                speaker,
+                firstPositiveTarget,
+                new NpcSocialDelta(0, -80, 0, 0),
+                100
+        );
+        social.applyDelta(
+                speaker,
+                secondPositiveTarget,
+                new NpcSocialDelta(0, 80, 0, 0),
+                100
+        );
+
+        SettlementKnowledgeFlowLifecycle.CycleResult replay =
+                SettlementKnowledgeFlowLifecycle.runCycle(
+                        world, 22, cycleTime, residents, 64, 64);
+
+        assertEquals(0, replay.successfulTransfers());
+        assertEquals(1, listenersKnowing(world, speaker, residents, "the northern ford is passable"));
+        assertTrue(SemanticMemoryStore.forWorld(world).getRecent(secondPositiveTarget, 64).stream()
+                .noneMatch(entry -> SemanticMemoryIdentity.canonicalStatement(entry.statement())
+                        .equals("the northern ford is passable")));
+    }
+
+    @Test
     void adverseSpeakerToListenerSocialStateSuppressesExactTransferWithoutFallback() {
         List<NpcSocialDelta> adverseStates = List.of(
                 new NpcSocialDelta(0, 0, 75, 0),
@@ -278,6 +348,20 @@ class SettlementKnowledgeFlowLifecycleTest {
         assertEquals(1, listenerClaimsAfter);
         assertEquals(0, replay.successfulTransfers());
         assertTrue(replay.opportunities() <= 1);
+    }
+
+    private static long listenersKnowing(
+            Path world,
+            UUID speaker,
+            List<UUID> residents,
+            String canonicalStatement
+    ) {
+        return residents.stream()
+                .filter(id -> !id.equals(speaker))
+                .filter(id -> SemanticMemoryStore.forWorld(world).getRecent(id, 64).stream()
+                        .anyMatch(entry -> SemanticMemoryIdentity.canonicalStatement(entry.statement())
+                                .equals(canonicalStatement)))
+                .count();
     }
 
     private static void appendSourceFact(Path world, UUID speaker, UUID sourceId, String statement) {
