@@ -70,7 +70,16 @@ final class SettlementKnowledgeFlowSelector {
                     cycleIndex,
                     SemanticMemoryIdentity.logicalClaimId(source)
             );
-            if (listenerNpcId == null || listenerAlreadyKnows(store, listenerNpcId, source)) continue;
+            if (listenerNpcId == null) continue;
+
+            List<UUID> routeCandidates = SettlementSocialKnowledgeRoutingPolicy.candidateWindow(
+                    residentWindow,
+                    speakerNpcId,
+                    listenerNpcId
+            );
+            boolean routeWindowAlreadyKnows = routeCandidates.stream()
+                    .anyMatch(candidate -> listenerAlreadyKnows(store, candidate, source));
+            if (routeWindowAlreadyKnows) continue;
 
             opportunities.add(new Opportunity(speakerNpcId, listenerNpcId, source.id()));
         }
