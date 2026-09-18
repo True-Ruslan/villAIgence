@@ -2,7 +2,7 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md`. Read root `changelog.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-09-04**, after the operator-executed `0.3.2+1.21.1` installed corrective canary recorded `VAI-PCM-MULTI-001 PASS` (see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`). `0.3` is fully released and installed-accepted; `0.4` is unblocked.
+> Last reconciled: **2026-09-19**, after PR #173 completed the O(1) NPC social-graph capacity index and PR #174 completed client→server authority/permanent-NPC-removal hardening on `1.21.1`. `0.3` remains fully released and installed-accepted; `0.4` is in progress.
 >
 > Always distinguish source/unit evidence, common integration, GameTests, production-candidate evidence, exact-release evidence and installed operator server/client evidence.
 
@@ -17,19 +17,21 @@ Java:                               21
 primary distribution:               Fabric
 NeoForge:                           compile compatibility required
 
-latest product merge:               PR #172 (first 0.4 slice: bounded numeric-conflict classifier)
-latest product merge commit:        3868399b62d8fc47750e3d61404a53c496fefd87
+latest product merge:               PR #173 (O(1) NPC social-graph capacity admission)
+latest product merge commit:        b67d530e6c8019e58c9e57f5b8e540ef57baa5fe
+latest hardening merge:             PR #174 (C2S authority + permanent NPC cleanup)
+latest hardening merge commit:      ae14e4069efaf022779cb566d0c1781a0578a43a
 latest release-line merge:          PR #171 (docs-only corrective test plan)
-latest runtime fix merge:           PR #169
-latest runtime fix commit:          101c74d178ec29ca15f67ebd6041ef256a339f31
+latest runtime fix merge:           PR #174
+latest runtime fix commit:          ae14e4069efaf022779cb566d0c1781a0578a43a
 latest official release:            0.3.2+1.21.1
 latest release commit:              3bb39e7ed126163efcdf971e85c89a4a5efd3111
 latest official release asset SHA:  b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015
 last installed acceptance PASS:     0.3.2+1.21.1 on 2026-09-04 — VAI-PCM-MULTI-001 PASS
 prior installed acceptance attempt: 0.3.1+1.21.1 on 2026-08-15 — VAI-PCM-MULTI-001 FAIL (Muammer recall)
 
-next product slice:                 in progress — NpcSocialGraphStore O(1) outgoing-capacity index
-then:                               TBD per 0.4 roadmap section
+next product slice:                 in progress — bounded explicit temporal-token contradiction classifier
+then:                               richer 0.4 knowledge routing only after preserving exactly-once fan-out semantics
 ```
 
 Current delivery state:
@@ -75,7 +77,9 @@ deliberate dialogue/behavior integration               COMPLETE / PR #158
 
 0.4 Knowledge ecosystem                                IN PROGRESS
 bounded numeric-conflict contradiction classifier      COMPLETE / PR #172
-NpcSocialGraphStore O(1) outgoing-capacity index       TESTS GREEN LOCALLY / AWAITING EXACT-HEAD CI GATES
+NpcSocialGraphStore O(1) outgoing-capacity index       COMPLETE / PR #173
+C2S authority + permanent NPC cleanup hardening        COMPLETE / PR #174
+bounded explicit temporal-token conflict classifier    IN PROGRESS
 ```
 
 Installed boundaries remain explicit:
@@ -657,7 +661,7 @@ PR #160 already updated root `[Unreleased]` for convergence infrastructure; this
 
 1. `VAI-CONCUR-004` real two-graphical-client Operator Lore conflict presentation remains deferred.
 2. `VAI-M2-INST-005` real second-player installed isolation remains untested; automated current-player/NPC-global/shared isolation exists.
-3. Automatic contradiction production recognizes only a narrow standalone English `not` / Russian `не` polarity pattern plus (as of the in-progress `0.4` slice) a bounded single-position numeric-value conflict; antonym/temporal/free-form opposition still needs a separately justified bounded extension.
+3. Automatic contradiction production recognizes standalone English `not` / Russian `не` polarity plus a bounded single-position numeric-value conflict. The next `0.4` slice adds only explicit same-family temporal-token conflicts (`YYYY-MM-DD` dates and `H:mm`/`HH:mm` local times) with strict validation; deictic time (`today`/`tomorrow`), antonyms and free-form semantic opposition remain deliberately unclassified.
 4. The current wording transform is intentionally narrow and deterministic; provider-authored open-ended paraphrase/generalization is not supported.
 5. Settlement dissemination uses home-village membership and bounded deterministic routing only; physical proximity, travel gossip, alliances and social-topology routing remain future work.
 6. NPC↔NPC social state now deliberately influences bounded dialogue guidance and exact-pair settlement knowledge suppression, but there is still no high-frequency autonomous social evolution or graph-neighborhood behavior policy.
