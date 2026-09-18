@@ -31,6 +31,14 @@ This is the **canonical changelog** for the project.
 
 ### Changed
 
+- Third `0.4` Knowledge ecosystem slice (PR #178): settlement knowledge flow now uses a strictly bounded social-topology route over the already-selected settlement residents.
+  - each selected source considers at most four deterministic listener candidates; no graph-neighborhood enumeration or provider/LLM routing authority is introduced;
+  - direct speaker→listener social state is read through the strict fail-closed reader; `AFFILIATIVE`/`RESPECTFUL` routes are preferred over neutral routes, while `FEARFUL`/`DISTRUSTFUL`/`ANTIPATHETIC` candidates are ineligible;
+  - reverse-only social state cannot influence speaker→listener routing, positive state outside the bounded listener window is invisible, and malformed social persistence suppresses the opportunity instead of authorizing a fallback;
+  - the selected exact pair is revalidated before transfer; once a claim successfully fans out in a settlement cycle, a later social-graph mutation in that same cycle cannot retarget the source to a second listener;
+  - later settlement cycles may still propagate the claim to another deterministic listener, preserving the existing gradual dissemination contract;
+  - the existing `NpcKnowledgeTransferLifecycle` remains the sole mutation/provenance path, so transferred knowledge stays listener-local `BELIEF/NPC_TOLD`; no persistence schema, public configuration, provider call, FACT authority or source-credibility rule changes.
+
 - Second `0.4` Knowledge ecosystem slice (PR #173, merged `b67d530e6`): `NpcSocialGraphStore` capacity admission is now O(1) instead of scanning the entire flat edge map on every mutation.
   - a derived, non-persisted `outgoingNonNeutralCounts` index is seeded once from the sanitized edge map at load and updated incrementally on every committed `applyDelta`/`applyCausalDelta` transition (neutral→non-neutral increments, non-neutral→neutral decrements, non-neutral→non-neutral updates leave it unchanged);
   - `sanitizeEdges`'s existing load-time over-capacity check reuses the same counting helper instead of duplicating it;
@@ -48,6 +56,7 @@ This is the **canonical changelog** for the project.
 
 ### Validation
 
+- PR #178 used staged RED→GREEN TDD for social route preference and same-cycle anti-retargeting. The first RED run (VillAIgence CI #3008, run `35395435641`) executed 865 common tests with exactly one intended failure: `positiveDirectedRouteIsPreferredOverLegacyNeutralTarget`. After the minimal bounded routing policy/lifecycle integration, common tests passed. A second RED (CI #3037, run `35396260246`) executed 866 tests with exactly one intended failure: `sameCycleSocialChangeCannotRetargetSuccessfulSourceToSecondListener`. The first guard attempt was deliberately rejected when CI #3039 exposed one preservation regression in `laterCycleMayProgressToAnotherDeterministicTargetWithoutBroadcast`; the corrected cycle-scoped guard then passed exact-head Repository security #2677, VillAIgence CI #3042, Production Soak #598 and GitHub Release dry-run #934 before the final characterization/bookkeeping pass.
 - PR #174 tombstone lifecycle used a true RED→GREEN Fabric GameTest: CI #2980 failed because a tombstone-captured same-UUID NPC lost its seeded Living World memory; after gating purge on permanent death, the exact test and complete server GameTest/loader suite passed on CI #2983.
 - PR #174 baby-naming authority hardening used a separate Fabric GameTest. An initial common-source-set attempt was rejected as invalid RED because that source set lacks Minecraft runtime classes; the corrected test-only head `8c19f795a` then produced the intended RED in CI #2987 on the missing server-side authority predicate. Minimal production commit `2ffc0d128` made the common suite, risk catalog, server GameTests, supported loader builds and production-acceptance contract GREEN in CI #2988 before this changelog reconciliation.
 - Final merge still requires all exact-head Repository security, Supply-chain verification, VillAIgence CI, Production Soak and GitHub Release dry-run gates to pass after this changelog update.
