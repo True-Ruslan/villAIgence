@@ -1,6 +1,7 @@
 package net.conczin.mca.network.c2s;
 
 import net.conczin.mca.MCA;
+import net.conczin.mca.item.BabyItem;
 import net.conczin.mca.network.HandleablePayload;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.FriendlyByteBuf;
@@ -21,12 +22,19 @@ public record BabyNamingVillagerMessage(int slot, String name) implements Handle
             BabyNamingVillagerMessage::new
     );
 
+    static boolean isNameableTarget(ItemStack stack) {
+        return stack.getItem() instanceof BabyItem && !stack.has(DataComponents.CUSTOM_NAME);
+    }
+
     @Override
     public void handleServer(ServerPlayer player) {
         if (slot < 0 || slot >= player.getInventory().getContainerSize()) {
             return;
         }
         ItemStack stack = player.getInventory().getItem(slot);
+        if (!isNameableTarget(stack)) {
+            return;
+        }
         stack.set(DataComponents.CUSTOM_NAME, Component.literal(name));
     }
 
