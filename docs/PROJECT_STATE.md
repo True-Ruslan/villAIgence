@@ -2,7 +2,7 @@
 
 > **Canonical current-state handoff.** Read this file before `docs/ROADMAP.md`. Read root `changelog.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-09-04**, after the operator-executed `0.3.2+1.21.1` installed corrective canary recorded `VAI-PCM-MULTI-001 PASS` (see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`). `0.3` is fully released and installed-accepted; `0.4` is unblocked.
+> Last reconciled: **2026-09-19**, after PR #174 (`ae14e4069`) merged the security/lifecycle hardening pass on top of completed PR #173. `0.3` remains fully released and installed-accepted; `0.4` is active with its first two bounded slices merged.
 >
 > Always distinguish source/unit evidence, common integration, GameTests, production-candidate evidence, exact-release evidence and installed operator server/client evidence.
 
@@ -17,19 +17,19 @@ Java:                               21
 primary distribution:               Fabric
 NeoForge:                           compile compatibility required
 
-latest product merge:               PR #172 (first 0.4 slice: bounded numeric-conflict classifier)
-latest product merge commit:        3868399b62d8fc47750e3d61404a53c496fefd87
+latest product merge:               PR #173 (second 0.4 slice: O(1) NPC social-graph capacity index)
+latest product merge commit:        b67d530e6c8019e58c9e57f5b8e540ef57baa5fe
 latest release-line merge:          PR #171 (docs-only corrective test plan)
-latest runtime fix merge:           PR #169
-latest runtime fix commit:          101c74d178ec29ca15f67ebd6041ef256a339f31
+latest runtime fix merge:           PR #174 (C2S authority + permanent NPC cleanup / tombstone continuity)
+latest runtime fix commit:          ae14e4069efaf022779cb566d0c1781a0578a43a
 latest official release:            0.3.2+1.21.1
 latest release commit:              3bb39e7ed126163efcdf971e85c89a4a5efd3111
 latest official release asset SHA:  b51cfcf3f46718fac9620586cf8b5aae53356c600d5ac375ca3280050befe015
 last installed acceptance PASS:     0.3.2+1.21.1 on 2026-09-04 — VAI-PCM-MULTI-001 PASS
 prior installed acceptance attempt: 0.3.1+1.21.1 on 2026-08-15 — VAI-PCM-MULTI-001 FAIL (Muammer recall)
 
-next product slice:                 in progress — NpcSocialGraphStore O(1) outgoing-capacity index
-then:                               TBD per 0.4 roadmap section
+next product slice:                 settlement-routing-by-trust bounded primitive (known gap #5)
+then:                               continue 0.4 knowledge-ecosystem expansion under the same TDD/authority bounds
 ```
 
 Current delivery state:
@@ -75,7 +75,8 @@ deliberate dialogue/behavior integration               COMPLETE / PR #158
 
 0.4 Knowledge ecosystem                                IN PROGRESS
 bounded numeric-conflict contradiction classifier      COMPLETE / PR #172
-NpcSocialGraphStore O(1) outgoing-capacity index       TESTS GREEN LOCALLY / AWAITING EXACT-HEAD CI GATES
+NpcSocialGraphStore O(1) outgoing-capacity index       COMPLETE / PR #173
+C2S authority + permanent NPC cleanup hardening        COMPLETE / PR #174
 ```
 
 Installed boundaries remain explicit:
@@ -677,20 +678,17 @@ PR #160 already updated root `[Unreleased]` for convergence infrastructure; this
 
 The first `0.4` slice is **complete and merged**: `PR #172` added a bounded numeric-conflict extension to `SemanticOppositionClassifier` (see known gap #3 and `docs/superpowers/specs/2026-08-10-bounded-contradiction-producer-design.md` addendum), squash-merged as commit `3868399b6`. That PR also fixed two unrelated repository-hygiene issues discovered along the way: a duplicate root `CHANGELOG.md`/`changelog.md` git-tracking landmine on case-insensitive filesystems, and a genuine upstream Fabric API jar re-signing event that broke `gradle/verification-metadata.xml` checksum pinning (resolved with `<also-trust>` entries after confirming byte-identical decompressed content across variants). All exact-head repository security / full CI / Production Soak / GitHub Release dry-run gates passed before merge.
 
-The second `0.4` slice is **in progress**: replacing `NpcSocialGraphStore`'s O(n) `outgoingEdgeCount` full-map scan (known gap #7) with an O(1) derived index (`outgoingNonNeutralCounts`) seeded once at load and updated incrementally on every `applyDelta`/`applyCausalDelta` commit. Two new characterization tests were added first against the unmodified O(n) implementation (`NpcSocialGraphCapacityTest.outgoingCapacityStaysCorrectAcrossManySourcesWithChurnOnOneCachedInstance`, `NpcSocialGraphPreservationTest.freshRootReloadRebuildsOutgoingCapacityIndexAtTheExactSameBoundary`) and confirmed green, then the refactor was applied and all 58 `relationship`-package tests plus the full 383-test combined `memory2`+`relationship` suite still pass. Verified locally via `javac`/JUnit console outside Gradle (this session's sandboxed Gradle/Fabric-Loom toolchain remains broken, independent of this change).
+The second `0.4` slice is **complete and merged**: PR #173 replaced `NpcSocialGraphStore`'s O(n) `outgoingEdgeCount` full-map scan (known gap #7) with the O(1) derived `outgoingNonNeutralCounts` index, seeded once at load and maintained incrementally across `applyDelta`/`applyCausalDelta`. Characterization coverage proved multi-source capacity isolation and exact fresh-root index reconstruction before the refactor; exact-head Repository security, full CI, Production Soak and GitHub Release dry-run all passed before squash merge as `b67d530e6`.
 
 **Governance gap found and fixed while landing this slice (PR #173):** PR #172 was the first `feat:`-prefixed commit merged after `0.3.0-convergence.json` was frozen (PR #160). `docs/releases/0.3.0-convergence.json` is a **closed historical contract** — its own already-published `[0.3.0+1.21.1]` changelog section can never honestly reference a PR that shipped after that release, so retroactively adding `172` to its `capabilityPullRequests` was tried and reverted as factually wrong. Instead, created `docs/releases/0.4.0-convergence.json` (same schema as PR #160 established, `previousRelease` = `0.3.2+1.21.1` / `3bb39e7ed126163efcdf971e85c89a4a5efd3111`, `candidateTag` = `0.4.0+1.21.1` planned but **not armed** — `docs/releases/NEXT_RELEASE.txt` stays `0.3.2+1.21.1`, exactly mirroring how `0.3.0-convergence.json` coexisted with `NEXT_RELEASE.txt` still at `0.2.0+1.21.1`), `capabilityPullRequests: [172]`, no patches/infra PRs yet. Repointed `scripts/ci/test_release_convergence.py`'s `CONTRACT_PATH` at the new file and updated its fixtures accordingly (two patch-declaration tests now use a synthetic injected patch rather than depending on a real declared 0.4.x patch that doesn't exist yet; one fully-redundant real-repo integration test was removed in favor of the equivalent synthetic one). Confirmed the exact previously-failing scenario now passes: `GITHUB_WORKFLOW="VillAIgence GitHub Release" GITHUB_EVENT_NAME=push python3 -m unittest test_release_convergence.ReleaseConvergenceValidatorTest.test_repository_contract_matches_current_release_boundary`.
 
 **Rule going forward**: once `0.4.0-convergence.json` exists, every new `feat:`-prefixed capability PR must add its PR number to that file's `capabilityPullRequests` (not `0.3.0-convergence.json`, which stays frozen) in the same PR — exactly the existing "update root `changelog.md` `[Unreleased]` in the runtime PR" policy, just extended to this second ledger. `fix:`/`perf:`/`docs:`/`release:`-prefixed commits are not scanned by `collect_feature_prs` and don't need this.
 
-Before the capacity-index slice is considered done, still required:
+PR #173 is fully complete: characterization coverage, exact-head Repository security / full CI / Production Soak / GitHub Release dry-run and squash merge all succeeded.
 
-- a real `./gradlew` run and exact-head repository security / full CI / Production Soak / GitHub Release dry-run gates on a working toolchain (GitHub Actions CI, not this sandbox);
-- push a PR, watch CI green, merge.
+Next `0.4` primitive: settlement-routing-by-trust (known gap #5). Keep it bounded and server-authoritative: social state may affect which already-eligible settlement knowledge paths propagate, but must not become truth authority or create omniscient broadcast. Use tests-first RED→GREEN and update `docs/releases/0.4.0-convergence.json` in the same PR if the implementation lands as a `feat:` capability.
 
-After this slice merges, pick the next `0.4` primitive (antonym extension explicitly deferred; settlement-routing-by-trust remains open per known gap #5) following the same TDD/evidence discipline as `0.2`/`0.3`, and remember to update `docs/releases/0.4.0-convergence.json`'s `capabilityPullRequests` in the same PR if it uses a `feat:` commit.
-
-There is no known outstanding technical blocker to `0.4` beyond this session's broken local toolchain; `VAI-M2-INST-005` and `VAI-CONCUR-004` remain the only open deferrals and are unrelated.
+There is no known outstanding technical blocker to `0.4`; `VAI-M2-INST-005` and `VAI-CONCUR-004` remain the only open deferrals and are unrelated.
 
 ---
 

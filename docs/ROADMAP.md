@@ -2,7 +2,7 @@
 
 > **Canonical product roadmap.** Read `docs/PROJECT_STATE.md` first for exact implementation/validation state. Read root `changelog.md` for product/release history and `docs/superpowers/evidence/` for staged TDD evidence.
 >
-> Last reconciled: **2026-09-04**, after the operator-executed `0.3.2+1.21.1` installed corrective canary recorded `VAI-PCM-MULTI-001 PASS` (see `docs/livingworld/VALIDATION_0.3.2_CORRECTIVE_INSTALLED.md`). `0.3` is fully released and installed-accepted; `0.4` is unblocked.
+> Last reconciled: **2026-09-19**, after PR #174 (`ae14e4069`) merged security/lifecycle hardening on top of PR #173. `0.3` remains fully released and installed-accepted; `0.4` is active with two bounded slices merged.
 
 ## Product vision
 
@@ -110,13 +110,13 @@ deliberate dialogue/behavior integration               COMPLETE / PR #158
 0.3.2 installed corrective test plan                   EXECUTED / PR #171
 0.3.2+1.21.1 operator-installed corrective canary      PASS on 2026-09-04
 
-0.4 Knowledge ecosystem                                UNBLOCKED / SCOPE NOT YET SELECTED
+0.4 Knowledge ecosystem                                IN PROGRESS / FIRST TWO SLICES MERGED
 ```
 
 Immediate sequence:
 
 ```text
-select and scope the first bounded 0.4 Knowledge ecosystem slice
+implement the next bounded 0.4 slice: settlement-routing-by-trust (known gap #5)
 → tests-first RED→GREEN implementation
 → exact-head security/CI/soak/release-dry-run before merge
 → docs: reconcile state after <slice> follow-up
@@ -591,11 +591,18 @@ Expand 0.2 transfer/provenance/contradiction/fallibility/transformation, settlem
 
 Information moves through settlements, conflicting/fallible claims remain inspectable, source history remains bounded, and social context affects propagation without becoming truth authority.
 
-### In progress — bounded numeric-conflict contradiction classifier
+### Completed — first two bounded 0.4 slices
 
-First `0.4` slice: extend `SemanticOppositionClassifier` (from PR #145) with a narrow, separately justified numeric-conflict rule — see `docs/superpowers/specs/2026-08-10-bounded-contradiction-producer-design.md` addendum (2026-09-05). Tests-first RED→GREEN complete; all 325 `net.conczin.mca.livingworld.memory2` tests pass locally. Still needs a real `./gradlew` run and exact-head CI/security/soak/release-dry-run before merge — this session's local Gradle/Loom toolchain is broken independent of this change.
+1. PR #172 / `3868399b6` extended `SemanticOppositionClassifier` with a narrow numeric-conflict rule under the existing contradiction bounds. Tests-first RED→GREEN and all exact-head Repository security / full CI / Production Soak / GitHub Release dry-run gates passed before merge.
+2. PR #173 / `b67d530e6` replaced `NpcSocialGraphStore`'s O(n) outgoing-capacity scan with a derived O(1) per-source index while preserving the same persisted graph format and 64-edge bound. Characterization coverage proved multi-source churn isolation and fresh-root index reconstruction; all exact-head gates passed before merge.
 
-Deliberately out of scope for this slice, per the original design's rejection of a broad antonym/rule catalogue: antonyms, temporal disagreement and free-form semantic opposition remain unclassified candidates for future separately justified slices.
+PR #174 / `ae14e4069` was a cross-cutting security/lifecycle hardening pass rather than a new 0.4 capability: it hardened C2S authority/payload validation, fixed forged baby naming, added permanent-NPC Living World cleanup while preserving tombstone-resurrection identity continuity, and corrected family-tree/cache/release-metadata issues with dedicated TDD regressions.
+
+### Next — bounded settlement routing by trust
+
+Use the existing directed NPC social state to influence propagation only after a settlement knowledge-transfer opportunity is already eligible. The slice must remain server-authoritative and bounded: trust/social context may suppress or choose among already-valid routes, but it must not promote BELIEF to FACT, bypass source provenance, enumerate the whole graph, or create settlement-global omniscience. Start with RED tests that prove low-trust routes are suppressed, trusted routes remain eligible, directionality matters, and no fallback route is invented after suppression.
+
+Deliberately still out of scope unless separately justified: broad antonym catalogues, temporal disagreement and free-form semantic opposition.
 
 ---
 
