@@ -8,7 +8,6 @@ import net.conczin.mca.livingworld.relationship.NpcSocialState;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -64,24 +63,14 @@ final class SettlementKnowledgeFlowLifecycle {
                     opportunity.speakerNpcId(),
                     opportunity.listenerNpcId()
             );
-            Map<UUID, NpcSocialState> directStates = new LinkedHashMap<>();
-            boolean unsafeAuthority = false;
-            for (UUID candidate : routeCandidates) {
-                try {
-                    directStates.put(
-                            candidate,
-                            NpcSocialGraphStrictPairReader.read(
-                                    worldRoot,
-                                    opportunity.speakerNpcId(),
-                                    candidate
-                            )
-                    );
-                } catch (RuntimeException ignored) {
-                    unsafeAuthority = true;
-                    break;
-                }
-            }
-            if (unsafeAuthority) {
+            Map<UUID, NpcSocialState> directStates;
+            try {
+                directStates = NpcSocialGraphStrictPairReader.readMany(
+                        worldRoot,
+                        opportunity.speakerNpcId(),
+                        routeCandidates
+                );
+            } catch (RuntimeException ignored) {
                 sociallySuppressed++;
                 continue;
             }
