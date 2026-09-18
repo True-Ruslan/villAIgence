@@ -8,7 +8,8 @@
   },
   "publicationTrigger": "docs/releases/NEXT_RELEASE.txt",
   "capabilityPullRequests": [
-    172
+    172,
+    177
   ],
   "releaseInfrastructurePullRequests": [],
   "patchReleases": [],
@@ -55,7 +56,7 @@
   ],
   "excludedScope": [
     "autonomous-high-frequency-agents",
-    "graph-neighborhood-selection-or-ranking",
+    "unbounded-graph-neighborhood-enumeration-or-ranking",
     "factions-and-politics",
     "0.5-autonomous-npc-agents"
   ]
