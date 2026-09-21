@@ -48,8 +48,15 @@ class ReleaseConvergenceContractPolicyTest {
         assertTrue(focusedTests.contains("check_history=release_workflow"));
         assertTrue(focusedTests.contains("history_ref = resolve_history_ref("));
         assertTrue(focusedTests.contains("history_ref=history_ref"));
-        assertTrue(focusedTests.contains("event_name=os.environ.get(\"GITHUB_EVENT_NAME\", \"\")"));
+        assertTrue(focusedTests.contains("event_name = os.environ.get(\"GITHUB_EVENT_NAME\", \"\")"));
+        assertTrue(focusedTests.contains("event_name=event_name"));
         assertTrue(focusedTests.contains("base_ref=os.environ.get(\"GITHUB_BASE_REF\", \"\")"));
+        assertTrue(focusedTests.contains("current_feature_pr = resolve_current_feature_pr("));
+        assertTrue(focusedTests.contains("pr_number=os.environ.get(\"CURRENT_PR_NUMBER\", \"\")"));
+        assertTrue(focusedTests.contains("pr_title=os.environ.get(\"CURRENT_PR_TITLE\", \"\")"));
+        assertTrue(focusedTests.contains("current_feature_pr=current_feature_pr"));
+        assertTrue(release.contains("CURRENT_PR_NUMBER: \${{ github.event.pull_request.number }}"));
+        assertTrue(release.contains("CURRENT_PR_TITLE: \${{ github.event.pull_request.title }}"));
     }
 
     @Test
