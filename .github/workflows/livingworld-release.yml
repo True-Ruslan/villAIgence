@@ -224,6 +224,9 @@ jobs:
 
       - name: Run production acceptance contract tests
         shell: bash
+        env:
+          CURRENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          CURRENT_PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           set -euo pipefail
           python3 scripts/ci/test_select_acceptance_suites.py

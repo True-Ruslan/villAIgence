@@ -9,14 +9,19 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Strict read-only view of one directed NPC social edge for authorization/gating decisions.
+ * Strict read-only view of directed NPC social edges for authorization/gating decisions.
  *
  * <p>This reader deliberately does not use {@link NpcSocialGraphStore#forWorld(Path)} because the normal
  * store owns recovery semantics. A behavior gate must not turn corrupt social authority into an empty/neutral
@@ -35,15 +40,42 @@ public final class NpcSocialGraphStrictPairReader {
             UUID sourceNpcId,
             UUID targetNpcId
     ) {
-        if (worldRoot == null || sourceNpcId == null || targetNpcId == null || sourceNpcId.equals(targetNpcId)) {
-            throw new IllegalArgumentException("worldRoot and a distinct source/target NPC pair are required");
+        return readMany(worldRoot, sourceNpcId, List.of(targetNpcId)).get(targetNpcId);
+    }
+
+    /**
+     * Strictly validates the complete persisted graph once and returns exact directed state for the
+     * requested targets. Missing persistence/edges are neutral; malformed persistence fails closed.
+     */
+    public static Map<UUID, NpcSocialState> readMany(
+            Path worldRoot,
+            UUID sourceNpcId,
+            Collection<UUID> targetNpcIds
+    ) {
+        if (worldRoot == null || sourceNpcId == null || targetNpcIds == null) {
+            throw new IllegalArgumentException("worldRoot, source NPC and target NPC ids are required");
         }
+
+        Set<UUID> requestedTargets = new LinkedHashSet<>();
+        for (UUID targetNpcId : targetNpcIds) {
+            if (targetNpcId == null
+                    || sourceNpcId.equals(targetNpcId)
+                    || !requestedTargets.add(targetNpcId)) {
+                throw new IllegalArgumentException("target NPC ids must be distinct, non-null and differ from source");
+            }
+        }
+        if (requestedTargets.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<UUID, NpcSocialState> requestedStates = new LinkedHashMap<>();
+        requestedTargets.forEach(targetNpcId -> requestedStates.put(targetNpcId, NpcSocialState.NEUTRAL));
 
         Path file = worldRoot.toAbsolutePath().normalize()
                 .resolve("livingworld")
                 .resolve("npc-social-graph.json");
         if (!Files.exists(file, LinkOption.NOFOLLOW_LINKS)) {
-            return NpcSocialState.NEUTRAL;
+            return Collections.unmodifiableMap(requestedStates);
         }
         if (Files.isSymbolicLink(file) || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
             throw new IllegalStateException("NPC social graph is not a regular file: " + file);
@@ -66,7 +98,6 @@ public final class NpcSocialGraphStrictPairReader {
 
             Set<String> canonicalKeys = new HashSet<>();
             Map<UUID, Integer> outgoingCounts = new HashMap<>();
-            NpcSocialState requested = null;
             for (Map.Entry<String, JsonElement> entry : edgesElement.getAsJsonObject().entrySet()) {
                 EdgePair pair = parsePair(entry.getKey());
                 String canonicalKey = pair.sourceNpcId() + "/" + pair.targetNpcId();
@@ -83,11 +114,12 @@ public final class NpcSocialGraphStrictPairReader {
                     throw new IllegalStateException("NPC social graph source exceeds outgoing edge capacity");
                 }
 
-                if (pair.sourceNpcId().equals(sourceNpcId) && pair.targetNpcId().equals(targetNpcId)) {
-                    requested = state;
+                if (pair.sourceNpcId().equals(sourceNpcId)
+                        && requestedTargets.contains(pair.targetNpcId())) {
+                    requestedStates.put(pair.targetNpcId(), state);
                 }
             }
-            return requested == null ? NpcSocialState.NEUTRAL : requested;
+            return Collections.unmodifiableMap(requestedStates);
         } catch (IOException | RuntimeException e) {
             if (e instanceof IllegalStateException illegalState) {
                 throw illegalState;

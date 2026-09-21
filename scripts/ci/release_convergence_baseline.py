@@ -131,6 +131,47 @@ def resolve_history_ref(*, event_name: str, base_ref: str) -> str:
     return f"refs/remotes/origin/{base}"
 
 
+def resolve_current_feature_pr(
+    *,
+    event_name: str,
+    pr_number: str,
+    pr_title: str,
+) -> int | None:
+    if event_name.strip() != "pull_request":
+        return None
+
+    title = pr_title.strip()
+    if not title.startswith("feat:"):
+        return None
+
+    raw_number = pr_number.strip()
+    if not raw_number.isdecimal():
+        raise ConvergenceContractError(
+            "pull_request feat: convergence context requires a positive decimal PR number"
+        )
+    number = int(raw_number)
+    if number <= 0:
+        raise ConvergenceContractError(
+            "pull_request feat: convergence context requires a positive decimal PR number"
+        )
+    return number
+
+
+def _include_current_feature_pr(
+    observed_features: tuple[int, ...],
+    current_feature_pr: int | None,
+) -> tuple[int, ...]:
+    if current_feature_pr is None:
+        return observed_features
+    if (
+        not isinstance(current_feature_pr, int)
+        or isinstance(current_feature_pr, bool)
+        or current_feature_pr <= 0
+    ):
+        raise ConvergenceContractError("current_feature_pr must be a positive PR number")
+    return tuple(sorted(set((*observed_features, current_feature_pr))))
+
+
 def _required_string(value: Mapping[str, Any], field: str) -> str:
     raw = value.get(field)
     if not isinstance(raw, str) or not raw.strip():
@@ -273,6 +314,7 @@ def validate_contract(
     requested_tag: str = "",
     check_history: bool = False,
     history_ref: str = "HEAD",
+    current_feature_pr: int | None = None,
 ) -> tuple[str, ...]:
     root = Path(repository_root).resolve()
     errors: list[str] = []
@@ -407,7 +449,10 @@ def validate_contract(
 
         if check_history:
             messages = _history_messages(root, previous_commit, history_ref)
-            observed_features = collect_feature_prs(messages)
+            observed_features = _include_current_feature_pr(
+                collect_feature_prs(messages),
+                current_feature_pr,
+            )
             if observed_features != capability_prs:
                 raise ConvergenceContractError(
                     "capabilityPullRequests do not match actual post-release feat: history: "
@@ -439,6 +484,7 @@ def validate_repository_contract(
     requested_tag: str = "",
     check_history: bool = False,
     history_ref: str = "HEAD",
+    current_feature_pr: int | None = None,
 ) -> tuple[str, ...]:
     root = Path(repository_root).resolve()
     path = Path(contract_path)
@@ -454,6 +500,7 @@ def validate_repository_contract(
         requested_tag=requested_tag.strip(),
         check_history=check_history,
         history_ref=history_ref,
+        current_feature_pr=current_feature_pr,
     )
 
 
@@ -466,6 +513,7 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--requested-tag", default="")
     parser.add_argument("--check-history", action="store_true")
     parser.add_argument("--history-ref", default="HEAD")
+    parser.add_argument("--current-feature-pr", type=int, default=None)
     return parser.parse_args(argv)
 
 
@@ -477,6 +525,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         requested_tag=args.requested_tag,
         check_history=args.check_history,
         history_ref=args.history_ref,
+        current_feature_pr=args.current_feature_pr,
     )
     if errors:
         for error in errors:

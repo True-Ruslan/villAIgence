@@ -5,6 +5,9 @@ import net.conczin.mca.livingworld.relationship.NpcSocialGraphStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
@@ -85,6 +88,132 @@ class SettlementKnowledgeFlowLifecycleTest {
     }
 
     @Test
+    void positiveDirectedRouteIsPreferredOverLegacyNeutralTarget() {
+        Path world = tempDir.resolve("social-routing-preference");
+        UUID speaker = id(150);
+        UUID listenerA = id(151);
+        UUID listenerB = id(152);
+        UUID listenerC = id(153);
+        UUID sourceId = id(154);
+        long cycleTime = 3_600L;
+        List<UUID> residents = List.of(speaker, listenerA, listenerB, listenerC);
+
+        appendSourceFact(world, speaker, sourceId, "The western mill reopened");
+
+        SettlementKnowledgeFlowSelector.SelectionResult legacySelection =
+                SettlementKnowledgeFlowSelector.select(
+                        SemanticMemoryStore.forWorld(world),
+                        21,
+                        cycleTime,
+                        residents
+                );
+        SettlementKnowledgeFlowSelector.Opportunity legacyOpportunity =
+                legacySelection.opportunities().stream()
+                        .filter(value -> value.sourceSemanticEntryId().equals(sourceId))
+                        .findFirst()
+                        .orElseThrow();
+        UUID legacyNeutralTarget = legacyOpportunity.listenerNpcId();
+        UUID respectedTarget = residents.stream()
+                .filter(id -> !id.equals(speaker))
+                .filter(id -> !id.equals(legacyNeutralTarget))
+                .findFirst()
+                .orElseThrow();
+
+        NpcSocialGraphStore.forWorld(world).applyDelta(
+                speaker,
+                respectedTarget,
+                new NpcSocialDelta(0, 80, 0, 0),
+                100
+        );
+
+        SettlementKnowledgeFlowLifecycle.CycleResult result =
+                SettlementKnowledgeFlowLifecycle.runCycle(
+                        world,
+                        21,
+                        cycleTime,
+                        residents,
+                        64,
+                        64
+                );
+
+        assertEquals(1, result.successfulTransfers());
+        assertTrue(SemanticMemoryStore.forWorld(world).getRecent(respectedTarget, 64).stream()
+                .anyMatch(entry -> SemanticMemoryIdentity.canonicalStatement(entry.statement())
+                        .equals("the western mill reopened")));
+        assertTrue(SemanticMemoryStore.forWorld(world).getRecent(legacyNeutralTarget, 64).isEmpty());
+    }
+
+    @Test
+    void sameCycleSocialChangeCannotRetargetSuccessfulSourceToSecondListener() {
+        Path world = tempDir.resolve("social-routing-replay");
+        UUID speaker = id(160);
+        UUID listenerA = id(161);
+        UUID listenerB = id(162);
+        UUID listenerC = id(163);
+        UUID sourceId = id(164);
+        long cycleTime = 4_200L;
+        List<UUID> residents = List.of(speaker, listenerA, listenerB, listenerC);
+
+        appendSourceFact(world, speaker, sourceId, "The northern ford is passable");
+
+        SettlementKnowledgeFlowSelector.SelectionResult legacySelection =
+                SettlementKnowledgeFlowSelector.select(
+                        SemanticMemoryStore.forWorld(world),
+                        22,
+                        cycleTime,
+                        residents
+                );
+        UUID legacyNeutralTarget = legacySelection.opportunities().stream()
+                .filter(value -> value.sourceSemanticEntryId().equals(sourceId))
+                .findFirst()
+                .orElseThrow()
+                .listenerNpcId();
+        List<UUID> alternates = residents.stream()
+                .filter(id -> !id.equals(speaker))
+                .filter(id -> !id.equals(legacyNeutralTarget))
+                .toList();
+        UUID firstPositiveTarget = alternates.get(0);
+        UUID secondPositiveTarget = alternates.get(1);
+
+        NpcSocialGraphStore social = NpcSocialGraphStore.forWorld(world);
+        social.applyDelta(
+                speaker,
+                firstPositiveTarget,
+                new NpcSocialDelta(0, 80, 0, 0),
+                100
+        );
+
+        SettlementKnowledgeFlowLifecycle.CycleResult first =
+                SettlementKnowledgeFlowLifecycle.runCycle(
+                        world, 22, cycleTime, residents, 64, 64);
+        assertEquals(1, first.successfulTransfers());
+        assertEquals(1, listenersKnowing(world, speaker, residents, "the northern ford is passable"));
+
+        social.applyDelta(
+                speaker,
+                firstPositiveTarget,
+                new NpcSocialDelta(0, -80, 0, 0),
+                100
+        );
+        social.applyDelta(
+                speaker,
+                secondPositiveTarget,
+                new NpcSocialDelta(0, 80, 0, 0),
+                100
+        );
+
+        SettlementKnowledgeFlowLifecycle.CycleResult replay =
+                SettlementKnowledgeFlowLifecycle.runCycle(
+                        world, 22, cycleTime, residents, 64, 64);
+
+        assertEquals(0, replay.successfulTransfers());
+        assertEquals(1, listenersKnowing(world, speaker, residents, "the northern ford is passable"));
+        assertTrue(SemanticMemoryStore.forWorld(world).getRecent(secondPositiveTarget, 64).stream()
+                .noneMatch(entry -> SemanticMemoryIdentity.canonicalStatement(entry.statement())
+                        .equals("the northern ford is passable")));
+    }
+
+    @Test
     void adverseSpeakerToListenerSocialStateSuppressesExactTransferWithoutFallback() {
         List<NpcSocialDelta> adverseStates = List.of(
                 new NpcSocialDelta(0, 0, 75, 0),
@@ -126,6 +255,102 @@ class SettlementKnowledgeFlowLifecycleTest {
                     .noneMatch(event -> event.type() == MemoryEvent.Type.DIALOGUE
                             && event.provenance() == MemoryEvent.Provenance.NPC_TOLD));
         }
+    }
+
+    @Test
+    void adverseLegacyRouteIsSkippedForDeterministicNeutralCandidate() {
+        Path world = tempDir.resolve("adverse-route-skip");
+        UUID speaker = id(280);
+        UUID listenerA = id(281);
+        UUID listenerB = id(282);
+        UUID listenerC = id(283);
+        UUID sourceId = id(284);
+        long cycleTime = 5_400L;
+        List<UUID> residents = List.of(speaker, listenerA, listenerB, listenerC);
+
+        appendSourceFact(world, speaker, sourceId, "The eastern ferry is operating");
+
+        SettlementKnowledgeFlowSelector.Opportunity legacyOpportunity =
+                SettlementKnowledgeFlowSelector.select(
+                                SemanticMemoryStore.forWorld(world),
+                                23,
+                                cycleTime,
+                                residents
+                        ).opportunities().stream()
+                        .filter(value -> value.sourceSemanticEntryId().equals(sourceId))
+                        .findFirst()
+                        .orElseThrow();
+
+        NpcSocialGraphStore.forWorld(world).applyDelta(
+                speaker,
+                legacyOpportunity.listenerNpcId(),
+                new NpcSocialDelta(0, 0, 80, 0),
+                100
+        );
+
+        SettlementKnowledgeFlowLifecycle.CycleResult result =
+                SettlementKnowledgeFlowLifecycle.runCycle(
+                        world, 23, cycleTime, residents, 64, 64);
+
+        assertEquals(1, result.successfulTransfers());
+        assertTrue(SemanticMemoryStore.forWorld(world)
+                .getRecent(legacyOpportunity.listenerNpcId(), 64)
+                .isEmpty());
+        assertEquals(
+                1,
+                listenersKnowing(world, speaker, residents, "the eastern ferry is operating")
+        );
+    }
+
+    @Test
+    void malformedSocialAuthoritySuppressesWholeOpportunityWithoutFallback() throws IOException {
+        Path world = tempDir.resolve("malformed-social-authority");
+        UUID speaker = id(290);
+        UUID listenerA = id(291);
+        UUID listenerB = id(292);
+        UUID listenerC = id(293);
+        UUID sourceId = id(294);
+        long cycleTime = 5_600L;
+        List<UUID> residents = List.of(speaker, listenerA, listenerB, listenerC);
+
+        appendSourceFact(world, speaker, sourceId, "The southern gate is guarded");
+
+        Path socialFile = world.resolve("livingworld").resolve("npc-social-graph.json");
+        Files.createDirectories(socialFile.getParent());
+        Files.writeString(
+                socialFile,
+                """
+                {
+                  "version": 1,
+                  "edges": {
+                    "not-a-canonical-edge": {
+                      "trust": 80,
+                      "respect": 0,
+                      "fear": 0,
+                      "affinity": 80
+                    }
+                  }
+                }
+                """,
+                StandardCharsets.UTF_8
+        );
+
+        SettlementKnowledgeFlowLifecycle.CycleResult result =
+                SettlementKnowledgeFlowLifecycle.runCycle(
+                        world, 24, cycleTime, residents, 64, 64);
+
+        assertEquals(1, result.opportunities());
+        assertEquals(1, result.sociallySuppressedTransfers());
+        assertEquals(0, result.attemptedTransfers());
+        assertEquals(0, result.successfulTransfers());
+        assertEquals(
+                0,
+                listenersKnowing(world, speaker, residents, "the southern gate is guarded")
+        );
+        assertTrue(residents.stream()
+                .filter(id -> !id.equals(speaker))
+                .flatMap(id -> MemoryEventStore.forWorld(world).getRecent(id, 64).stream())
+                .noneMatch(event -> event.provenance() == MemoryEvent.Provenance.NPC_TOLD));
     }
 
     @Test
@@ -222,6 +447,20 @@ class SettlementKnowledgeFlowLifecycleTest {
         assertEquals(1, listenerClaimsAfter);
         assertEquals(0, replay.successfulTransfers());
         assertTrue(replay.opportunities() <= 1);
+    }
+
+    private static long listenersKnowing(
+            Path world,
+            UUID speaker,
+            List<UUID> residents,
+            String canonicalStatement
+    ) {
+        return residents.stream()
+                .filter(id -> !id.equals(speaker))
+                .filter(id -> SemanticMemoryStore.forWorld(world).getRecent(id, 64).stream()
+                        .anyMatch(entry -> SemanticMemoryIdentity.canonicalStatement(entry.statement())
+                                .equals(canonicalStatement)))
+                .count();
     }
 
     private static void appendSourceFact(Path world, UUID speaker, UUID sourceId, String statement) {
